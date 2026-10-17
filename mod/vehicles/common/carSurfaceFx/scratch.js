@@ -132,14 +132,16 @@
       var u = (x + 0.5) / DR * 2 - 1, v = (y + 0.5) / DR * 2 - 1, d2 = u * u + v * v, o = (y * DR + x) * 4;
       var d = Math.sqrt(d2);
       var ring = d < 1 ? Math.max(0, 1 - Math.abs(d - 0.8) / 0.25) : 0;
-      var shade = ring * (0.25 + 0.35 * Math.max(0, (u + v) * 0.7)) + (d < 0.8 ? 0.05 : 0);
+      var shade = Math.min(0.9, ring * (0.55 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 0.8 ? 0.08 : 0));
       data.data[o] = data.data[o + 1] = data.data[o + 2] = 0;
       data.data[o + 3] = Math.min(255, shade * 255 * Math.min(1, (1 - d) * 5 + 0.0));
     }
     c.putImageData(data, 0, 0);
   })();
 
-  window.csfxNodes = function (rows) { CsfxPaintWater.setNodes(water, rows); };
+  var wdebug = 0;
+  window.csfxDebug = function (v) { wdebug = v; dirty = true; };                  // 1: the body nodes as red dots and the drops as big green discs, to see what reaches the paint
+  window.csfxNodes = function (rows) { CsfxPaintWater.setNodes(water, rows); dirty = true; };
   window.csfxWater = function (o) { for (var k in o) wp[k] = o[k]; };
 
   function frame(now) {
@@ -148,14 +150,19 @@
       CsfxPaintWater.step(water, dt, wp);
       live = CsfxPaintWater.alive(water);
     }
-    if (dirty || live > 0 || window.csfxWasLive) {
+    if (dirty || live > 0 || window.csfxWasLive || wdebug) {
       ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(sc, 0, 0);
       if (!palette) {
         for (var i = 0; i < water.n; i++) {
           if (!water.alive[i]) continue;
-          var R = Math.max(2, water.r[i] * W);
+          var R = Math.max(2, water.r[i] * W) * 1.6;
           ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
+          if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
+        }
+        if (wdebug && water.nodes) {
+          ctx.fillStyle = 'rgb(255,0,0)';
+          for (var k = 0; k < water.count; k++) ctx.fillRect(water.nodes[k * 9] * W - 2, water.nodes[k * 9 + 1] * W - 2, 4, 4);
         }
       }
       dirty = false;

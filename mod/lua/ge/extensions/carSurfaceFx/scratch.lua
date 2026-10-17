@@ -401,6 +401,16 @@ function M.water(id, p)
   veh:queueJSUITexture(TAG_B, ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(p.rain, p.wet, f.x, f.y, f.z))
 end
 
+-- carSurfaceFx_scratch.waterDebug(true): the player car's paint shows its body nodes as red dots and the running drops as big green discs (and sends the node map again)
+function M.waterDebug(on)
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  sendNodes(veh:getId())
+  veh:queueJSUITexture(TAG_B, 'csfxDebug(' .. (on and 1 or 0) .. ')')
+  local car = cars[veh:getId()]
+  return 'water debug ' .. tostring(on) .. ', nodes ' .. tostring(car and car.count or 'none') .. ', settings.water ' .. tostring(settings.water)
+end
+
 -- carSurfaceFx_scratch.buffOut(): every car's scratches and splats gone
 -- console helper: what each spawned car ended up with
 function M.status()

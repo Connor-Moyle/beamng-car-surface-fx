@@ -420,6 +420,7 @@ function M.debug(kind, value)
   for _, k in ipairs(rules.KINDS) do
     if kind == k then forcedDirt = forcedDirt or rules.dirtNew() forcedDirt[k] = value return k .. ' forced to ' .. value end
   end
+  if kind == 'paintwater' then return scratchOn() and carSurfaceFx_scratch.waterDebug(value > 0) or 'scratch module is not running' end
   if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
