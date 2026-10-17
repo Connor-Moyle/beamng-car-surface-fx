@@ -16,7 +16,8 @@ local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield' }   -- name part
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the cars are on
 local timer = 0
-local CLONE = '.cfxw'                        -- clone name: <material>.cfxw1..3
+local CLONE = '.cfxw'                        -- clone name: <material>.cfxw1..3 (.cfxa1..3 in the assign mode)
+local mode = 'fields'                        -- how clones are copied: 'fields' (getField/setField per field) or 'assign' (the engine's own field copy)
 local cars = {}                               -- vehicle id -> { mats = { { name, mapTo, msc = {...} } } }
 local ladders = {}                            -- material name -> what was read from it + have[rung]
 local queue = {}                              -- clones still to build: { name, rung }
@@ -74,13 +75,22 @@ local function buildRung(lad, r)
   local c = createObject('Material')
   if not c then return false end
   c.canSave = false
-  c:setField('mapTo', 0, lad.mapTo .. CLONE .. r)       -- own mapTo, so no car that spawns later binds to the clone
-  for k, v in pairs(lad.top) do
-    if v ~= nil and v ~= '' then c:setField(k, 0, tostring(v)) end
+  if mode == 'assign' then
+    local src = scenetree.findObject(lad.name)
+    local ok, err = pcall(function() c:assignFieldsFrom(src) end)
+    if not ok then log_('E', 'assignFieldsFrom failed: ' .. tostring(err)) return false end
+    c:setField('name', 0, cloneName)
+  else
+    for k, v in pairs(lad.top) do
+      if v ~= nil and v ~= '' then c:setField(k, 0, tostring(v)) end
+    end
   end
+  c:setField('mapTo', 0, lad.mapTo .. CLONE .. r)       -- own mapTo, so no car that spawns later binds to the clone
   for L = 0, rules.STAGES - 1 do
     local st = lad.stages[L]
-    for k, v in pairs(st) do c:setField(k, L, v) end
+    if mode ~= 'assign' then
+      for k, v in pairs(st) do c:setField(k, L, v) end
+    end
     if rules.isPaintStage(st) then
       for k, v in pairs(rules.wetFields(st, r)) do c:setField(k, L, v) end
     end
@@ -219,6 +229,34 @@ local function reset()
 end
 M.onClientEndMission = reset
 M.onExtensionUnloaded = reset
+
+-- every stage field of the original vs a clone: where they differ (the wet rungs differ in a few paint fields by design)
+function M.diff(name, cloneName)
+  local a, b = scenetree.findObject(name), scenetree.findObject(cloneName)
+  if not a or not b then return 'missing: ' .. tostring(a ~= nil) .. ' ' .. tostring(b ~= nil) end
+  local out = {}
+  for L = 0, rules.STAGES - 1 do
+    for _, k in ipairs(rules.STAGE_FIELDS) do
+      local x, y = tostring(a:getField(k, L)), tostring(b:getField(k, L))
+      if x ~= y then out[#out + 1] = string.format('L%d %s: [%s] vs [%s]', L, k, x, y) end
+    end
+  end
+  for _, k in ipairs(rules.TOP_FIELDS) do
+    local x, y = tostring(a:getField(k, 0)), tostring(b:getField(k, 0))
+    if x ~= y then out[#out + 1] = string.format('top %s: [%s] vs [%s]', k, x, y) end
+  end
+  return #out == 0 and 'identical' or table.concat(out, '
+')
+end
+
+-- carSurfaceFx.rebuild('assign'|'fields'): put the cars back to their paint, forget the clones and build them again that way
+function M.rebuild(m)
+  reset()
+  mode = m == 'assign' and 'assign' or 'fields'
+  CLONE = mode == 'assign' and '.cfxa' or '.cfxw'
+  ladders, built = {}, 0
+  return 'rebuilding with ' .. mode
+end
 
 -- carSurfaceFx.debug('rain', 1.0) forces the wetness; debug() puts the weather back
 function M.debug(kind, value)
