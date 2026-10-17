@@ -200,11 +200,14 @@ function M.isGlassName(name)
   return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true)
 end
 
--- the glass gets the water canvas as its detail normal map (the page animates it); a glass with a detail map of its own is left alone
+-- The glass takes the water canvas as its base colour DETAIL map: the engine resolves a '@tag' texture only for colour-type maps (a normal map or detail normal map
+-- gets the material's folder put in front of the name and fails), so the page draws the drops as light and dark shading around a neutral grey, which the shader adds to
+-- the glass colour (saturate(base + (detail*2-1) * strength)). A glass with a detail map of its own is left alone.
+M.glassNeutral, M.glassStrength = 128, 0.6                    -- the grey byte that changes nothing, and how strongly the shading shows (carSurfaceFx.tuneGlass)
 function M.glassFields(st, rung)
-  for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then return {} end end
-  if set(st.detailNormalMap) and st.detailNormalMap ~= M.GLASS_TAG then return {} end
-  return { detailNormalMap = M.GLASS_TAG, detailNormalMapStrength = '0.8', detailScale = M.glassScale }
+  for _, d in ipairs(DETAIL_MAPS) do if d ~= 'detailMap' and set(st[d]) then return {} end end
+  if set(st.detailMap) and st.detailMap ~= M.GLASS_TAG then return {} end
+  return { detailMap = M.GLASS_TAG, detailBaseColorMapStrength = string.format('%.2f', M.glassStrength), detailScale = M.glassScale }
 end
 
 -- (x, y): the direction that is DOWN the glass in the glass material's UV space; differs per car, set with carSurfaceFx.tuneGlass

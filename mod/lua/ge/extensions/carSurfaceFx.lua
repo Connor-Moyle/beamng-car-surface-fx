@@ -17,7 +17,7 @@ local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
-local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
+local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale', 'detailMap', 'detailBaseColorMapStrength' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -97,7 +97,7 @@ local function canvases(info, on)
   for i = 0, be:getObjectCount() - 1 do
     local veh = be:getObject(i)
     if veh and wears(veh, info.name) then
-      if on and not hasCanvas(veh) then veh:createUITexture(rules.GLASS_TAG, GLASS_PAGE, GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
+      if on and not hasCanvas(veh) then log_('I', 'water canvas for car ' .. veh:getID() .. ' (' .. info.name .. ')') veh:createUITexture(rules.GLASS_TAG, GLASS_PAGE, GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
       elseif not on and hasCanvas(veh) then veh:destroyUITexture(rules.GLASS_TAG) end
     end
   end
@@ -115,7 +115,7 @@ local function setRung(info, r)
       local wetF = r > 0 and (info.glass and rules.glassFields(st, r) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(WET_KEYS) do
         local v = wetF[k] or st[k]
-        if v == nil and k == 'detailNormalMap' then v = '' end
+        if v == nil and (k == 'detailNormalMap' or (info.glass and k == 'detailMap')) then v = '' end
         if v ~= nil then m:setField(k, L, v) end
       end
     end
@@ -286,7 +286,7 @@ function M.pushGlass(car, mo)
   if not bound then return end
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
   local p = { rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat, wiper = wiperForced or wiperBy[car.veh:getID()] or 0,
-    gx = rules.glassAxis.x, gy = rules.glassAxis.y }
+    gx = rules.glassAxis.x, gy = rules.glassAxis.y, neutral = rules.glassNeutral }
   car.veh:queueJSUITexture(rules.GLASS_TAG, 'csfxSet(' .. jsonEncode(p) .. ')')
 end
 
@@ -405,17 +405,20 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1', '1 1'): the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- carSurfaceFx.tuneGlass('0 1', '1 1', 0.6, 128): (axis, scale, how strong the shading shows, the grey byte that changes nothing: if the whole glass goes dark or light try 190 or 90)
+-- the axis the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up) and the detail scale (a bigger number = smaller drops, repeated)
-function M.tuneGlass(axis, scale)
+function M.tuneGlass(axis, scale, strength, neutral)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
     if l > 0 then rules.glassAxis = { x = tonumber(x) / l, y = tonumber(y) / l } end
   end
   if scale then rules.glassScale = tostring(scale) end
+  rules.glassStrength = tonumber(strength) or rules.glassStrength
+  rules.glassNeutral = tonumber(neutral) or rules.glassNeutral
   for _, info in pairs(mats) do if info.glass and info.rung > 0 then info.rung = -1 end end   -- bind again at the next tick with the new scale
-  return string.format('glass down = %.2f %.2f, scale %s', rules.glassAxis.x, rules.glassAxis.y, rules.glassScale)
+  return string.format('glass down = %.2f %.2f, scale %s, strength %.2f, neutral grey %d', rules.glassAxis.x, rules.glassAxis.y, rules.glassScale, rules.glassStrength, rules.glassNeutral)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials

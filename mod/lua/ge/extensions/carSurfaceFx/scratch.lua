@@ -91,8 +91,8 @@ local function paintLayers(veh)
   local out = {}
   for _, nm in ipairs(veh:getMaterialNames() or {}) do
     local mat = scenetree.findObject(nm)
-    if mat and mat:getClassName() == 'Material' and not truthy(mat:getField('translucent', 0)) then
-      for layer = 0, (tonumber(mat.activeLayers) or 1) - 1 do
+    if mat and tostring(mat:getClassName()):lower() == 'material' and not truthy(mat:getField('translucent', 0)) then
+      for layer = 0, (tonumber(mat:getField('activeLayers', 0)) or tonumber(mat.activeLayers) or 1) - 1 do
         local done = bound[nm] and bound[nm][layer]
         local pal, base = done and done.colorPaletteMap or field(mat, 'colorPaletteMap', layer), done and done.baseColorMap or field(mat, 'baseColorMap', layer)
         local inst = truthy(mat:getField('instanceDiffuse', layer))
@@ -309,23 +309,50 @@ end
 -- carSurfaceFx_scratch.buffOut(): every car's scratches and splats gone
 -- console helper: what each spawned car ended up with
 function M.status()
+  local out = {}
   for _, veh in ipairs(getAllVehicles()) do
     local id = veh:getId()
     local car = cars[id]
     local s = not car and 'not set up (not the player car, or the feature is off)' or car.building and 'reading its mesh...'
       or car.none or ('ready - %d body nodes mapped onto the paint'):format(car.count)
-    log('I', logTag, ('vehicle %d (%s): %s'):format(id, tostring(veh.JBeam), s))
+    out[#out + 1] = ('vehicle %d (%s): %s'):format(id, tostring(veh.JBeam), s)
+    log('I', logTag, out[#out])
   end
+  return table.concat(out, '\n')
+end
+
+-- why a car is (not) set up: every material of the player car with what the paint test sees, and the mapper's state
+function M.diagnose()
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  local out = { ('settings enabled=%s dirtEnabled=%s allVehicles=%s; mapper busy=%s; canvas=%s'):format(tostring(settings.enabled), tostring(settings.dirtEnabled),
+    tostring(settings.allVehicles), tostring(carSurfaceFx_meshuv and carSurfaceFx_meshuv.busy and carSurfaceFx_meshuv.busy()), tostring(hasCanvas(veh))) }
+  local car = cars[veh:getId()]
+  out[#out + 1] = 'car state: ' .. (not car and 'nil (start() never ran)' or car.building and 'building' or car.none or ('ready, %d nodes'):format(car.count))
+  out[#out + 1] = ('paintLayers found: %d'):format(#paintLayers(veh))
+  for _, nm in ipairs(veh:getMaterialNames() or {}) do
+    local mat = scenetree.findObject(nm)
+    if mat then
+      local line = ('%s class=%s translucent=%s activeLayers=%s'):format(nm, tostring(mat:getClassName()), field(mat, 'translucent', 0), field(mat, 'activeLayers', 0))
+      for layer = 0, 1 do
+        line = line .. (' | L%d pal=%s base=%s inst=%s palBase=%s'):format(layer, field(mat, 'colorPaletteMap', layer):match('[^/]*$'), field(mat, 'baseColorMap', layer):match('[^/]*$'),
+          field(mat, 'instanceDiffuse', layer), field(mat, 'paletteBaseColor', layer))
+      end
+      if line:find('pal=[^ ]') and not line:find('pal= ') then out[#out + 1] = line end
+    end
+  end
+  return table.concat(out, '\n')
 end
 
 -- drop a few test scratches + dirt on the player car without needing a crash (console / Debug tab)
 function M.test()
   local veh = getPlayerVehicle(0)
   local car = veh and cars[veh:getId()]
-  if not car or not car.lut then log('W', logTag, 'player car is not set up yet - see carSurfaceFx_scratch.status()'); return end
+  if not car or not car.lut then log('W', logTag, 'player car is not set up yet - see carSurfaceFx_scratch.status()'); return 'player car is not set up yet: ' .. M.status() end
   local ids = tableKeys(car.lut)
   for i = 1, 60 do M.hit(veh:getId(), ids[random(#ids)], 4000 + random() * 12000, 3 + random() * 10, random() - 0.5, random() - 0.5, (random() - 0.5) * 0.4) end
   for wi in pairs(car.wheels or {}) do for i = 1, 6 do M.wheelDirt(veh:getId(), wi) end end
+  return '60 scratches and wheel dirt drawn'
 end
 
 -- ---- lifecycle ----

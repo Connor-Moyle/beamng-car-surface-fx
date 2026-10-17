@@ -51,8 +51,8 @@ eq(R.isGlassName('vivace_glass'), true, 'glass')
 eq(R.isGlassName('vivace_glass_dmg'), false, 'damaged glass is a different material')
 eq(R.isGlassName('vivace_main'), false, 'paint')
 local gf = R.glassFields({}, 1)
-eq(gf.detailNormalMap, R.GLASS_TAG, 'the water canvas on plain glass')
-eq(R.glassFields({ detailMap = '/x.png' }, 1).detailNormalMap, nil, 'glass with its own detail map is left alone')
+eq(gf.detailMap, R.GLASS_TAG, 'the water canvas on plain glass')
+eq(R.glassFields({ detailMap = '/x.png' }, 1).detailMap, nil, 'glass with its own detail map is left alone')
 -- dirt
 local paint = { baseColor = { 0.4, 0.58, 0.07, 1 }, metallic = 0.8, roughness = 0.65, clearcoat = 1, clearcoatRoughness = 0.1 }
 local none = R.dirtPaint(paint, R.dirtNew())
