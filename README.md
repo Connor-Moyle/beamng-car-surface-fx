@@ -12,6 +12,9 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
   - *Road grime* is a slow film from driving on tarmac, faster in the wet.
 
   The paint takes the tint of whatever the car has collected, and the gloss goes with it. Dirt splats also build up around the wheel arches.
+- **Snow.** When it snows (precipitation with the air below 1.5 C) snow settles on the roof and hood of a car that stands, is mostly blown off above 8 m/s, and melts slowly when it is warm. Rain and a car wash take it off.
+- **Frost.** On a cold night (air below 2 C, engine cold) the windows frost over, on the outside glass and on the windscreen in the driver's view. It clears as the engine warms up, and rain clears it too.
+- **Bugs.** Fast driving in the dry leaves small dark splats on the nose; rain, water and a car wash take them off.
 - **Washing.** Rain washes the dirt off slowly (dust fastest, rubber hardly at all), driving through water and puddles washes it faster, and a car wash takes everything off.
 - **Scratches.** Hard scrapes against walls and barriers leave real scratch marks where the body touched, in the direction it slid. Scratches stay until the car is repaired; washing never removes them.
 
@@ -44,7 +47,7 @@ How wet the car gets follows the weather: from Street Legal's wetness when that 
 
 Run in the game's Lua console.
 
-- `carSurfaceFx.debug('rain', 1.0)` forces the wetness; `carSurfaceFx.debug('dust'|'mud'|'rubber'|'grime', 0.8)` forces a dirt amount; `carSurfaceFx.debug('wiper', 1)` forces the wipers; `carSurfaceFx.debug()` puts the real weather back.
+- `carSurfaceFx.debug('rain', 1.0)` forces the wetness; `carSurfaceFx.debug('dust'|'mud'|'rubber'|'grime', 0.8)` forces a dirt amount; `carSurfaceFx.debug('wiper', 1)` forces the wipers; `carSurfaceFx.debug('snow'|'bugs', 0.8)` forces the amount of snow or bugs on the car, `debug('snowing', 1)` makes it snow, `debug('frost', 0.8)` forces frost, `debug('air', -5)` forces the air temperature in C; `carSurfaceFx.debug()` puts the real weather back.
 - `carSurfaceFx.wash()` cleans the dirt of your car; `carSurfaceFx.repair()` buffs out its scratches.
 - `carSurfaceFx.status()` shows what the mod is doing.
 - `carSurfaceFx.tune('12 12', 0.35)` sets the size and strength of the beads on the paint; `carSurfaceFx.tuneGlass('0 1', 3.0)` sets which direction is down on the glass (`'1 0'`, `'-1 0'`, `'0 -1'` if the water runs sideways or up) and the drop size; `carSurfaceFx.tuneScreen(3)` sets the drop size of the driver's view.

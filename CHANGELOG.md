@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 (in progress)
+
+- Snow (settles on roof and hood, blows off at speed, melts), frost (glass and the driver's view, clears with the engine), bugs (on the nose after fast dry driving). Options switch "Snow, frost and bugs", settings `weather.snow/frost/bugs`, debug forcing.
+- Dirt kinds `snow` and `bugs` join `getState/setState`.
+
 ## 0.2.0
 
 - Window drops: a web canvas per car and window material, drops land, merge, run, are pushed by speed and G-force and swept by the wipers; size and density follow the rain.
