@@ -22,6 +22,7 @@ local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
+local flood = 0                           -- debug: the window canvases solid (carSurfaceFx.debug('flood', 1))
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
 local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime } 0..1 built up by driving (settings.mud.buildup)
 local forcedDirt                          -- the debug amounts { kind = value }
@@ -293,7 +294,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses }) .. ')')
+        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -396,12 +397,13 @@ function M.onExtensionUnloaded() reset() stopScratch() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced = nil, nil, nil return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced, flood = nil, nil, nil, 0 return 'debug cleared' end
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   for _, k in ipairs(rules.KINDS) do
     if kind == k then forcedDirt = forcedDirt or rules.dirtNew() forcedDirt[k] = value return k .. ' forced to ' .. value end
   end
+  if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
@@ -436,6 +438,20 @@ function M.tune(scale, strength)
   rules.beadStrength = tonumber(strength) or rules.beadStrength
   for _, info in pairs(mats) do if info.rung > 0 then setRung(info, info.rung) end end
   return 'beads ' .. rules.beadScale .. ' strength ' .. rules.beadStrength
+end
+
+-- carSurfaceFx.glassInfo(): the player car's window materials: which meshes use each, the slot the canvas goes in, and whether it is bound
+function M.glassInfo()
+  local veh = getPlayerVehicle(0)
+  local out = {}
+  for _, name in ipairs(veh and veh:getMaterialNames() or {}) do
+    if rules.isGlassName(name) or name:lower():find('glass', 1, true) then
+      local info = mats[name]
+      out[#out + 1] = string.format('%s mapTo=%s mode=%s bound=%s meshes=[%s]', name, info and info.mapTo or '?', info and info.mode or '-', tostring(info and info.rung or '-'),
+        veh:getMeshesContainingMaterial(info and info.mapTo or name) or '')
+    end
+  end
+  return table.concat(out, '\n')
 end
 
 function M.status()

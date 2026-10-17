@@ -9,7 +9,7 @@
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
   var sim = CsfxSim.create();
-  var p = { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1 };
+  var p = { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
   var emissive = q('mode') === 'emissive', basePath = q('base');
@@ -69,6 +69,7 @@
     CsfxSim.step(sim, dt, p);
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(bg, 0, 0);
+    if (p.flood > 0) { ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,0)'; ctx.fillRect(0, 0, W, H); }      // debug: the whole map solid, to see which surface uses it
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     for (var i = 0; i < sim.n; i++) {
       if (!sim.alive[i]) continue;
