@@ -245,8 +245,7 @@ function M.diff(name, cloneName)
     local x, y = tostring(a:getField(k, 0)), tostring(b:getField(k, 0))
     if x ~= y then out[#out + 1] = string.format('top %s: [%s] vs [%s]', k, x, y) end
   end
-  return #out == 0 and 'identical' or table.concat(out, '
-')
+  return #out == 0 and 'identical' or table.concat(out, ' | ')
 end
 
 -- carSurfaceFx.rebuild('assign'|'fields'): put the cars back to their paint, forget the clones and build them again that way
