@@ -46,7 +46,7 @@ M.TOP_FIELDS = { 'version', 'translucent', 'translucentBlendOp', 'translucentRec
   'materialTag2', 'materialTag3', 'detailMapScale0' }
 M.STAGES = 4
 local DETAIL_MAPS = { 'detailMap', 'roughnessDetailMap', 'metallicDetailMap', 'opacityDetailMap' }   -- other detail maps share detailScale: leave those stages alone
-M.beadScale, M.beadStrength = '6 6', 0.6               -- tunable (carSurfaceFx.tune): how big and how strong the water beads are
+M.beadScale, M.beadStrength = '6 6', 0.4               -- tunable (carSurfaceFx.tune): how big and how strong the water beads are
 
 local function set(v) return v ~= nil and v ~= '' end
 
@@ -108,13 +108,17 @@ function M.wetFields(st, rung)
   return out
 end
 
--- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with dirt d (0..1) on it: browner, flat, no gloss.
-local DIRT = { 0.30, 0.22, 0.14 }
+-- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with dirt d (0..1) on it. Low dirt is a light tan dust and
+-- barely changes the paint (k = d^1.5); high dirt is dark mud that takes the gloss and the metal off.
+local DUST, MUD = { 0.55, 0.47, 0.36 }, { 0.30, 0.22, 0.14 }
 function M.dirtPaint(p, d)
-  local function mix(a, b) return a + (b - a) * d end
+  local k = d * math.sqrt(d)
   local c = p.baseColor
-  return { baseColor = { mix(c[1], DIRT[1]), mix(c[2], DIRT[2]), mix(c[3], DIRT[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * d),
-    roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - d), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
+  local tint = {}
+  for i = 1, 3 do tint[i] = DUST[i] + (MUD[i] - DUST[i]) * d end
+  local function mix(a, b) return a + (b - a) * k end
+  return { baseColor = { mix(c[1], tint[1]), mix(c[2], tint[2]), mix(c[3], tint[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * k),
+    roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - k), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
 end
 
 -- How much dirt a ground model puts on the car, by its name (core_environment.groundModels keys: MUD, DIRT, GRAVEL...).
@@ -133,5 +137,72 @@ end
 
 -- rain washes the car: ~7 min of full rain from dirty to clean
 function M.washStep(d, dt, wet) return clamp(d - (wet or 0) * dt / 420, 0, 1) end
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Windscreen drops: a fixed pool in screen fractions (x 0..1 left to right, y 0..1 top to bottom, r in screen heights). Pure, so it is tested here.
+-- ---------------------------------------------------------------------------------------------------------------------
+M.POOL = 150
+local SLIDE_R = 0.008                                   -- drops bigger than this run down the glass
+
+function M.dropsNew()
+  local d = { n = M.POOL, x = {}, y = {}, r = {}, alive = {}, sweep = 0, t = 0 }
+  for i = 1, M.POOL do d.x[i], d.y[i], d.r[i], d.alive[i] = 0, 0, 0, false end
+  return d
+end
+
+local function free(d)
+  for i = 1, d.n do if not d.alive[i] then return i end end
+end
+
+-- add a drop; one that lands on another merges into it (areas add)
+function M.dropAdd(d, x, y, r)
+  for i = 1, d.n do
+    if d.alive[i] then
+      local dx, dy = d.x[i] - x, d.y[i] - y
+      local rr = d.r[i] + r
+      if dx * dx + dy * dy < rr * rr then
+        local nr = math.sqrt(d.r[i] * d.r[i] + r * r)
+        d.x[i], d.y[i], d.r[i] = (d.x[i] * d.r[i] + x * r) / (d.r[i] + r), (d.y[i] * d.r[i] + y * r) / (d.r[i] + r), nr
+        return i
+      end
+    end
+  end
+  local i = free(d)
+  if not i then return nil end
+  d.x[i], d.y[i], d.r[i], d.alive[i] = x, y, r, true
+  return i
+end
+
+-- rain 0..1 (falling now), speed m/s, wiper 0..1 (0 off), rnd() -> 0..1
+function M.dropsStep(d, dt, rain, speed, wiper, rnd)
+  d.t = d.t + dt
+  local spawns = rain * 60 * (0.5 + clamp(speed / 30, 0, 1)) * dt
+  while spawns > 0 do
+    if spawns >= 1 or rnd() < spawns then
+      local q = rnd()
+      M.dropAdd(d, rnd(), rnd() * 0.95, 0.003 + 0.007 * q * q)
+    end
+    spawns = spawns - 1
+  end
+  local push = (speed / 40) * (speed / 40) * 0.12                       -- air pushes drops up the glass
+  for i = 1, d.n do
+    if d.alive[i] then
+      local r = d.r[i]
+      local vy = (r > SLIDE_R and 0.03 * (r / SLIDE_R) * (r / SLIDE_R) or 0) - (r > 0.005 and push or (speed > 8 and push * 0.5 or 0))
+      d.y[i] = d.y[i] + vy * dt
+      if r > SLIDE_R then d.x[i] = d.x[i] + (rnd() - 0.5) * 0.01 * dt end
+      if d.y[i] > 1.05 or d.y[i] < -0.05 then d.alive[i] = false end
+    end
+  end
+  if wiper > 0.05 then                                                   -- the blade sweeps left-right-left; whatever it crosses is wiped
+    local phase = (d.t * wiper * 0.9) % 2
+    local pos = phase < 1 and phase or 2 - phase
+    local lo, hi = math.min(d.sweep, pos), math.max(d.sweep, pos)
+    for i = 1, d.n do
+      if d.alive[i] and d.x[i] >= lo - 0.02 and d.x[i] <= hi + 0.02 and d.y[i] > 0.15 then d.alive[i] = false end
+    end
+    d.sweep = pos
+  end
+end
 
 return M

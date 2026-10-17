@@ -12,12 +12,14 @@ local TAG = 'carSurfaceFx'
 local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = false, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
+local pool = rules.dropsNew()                -- windscreen drops (screen fractions)
+local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value
 local dirtBy = {}                          -- vehicle id -> dirt 0..1 built up by driving (settings.mud.buildup)
 local forcedDirt                          -- the debug value
 local timer = 0
@@ -113,7 +115,7 @@ local function attach(id)
     end
   end
   cars[id] = car
-  if settings.mud.buildup then M.pushGround(veh) end
+  if settings.mud.buildup or settings.windscreen.enabled then M.pushGround(veh) end
   log_('I', string.format('car %d: %d paint materials', id, #car.mats))
 end
 
@@ -133,7 +135,8 @@ function M.pushGround(veh)
 end
 
 -- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua): ground weight under the wheels, speed, seconds covered
-function M.onGround(id, w, speed, dt)
+function M.onGround(id, w, speed, dt, wipers)
+  wiperBy[id] = wipers or 0
   if not (settings and settings.mud.buildup and settings.mud.enabled) then return end
   dirtBy[id] = rules.dirtStep(dirtBy[id] or 0, dt, w, speed, wet)
 end
@@ -182,11 +185,43 @@ local function targetWet()
 end
 
 local reset
+
+-- Windscreen drops: a 2D overlay (imgui background draw list) in the driver/onboard camera, fed by the pure pool in rules.lua
+local DRIVER_CAMS = { driver = true, onboard = true }
+local seed = 1
+local function rnd() seed = (seed * 16807) % 2147483647 return seed / 2147483647 end
+
+local function windscreen(dt)
+  local on = settings.windscreen.enabled and DRIVER_CAMS[core_camera and core_camera.getActiveCamName() or '']
+  local pv = be:getPlayerVehicle(0)
+  if not (on and pv) then
+    if pool.live then pool = rules.dropsNew() end     -- a fresh, empty pool for next time (allocated once per camera switch, not per frame)
+    return
+  end
+  pool.live = true
+  local rainNow = forced or rules.target(nil, core_environment.getPrecipitation())   -- the rain falling now, not the wetness that lingers
+  local speed = 0
+  pcall(function() speed = pv:getVelocity():length() end)
+  rules.dropsStep(pool, dt, rainNow * settings.windscreen.intensity, speed, wiperForced or wiperBy[pv:getID()] or 0, rnd)
+  local im = ui_imgui
+  local dl = im.GetBackgroundDrawList1()
+  local io = im.GetIO()
+  local w, h = io.DisplaySize.x, io.DisplaySize.y
+  local body, shine = im.GetColorU322(im.ImVec4(0.85, 0.92, 1, 0.14)), im.GetColorU322(im.ImVec4(1, 1, 1, 0.6))
+  for i = 1, pool.n do
+    if pool.alive[i] then
+      local px, py, pr = pool.x[i] * w, pool.y[i] * h, pool.r[i] * h
+      im.ImDrawList_AddCircleFilled(dl, im.ImVec2(px, py), pr, body, 12)
+      im.ImDrawList_AddCircleFilled(dl, im.ImVec2(px - pr * 0.3, py - pr * 0.35), pr * 0.28, shine, 8)
+    end
+  end
+end
 -- Enhanced Skid Marks' surfaceFXBody edits the same paint fields in place (roughness, clear coat, detail map): while it is loaded we stay out of its way
 local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
+  if settings.windscreen.enabled or pool.live then windscreen(dtReal) end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
     return
@@ -240,11 +275,20 @@ M.onExtensionUnloaded = reset
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt = nil, nil return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced = nil, nil, nil return 'debug cleared' end
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   if kind == 'mud' then forcedDirt = value return 'mud forced to ' .. value end
+  if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
+end
+
+-- carSurfaceFx.enable('windscreen', true) turns an effect on or off for this session (the settings file is not changed)
+function M.enable(effect, on)
+  if not (settings and settings[effect] and type(settings[effect]) == 'table') then return 'unknown effect' end
+  settings[effect].enabled = on and true or false
+  for _, car in pairs(cars) do M.pushGround(car.veh) end
+  return effect .. (on and ' on' or ' off')
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials
