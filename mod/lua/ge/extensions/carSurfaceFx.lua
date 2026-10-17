@@ -2,7 +2,9 @@
 -- Rain: the wet look goes on each body paint material in place (darker, glossier, shared water-bead normal detail), one material reload per change,
 -- spread over frames, and the original values are put back when it dries, on level change and on unload. Cars of one model share a material, so they
 -- get wet together. (Clones switched per car were tried and render chrome: the hidden per-car paint state does not reach a material made from Lua.)
--- Dirt: the car's own paint data (the same call the paint shop uses) is mixed toward dirt, per car, no reload.
+-- Dirt: the car's own paint data (the same call the paint shop uses) is mixed toward dirt, per car, no reload. With settings.mud.buildup the dirt grows
+-- while the wheels run on dirt/mud/sand/gravel/grass ground models (lua/vehicle/extensions/carSurfaceFxWheels.lua reports them), rain washes it off,
+-- carSurfaceFx.wash() cleans it (a car wash calls that).
 -- Wetness comes from sl_weather.wetness() when Street Legal runs, else from the rain object. Settings: <user>/settings/carSurfaceFx.json.
 -- Debug: carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value (debug() clears), carSurfaceFx.status(), carSurfaceFx.tune(scale, strength).
 local M = {}
@@ -10,13 +12,14 @@ local TAG = 'carSurfaceFx'
 local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1 }, scratch = { enabled = true, intensity = 1 }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
-local dirt, forcedDirt = 0, nil              -- dirt on the player car (debug only so far)
+local dirtBy = {}                          -- vehicle id -> dirt 0..1 built up by driving (settings.mud.buildup)
+local forcedDirt                          -- the debug value
 local timer = 0
 local cars = {}                               -- vehicle id -> { veh, mats = { info... }, dirt = last applied dirt }
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
@@ -32,6 +35,7 @@ local function loadSettings()
     if type(d) == 'table' and type(s[k]) == 'table' then
       if s[k].enabled ~= nil then settings[k].enabled = s[k].enabled and true or false end
       settings[k].intensity = rules.clamp(tonumber(s[k].intensity) or d.intensity, 0, 1)
+      if d.buildup ~= nil and s[k].buildup ~= nil then settings[k].buildup = s[k].buildup and true or false end
     elseif type(d) == 'boolean' and s[k] ~= nil then settings[k] = s[k] and true or false end
   end
 end
@@ -109,7 +113,36 @@ local function attach(id)
     end
   end
   cars[id] = car
+  if settings.mud.buildup then M.pushGround(veh) end
   log_('I', string.format('car %d: %d paint materials', id, #car.mats))
+end
+
+-- collision-type id -> dirt weight for the level's ground models, sent to the car's wheel watcher
+local function groundTable()
+  local t = {}
+  for name, gm in pairs(core_environment and core_environment.groundModels or {}) do
+    local w = rules.groundWeight(name)
+    local id = gm.cdata and gm.cdata.collisiontype
+    if w > 0 and id then t[#t + 1] = string.format('[%d]=%.2f', id, w) end
+  end
+  return '{' .. table.concat(t, ',') .. '}'
+end
+
+function M.pushGround(veh)
+  veh:queueLuaCommand('if not carSurfaceFxWheels then extensions.load("carSurfaceFxWheels") end carSurfaceFxWheels.setWeights(' .. groundTable() .. ')')
+end
+
+-- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua): ground weight under the wheels, speed, seconds covered
+function M.onGround(id, w, speed, dt)
+  if not (settings and settings.mud.buildup and settings.mud.enabled) then return end
+  dirtBy[id] = rules.dirtStep(dirtBy[id] or 0, dt, w, speed, wet)
+end
+
+-- a car wash (or anything else that cleans): carSurfaceFx.wash() cleans the player car, wash(id, 0.5) takes off half of one car's dirt
+function M.wash(id, amount)
+  id = id or be:getPlayerVehicleID(0)
+  dirtBy[id] = rules.clamp((dirtBy[id] or 0) - (amount or 1), 0, 1)
+  return 'dirt ' .. dirtBy[id]
 end
 
 local function originalPaints(id)
@@ -162,6 +195,9 @@ function M.onUpdate(dtReal)
   timer = 0
   wet = forced and forced or rules.wetStep(wet, targetWet(), dt)
   local want = rules.level(wet, rung)
+  if settings.mud.buildup and wet > 0 then
+    for id, d in pairs(dirtBy) do dirtBy[id] = rules.washStep(d, dt, wet) end
+  end
   for _, id in ipairs(wantedIds()) do
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
@@ -169,7 +205,7 @@ function M.onUpdate(dtReal)
       for _, info in ipairs(car.mats) do
         if info.rung ~= want and not info.pending then info.pending = true queue[#queue + 1] = { info, want } end
       end
-      local d = (forcedDirt or dirt) * settings.mud.intensity
+      local d = (forcedDirt or dirtBy[id] or 0) * settings.mud.intensity
       if not settings.mud.enabled then d = 0 end
       if math.abs(d - (car.dirt or 0)) > 0.02 or (d == 0 and (car.dirt or 0) > 0) then setDirt(id, car, d) end
     end
@@ -180,7 +216,7 @@ function M.onUpdate(dtReal)
   rung = want
 end
 
-function M.onVehicleDestroyed(id) cars[id] = nil end
+function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
@@ -189,7 +225,7 @@ local function reset()
   for id, car in pairs(cars) do
     if (car.dirt or 0) > 0 and be:getObjectByID(id) then setDirt(id, car, 0) end
   end
-  cars, queue, rung, wet, forced, forcedDirt, dirt = {}, {}, 0, 0, nil, nil, 0
+  cars, queue, rung, wet, forced, forcedDirt, dirtBy = {}, {}, 0, 0, nil, nil, {}
 end
 M.onClientEndMission = reset
 M.onExtensionUnloaded = reset
@@ -215,7 +251,8 @@ function M.status()
   local n, names = 0, {}
   for _ in pairs(cars) do n = n + 1 end
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung end
-  return string.format('wet %.2f rung %d forced %s dirt %s cars %d queue %d materials [%s]', wet, rung, tostring(forced), tostring(forcedDirt), n, #queue, table.concat(names, ' '))
+  local d = be:getPlayerVehicleID(0)
+  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d materials [%s]', wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, table.concat(names, ' '))
 end
 
 return M

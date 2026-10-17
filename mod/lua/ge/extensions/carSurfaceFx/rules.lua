@@ -117,4 +117,21 @@ function M.dirtPaint(p, d)
     roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - d), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
 end
 
+-- How much dirt a ground model puts on the car, by its name (core_environment.groundModels keys: MUD, DIRT, GRAVEL...).
+local GROUND = { { 'mud', 1 }, { 'clay', 0.7 }, { 'dirt', 0.6 }, { 'sand', 0.5 }, { 'gravel', 0.5 }, { 'grass', 0.25 }, { 'snow', 0.15 }, { 'rock', 0.15 } }
+function M.groundWeight(name)
+  local n = tostring(name):lower()
+  for _, g in ipairs(GROUND) do if n:find(g[1], 1, true) then return g[2] end end
+  return 0
+end
+
+-- dirt after dt seconds on ground of weight w at speed (m/s): full mud at speed takes ~90 s, wet ground builds faster
+function M.dirtStep(d, dt, w, speed, wet)
+  local rate = w * (0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)) * (1 + (wet or 0)) / 90
+  return clamp(d + rate * dt, 0, 1)
+end
+
+-- rain washes the car: ~7 min of full rain from dirty to clean
+function M.washStep(d, dt, wet) return clamp(d - (wet or 0) * dt / 420, 0, 1) end
+
 return M
