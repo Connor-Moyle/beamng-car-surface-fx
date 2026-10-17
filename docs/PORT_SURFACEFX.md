@@ -1,0 +1,56 @@
+# Port of Surface FX (Enhanced Skid Marks) into Car Surface FX
+
+Source: Connor's own mod "Surface FX" (forum: Enhanced Skidmarks), dev folder `C:\Dev\Enhanced Skid Marks` (README.txt, ROADMAP.md, MODDER_API.md, `lua/`), 5850 lines of Lua, ~70 texture folders. Porting his own code is fine. Everything below has to come over and work; the old app (`ui/modules/apps/dirtSkidMarks`) is replaced by the settings schema that the Mods menu reads.
+
+Status words: **DONE** (already in Car Surface FX), **PARTIAL**, **TODO**, **RESEARCH** (needs a finding from the game first), **DROP** (not carried over, with the reason).
+
+## 1. What is already in Car Surface FX
+
+| Old feature | Old files | CSFX | Status |
+|---|---|---|---|
+| Body dirt (paint tint, matte, build-up by what you drive on, wash) | `surfaceFXBody.lua`, `dirtSkidWheels.lua` (types) | `rules.lua` dirt kinds, `carSurfaceFx.lua`; per car through `liveUpdateVehicleColors`, not shared by model | DONE. Old types dirt/mud/snow/ice/tyrerubber/roadgrime; CSFX has dust, mud, rubber, grime, snow, bugs. **PARTIAL**: no separate `ice` kind (add as a tint of snow or its own kind), the "streaky grime detail texture" (`bodyfx/dirt_detail.png`, detailScale) is not used (CSFX uses bead normal maps for rain) |
+| Body scratches whole-car wear (gloss/rough build-up) | `surfaceFXBody.lua`, `dirtScratchBody.lua` | the real scratches below replace it | DROP (the old README itself calls it "easy to mistake for not working"); a faint wear level can be added if wanted |
+| Hi-Fi scratches and wheel-arch dirt splats on the paint | `surfaceFXHiFiScratch.lua`, `surfaceFXMeshUV.lua`, `dirtScratchHiFi.lua`, `canvas.html/js` | `carSurfaceFx/scratch.lua`, `meshuv.lua`, `scratch.html/js`, vehicle ext | DONE (ported earlier, PAGE_V 15) |
+| Wash off / buff out | UI buttons | `carSurfaceFx.wash()`, `repair()` | DONE (console + API; menu button comes with the schema) |
+| Coexistence | CSFX paused when `surfaceFXBody` exists | `conflict()` | **TODO**: invert it. When the old `dirtSkidMarks` mod is installed, CSFX tells the player once to remove it and its own versions run (the old one must not also run). |
+
+## 2. To port
+
+| # | Feature | Old files | How it worked | Notes for the port | Status |
+|---|---|---|---|---|---|
+| P1 | **Skid marks per surface** (dirt, sand, gravel, mud, grass, ice, snow, tarmac with takeover) | `dirtSkidWheels.lua` (vehicle, per wheel), `dirtSkidManager.lua` (ring buffers, DynamicDecalMgr draws) | wheel slip/spin gate, the surface from `contactMaterialID` through the ground model's collision type; a decal per wheel step, colour x texture; width/length/opacity/colour/texture per surface; ring buffer count = lifetime | new module `carSurfaceFx/marks.lua` (GE) + `carSurfaceFxMarks.lua` (vehicle). Reuse `rules.groundClass` mapping and extend it to the 8 surfaces. Per-surface settings, texture folders `art/decals/<surface>/` | TODO |
+| P2 | **Constant tyre tracks** ("Constant": faint always-on line on loose ground) | same | same machinery, `track*.png` textures, own width/opacity | with P1 | TODO |
+| P3 | **Take over the game's skid marks** (hide the black asphalt skids, mark everything ourselves) | `dirtSkidManager.lua` (`be:setGroundModel`/`resetGroundModels`) | a global switch | with P1; off by default; must restore the game's own | TODO |
+| P4 | **Terrain ruts** (decal along the wheel path on sand/mud/gravel/snow/dirt, baked dark middle and bright lips) | `dirtDeform.lua`, `dirtDeformWheels.lua`, `deform/rut.png` | ring buffer of rut segments, strength/width/length/count | module `ruts.lua`; same decal pipeline | TODO |
+| P5 | **Body scrape on the ground** (scuff where a panel hits the ground hard, sized to the touched area) | `dirtSkidBody.lua` (vehicle, wraps `onNodeCollision`), manager | gouge decal under the car | `terrain scratch/gouge marks`: connor-62's list item. Gouge textures `body/*.png`; sizing by contact area | TODO |
+| P6 | **Wall scratch on the ground** (streak at the base of a wall; concrete/metal/wood/generic each look different) | `dirtScratchBody.lua` (vehicle, classifies the hit), manager | decal at the wall base by material | classification by what was hit (`onNodeCollision` args); per-material colour + texture folders | TODO |
+| P7 | **Oil / coolant / fuel / exhaust drips and puddles**, driven by the car's real state | `dirtSkidDrips.lua` (vehicle: `damageTracker` leak keys `oilpanLeak`, `oilRadiatorLeak`, `radiatorLeak`, `coolantOverheating`, fuel tank), manager | drops fall, a parked leaking car builds a puddle; textured drops or particles; per fluid colour/opacity/size/fx | vehicle ext `carSurfaceFxDrips.lua`; the leaks come from the car's real damage state | TODO |
+| P8 | **Tyre grip on fluids** (real physics: wheel loses grip near a puddle) | `dirtGrip.lua` (`obj:setNodeFrictionSlidingCoefs`), manager (proximity maths) | GE finds the nearest puddle, pushes a multiplier, the vehicle side smooths and applies | off by default; per fluid strength + radius; skip deflated tyres | TODO |
+| P9 | **Glass shard piles on the ground** | `dirtGlass.lua` (wraps `beamstate.beamBroken`), `surfaceFXGlass.lua` | one pile per pane | module `glassPiles.lua`; opacity/size/count/colour | TODO |
+| P10 | **Crash debris** (bolts, plastic, glass, wood, rock chunks, own physics, billboards via `debugDrawer`) | `dirtDebris.lua` (vehicle: `onBeamBroke`, hard impacts), `surfaceFXDebris.lua` | point masses, ground bounce `be:getSurfaceHeightBelow`, `castRayStatic`; 6 kinds | module `debris.lua`; 13 settings (emission, thresholds, bounce, friction, lifetime, sizeMult, maxPieces, drawDist...) | TODO |
+| P11 | **Sparks** (metal grinding) | `dirtSparks.lua`, `surfaceFXSparks.lua` | `debugDrawer:drawLine` streaks | module `sparks.lua`; 10 settings | TODO |
+| P12 | **Custom surface names for map makers** (`dirtSkidMarks/<map>.json`) | `dirtSkidManager.lua` | mod folder JSON mapping ground model / collision type to a mark type | keep the format and the folder name (maps already ship it); also read `carSurfaceFx/` | TODO |
+| P13 | **Texture customisation** (drop a PNG in a surface folder, it shows up; per surface colour multiplied over a white-on-transparent texture; texture grids; body/drip/wall folders) | `scanVariants`, the app | folders rescanned when the menu opens | the schema has to carry texture lists per group (an enum of folder contents, rescanned) | TODO |
+| P14 | **Settings** | `fatkiwi_skidMarkEnhancer.json` and per-module files, ~120 values, the `app.js` UI | auto-generated tabs from a registry (`surfaceFX.lua`) | one settings schema for the Mods menu (connor-9e sends the shape), one file for the new modules; old files read once for migration | TODO |
+| P15 | **Modder API** (`surfaceFX.lua` registry, `surfaceFXStore.lua`, `MODDER_API.md`: third-party modules register tabs) | those | | keep the registry API compatible if other mods use it (check; probably none); schema replaces the UI half | TODO / decide |
+| P16 | **Debug tools** (master/per-system logging, test buttons `testDrips`, `surfaceFXGlass.test`, `surfaceFXDebris.test`, `surfaceFXSparks.test`, status dumps) | `surfaceFXDebug.lua` | | one `carSurfaceFx.debug`/`test` set; the QA script's sections use them | TODO |
+| P17 | **Others / traffic** (do AI cars lay marks too) | `others.enabled` | | follow `settings.traffic` | TODO |
+
+## 3. Research before the decal work
+
+| # | Question | Why | Status |
+|---|---|---|---|
+| R1 | **Decals must be lit and shaded** (scene light, shadow, wetness), not flat stickers | the old mod used `DynamicDecalMgr` decals coloured by `ColorF` x texture; connor-62's requirement is that all decals take scene lighting | RESEARCH (connor-19): what the dynamic-decal material/shader does today (lit? normal map? roughness?), which `Engine.Render.DynamicDecalMgr` fields exist (`material`, `normal` textures), whether decal materials can be pointed at a lit PBR material with a normal map (the ruts already bake lighting into the texture: a stand-in, not a solution), wetness response for decals |
+| R2 | How the new marks sit on wet ground (darker, glossy, puddle) | wetness is in `wet` already | RESEARCH, with R1 |
+| R3 | Ground model names/collision types on the 0.39 maps | surface detection must work on every base-game map | RESEARCH while writing P1 |
+| R4 | Cost: ring buffers (2000 skid + 3000 track + 800 drip + 600 wall + 2500 rut + 400 glass), draw distance 160 m | the old mod's numbers; check the frame cost in game | RESEARCH, connor-19 |
+
+## 4. Order
+
+1. P1+P2 with the decal-lighting finding from R1 (marks are the biggest part and set the pipeline for the rest).
+2. P7 drips with P8 grip; P5/P6 ground gouges and wall scratches; P4 ruts.
+3. P9 glass piles, P10 debris, P11 sparks.
+4. P12 map-maker names and P13 texture lists; P14 schema (when connor-9e's shape arrives); P3 takeover; P16 debug; P15 registry decision.
+5. A `csfx_qa.sh` section per feature with screenshots, as each lands.
+
+Every module follows the existing conventions: plain Lua without FFI, pure rules in `rules.lua` or a module of their own with fengari tests, `onUpdate` wrapped, nothing allocated per frame, state restored on unload, commits per feature on the `port-surfacefx` branch (worktree `C:\Dev\CSFX-wt-port`).
