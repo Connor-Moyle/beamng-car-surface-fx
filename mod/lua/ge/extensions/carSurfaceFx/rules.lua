@@ -228,6 +228,6 @@ end
 -- (x, y): the direction that is DOWN the glass in the glass material's UV space; differs per car, set with carSurfaceFx.tuneGlass
 M.glassAxis = { x = 0, y = 1 }
 M.glassTint, M.glassPasses = 0.5, 1                             -- colour glass: how dark the tint is drawn, how often the image is squared (see glass.js)
-M.glassSize = 2.0                                          -- drop size and density on the window canvas (a window covers only part of the texture)
+M.glassSize = 3.0                                          -- drop size and density on the window canvas (a window covers only part of the texture)
 
 return M
