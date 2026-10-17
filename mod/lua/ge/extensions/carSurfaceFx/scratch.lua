@@ -44,7 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local SIZE, FPS = 1024, 6   -- the engine caps a web texture near the screen size: 2048 came back part garbage
+local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
 local unpack = unpack or table.unpack
@@ -60,6 +60,7 @@ local function defaults()
     dirtOpacity = 0.45,
     dirtSize    = 0.045,                            -- splat radius, metres
     dirtRate    = 1.0,
+    water       = true,                             -- rain drops running over the paint
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
   }
 end
@@ -67,7 +68,7 @@ local settings = defaults()
 
 -- what each car has been marked with, kept GE-side (the canvas pages are write-only for us): scratch lines { x1, y1, x2, y2, width } and dirt splats { x, y, r, opacity, kind }
 -- (kind 1 = dust, 2 = mud), quantised and capped, so a car's marks can be saved (getState) and drawn again on a respawned car (restore, and after a mesh rebuild).
-local memory, replayAt = {}, {}
+local memory, replayAt, nodesAt = {}, {}, {}
 local MEMORY_CAP = 60
 local function mem(id)
   local m = memory[id]
@@ -211,6 +212,7 @@ local function start(veh)
     cars[id] = { lut = lut.nodes, count = lut.count, pos = pos, axes = axes, wheels = d.wheels, wheelPts = {} }
     for _, l in ipairs(layers) do if lut.mats[l.mapTo] then bind(l) end end
     ensureCanvases()
+    nodesAt[id] = os.clock() + 2                              -- the page gets the car's body-node map for the running drops once it is up
     if memory[id] then replayAt[id] = os.clock() + 2 end       -- a rebuilt car gets its marks drawn again once its pages are up
   end)
 end
@@ -375,6 +377,30 @@ local function replay(id)
   end
 end
 
+-- the body-node map for the running rain drops: per node its place on the texture (x, y as the marks use them), how a direction in the car's coordinates moves it, and the
+-- texture units per metre there (see paintwater.js)
+local function sendNodes(id)
+  local car, veh = cars[id], getObjectByID(id)
+  if not (car and car.lut and veh) then return end
+  local rows = {}
+  for _, e in pairs(car.lut) do
+    rows[#rows + 1] = q(e[1], 10000); rows[#rows + 1] = q(1 - e[2], 10000)
+    rows[#rows + 1] = q(e[3], 1000); rows[#rows + 1] = q(e[4], 1000); rows[#rows + 1] = q(e[5], 1000)
+    rows[#rows + 1] = q(-e[6], 1000); rows[#rows + 1] = q(-e[7], 1000); rows[#rows + 1] = q(-e[8], 1000)
+    rows[#rows + 1] = q(e[9], 10000)
+  end
+  veh:queueJSUITexture(TAG_B, 'csfxNodes(' .. jsonEncode(rows) .. ')')
+end
+
+-- carSurfaceFx_scratch.water(id, { rain, wet, speed, aLong, aLat }): the weather and the car's motion for the drops on the paint. The force on the water in the car's own
+-- coordinates (along its left / back / up lines): gravity, the car's acceleration thrown back at the water, and the wind of driving along the body.
+function M.water(id, p)
+  local car, veh = cars[id], getObjectByID(id)
+  if not (settings.water and car and car.lut and car.axes and veh and hasCanvas(veh)) then return end
+  local f = car.axes[1] * p.aLat + car.axes[2] * (p.aLong + p.speed * p.speed / 80) + car.axes[3] * -9.8
+  veh:queueJSUITexture(TAG_B, ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(p.rain, p.wet, f.x, f.y, f.z))
+end
+
 -- carSurfaceFx_scratch.buffOut(): every car's scratches and splats gone
 -- console helper: what each spawned car ended up with
 function M.status()
@@ -457,6 +483,10 @@ function M.onUpdate(dt)
     if active() and not cars[id] and (settings.allVehicles or id == player) then start(veh) end
   end
   ensureCanvases()
+  for id, t in pairs(nodesAt) do
+    local car, veh = cars[id], getObjectByID(id)
+    if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then sendNodes(id) nodesAt[id] = nil end
+  end
   for id, t in pairs(replayAt) do
     local car, veh = cars[id], getObjectByID(id)
     if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then replay(id) replayAt[id] = nil end
@@ -466,7 +496,7 @@ function M.onVehicleSpawned(id)
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
-function M.onVehicleDestroyed(id) cars[id] = nil memory[id] = nil replayAt[id] = nil end
+function M.onVehicleDestroyed(id) cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
 function M.onClientEndMission()   restoreAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 

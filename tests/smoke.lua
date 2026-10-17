@@ -7,9 +7,10 @@ function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
+local waterCalls, lastWater = 0, nil
 local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {}, 0, 0, nil, nil, nil
 extensions = {
-  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
+  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
     getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
     washSplats = function() washes = washes + 1 end } end,
   unload = function(n) _G[n] = nil end,
@@ -89,6 +90,7 @@ assert(M.status():find('mud 0%.[1-9]') or M.status():find('mud 1'), 'mud built: 
 assert(paintCalls > 0, 'the paint was updated')
 assert(started[1] == 'carSurfaceFx_meshuv' and started[2] == 'carSurfaceFx_scratch', 'the scratch module started, map first')
 assert(splats > 0, 'dirt splats were asked for on loose ground')
+assert(waterCalls > 0 and lastWater.rain >= 0 and lastWater.speed ~= nil, 'the paint water gets the weather and the motion')
 for _ = 1, 40 do M.onGround(7, 0, 0, 0, 0, 1, 5, 0.5, 0) tick(2) end   -- then through a river: washed
 assert(M.status():find('dust 0%.00 mud 0%.00'), 'water washed it: ' .. M.status())
 M.onGround(7, 0, 0, 1, 1, 0, 20, 0.5, 0)

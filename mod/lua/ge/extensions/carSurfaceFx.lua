@@ -16,7 +16,7 @@ local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -365,7 +365,13 @@ local function update(dtReal)
         if info.glass then w = (want > 0 and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
-      if id == be:getPlayerVehicleID(0) then M.pushGlass(car, mo) end
+      if id == be:getPlayerVehicleID(0) then
+        M.pushGlass(car, mo)
+        if scratchOn() then
+          local rain = forced or rules.target(nil, core_environment.getPrecipitation())
+          carSurfaceFx_scratch.water(id, { rain = rain * settings.rain.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat })
+        end
+      end
       local src = settings.mud.enabled and (forcedDirt or dirtBy[id]) or nil
       local d = rules.dirtNew()
       if src then for _, k in ipairs(rules.KINDS) do d[k] = (src[k] or 0) * settings.mud.intensity end end

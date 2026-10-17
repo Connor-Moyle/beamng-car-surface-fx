@@ -1,5 +1,5 @@
-// Car Surface FX - scratch and splat paint canvas (from Enhanced Skid Marks, changed to keep scratches and dirt splats apart). Runs inside a per-vehicle web texture;
-// every vehicle that gets marks has TWO of these pages, told apart by the ?m= in the URL:
+// Car Surface FX - scratch, splat and rain-drop paint canvas (from Enhanced Skid Marks, changed to keep scratches and dirt splats apart and to run water drops over the
+// paint). Runs inside a per-vehicle web texture; every vehicle that gets marks has TWO of these pages, told apart by the ?m= in the URL:
 //   ?m=b  the paint layer's BASE COLOUR map. starts white; marks are drawn in their real colour.
 //   ?m=p  the paint layer's COLOUR PALETTE map. starts solid red (= "paint colour 1 everywhere");
 //         marks are ERASED from it, because the shader shows the base colour un-tinted wherever
@@ -8,6 +8,8 @@
 // both pages, so the two always line up. Coordinates are 0..1 across the canvas.
 // The page remembers its scratches and its splats as two lists. Washing fades the splat list and redraws, so the scratches come back untouched;
 // repair empties the scratch list and redraws, so the dirt stays. New marks are drawn straight on top; a redraw puts the splats over the scratches.
+// Everything permanent is drawn on an off-screen canvas; the visible canvas is that plus, on the base page, the running rain drops (paintwater.js) on top, redrawn
+// only when something changed or a drop is moving.
 
 (function () {
   var canvas = document.getElementById('csfxScratchCanvas');
@@ -19,6 +21,11 @@
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
 
+  var sc = document.createElement('canvas');         // the permanent marks
+  sc.width = sc.height = W;
+  var sctx = sc.getContext('2d');
+  var dirty = true;
+
   // the engine reads this texture as LINEAR colour, so a plain sRGB value comes out washed-out: pre-darken it
   function ch(x) { return Math.round(Math.pow(Math.max(0, Math.min(1, x)), 2.2) * 255); }
   function rgba(c, a) { return 'rgba(' + ch(c[0]) + ',' + ch(c[1]) + ',' + ch(c[2]) + ',' + a + ')'; }
@@ -27,43 +34,46 @@
   // the palette), so any white left in the base under a part-erased palette reads as chalky, not as the colour.
   function ink(c, a) {
     if (!palette) a = 1 - Math.pow(1 - a, 4);
-    ctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = ctx.fillStyle = palette ? 'rgba(0,0,0,' + a + ')' : rgba(c, a);
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    sctx.strokeStyle = sctx.fillStyle = palette ? 'rgba(0,0,0,' + a + ')' : rgba(c, a);
   }
 
   function blank() {
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = palette ? '#f00' : '#fff';
-    ctx.fillRect(0, 0, W, W);
+    sctx.globalCompositeOperation = 'source-over';
+    sctx.fillStyle = palette ? '#f00' : '#fff';
+    sctx.fillRect(0, 0, W, W);
+    dirty = true;
   }
 
   // each scratch is a dark soft edge with the real colour down the middle, so it reads on light AND dark paint.
   function drawLines(o) {
-    ctx.lineCap = 'round';
+    sctx.lineCap = 'round';
     for (var pass = 0; pass < 2; pass++) {
       var edge = pass === 0;
       var k = dark ? 0.12 : (edge ? 0.3 : 1);
       ink([o.c[0] * k, o.c[1] * k, o.c[2] * k], edge ? o.a * 0.5 : o.a);
       for (var i = 0; i < o.l.length; i += 5) {
-        ctx.lineWidth = Math.max(1, o.l[i + 4] * W) + (edge ? 1.5 : 0);
-        ctx.beginPath();
-        ctx.moveTo(o.l[i] * W, o.l[i + 1] * W);
-        ctx.lineTo(o.l[i + 2] * W, o.l[i + 3] * W);
-        ctx.stroke();
+        sctx.lineWidth = Math.max(1, o.l[i + 4] * W) + (edge ? 1.5 : 0);
+        sctx.beginPath();
+        sctx.moveTo(o.l[i] * W, o.l[i + 1] * W);
+        sctx.lineTo(o.l[i + 2] * W, o.l[i + 3] * W);
+        sctx.stroke();
       }
     }
+    dirty = true;
   }
 
   // soft-edged dirt splats. base page ONLY: dirt just darkens/tints the paint. punching the palette too exposes the bare layer, which is as shiny as metal -
   // right for a scratch, but it made dirt look like chrome with a dark rim.
   function drawBlob(b) {
     if (palette) return;
-    ctx.globalCompositeOperation = 'source-over';
+    sctx.globalCompositeOperation = 'source-over';
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
-    var g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+    var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
     g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    sctx.fillStyle = g;
+    sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    dirty = true;
   }
 
   function redraw() {
@@ -101,14 +111,58 @@
     redraw();
   };
 
-  // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
-  window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
-
   // scratches buffed out, the dirt stays
   window.csfxRepair = function () { lines = []; redraw(); };
 
   // everything gone
   window.csfxClear = function () { lines = []; blobs = []; redraw(); };
 
+  // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
+  window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
+
+  // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
+  var water = CsfxPaintWater.create();
+  var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
+  var live = 0, last = performance.now();
+  var DR = 24, drop = document.createElement('canvas');            // one drop: a clear body with a darker rim, lower right darker still (what multiplies the paint colour)
+  drop.width = drop.height = DR;
+  (function () {
+    var c = drop.getContext('2d'), data = c.createImageData(DR, DR);
+    for (var y = 0; y < DR; y++) for (var x = 0; x < DR; x++) {
+      var u = (x + 0.5) / DR * 2 - 1, v = (y + 0.5) / DR * 2 - 1, d2 = u * u + v * v, o = (y * DR + x) * 4;
+      var d = Math.sqrt(d2);
+      var ring = d < 1 ? Math.max(0, 1 - Math.abs(d - 0.8) / 0.25) : 0;
+      var shade = ring * (0.25 + 0.35 * Math.max(0, (u + v) * 0.7)) + (d < 0.8 ? 0.05 : 0);
+      data.data[o] = data.data[o + 1] = data.data[o + 2] = 0;
+      data.data[o + 3] = Math.min(255, shade * 255 * Math.min(1, (1 - d) * 5 + 0.0));
+    }
+    c.putImageData(data, 0, 0);
+  })();
+
+  window.csfxNodes = function (rows) { CsfxPaintWater.setNodes(water, rows); };
+  window.csfxWater = function (o) { for (var k in o) wp[k] = o[k]; };
+
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.2); last = now;
+    if (!palette && water.nodes) {
+      CsfxPaintWater.step(water, dt, wp);
+      live = CsfxPaintWater.alive(water);
+    }
+    if (dirty || live > 0 || window.csfxWasLive) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(sc, 0, 0);
+      if (!palette) {
+        for (var i = 0; i < water.n; i++) {
+          if (!water.alive[i]) continue;
+          var R = Math.max(2, water.r[i] * W);
+          ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
+        }
+      }
+      dirty = false;
+      window.csfxWasLive = live > 0;                              // one more frame after the last drop is gone, to wipe it from the picture
+    }
+    requestAnimationFrame(frame);
+  }
   blank();
+  requestAnimationFrame(frame);
 })();

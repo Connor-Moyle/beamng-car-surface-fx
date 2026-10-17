@@ -8,13 +8,15 @@ const vm = require('vm');
 function page(query) {
   const ops = { strokes: 0, arcs: 0, fills: 0 };
   const ctx = new Proxy({}, {
-    get: (t, k) => (k === 'stroke' ? () => ops.strokes++ : k === 'fill' ? () => ops.arcs++ : k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'fillRect' ? () => ops.fills++ : () => {}),
+    get: (t, k) => (k === 'stroke' ? () => ops.strokes++ : k === 'fill' ? () => ops.arcs++ : k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'createImageData' ? (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) : k === 'fillRect' ? () => ops.fills++ : () => {}),
     set: () => true,
   });
   const canvas = { getContext: () => ctx };
   const win = {};
-  const sandbox = { window: win, document: { getElementById: () => canvas }, location: { search: query }, Math };
+  const sandbox = { window: win, document: { getElementById: () => canvas, createElement: () => ({ getContext: () => ctx }) }, location: { search: query }, Math,
+    performance: { now: () => 0 }, requestAnimationFrame: () => {}, Float32Array, Uint8Array };
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'paintwater.js'), 'utf8'), sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'scratch.js'), 'utf8'), sandbox);
   return { w: win, ops, reset: () => { ops.strokes = ops.arcs = ops.fills = 0; } };
 }
