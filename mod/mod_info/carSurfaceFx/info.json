@@ -1,0 +1,10 @@
+{
+  "name": "carSurfaceFx",
+  "title": "Car Surface FX",
+  "tagline": "Rain, dirt and scratches on the body of every car",
+  "description": "Universal weather and wear on the car body, at runtime, on stock and modded vehicles: the paint gets wet and beaded in the rain and dries again.",
+  "author": "Connor Moyle",
+  "version": "0.1.0",
+  "game_version": "0.39",
+  "category": "mods_of_mods"
+}
