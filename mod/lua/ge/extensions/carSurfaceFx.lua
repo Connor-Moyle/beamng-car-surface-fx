@@ -193,7 +193,7 @@ local function attach(id)
   end
   cars[id] = car
   if settings.mud.buildup or settings.windscreen.enabled then M.pushGround(veh) end
-  log_('I', string.format('car %d: %d paint materials', id, #car.mats))
+  log_('I', string.format('car %d: %d materials (paint and glass)', id, #car.mats))
 end
 
 -- collision-type id -> weight for the level's ground models, in three lists (loose ground, mud, road), sent to the car's wheel watcher
@@ -544,19 +544,21 @@ function M.setState(id, st)
   return 'state set on car ' .. tostring(id)
 end
 
--- carSurfaceFx.insideMode('color' | 'emissive'): which slot the INSIDE glass (names ending 'int') takes its canvas in; the glass is rebound at the next tick
-function M.insideMode(mode)
+-- carSurfaceFx.insideMode('color' | 'emissive') / outsideMode(...): which slot the INSIDE glass (names ending 'int') / the OUTSIDE glass takes its canvas in; rebound at the next tick
+local function setGlassMode(inside, mode)
   if mode ~= 'color' and mode ~= 'emissive' then return "use 'color' or 'emissive'" end
-  rules.insideMode = mode
+  if inside then rules.insideMode = mode else rules.outsideMode = mode end
   for _, info in pairs(mats) do
-    if info.glass and info.name:lower():find('int$') then
+    if info.glass and (info.name:lower():find('int$') ~= nil) == inside then
       if info.rung > 0 then canvases(info, false) end
       info.mode = mode
       if info.rung > 0 then info.rung = -1 end
     end
   end
-  return 'inside glass: ' .. mode
+  return (inside and 'inside' or 'outside') .. ' glass: ' .. mode
 end
+function M.insideMode(mode) return setGlassMode(true, mode) end
+function M.outsideMode(mode) return setGlassMode(false, mode) end
 
 -- carSurfaceFx.glassDouble(true|false): while wet, draw the outer window panes from behind too (so the cockpit sees their water); applies at the next bind
 function M.glassDouble(on)

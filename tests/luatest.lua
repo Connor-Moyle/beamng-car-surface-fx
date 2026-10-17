@@ -55,6 +55,9 @@ eq(R.glassFields({ baseColorMap = 'vehicles/vivace/vivace_glass_b.color.png' }, 
 eq(R.glassFields({}, '@csfx_x').baseColorMap, nil, 'glass without a tint map is left alone')
 eq(R.glassMode('vivace_glass_int'), 'emissive', 'inside glass uses its emissive map')
 eq(R.glassMode('vivace_glass'), 'color', 'outside glass uses its colour map')
+R.outsideMode = 'emissive'
+eq(R.glassMode('vivace_glass'), 'emissive', 'the outside mode can be switched')
+R.outsideMode = 'color'
 local inside = R.glassFields({ baseColorMap = '/b.png' }, '@csfx_x', 'emissive')
 eq(inside.emissiveMap, '@csfx_x', 'the canvas lights the inside glass')
 eq(inside.baseColorMap, nil, 'and leaves the tint')
