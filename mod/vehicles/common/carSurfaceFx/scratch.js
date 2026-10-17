@@ -155,6 +155,7 @@
     var dt = Math.min((now - last) / 1000, 0.2); last = now;
     try {
       if (!palette && water && water.nodes) {
+        if (wdebug) { wp.rain = 1; wp.wet = 1; }                                         // debug: rain on, whatever the game side says
         CsfxPaintWater.step(water, dt, wp);
         live = CsfxPaintWater.alive(water);
       }

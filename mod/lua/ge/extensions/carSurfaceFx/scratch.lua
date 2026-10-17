@@ -404,8 +404,10 @@ end
 -- coordinates (along its left / back / up lines): gravity, the car's acceleration thrown back at the water, and the wind of driving along the body.
 function M.water(id, p)
   local car, veh = cars[id], getObjectByID(id)
-  if not (settings.water and car and car.lut and car.axes and veh and hasCanvas(veh)) then return end
-  local f = car.axes[1] * p.aLat + car.axes[2] * (p.aLong + p.speed * p.speed / 80) + car.axes[3] * -9.8
+  if not (settings.water and car and car.lut and veh and hasCanvas(veh)) then return end
+  -- the car's own left / back / up lines when its reference nodes give them, else the jbeam axes (x left, y back, z up: gravity is right either way)
+  local ax = car.axes or { vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1) }
+  local f = ax[1] * p.aLat + ax[2] * (p.aLong + p.speed * p.speed / 80) + ax[3] * -9.8
   veh:queueJSUITexture(TAG_B, ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(p.rain, p.wet, f.x, f.y, f.z))
 end
 
@@ -416,7 +418,8 @@ function M.waterDebug(on)
   local pieces = sendNodes(veh:getId())
   veh:queueJSUITexture(TAG_B, 'csfxDebug(' .. (on and 1 or 0) .. ')')
   local car = cars[veh:getId()]
-  return 'water debug ' .. tostring(on) .. ', node map sent in ' .. tostring(pieces) .. ' pieces, nodes ' .. tostring(car and car.count or 'none') .. ', settings.water ' .. tostring(settings.water)
+  if on then veh:queueJSUITexture(TAG_B, 'csfxWater({rain:1,wet:1,fx:0,fy:0,fz:-9.8})') end
+  return 'water debug ' .. tostring(on) .. ', axes ' .. tostring(car and car.axes ~= nil) .. ', node map sent in ' .. tostring(pieces) .. ' pieces, nodes ' .. tostring(car and car.count or 'none') .. ', settings.water ' .. tostring(settings.water)
 end
 
 -- carSurfaceFx_scratch.buffOut(): every car's scratches and splats gone
