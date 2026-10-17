@@ -11,8 +11,11 @@ lualib.luaL_openlibs(L);
 const lp = (p) => JSON.stringify(path.join(root, p).replace(/\\/g, '/'));
 const setup = `package.path = ${lp('mod/lua/ge/extensions/?.lua')} .. ';' .. ${lp('mod/lua/common/?.lua')} .. ';' .. package.path`;
 if (lauxlib.luaL_dostring(L, to_luastring(setup)) !== lua.LUA_OK) throw new Error('setup failed');
-const status = lauxlib.luaL_dofile(L, to_luastring(path.join(root, 'tests', 'luatest.lua')));
-if (status !== lua.LUA_OK) {
-  console.error(to_jsstring(lua.lua_tostring(L, -1)));
-  process.exit(1);
+for (const t of ['luatest.lua', 'smoke.lua']) {
+  process.chdir(root);
+  const status = lauxlib.luaL_dofile(L, to_luastring(path.join('tests', t)));
+  if (status !== lua.LUA_OK) {
+    console.error(t + ': ' + to_jsstring(lua.lua_tostring(L, -1)));
+    process.exit(1);
+  }
 }

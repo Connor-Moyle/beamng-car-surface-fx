@@ -192,6 +192,7 @@ local function updateMotion(id, veh, dt)
   local m = motion[id]
   if not m then m = { vx = 0, vy = 0, vz = 0, aLong = 0, aLat = 0, speed = 0, init = false } motion[id] = m end
   local v, f = veh:getVelocity(), veh:getDirectionVector()
+  if not (v and f) then return m end
   if m.init and dt > 0 then
     local ax, ay, az = (v.x - m.vx) / dt, (v.y - m.vy) / dt, (v.z - m.vz) / dt
     local long = ax * f.x + ay * f.y + az * f.z
@@ -215,7 +216,7 @@ local reset
 -- Enhanced Skid Marks' body extension edits the same paint fields: pause while it is loaded
 local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
-function M.onUpdate(dtReal)
+local function update(dtReal)
   if not settings then loadSettings() end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
@@ -264,6 +265,20 @@ function M.onUpdate(dtReal)
   end
   rung = want
 end
+
+-- One error switches the mod off (everything put back) and is logged once, instead of repeating every frame; carSurfaceFx.resume() tries again.
+local failed
+function M.onUpdate(dtReal)
+  if failed then return end
+  local ok, err = pcall(update, dtReal)
+  if not ok then
+    failed = tostring(err)
+    log_('E', 'switched off after an error: ' .. failed .. ' (carSurfaceFx.resume() to try again)')
+    pcall(reset)
+  end
+end
+
+function M.resume() failed = nil return 'resumed' end
 
 function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
@@ -331,6 +346,7 @@ function M.tune(scale, strength)
 end
 
 function M.status()
+  if failed then return 'SWITCHED OFF after: ' .. failed end
   local n, names = 0, {}
   for _ in pairs(cars) do n = n + 1 end
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung .. (info.glass and string.format('(%.2f,%.2f %.0fms)', info.sx or 0, info.sy or 0, info.reloadMs or 0) or '') end
