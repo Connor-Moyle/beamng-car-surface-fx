@@ -6,8 +6,6 @@ local FRACTION = { 0.2, 0.4, 0.6, 0.8, 1 }             -- how wet each rung look
 local UP = { 0.05, 0.20, 0.40, 0.60, 0.80 }            -- wetness needed to climb to rung 1..5
 local HYST = 0.04                                      -- ...and how far it must fall below that to step back down
 M.DROPLETS = '/art/surfacefx/droplets%d.normal.png'   -- one per rung
-M.GLASS_TAG = '@csfx_glass'                           -- the per-car web canvas the glass takes its detail normal map from (vehicles/common/carSurfaceFx/glass.html)
-M.glassScale = '1 1'
 
 local function clamp(x, a, b) return x < a and a or (x > b and b or x) end
 M.clamp = clamp
@@ -197,17 +195,17 @@ end
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
 function M.isGlassName(name)
   local n = tostring(name):lower()
-  return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true)
+  return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
 end
 
--- The glass takes the water canvas as its base colour DETAIL map: the engine resolves a '@tag' texture only for colour-type maps (a normal map or detail normal map
--- gets the material's folder put in front of the name and fails), so the page draws the drops as light and dark shading around a neutral grey, which the shader adds to
--- the glass colour (saturate(base + (detail*2-1) * strength)). A glass with a detail map of its own is left alone.
-M.glassNeutral, M.glassStrength = 128, 0.6                    -- the grey byte that changes nothing, and how strongly the shading shows (carSurfaceFx.tuneGlass)
-function M.glassFields(st, rung)
-  for _, d in ipairs(DETAIL_MAPS) do if d ~= 'detailMap' and set(st[d]) then return {} end end
-  if set(st.detailMap) and st.detailMap ~= M.GLASS_TAG then return {} end
-  return { detailMap = M.GLASS_TAG, detailBaseColorMapStrength = string.format('%.2f', M.glassStrength), detailScale = M.glassScale }
+-- The glass takes its water from a per-car, per-material web canvas (vehicles/common/carSurfaceFx/glass.html) named '@csfx_<material>': the engine resolves a '@tag'
+-- texture only in the colour-type slots (baseColorMap, emissiveMap...), while a normal map or detail map name gets the material's folder put in front of it and fails.
+-- So the canvas REPLACES the glass's own base colour map: the page draws that image first (the original path is in its URL) and the drops on top.
+function M.glassTag(name) return '@csfx_' .. tostring(name):gsub('[^%w_]', '_') end
+
+function M.glassFields(st, tag)
+  if not set(st.baseColorMap) then return {} end                  -- no tint map to draw under the drops: leave this glass alone
+  return { baseColorMap = tag }
 end
 
 -- (x, y): the direction that is DOWN the glass in the glass material's UV space; differs per car, set with carSurfaceFx.tuneGlass

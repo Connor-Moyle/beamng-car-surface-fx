@@ -101,6 +101,9 @@
     redraw();
   };
 
+  // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
+  window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
+
   // scratches buffed out, the dirt stays
   window.csfxRepair = function () { lines = []; redraw(); };
 

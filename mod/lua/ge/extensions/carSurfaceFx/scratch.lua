@@ -341,7 +341,25 @@ function M.diagnose()
       if line:find('pal=[^ ]') and not line:find('pal= ') then out[#out + 1] = line end
     end
   end
+  out[#out + 1] = 'canvases on the car: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
+  for nm, layers in pairs(bound) do
+    local mat = scenetree.findObject(nm)
+    for layer, orig in pairs(layers) do
+      if type(orig) == 'table' and mat then
+        out[#out + 1] = ('bound %s L%d: now baseColorMap=%s colorPaletteMap=%s paletteBaseColor=%s (was %s / %s)'):format(nm, layer, field(mat, 'baseColorMap', layer), field(mat, 'colorPaletteMap', layer),
+          field(mat, 'paletteBaseColor', layer), tostring(orig.baseColorMap), tostring(orig.colorPaletteMap))
+      end
+    end
+  end
   return table.concat(out, '\n')
+end
+
+-- carSurfaceFx_scratch.probe(): a big red cross on the player car's canvases; if it never shows on the paint, the page or the binding does not reach the material
+function M.probe()
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  veh:queueJSUITexture(TAG_B, 'csfxProbe()'); veh:queueJSUITexture(TAG_P, 'csfxProbe()')
+  return 'probe sent; canvases: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
 end
 
 -- drop a few test scratches + dirt on the player car without needing a crash (console / Debug tab)

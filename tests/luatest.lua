@@ -50,9 +50,12 @@ eq(peel.detailNormalMap, '/art/surfacefx/droplets1.normal.png', 'beads replace t
 eq(R.isGlassName('vivace_glass'), true, 'glass')
 eq(R.isGlassName('vivace_glass_dmg'), false, 'damaged glass is a different material')
 eq(R.isGlassName('vivace_main'), false, 'paint')
-local gf = R.glassFields({}, 1)
-eq(gf.detailMap, R.GLASS_TAG, 'the water canvas on plain glass')
-eq(R.glassFields({ detailMap = '/x.png' }, 1).detailMap, nil, 'glass with its own detail map is left alone')
+eq(R.glassTag('vivace_glass'), '@csfx_vivace_glass', 'one canvas name per window material')
+eq(R.glassFields({ baseColorMap = 'vehicles/vivace/vivace_glass_b.color.png' }, '@csfx_x').baseColorMap, '@csfx_x', 'the canvas replaces the tint map')
+eq(R.glassFields({}, '@csfx_x').baseColorMap, nil, 'glass without a tint map is left alone')
+eq(R.isGlassName('vivace_glass_invisible'), false, 'invisible glass')
+eq(R.isGlassName('glass_cracks'), false, 'cracks')
+
 -- dirt
 local paint = { baseColor = { 0.4, 0.58, 0.07, 1 }, metallic = 0.8, roughness = 0.65, clearcoat = 1, clearcoatRoughness = 0.1 }
 local none = R.dirtPaint(paint, R.dirtNew())

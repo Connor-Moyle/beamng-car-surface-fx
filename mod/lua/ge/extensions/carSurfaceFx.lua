@@ -2,7 +2,7 @@
 -- Rain: the wet look goes on each body paint material in place (darker, glossier, shared water-bead normal detail), one material reload per change,
 -- spread over frames, and the original values are put back when it dries, on level change and on unload. Cars of one model share a material, so they
 -- get wet together. (Clones switched per car were tried and render chrome: the hidden per-car paint state does not reach a material made from Lua.)
--- Glass: the windows take their detail normal map from a web canvas per car (vehicles/common/carSurfaceFx/glass.html) that animates the drops: they land, merge,
+-- Glass: the windows take their base colour map from a web canvas per car and window (vehicles/common/carSurfaceFx/glass.html) that draws the original tint and animates the drops: they land, merge,
 -- run down, are pushed by speed and G-force, and the wipers sweep them off. No material reload per change: only binding it and putting it back costs one.
 -- Dirt: the car's own paint data (the same call the paint shop uses) is mixed toward dirt, per car, no reload. With settings.mud.buildup the dirt grows
 -- while the wheels run on dirt/mud/sand/gravel/grass ground models (lua/vehicle/extensions/carSurfaceFxWheels.lua reports them), rain washes it off,
@@ -17,7 +17,8 @@ local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
-local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale', 'detailMap', 'detailBaseColorMapStrength' }
+local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
+local GLASS_KEYS = { 'baseColorMap' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -29,7 +30,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_SIZE, GLASS_FPS = 1024, 15
+local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
 local function log_(level, msg) log(level, TAG, msg) end
@@ -68,7 +69,7 @@ end
 local function readMaterial(name)
   local mat = scenetree.findObject(name)
   if not mat then return nil end
-  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name) }
+  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name), tag = rules.glassTag(name) }
   if not info.mapTo or info.mapTo == '' then info.mapTo = name end
   info.version, info.translucent = mat:getField('version', 0), mat:getField('translucent', 0)
   for L = 0, rules.STAGES - 1 do
@@ -83,10 +84,12 @@ local function readMaterial(name)
 end
 
 -- every car that wears this (glass) material needs the canvas before the material points at it, or the glass renders garbage
-local function hasCanvas(veh)
-  for _, t in ipairs(veh:getActiveUITextureTagNames() or {}) do if t == rules.GLASS_TAG then return true end end
+local function hasCanvas(veh, tag)
+  for _, t in ipairs(veh:getActiveUITextureTagNames() or {}) do if t == tag then return true end end
   return false
 end
+
+local function urlEncode(str) return (tostring(str):gsub('[^%w%-_%.~/]', function(c) return string.format('%%%02X', c:byte()) end)) end
 
 local function wears(veh, name)
   for _, n in ipairs(veh:getMaterialNames() or {}) do if n == name then return true end end
@@ -97,8 +100,10 @@ local function canvases(info, on)
   for i = 0, be:getObjectCount() - 1 do
     local veh = be:getObject(i)
     if veh and wears(veh, info.name) then
-      if on and not hasCanvas(veh) then log_('I', 'water canvas for car ' .. veh:getID() .. ' (' .. info.name .. ')') veh:createUITexture(rules.GLASS_TAG, GLASS_PAGE, GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
-      elseif not on and hasCanvas(veh) then veh:destroyUITexture(rules.GLASS_TAG) end
+      if on and not hasCanvas(veh, info.tag) then
+        log_('I', 'water canvas ' .. info.tag .. ' for car ' .. veh:getID())
+        veh:createUITexture(info.tag, GLASS_PAGE .. '?base=' .. urlEncode(info.stages[0].baseColorMap or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
+      elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) end
     end
   end
 end
@@ -112,10 +117,10 @@ local function setRung(info, r)
   for L = 0, info.glass and 0 or rules.STAGES - 1 do      -- glass: its first stage only
     local st = info.stages[L]
     if info.glass or rules.isPaintStage(st) then
-      local wetF = r > 0 and (info.glass and rules.glassFields(st, r) or rules.wetFields(st, r)) or {}
-      for _, k in ipairs(WET_KEYS) do
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag) or rules.wetFields(st, r)) or {}
+      for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
-        if v == nil and (k == 'detailNormalMap' or (info.glass and k == 'detailMap')) then v = '' end
+        if v == nil and (k == 'detailNormalMap' or (info.glass and k == 'baseColorMap')) then v = '' end
         if v ~= nil then m:setField(k, L, v) end
       end
     end
@@ -281,13 +286,15 @@ end
 local ensureT = 0
 local rainT = 0                              -- seconds since the rain last washed the splats off
 function M.pushGlass(car, mo)
-  local bound = false
-  for _, info in ipairs(car.mats) do if info.glass and info.rung > 0 then bound = true end end
-  if not bound then return end
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
-  local p = { rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat, wiper = wiperForced or wiperBy[car.veh:getID()] or 0,
-    gx = rules.glassAxis.x, gy = rules.glassAxis.y, neutral = rules.glassNeutral }
-  car.veh:queueJSUITexture(rules.GLASS_TAG, 'csfxSet(' .. jsonEncode(p) .. ')')
+  local js
+  for _, info in ipairs(car.mats) do
+    if info.glass and info.rung > 0 then
+      js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y }) .. ')')
+      car.veh:queueJSUITexture(info.tag, js)
+    end
+  end
 end
 
 local function targetWet()
@@ -341,7 +348,7 @@ local function update(dtReal)
       local mo = updateMotion(id, car.veh, dt)
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = (want > 0 and settings.windscreen.enabled) and 1 or 0 end
+        if info.glass then w = (want > 0 and settings.windscreen.enabled and rules.glassFields(info.stages[0], info.tag).baseColorMap) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then M.pushGlass(car, mo) end
@@ -405,20 +412,15 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1', '1 1', 0.6, 128): (axis, scale, how strong the shading shows, the grey byte that changes nothing: if the whole glass goes dark or light try 190 or 90)
--- the axis the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
--- sideways or up) and the detail scale (a bigger number = smaller drops, repeated)
-function M.tuneGlass(axis, scale, strength, neutral)
+-- carSurfaceFx.tuneGlass('0 1'): the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- sideways or up)
+function M.tuneGlass(axis)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
     if l > 0 then rules.glassAxis = { x = tonumber(x) / l, y = tonumber(y) / l } end
   end
-  if scale then rules.glassScale = tostring(scale) end
-  rules.glassStrength = tonumber(strength) or rules.glassStrength
-  rules.glassNeutral = tonumber(neutral) or rules.glassNeutral
-  for _, info in pairs(mats) do if info.glass and info.rung > 0 then info.rung = -1 end end   -- bind again at the next tick with the new scale
-  return string.format('glass down = %.2f %.2f, scale %s, strength %.2f, neutral grey %d', rules.glassAxis.x, rules.glassAxis.y, rules.glassScale, rules.glassStrength, rules.glassNeutral)
+  return string.format('glass down = %.2f %.2f', rules.glassAxis.x, rules.glassAxis.y)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials

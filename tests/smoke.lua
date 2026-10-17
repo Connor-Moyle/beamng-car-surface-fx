@@ -27,7 +27,7 @@ local function material(name, glass, stages, mapTo)
 end
 local mats = {
   vivace_main = material('vivace_main', false, { [0] = { colorPaletteMap = '/null.png', clearCoatFactor = '1', detailNormalMap = '/peel.png', detailScale = '128 64' }, [1] = { baseColorMap = '/b.png' } }, 'vivace'),
-  vivace_glass = material('vivace_glass', true, { [0] = {} }, 'vivace_glass'),
+  vivace_glass = material('vivace_glass', true, { [0] = { baseColorMap = 'vehicles/vivace/vivace_glass_b.color.png' } }, 'vivace_glass'),
   vivace_wheel = material('vivace_wheel', false, { [0] = { colorPaletteMap = '/null.png' } }),
   licenseplate = material('licenseplate', false, { [0] = { colorPaletteMap = '/null.png' } }),
 }
@@ -69,8 +69,8 @@ local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
 M.debug('rain', 1.0)
 tick(40)                                                  -- rain climbs, glass and paint get their rungs, one reload per tick
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
-assert(mats.vivace_glass.fields[0].detailMap == '@csfx_glass', 'glass is bound to the water canvas')
-assert(tags['@csfx_glass'], 'the car has the canvas')
+assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
+assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
 assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
 assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
@@ -100,8 +100,8 @@ M.onExtensionUnloaded()
 assert(rawget(_G, 'carSurfaceFx_scratch') == nil, 'the scratch module is unloaded with the mod')
 assert(mats.vivace_main.fields[0].detailNormalMap == '/peel.png', 'the original orange peel is back: ' .. tostring(mats.vivace_main.fields[0].detailNormalMap))
 assert(mats.vivace_main.fields[0].detailScale == '128 64', 'the original detail scale is back')
-assert(mats.vivace_glass.fields[0].detailMap == '', 'the glass is unbound')
-assert(not tags['@csfx_glass'], 'the canvas is gone')
+assert(mats.vivace_glass.fields[0].baseColorMap == 'vehicles/vivace/vivace_glass_b.color.png', 'the glass has its own tint map back')
+assert(not tags['@csfx_vivace_glass'], 'the canvas is gone')
 assert(order[1] == 'canvas', 'the canvas existed before the material pointed at it')
 for _, l in ipairs(logs) do assert(not l:find('^E'), l) end
 print('carSurfaceFx smoke: ok, ' .. reloads .. ' reloads over the run')
