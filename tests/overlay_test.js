@@ -7,9 +7,9 @@ const { execFileSync } = require('child_process');
 
 execFileSync('node', [path.join(__dirname, '..', 'tools', 'build_overlay.js'), '--check'], { stdio: 'inherit' });     // the built file matches its sources
 
-const calls = { clip: 0, draws: 0, clears: 0, begin: 0 };
+const calls = { clip: 0, draws: 0, clears: 0, begin: 0, strokes: 0 };
 const ctx = new Proxy({}, {
-  get: (t, k) => (k === 'clip' ? () => calls.clip++ : k === 'drawImage' ? () => calls.draws++ : k === 'clearRect' ? () => calls.clears++ : k === 'beginPath' ? () => calls.begin++
+  get: (t, k) => (k === 'clip' ? () => calls.clip++ : k === 'drawImage' ? () => calls.draws++ : k === 'clearRect' ? () => calls.clears++ : k === 'beginPath' ? () => calls.begin++ : k === 'stroke' ? () => calls.strokes++
     : k === 'createImageData' ? (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) : () => {}),
   set: () => true,
 });
@@ -34,6 +34,20 @@ assert(o.sim().n > 0 && calls.draws > 5, 'drops are drawn (' + calls.draws + ' d
 let alive = 0;
 for (let i = 0; i < o.sim().n; i++) alive += o.sim().alive[i];
 assert(alive > 0, 'there are drops');
+
+assert(calls.strokes > 0, 'running drops leave thin streaks (' + calls.strokes + ' strokes)');
+
+// 30 frames a second at most: frames 10 ms apart draw about a third of them
+const c0 = calls.clears;
+for (let i = 0; i < 300; i++) { t += 10; rafCb(t); }
+assert(calls.clears - c0 < 120 && calls.clears - c0 > 60, 'throttled to 30 fps: ' + (calls.clears - c0) + ' draws for 300 frames');
+
+// the JavaScript of a frame (simulation, streaks, the draw calls themselves are free on the stub) stays well under 0.5 ms
+const t0 = process.hrtime.bigint();
+for (let i = 0; i < 600; i++) { t += 34; rafCb(t); }
+const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
+assert(ms < 0.5, 'frame cost ' + ms.toFixed(3) + ' ms');
+console.log('overlay frame JS cost: ' + ms.toFixed(3) + ' ms');
 
 o.handle('csfxScreen', { on: false });
 rafCb(t + 33);
