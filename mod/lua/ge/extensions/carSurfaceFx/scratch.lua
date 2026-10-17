@@ -44,7 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 11                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 12                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -69,7 +69,7 @@ local settings = defaults()
 
 -- what each car has been marked with, kept GE-side (the canvas pages are write-only for us): scratch lines { x1, y1, x2, y2, width } and dirt splats { x, y, r, opacity, kind }
 -- (kind 1 = dust, 2 = mud), quantised and capped, so a car's marks can be saved (getState) and drawn again on a respawned car (restore, and after a mesh rebuild).
-local memory, replayAt, nodesAt = {}, {}, {}
+local memory, replayAt, nodesAt, nodesSent = {}, {}, {}, {}
 local MEMORY_CAP = 60
 local function mem(id)
   local m = memory[id]
@@ -406,6 +406,8 @@ end
 function M.water(id, p)
   local car, veh = cars[id], getObjectByID(id)
   if not (settings.water and car and car.lut and veh and hasCanvas(veh)) then return end
+  -- a page that is still loading drops what it is sent, and the page cannot tell us it is up: send the node map again every 20 s (it is cheap and replaces the old one)
+  if (nodesSent[id] or 0) + 20 < os.clock() then sendNodes(id) nodesSent[id] = os.clock() end
   -- the car's own left / back / up lines when its reference nodes give them, else the jbeam axes (x left, y back, z up: gravity is right either way)
   local ax = car.axes or { vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1) }
   local f = ax[1] * p.aLat + ax[2] * (p.aLong + p.speed * p.speed / 80) + ax[3] * -9.8
