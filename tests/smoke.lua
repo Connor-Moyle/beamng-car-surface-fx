@@ -5,6 +5,8 @@ function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. ms
 function deepcopy(t) if type(t) ~= 'table' then return t end local c = {} for k, v in pairs(t) do c[k] = deepcopy(v) end return c end
 function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
+function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
+UI_TEXTURE_USAGE_AUTOMATIC = 0
 
 local function material(name, glass, stages, mapTo)
   local m = { name = name, fields = {} }
@@ -35,6 +37,11 @@ function car:getVelocity() return { x = v.vx, y = v.vy, z = 0 } end
 function car:getDirectionVector() return { x = 1, y = 0, z = 0 } end
 function car:queueLuaCommand() end
 function car:resetMaterials() end
+local tags, js, order = {}, {}, {}
+function car:getActiveUITextureTagNames() local t = {} for k in pairs(tags) do t[#t + 1] = k end return t end
+function car:createUITexture(tag) tags[tag] = true order[#order + 1] = 'canvas' end
+function car:destroyUITexture(tag) tags[tag] = nil order[#order + 1] = 'destroy' end
+function car:queueJSUITexture(tag, code) js[#js + 1] = code end
 function car:switchMaterial() end
 local alive = true
 be = {
@@ -55,12 +62,14 @@ local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
 M.debug('rain', 1.0)
 tick(40)                                                  -- rain climbs, glass and paint get their rungs, one reload per tick
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
-assert(mats.vivace_glass.fields[0].detailNormalMap:find('glass', 1, true), 'glass got the streak map')
+assert(mats.vivace_glass.fields[0].detailNormalMap == '@csfx_glass', 'glass is bound to the water canvas')
+assert(tags['@csfx_glass'], 'the car has the canvas')
+assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
 assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
 v.vx = 20 tick(8) v.vx = 0 tick(8)                        -- accelerate, brake hard
 M.debug('wiper', 1) tick(10)
-assert(mats.vivace_glass.fields[0].detailNormalMap == nil or mats.vivace_glass.fields[0].detailNormalMap == '', 'wipers cleared the glass')
+assert(js[#js]:find('wiper=1', 1, true), 'the wipers reach the canvas: ' .. js[#js])
 M.debug('wiper', 0) tick(10)
 M.debug('mud', 0.8) tick(5)
 M.onVehicleSpawned(7) tick(10)                            -- respawn: attaches again
@@ -78,5 +87,8 @@ assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' ..
 M.onExtensionUnloaded()
 assert(mats.vivace_main.fields[0].detailNormalMap == '/peel.png', 'the original orange peel is back: ' .. tostring(mats.vivace_main.fields[0].detailNormalMap))
 assert(mats.vivace_main.fields[0].detailScale == '128 64', 'the original detail scale is back')
+assert(mats.vivace_glass.fields[0].detailNormalMap == '', 'the glass is unbound')
+assert(not tags['@csfx_glass'], 'the canvas is gone')
+assert(order[1] == 'canvas', 'the canvas existed before the material pointed at it')
 for _, l in ipairs(logs) do assert(not l:find('^E'), l) end
 print('carSurfaceFx smoke: ok, ' .. reloads .. ' reloads over the run')

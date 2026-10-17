@@ -1,6 +1,5 @@
 """Writes the shared water maps of the rain effect (seamless 512x512 tangent-space normal maps), mod/art/surfacefx/:
      droplets1..5.normal.png  the paint's five wet rungs: sparse small beads that grow, get more numerous and merge as the car gets wetter
-     glass.normal.png         beads with vertical run-off streaks, scrolled by the glass material's UV animation
    python tools/gen_droplets.py   (needs numpy, Pillow)"""
 import os, numpy as np
 from PIL import Image
@@ -44,15 +43,4 @@ for k in range(5):
             cap(h, x + np.cos(ang[i]) * r * 0.85, y + np.sin(ang[i]) * r * 0.85, r * 0.75 * SCALE[k])
     save(h, 'droplets%d.normal.png' % (k + 1))
 
-# glass: beads, each with a thin run-off streak above it (image up), so scrolling the map downward makes them run
-rng = np.random.default_rng(11)
-h = np.zeros((N, N), np.float32)
-for x, y, r in layout(rng, 0.06):
-    cap(h, x, y, r)
-for _ in range(70):
-    x, y, r, ln = rng.uniform(0, N), rng.uniform(0, N), rng.uniform(2.5, 5), rng.uniform(30, 120)
-    cap(h, x, y, r)
-    for t in np.arange(0, ln, 1.5):
-        cap(h, x, (y - t) % N, max(0.9, r * 0.35 * (1 - t / ln)))
-save(h, 'glass.normal.png')
 print('wrote', os.path.normpath(OUT))

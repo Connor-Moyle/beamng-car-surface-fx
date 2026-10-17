@@ -6,8 +6,8 @@ local FRACTION = { 0.2, 0.4, 0.6, 0.8, 1 }             -- how wet each rung look
 local UP = { 0.05, 0.20, 0.40, 0.60, 0.80 }            -- wetness needed to climb to rung 1..5
 local HYST = 0.04                                      -- ...and how far it must fall below that to step back down
 M.DROPLETS = '/art/surfacefx/droplets%d.normal.png'   -- one per rung
-M.GLASS_MAP = '/art/surfacefx/glass.normal.png'
-M.glassScale = '3 3'
+M.GLASS_TAG = '@csfx_glass'                           -- the per-car web canvas the glass takes its detail normal map from (vehicles/common/carSurfaceFx/glass.html)
+M.glassScale = '1 1'
 
 local function clamp(x, a, b) return x < a and a or (x > b and b or x) end
 M.clamp = clamp
@@ -48,7 +48,7 @@ M.TOP_FIELDS = { 'version', 'translucent', 'translucentBlendOp', 'translucentRec
   'materialTag2', 'materialTag3', 'detailMapScale0' }
 M.STAGES = 4
 local DETAIL_MAPS = { 'detailMap', 'roughnessDetailMap', 'metallicDetailMap', 'opacityDetailMap' }   -- other detail maps share detailScale: leave those stages alone
-M.beadScale, M.beadStrength = '6 6', 0.4               -- tunable (carSurfaceFx.tune): how big and how strong the water beads are
+M.beadScale, M.beadStrength = '12 12', 0.35               -- tunable (carSurfaceFx.tune): how big and how strong the water beads are
 
 local function set(v) return v ~= nil and v ~= '' end
 
@@ -200,24 +200,14 @@ function M.isGlassName(name)
   return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true)
 end
 
--- sx, sy: the scroll of the glass's UVs in detail tiles per second (the streak axis is sy; see M.glassScroll)
-function M.glassFields(st, rung, sx, sy)
+-- the glass gets the water canvas as its detail normal map (the page animates it); a glass with a detail map of its own is left alone
+function M.glassFields(st, rung)
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then return {} end end
-  return { detailNormalMap = M.GLASS_MAP, detailNormalMapStrength = string.format('%.3f', M.beadStrength * FRACTION[rung]), detailScale = M.glassScale,
-    animFlags = '1', scrollDir = string.format('%.2f %.2f', sx or 0, sy or 0) }
+  if set(st.detailNormalMap) and st.detailNormalMap ~= M.GLASS_TAG then return {} end
+  return { detailNormalMap = M.GLASS_TAG, detailNormalMapStrength = '0.8', detailScale = M.glassScale }
 end
 
--- Where the water on the glass goes: speed (m/s) pushes it back up the glass, braking (aLong < 0, m/s^2) throws it forward and down, accelerating pushes it back,
--- cornering (aLat, + to the right) slides it sideways; a stopped car lets it run down slowly. Returns sx, sy rounded to 0.05 so small changes cost no reload.
--- M.glassAxis = { x = 0, y = 1 }: which UV axis is "down the glass" (differs per car; carSurfaceFx.tuneGlass); y > 0 scrolls the map toward +y.
+-- (x, y): the direction that is DOWN the glass in the glass material's UV space; differs per car, set with carSurfaceFx.tuneGlass
 M.glassAxis = { x = 0, y = 1 }
-function M.glassScroll(speed, aLong, aLat)
-  local down = 0.04 - (speed / 30) * (speed / 30) * 0.3 - aLong * 0.012
-  local side = (aLat or 0) * 0.012
-  down, side = clamp(down, -0.3, 0.3), clamp(side, -0.2, 0.2)
-  local function q(v) return math.floor(v / 0.05 + 0.5) * 0.05 end
-  local a = M.glassAxis
-  return q(a.x * down - a.y * side), q(a.y * down + a.x * side)
-end
 
 return M

@@ -6,7 +6,7 @@ const luaparse = require('luaparse');
 
 const STD = 'assert error ipairs pairs next pcall xpcall select setmetatable getmetatable rawget rawset rawequal tonumber tostring type unpack require print math string table os io _G'.split(' ');
 const GAME = {
-  ge: 'be log scenetree createObject Sim jsonReadFile jsonWriteFile deepcopy core_environment core_vehicle_manager core_camera extensions sl_weather surfaceFXBody Engine'.split(' '),
+  ge: 'be log scenetree createObject Sim jsonReadFile jsonWriteFile deepcopy core_environment core_vehicle_manager core_camera extensions sl_weather surfaceFXBody Engine jsonEncode UI_TEXTURE_USAGE_AUTOMATIC'.split(' '),
   vehicle: 'obj electrics wheels log extensions carSurfaceFxWheels'.split(' '),
 };
 const root = process.argv[2] || path.join(__dirname, '..', 'mod', 'lua');
