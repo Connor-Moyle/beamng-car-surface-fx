@@ -46,6 +46,9 @@ function car:getMeshesContainingMaterial(mapTo) return string.rep('m ', meshes[m
 function car:getVelocity() return { x = v.vx, y = v.vy, z = 0 } end
 function car:getDirectionVector() return { x = 1, y = 0, z = 0 } end
 function car:queueLuaCommand() end
+function car:getPosition() return { x = 0, y = 0, z = 0 } end
+local corners = { { -0.6, 0, 0 }, { 0.6, 0, 0 }, { 0.5, 0, 0.5 }, { -0.5, 0, 0.5 } }
+function car:getNodePosition(cid) local c = corners[cid] or corners[1] return { x = c[1], y = 2, z = c[3] } end
 function car:resetMaterials() end
 local tags, js, order = {}, {}, {}
 function car:getActiveUITextureTagNames() local t = {} for k in pairs(tags) do t[#t + 1] = k end return t end
@@ -62,9 +65,13 @@ be = {
   getObject = function() return car end,
 }
 core_environment = { getPrecipitation = function() return 600 end, groundModels = { MUD = { cdata = { collisiontype = 14 } } } }
-core_vehicle_manager = { getVehicleData = function() return { config = { paints = { { baseColor = { 0.4, 0.6, 0.1, 1 }, metallic = 0.8, roughness = 0.6, clearcoat = 1, clearcoatRoughness = 0.1 } } } } end,
+core_vehicle_manager = { getVehicleData = function() return { vdata = { flexbodies = { { mesh = 'vivace_windshield', ['_group_nodes'] = { 1, 2, 3, 4 } }, { mesh = 'vivace_windshield_int', ['_group_nodes'] = { 5, 6, 7 } } } }, config = { paints = { { baseColor = { 0.4, 0.6, 0.1, 1 }, metallic = 0.8, roughness = 0.6, clearcoat = 1, clearcoatRoughness = 0.1 } } } } end,
   liveUpdateVehicleColors = function() paintCalls = paintCalls + 1 end }
-core_camera = { getActiveCamName = function() return 'driver' end }
+camName = 'driver'
+core_camera = { getActiveCamName = function() return camName end }
+local gh = {}
+guihooks = { trigger = function(n, d) gh[#gh + 1] = { n, d } end }
+require('carSurfaceFx/screen').camera = function() return { x = 0, y = 0, z = 0.25, r = { x = 1, y = 0, z = 0 }, f = { x = 0, y = 1, z = 0 }, u = { x = 0, y = 0, z = 1 }, halfTan = 0.8, aspect = 1.7 } end
 
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx.lua')
 local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
@@ -88,6 +95,11 @@ assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
 v.vx = 20 tick(8) v.vx = 0 tick(8)                        -- accelerate, brake hard
 M.debug('wiper', 1) tick(10)
+local lastGh = gh[#gh]
+assert(lastGh and lastGh[1] == 'csfxScreen' and lastGh[2].on and #lastGh[2].hull >= 6 and lastGh[2].wiper == 1, 'the overlay of the driver view gets its outline and the wipers')
+camName = 'orbit' tick(5)
+assert(gh[#gh][2].on == false, 'the overlay is switched off in another camera')
+camName = 'driver'
 assert(js[#js]:find('wiper=1', 1, true), 'the wipers reach the canvas: ' .. js[#js])
 M.debug('wiper', 0) tick(10)
 M.debug('mud', 0.8) tick(5)

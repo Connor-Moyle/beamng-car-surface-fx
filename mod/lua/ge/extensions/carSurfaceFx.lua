@@ -14,10 +14,11 @@ local TAG = 'carSurfaceFx'
 M.apiVersion = 2                          -- 2: repair(id), getState / setState, level
 local rules = require('carSurfaceFx/rules')
 local options = require('carSurfaceFx/options')
+local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -348,6 +349,32 @@ local reset
 -- Enhanced Skid Marks' body extension edits the same paint fields: pause while it is loaded
 local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
+-- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
+-- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
+local DRIVER_CAMS = { driver = true, onboard = true }
+local screenT, screenOn, screenSize = 0, false, 2.2
+local function pushScreen(dt)
+  screenT = screenT + dt
+  if screenT < 0.066 then return end
+  screenT = 0
+  local pv = be:getPlayerVehicle(0)
+  local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
+  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and wet > 0.03 and not conflict()
+  local hull = want and screen.windscreen(pv) or nil
+  if not hull then
+    if screenOn then guihooks.trigger('csfxScreen', { on = false }) screenOn = false end
+    return
+  end
+  local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
+  local rain = forced or rules.target(nil, core_environment.getPrecipitation())
+  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize })
+  screenOn = true
+end
+
+-- carSurfaceFx.tuneScreen(2.2): drop size of the overlay in the driver's view
+function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
+
 local function update(dtReal)
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if not settings then loadSettings() end
@@ -361,6 +388,7 @@ local function update(dtReal)
     setRung(q[1], q[2])
     q[1].pending = nil
   end
+  pushScreen(dtReal)
   ensureT = ensureT + dtReal
   if ensureT > 1 then
     ensureT = 0
@@ -445,11 +473,12 @@ end
 
 function M.getSettings() return settings end
 
-function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil end
+function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil screen.forget(id) end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
 function reset()
+  if screenOn then guihooks.trigger('csfxScreen', { on = false }) screenOn = false end
   for _, info in pairs(mats) do if info.rung > 0 then setRung(info, 0) end end
   for id, car in pairs(cars) do
     if car.dirt and rules.dirtTotal(car.dirt) > 0 and be:getObjectByID(id) then setDirt(id, car, rules.dirtNew()) end
