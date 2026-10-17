@@ -197,17 +197,19 @@ function M.install(opts)
   if not ok then log('E', 'options page install failed: ' .. tostring(err)) end
 end
 
--- takes one mod's group away again; the user-folder copy goes when no group of ours is left in it
+-- takes one mod's group away again; the user-folder copy goes only when what is left of it is the game's own layout (anything else in it, another mod's group
+-- included, stays)
 function M.uninstall(marker, legacy)
   local real = slash(FS:getFileRealPath(M.LAYOUT_DIR .. 'layout.json'))
   if not inUserFolder(real) then return end
   local text = readText(real)
   local rest = text and M.strip(text, marker, legacy)
-  if rest and rest:find(',{"_slrr":"', 1, true) then
+  if not rest then return end
+  if rest == M.gameText() then
+    FS:removeFile(real)
+  elseif rest ~= text then
     extensions.load('ui_options')
     ui_options.saveLayout('', rest)
-  else
-    FS:removeFile(real)
   end
 end
 
