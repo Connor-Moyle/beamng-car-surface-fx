@@ -15,7 +15,7 @@ local rules = require('carSurfaceFx/rules')
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
-local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
+local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale', 'animFlags', 'scrollDir' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -25,6 +25,7 @@ local forcedDirt                          -- the debug value
 local timer = 0
 local cars = {}                               -- vehicle id -> { veh, mats = { info... }, dirt = last applied dirt }
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
+local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local queue = {}                              -- material edits still to do, one per frame
 
 local function log_(level, msg) log(level, TAG, msg) end
@@ -73,22 +74,29 @@ local function readMaterial(name)
 end
 
 -- the wet fields of rung r on the paint stages of the material itself (r = 0 puts the originals back), then one reload
-local function setRung(info, r)
+local function setRung(info, r, sx, sy)
   local m = scenetree.findObject(info.name)
   if not m then return end
+  local t0 = os.clock()
   for L = 0, info.glass and 0 or rules.STAGES - 1 do      -- glass: its first stage only
     local st = info.stages[L]
     if info.glass or rules.isPaintStage(st) then
-      local wetF = r > 0 and (info.glass and rules.glassFields(st, r) or rules.wetFields(st, r)) or {}
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, r, sx, sy) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(WET_KEYS) do
         local v = wetF[k] or st[k]
-        if v == nil and k == 'detailNormalMap' then v = '' end
+        if v == nil then
+          if k == 'detailNormalMap' then v = ''
+          elseif info.glass and k == 'animFlags' then v = '0'
+          elseif info.glass and k == 'scrollDir' then v = '0 0' end
+        end
         if v ~= nil then m:setField(k, L, v) end
       end
     end
   end
   Sim.upcast(m):reload()
-  info.rung = r
+  info.rung, info.sx, info.sy = r, sx or 0, sy or 0
+  info.lastSet = os.clock()
+  info.reloadMs = (info.lastSet - t0) * 1000
 end
 
 -- find the car's body paint materials (first time a material is seen its originals are read)
@@ -179,6 +187,22 @@ local function wantedIds()
   return ids
 end
 
+-- the car's speed and its acceleration along and across it (m/s^2, smoothed), from the velocity change between ticks
+local function updateMotion(id, veh, dt)
+  local m = motion[id]
+  if not m then m = { vx = 0, vy = 0, vz = 0, aLong = 0, aLat = 0, speed = 0, init = false } motion[id] = m end
+  local v, f = veh:getVelocity(), veh:getDirectionVector()
+  if m.init and dt > 0 then
+    local ax, ay, az = (v.x - m.vx) / dt, (v.y - m.vy) / dt, (v.z - m.vz) / dt
+    local long = ax * f.x + ay * f.y + az * f.z
+    local lat = ax * f.y - ay * f.x                         -- + to the right of the car (z up, forward f)
+    m.aLong, m.aLat = m.aLong + (long - m.aLong) * 0.3, m.aLat + (lat - m.aLat) * 0.3
+  end
+  m.vx, m.vy, m.vz, m.init = v.x, v.y, v.z, true
+  m.speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+  return m
+end
+
 local function targetWet()
   if forced then return forced end
   if not settings.rain.enabled then return 0 end
@@ -198,7 +222,7 @@ function M.onUpdate(dtReal)
   local q = queue[1]
   if q then                                         -- one material reload per frame
     table.remove(queue, 1)
-    setRung(q[1], q[2])
+    setRung(q[1], q[2], q[3], q[4])
     q[1].pending = nil
   end
   timer = timer + dtReal
@@ -215,10 +239,18 @@ function M.onUpdate(dtReal)
     if not car then attach(id) car = cars[id] end
     if car then
       local wiping = settings.windscreen.enabled and (wiperForced or wiperBy[id] or 0) > 0.1
+      local mo = updateMotion(id, car.veh, dt)
+      local sx, sy = rules.glassScroll(mo.speed, mo.aLong, mo.aLat)
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass and (wiping or not settings.windscreen.enabled) then w = 0 end       -- the wipers clear the glass
-        if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
+        local gx, gy
+        if info.glass then
+          if wiping or not settings.windscreen.enabled then w = 0 else gx, gy = sx, sy end      -- the wipers clear the glass
+        end
+        -- glass moves with the car, but a reload costs: at most one per minInterval, which is the measured reload time x 40 (so it eats under 2.5% of the time)
+        local moved = info.glass and w > 0 and w == info.rung and (math.abs(gx - (info.sx or 0)) > 0.04 or math.abs(gy - (info.sy or 0)) > 0.04)
+          and os.clock() - (info.lastSet or 0) > rules.clamp((info.reloadMs or 20) * 0.04, 0.7, 3)
+        if (info.rung ~= w or moved) and not info.pending then info.pending = true queue[#queue + 1] = { info, w, gx, gy } end
       end
       local d = (forcedDirt or dirtBy[id] or 0) * settings.mud.intensity
       if not settings.mud.enabled then d = 0 end
@@ -231,7 +263,7 @@ function M.onUpdate(dtReal)
   rung = want
 end
 
-function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil end
+function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
@@ -263,6 +295,31 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
+-- carSurfaceFx.tuneGlass('0 1', '3 3'): the UV axis that runs down the glass (differs per car; '1 0' or '0 -1' if the water runs sideways/up) and the streak scale
+function M.tuneGlass(axis, scale)
+  local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
+  if x then rules.glassAxis = { x = tonumber(x), y = tonumber(y) } end
+  if scale then rules.glassScale = tostring(scale) end
+  for _, info in pairs(mats) do if info.glass and info.rung > 0 then info.rung = -1 end end   -- re-apply at the next tick
+  return string.format('glass axis %s %s scale %s', rules.glassAxis.x, rules.glassAxis.y, rules.glassScale)
+end
+
+-- carSurfaceFx.flushTest(0, -0.2): change only the scroll of the wet glass with setField + flush (no reload); if the water then really changes direction in the game,
+-- per-frame G-force scrolling is possible; returns the cost in ms
+function M.flushTest(sx, sy)
+  local out = {}
+  for name, info in pairs(mats) do
+    if info.glass and info.rung > 0 then
+      local m = scenetree.findObject(name)
+      local t = os.clock()
+      m:setField('scrollDir', 0, string.format('%.2f %.2f', sx or 0, sy or 0))
+      m:flush()
+      out[#out + 1] = string.format('%s %.2f ms', name, (os.clock() - t) * 1000)
+    end
+  end
+  return #out > 0 and table.concat(out, ' | ') or 'no wet glass material'
+end
+
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials
 function M.tune(scale, strength)
   rules.beadScale = tostring(scale or rules.beadScale)
@@ -274,9 +331,9 @@ end
 function M.status()
   local n, names = 0, {}
   for _ in pairs(cars) do n = n + 1 end
-  for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung end
+  for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung .. (info.glass and string.format('(%.2f,%.2f %.0fms)', info.sx or 0, info.sy or 0, info.reloadMs or 0) or '') end
   local d = be:getPlayerVehicleID(0)
-  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d wiper=%s materials [%s]', wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, tostring(wiperBy[d]), table.concat(names, ' '))
+  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d wiper=%s motion=%s materials [%s]', wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, tostring(wiperBy[d]), motion[d] and string.format('v%.1f aL%.1f aT%.1f', motion[d].speed, motion[d].aLong, motion[d].aLat) or '-', table.concat(names, ' '))
 end
 
 return M
