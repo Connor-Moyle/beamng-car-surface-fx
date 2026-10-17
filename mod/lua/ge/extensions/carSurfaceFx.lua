@@ -18,7 +18,7 @@ local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = t
     dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
-local GLASS_KEYS = { 'baseColorMap' }
+local GLASS_KEYS = { 'baseColorMap', 'opacityMap' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -69,7 +69,7 @@ end
 local function readMaterial(name)
   local mat = scenetree.findObject(name)
   if not mat then return nil end
-  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name), tag = rules.glassTag(name) }
+  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name), tag = rules.glassTag(name), mode = rules.glassMode(name) }
   if not info.mapTo or info.mapTo == '' then info.mapTo = name end
   info.version, info.translucent = mat:getField('version', 0), mat:getField('translucent', 0)
   for L = 0, rules.STAGES - 1 do
@@ -102,7 +102,8 @@ local function canvases(info, on)
     if veh and wears(veh, info.name) then
       if on and not hasCanvas(veh, info.tag) then
         log_('I', 'water canvas ' .. info.tag .. ' for car ' .. veh:getID())
-        veh:createUITexture(info.tag, GLASS_PAGE .. '?base=' .. urlEncode(info.stages[0].baseColorMap or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
+        local _, src = rules.glassMap(info.stages[0], info.mode)
+        veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&base=' .. urlEncode(src or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
       elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) end
     end
   end
@@ -117,10 +118,10 @@ local function setRung(info, r)
   for L = 0, info.glass and 0 or rules.STAGES - 1 do      -- glass: its first stage only
     local st = info.stages[L]
     if info.glass or rules.isPaintStage(st) then
-      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag) or rules.wetFields(st, r)) or {}
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
-        if v == nil and (k == 'detailNormalMap' or (info.glass and k == 'baseColorMap')) then v = '' end
+        if v == nil and (k == 'detailNormalMap' or (info.glass and (k == 'baseColorMap' or k == 'opacityMap'))) then v = '' end
         if v ~= nil then m:setField(k, L, v) end
       end
     end
@@ -291,7 +292,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize }) .. ')')
+        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -348,7 +349,7 @@ local function update(dtReal)
       local mo = updateMotion(id, car.veh, dt)
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = (want > 0 and settings.windscreen.enabled and rules.glassFields(info.stages[0], info.tag).baseColorMap) and 1 or 0 end
+        if info.glass then w = (want > 0 and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then M.pushGlass(car, mo) end
@@ -412,16 +413,18 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1', 2.5): (axis, drop size) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- carSurfaceFx.tuneGlass('0 1', 2.5, 1, 1): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up)
-function M.tuneGlass(axis, size)
+function M.tuneGlass(axis, size, tint, passes)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
     if l > 0 then rules.glassAxis = { x = tonumber(x) / l, y = tonumber(y) / l } end
   end
   rules.glassSize = tonumber(size) or rules.glassSize
-  return string.format('glass down = %.2f %.2f, drop size %.1f', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize)
+  rules.glassTint = tonumber(tint) or rules.glassTint
+  rules.glassPasses = tonumber(passes) or rules.glassPasses
+  return string.format('glass down = %.2f %.2f, drop size %.1f, tint %.2f, passes %d', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize, rules.glassTint, rules.glassPasses)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials

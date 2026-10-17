@@ -28,6 +28,7 @@ end
 local mats = {
   vivace_main = material('vivace_main', false, { [0] = { colorPaletteMap = '/null.png', clearCoatFactor = '1', detailNormalMap = '/peel.png', detailScale = '128 64' }, [1] = { baseColorMap = '/b.png' } }, 'vivace'),
   vivace_glass = material('vivace_glass', true, { [0] = { baseColorMap = 'vehicles/vivace/vivace_glass_b.color.png' } }, 'vivace_glass'),
+  vivace_glass_int = material('vivace_glass_int', true, { [0] = { baseColorMap = '/b.png', opacityMap = '/vehicles/vivace/vivace_glass_o.data.png' } }, 'vivace_glass_int'),
   vivace_wheel = material('vivace_wheel', false, { [0] = { colorPaletteMap = '/null.png' } }),
   licenseplate = material('licenseplate', false, { [0] = { colorPaletteMap = '/null.png' } }),
 }
@@ -38,7 +39,7 @@ Sim = { upcast = function(o) return o end }
 local v = { vx = 0, vy = 0 }
 local car = { id = 7, resets = 0, switches = 0 }
 function car:getID() return self.id end
-function car:getMaterialNames() return { 'vivace_main', 'vivace_glass', 'vivace_wheel', 'licenseplate' } end
+function car:getMaterialNames() return { 'vivace_main', 'vivace_glass', 'vivace_glass_int', 'vivace_wheel', 'licenseplate' } end
 function car:getMeshesContainingMaterial(mapTo) return string.rep('m ', meshes[mapTo] or 0) end
 function car:getVelocity() return { x = v.vx, y = v.vy, z = 0 } end
 function car:getDirectionVector() return { x = 1, y = 0, z = 0 } end
@@ -71,6 +72,7 @@ tick(40)                                                  -- rain climbs, glass 
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
 assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
+assert(mats.vivace_glass_int.fields[0].opacityMap == '@csfx_vivace_glass_int' and mats.vivace_glass_int.fields[0].baseColorMap == '/b.png', 'inside glass: opacity map is the canvas, tint kept')
 assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
 assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')

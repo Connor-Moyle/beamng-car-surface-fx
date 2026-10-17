@@ -203,13 +203,25 @@ end
 -- So the canvas REPLACES the glass's own base colour map: the page draws that image first (the original path is in its URL) and the drops on top.
 function M.glassTag(name) return '@csfx_' .. tostring(name):gsub('[^%w_]', '_') end
 
-function M.glassFields(st, tag)
-  if not set(st.baseColorMap) then return {} end                  -- no tint map to draw under the drops: leave this glass alone
-  return { baseColorMap = tag }
+-- The inside glass (name ends in 'int') is clear, so a colour change on it would be invisible: its OPACITY map becomes the canvas instead (the drops are more opaque water).
+function M.glassMode(name) return tostring(name):lower():find('int$') and 'opacity' or 'color' end
+
+-- the map the canvas replaces and the field it is in: { field, original image path } or nil when this glass has no such map to draw under the drops
+function M.glassMap(st, mode)
+  local field = mode == 'opacity' and 'opacityMap' or 'baseColorMap'
+  if not set(st[field]) then return nil end
+  return field, st[field]
+end
+
+function M.glassFields(st, tag, mode)
+  local field = M.glassMap(st, mode or 'color')
+  if not field then return {} end
+  return { [field] = tag }
 end
 
 -- (x, y): the direction that is DOWN the glass in the glass material's UV space; differs per car, set with carSurfaceFx.tuneGlass
 M.glassAxis = { x = 0, y = 1 }
+M.glassTint, M.glassPasses = 1, 1                             -- colour glass: how dark the tint is drawn, how often the image is squared (see glass.js)
 M.glassSize = 2.5                                          -- drop size and density on the window canvas (a window covers only part of the texture)
 
 return M
