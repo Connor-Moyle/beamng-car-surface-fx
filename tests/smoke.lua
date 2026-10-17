@@ -8,11 +8,12 @@ function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
 local waterCalls, lastWater = 0, nil
+local bodySplats = {}
 local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {}, 0, 0, nil, nil, nil
 extensions = {
   load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
     getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
-    washSplats = function() washes = washes + 1 end } end,
+    washSplats = function() washes = washes + 1 end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
   unload = function(n) _G[n] = nil end,
 }
 function setExtensionUnloadMode() end
@@ -64,7 +65,7 @@ be = {
   getObjectCount = function() return 1 end,
   getObject = function() return car end,
 }
-core_environment = { getPrecipitation = function() return 600 end, groundModels = { MUD = { cdata = { collisiontype = 14 } } } }
+core_environment = { getPrecipitation = function() return 600 end, getTemperatureK = function() return 288 end, groundModels = { MUD = { cdata = { collisiontype = 14 } } } }
 core_vehicle_manager = { getVehicleData = function() return { vdata = { flexbodies = { { mesh = 'vivace_windshield', ['_group_nodes'] = { 1, 2, 3, 4 } }, { mesh = 'vivace_windshield_int', ['_group_nodes'] = { 5, 6, 7 } } } }, config = { paints = { { baseColor = { 0.4, 0.6, 0.1, 1 }, metallic = 0.8, roughness = 0.6, clearcoat = 1, clearcoatRoughness = 0.1 } } } } end,
   liveUpdateVehicleColors = function() paintCalls = paintCalls + 1 end }
 camName = 'driver'
@@ -130,6 +131,27 @@ local gs = M.getState(5)
 assert(gs.dirt.mud == 0.8 and gs.marks and #gs.marks == 1, 'getState gives back what was set')
 assert(M.level(5).dirtName == 'muddy', 'a muddy car is muddy')
 assert(M.getState(6) == nil or M.getState(6).dirt == nil, 'a car with nothing has no dirt state')
+
+-- snow, frost, bugs
+M.debug() tick(5)
+M.debug('rain', 0)  tick(10)
+M.debug('air', -4) M.debug('snowing', 1)
+for _ = 1, 200 do M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, -4) end
+assert(M.status():find('snow 1%.00'), 'a standing car under snow gets a coat: ' .. M.status())
+assert((bodySplats.top or 0) > 0, 'snow splats went on the roof')
+for _ = 1, 40 do M.onGround(7, 0, 0, 1, 0, 0, 30, 0.5, 0, -4) end
+assert(M.status():find('snow 0%.00'), 'driving blew it off: ' .. M.status())
+M.debug('snowing', 0)
+for _ = 1, 400 do M.onGround(7, 0, 0, 1, 0, 0, 38, 0.5, 0, -4) end
+assert((bodySplats.front or 0) > 0 and M.status():find('bugs 0%.[1-9]'), 'bugs gathered on the nose: ' .. M.status())
+M.debug('air', -6)
+tick(1500)
+assert(M.status():find('frost 1%.00'), 'a cold night froze the glass: ' .. M.status())
+assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass' or tags['@csfx_vivace_glass'], 'frost binds the glass canvas even without rain')
+M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
+tick(1200)
+assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
+M.debug()
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()

@@ -16,10 +16,11 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
+  var st = { on: false, hull: null, p: { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, wipePrev = 0;
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
+  var frostTex = CsfxSim.frostTexture(doc, 256);
 
   // one drop as a lens: a faint light film, darker toward the centre, a lighter rim up-left, a dark crescent down-right, one glint
   var S = 64, sprite = doc.createElement('canvas');
@@ -97,6 +98,11 @@ function createOverlay(doc, win) {
     }
     ctx.closePath();
     ctx.clip();
+    if (st.p.frost > 0.01) {                                          // ice under the drops
+      ctx.globalAlpha = Math.min(1, st.p.frost * 1.2);
+      ctx.drawImage(frostTex, bx, by, bw, bh);
+      ctx.globalAlpha = 1;
+    }
     ctx.drawImage(trails, 0, 0);
     var alive = 0;
     for (var n = 0; n < sim.n; n++) {
@@ -122,7 +128,7 @@ function createOverlay(doc, win) {
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;
     var p = st.p;
-    ['rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
+    ['frost', 'rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
     if (!st.on) { st.on = true; last = null; lastDraw = 0; }
     root.style.display = 'block';
     if (!running) { running = true; win.requestAnimationFrame(frame); }

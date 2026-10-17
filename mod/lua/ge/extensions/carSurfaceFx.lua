@@ -18,7 +18,7 @@ local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, traffic = false }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -28,14 +28,17 @@ local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug valu
 local doubleSided = true                  -- carSurfaceFx.glassDouble(false) to switch it off
 local flood = 0                           -- debug: the window canvases solid (carSurfaceFx.debug('flood', 1))
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
-local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime } 0..1 built up by driving (settings.mud.buildup)
+local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime, snow, bugs } 0..1 built up by driving and weather (settings.mud.buildup)
 local forcedDirt                          -- the debug amounts { kind = value }
+local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
+local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
+local frostP = 0                           -- the player's frost: the window materials are shared by name, so they follow this car
 local timer = 0
 local cars = {}                               -- vehicle id -> { veh, mats = { info... }, dirt = last applied dirt }
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 9                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 10                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -214,10 +217,28 @@ function M.pushGround(veh)
   veh:queueLuaCommand(string.format('if not carSurfaceFxWheels then extensions.load("carSurfaceFxWheels") end carSurfaceFxWheels.setClasses(%s, %s, %s)', t.loose, t.mud, t.road))
 end
 
+-- air temperature in C (the level's), or nil when the game does not say
+local function airC()
+  if forcedAir then return forcedAir end
+  local k = core_environment and core_environment.getTemperatureK and core_environment.getTemperatureK()
+  return type(k) == 'number' and k - 273.15 or nil
+end
+local function snowfall() return forcedSnowing or rules.snowing(core_environment and core_environment.getPrecipitation and core_environment.getPrecipitation() or 0, airC()) end
+
+-- snow and bugs on the body where they gather: soft splats on the upper / front panels as the amount grows (snow also goes when it is blown off)
+local function weatherSplats(id, old, new)
+  if not scratchOn() then return end
+  local ds, db = new.snow - old.snow, new.bugs - old.bugs
+  if ds > 0 then carSurfaceFx_scratch.bodySplat(id, 'top', { 0.95, 0.96, 0.98 }, 0.85, math.floor(ds * 60 + math.random()), 'dust', 2.2)
+  elseif ds < 0 and old.snow > 0 then carSurfaceFx_scratch.washSplats(id, rules.clamp(new.snow / old.snow, 0, 1), 1) end
+  if db > 0 then carSurfaceFx_scratch.bodySplat(id, 'front', { 0.10, 0.08, 0.05 }, 0.8, math.floor(db * 160 + math.random()), 'mud', 0.35) end
+end
+
 -- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua), every 0.5 s: the shares of that time on loose ground (weighted), mud and road,
 -- skidding, and with a wheel in water; the speed; the wipers 0..1
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers)
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine)
   wiperBy[id] = wipers or 0
+  engineBy[id] = tonumber(engine)
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
     local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
     local n = math.floor(x + math.random())
@@ -226,9 +247,16 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers)
       carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
     end
   end
-  if not (settings and settings.mud.buildup and settings.mud.enabled) then return end
-  local d = rules.dirtBuild(dirtBy[id] or rules.dirtNew(), dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip }, speed, wet)
-  dirtBy[id] = water > 0 and rules.dirtWash(d, dt, 0, water) or d
+  if not (settings and settings.mud.enabled) then return end
+  local old = dirtBy[id] or rules.dirtNew()
+  local air = airC()
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() or 0, warm = air ~= nil and air > rules.SNOW_AIR }, speed, wet)
+  if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
+  if not settings.weather.snow then d.snow = old.snow end
+  if not settings.weather.bugs then d.bugs = old.bugs end
+  if water > 0 then d = rules.dirtWash(d, dt, 0, water) end
+  dirtBy[id] = d
+  weatherSplats(id, old, d)
   if water > 0 and scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(1 - water * dt / 3, 0, 1), rules.clamp(1 - water * dt / 12, 0, 1)) end
 end
 
@@ -331,7 +359,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood }) .. ')')
+        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -342,6 +370,7 @@ local function targetWet()
   if not settings.rain.enabled then return 0 end
   local sl = rawget(_G, 'sl_weather') and sl_weather.wetness and sl_weather.wetness() or nil
   local drops = core_environment and core_environment.getPrecipitation and core_environment.getPrecipitation() or nil
+  if snowfall() > 0.3 then drops = 0 end                    -- snow is not water
   return rules.target(sl, drops) * settings.rain.intensity
 end
 
@@ -359,7 +388,7 @@ local function pushScreen(dt)
   screenT = 0
   local pv = be:getPlayerVehicle(0)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
-  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and wet > 0.03 and not conflict()
+  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03) and not conflict()
   local hull = want and screen.windscreen(pv) or nil
   screenWhy = 'cam=' .. tostring(cam) .. ' wet=' .. string.format('%.2f', wet) .. ' overlay=' .. tostring(settings.windscreen.overlay) .. ' want=' .. tostring(want and true or false) .. ' hull=' .. (hull and (#hull / 2) or 'nil') .. ' on=' .. tostring(screenOn)
   if not hull then
@@ -369,7 +398,7 @@ local function pushScreen(dt)
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
   guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize, debug = screenDebug })
+    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize, debug = screenDebug, frost = frostP })
   screenOn = true
 end
 
@@ -404,7 +433,7 @@ local function update(dtReal)
   timer = 0
   wet = forced and forced or rules.wetStep(wet, targetWet(), dt)
   local want = rules.level(wet, rung)
-  if settings.mud.buildup and wet > 0 then
+  if wet > 0 then
     for id, d in pairs(dirtBy) do dirtBy[id] = rules.dirtWash(d, dt, wet, 0) end        -- rain
   end
   rainT = rainT + dt
@@ -412,14 +441,17 @@ local function update(dtReal)
     if wet > 0.05 and scratchOn() then carSurfaceFx_scratch.washSplats(nil, rules.clamp(1 - wet * rainT / 60, 0, 1), rules.clamp(1 - wet * rainT / 420, 0, 1)) end
     rainT = 0
   end
+  local pvId = be:getPlayerVehicleID(0)
   for _, id in ipairs(wantedIds()) do
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
     if car then
       local mo = updateMotion(id, car.veh, dt)
+      frostBy[id] = forcedFrost or (settings.weather.frost and rules.frostStep(frostBy[id] or 0, dt, airC(), engineBy[id], wet) or 0)
+      if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = (want > 0 and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostP > 0.03) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
@@ -477,7 +509,7 @@ end
 
 function M.getSettings() return settings end
 
-function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil screen.forget(id) end
+function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
@@ -487,20 +519,23 @@ function reset()
   for id, car in pairs(cars) do
     if car.dirt and rules.dirtTotal(car.dirt) > 0 and be:getObjectByID(id) then setDirt(id, car, rules.dirtNew()) end
   end
-  cars, queue, rung, wet, forced, forcedDirt, dirtBy = {}, {}, 0, 0, nil, nil, {}
+  cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
 function M.onExtensionUnloaded() reset() stopScratch() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced, flood = nil, nil, nil, 0 return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir = nil, nil, nil, 0, nil, nil, nil return 'debug cleared' end
+  if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   for _, k in ipairs(rules.KINDS) do
     if kind == k then forcedDirt = forcedDirt or rules.dirtNew() forcedDirt[k] = value return k .. ' forced to ' .. value end
   end
   if kind == 'paintwater' then return scratchOn() and carSurfaceFx_scratch.waterDebug(value > 0) or 'scratch module is not running' end
+  if kind == 'frost' then forcedFrost = value return 'frost forced to ' .. value end
+  if kind == 'snowing' then forcedSnowing = value return 'snowfall forced to ' .. value end
   if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
@@ -644,7 +679,7 @@ function M.status()
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung .. (info.glass and string.format('(%.0fms)', info.reloadMs or 0) or '') end
   local d = be:getPlayerVehicleID(0)
   local dd = dirtBy[d] or rules.dirtNew()
-  return string.format('wet %.2f rung %d forced %s dirt dust %.2f mud %.2f rubber %.2f grime %.2f (forced %s) cars %d queue %d wiper=%s motion=%s materials [%s]', wet, rung, tostring(forced), dd.dust, dd.mud, dd.rubber, dd.grime, tostring(forcedDirt ~= nil), n, #queue, tostring(wiperBy[d]), motion[d] and string.format('v%.1f aL%.1f aT%.1f', motion[d].speed, motion[d].aLong, motion[d].aLat) or '-', table.concat(names, ' '))
+  return string.format('wet %.2f rung %d forced %s dirt dust %.2f mud %.2f rubber %.2f grime %.2f snow %.2f bugs %.2f frost %.2f air %s (forced %s) cars %d queue %d wiper=%s motion=%s materials [%s]', wet, rung, tostring(forced), dd.dust, dd.mud, dd.rubber, dd.grime, dd.snow, dd.bugs, frostBy[d] or 0, tostring(airC()), tostring(forcedDirt ~= nil), n, #queue, tostring(wiperBy[d]), motion[d] and string.format('v%.1f aL%.1f aT%.1f', motion[d].speed, motion[d].aLong, motion[d].aLat) or '-', table.concat(names, ' '))
 end
 
 return M

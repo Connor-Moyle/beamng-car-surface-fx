@@ -82,7 +82,36 @@
     }
   }
 
-  var api = { create: create, step: step, add: add, count: count, MAX: MAX, SLIDE: SLIDE };
+  // Frost: a canvas of ice (a milky film, ice-fern strokes, a few clear flecks), made once; the caller draws it with globalAlpha = the frost amount. Seeded, so it is the same each time.
+  function frostTexture(doc, size) {
+    var cv = doc.createElement('canvas');
+    cv.width = cv.height = size;
+    var c = cv.getContext('2d'), seed = 12345;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    c.fillStyle = 'rgba(225,236,246,0.55)';
+    c.fillRect(0, 0, size, size);
+    c.lineCap = 'round';
+    for (var i = 0; i < 260; i++) {                                   // a fern: a main stroke and short side branches
+      var x = rnd() * size, y = rnd() * size, a = rnd() * 6.283, len = size * (0.03 + rnd() * 0.07);
+      c.strokeStyle = 'rgba(255,255,255,' + (0.55 + rnd() * 0.4) + ')';
+      c.lineWidth = 1 + rnd() * 1.5;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); c.stroke();
+      for (var b = 1; b < 4; b++) {
+        var bx = x + Math.cos(a) * len * b / 4, by = y + Math.sin(a) * len * b / 4, ba = a + (b % 2 ? 0.8 : -0.8);
+        c.lineWidth = 1;
+        c.beginPath(); c.moveTo(bx, by); c.lineTo(bx + Math.cos(ba) * len * 0.3, by + Math.sin(ba) * len * 0.3); c.stroke();
+      }
+    }
+    for (var j = 0; j < 40; j++) {                                    // clear flecks
+      c.globalCompositeOperation = 'destination-out';
+      c.fillStyle = 'rgba(0,0,0,' + (0.2 + rnd() * 0.3) + ')';
+      c.beginPath(); c.arc(rnd() * size, rnd() * size, 1 + rnd() * size * 0.012, 0, 6.283); c.fill();
+    }
+    c.globalCompositeOperation = 'source-over';
+    return cv;
+  }
+
+  var api = { create: create, step: step, add: add, count: count, MAX: MAX, SLIDE: SLIDE, frostTexture: frostTexture };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CsfxSim = api;
 })(window);
 
@@ -104,10 +133,11 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
+  var st = { on: false, hull: null, p: { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, wipePrev = 0;
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
+  var frostTex = CsfxSim.frostTexture(doc, 256);
 
   // one drop as a lens: a faint light film, darker toward the centre, a lighter rim up-left, a dark crescent down-right, one glint
   var S = 64, sprite = doc.createElement('canvas');
@@ -185,6 +215,11 @@ function createOverlay(doc, win) {
     }
     ctx.closePath();
     ctx.clip();
+    if (st.p.frost > 0.01) {                                          // ice under the drops
+      ctx.globalAlpha = Math.min(1, st.p.frost * 1.2);
+      ctx.drawImage(frostTex, bx, by, bw, bh);
+      ctx.globalAlpha = 1;
+    }
     ctx.drawImage(trails, 0, 0);
     var alive = 0;
     for (var n = 0; n < sim.n; n++) {
@@ -210,7 +245,7 @@ function createOverlay(doc, win) {
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;
     var p = st.p;
-    ['rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
+    ['frost', 'rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
     if (!st.on) { st.on = true; last = null; lastDraw = 0; }
     root.style.display = 'block';
     if (!running) { running = true; win.requestAnimationFrame(frame); }

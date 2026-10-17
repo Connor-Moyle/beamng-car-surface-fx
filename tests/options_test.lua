@@ -16,7 +16,7 @@ for name, key in pairs(O.KEYS) do
   assert(seen[key], 'control for ' .. name)
   assert(O.DEFAULTS[name] ~= nil, 'default for ' .. name)
 end
-assert(controls == 9, 'nine controls')
+assert(controls == 10, 'ten controls')
 
 -- the mapping
 local s = { rain = { enabled = true, intensity = 1 }, windscreen = { enabled = true }, scratch = { enabled = true, water = true, markSize = 1, allVehicles = false },

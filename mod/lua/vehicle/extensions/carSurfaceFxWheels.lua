@@ -1,5 +1,5 @@
 -- Car Surface FX, vehicle side: what the wheels are doing. Twice a second it sends the GE extension, as shares of that time: wheels loaded on loose ground
--- (weighted), on mud, on road, skidding, and with a wheel in water; plus the speed and the wipers (0..1, the highest electrics value whose name contains 'wiper').
+-- (weighted), on mud, on road, skidding, and with a wheel in water; plus the speed, the engine temperature and the wipers (0..1, the highest electrics value whose name contains 'wiper').
 -- The ground classes are collision-type ids pushed in by carSurfaceFx (setClasses).
 local M = {}
 local MIN_DOWNFORCE = 200       -- N: a wheel in the air or barely touching does not count
@@ -31,6 +31,12 @@ local function wipers(dt)
   return math.min(w, 1)
 end
 
+-- the engine's coolant temperature in C (frost clears with it), 'nil' when the car has no such value
+local function engineTemp()
+  local t = tonumber(electrics.values.watertemp) or tonumber(electrics.values.oiltemp)
+  return t and string.format('%.1f', t) or 'nil'
+end
+
 function M.updateGFX(dt)
   local n, l, m, r, skid, water = 0, 0, 0, 0, false, false
   for _, wd in pairs(wheels.wheels) do
@@ -51,8 +57,8 @@ function M.updateGFX(dt)
   timer = timer + dt
   if timer < INTERVAL then return end
   local v = obj:getVelocity()
-  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f) end', obj:getId(),
-    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer)))
+  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f, %s) end', obj:getId(),
+    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer), engineTemp()))
   timer, sLoose, sMud, sRoad, tSlip, tWater = 0, 0, 0, 0, 0, 0
 end
 

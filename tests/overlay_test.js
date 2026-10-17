@@ -49,6 +49,13 @@ const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
 assert(ms < 0.5, 'frame cost ' + ms.toFixed(3) + ' ms');
 console.log('overlay frame JS cost: ' + ms.toFixed(3) + ' ms');
 
+// frost: with no rain at all the overlay still shows (the ice is drawn under the drops)
+o.handle('csfxScreen', { on: true, hull: [0.2, 0.2, 0.8, 0.2, 0.9, 0.6, 0.1, 0.6], rain: 0, wet: 0, frost: 0.9 });
+const d0 = calls.draws;
+t += 40; rafCb(t);
+assert(calls.draws - d0 >= 2, 'the frost layer and the trails are drawn: ' + (calls.draws - d0));
+assert(o.state.p.frost === 0.9, 'the frost amount arrives');
+
 o.handle('csfxScreen', { on: false });
 rafCb(t + 33);
 assert.strictEqual(o.root.style.display, 'none', 'hidden again');

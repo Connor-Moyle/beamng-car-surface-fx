@@ -308,6 +308,44 @@ function M.wheelDirt(id, wi, colour, opacity, kind)
   for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(opacity or settings.dirtOpacity), kind == 'dust' and 1 or 2 }) end
 end
 
+-- n soft splats on the bodywork where the region says: 'top' (the upper quarter of the body, snow on the roof and hood) or 'front' (the front quarter, bugs on the nose).
+-- Node axes are the jbeam ones (x left, y back, z up). kind 'dust' washes with the dust factor, anything else with the mud factor. size is a multiplier of the splat radius.
+function M.bodySplat(id, region, colour, opacity, n, kind, size)
+  local car = cars[id]
+  if not car or not car.lut or not settings.dirtEnabled then return end
+  local veh = getObjectByID(id)
+  if not veh then return end
+  local pts = car.regions and car.regions[region]
+  if not pts then
+    local lo, hi, ylo, yhi = 1e9, -1e9, 1e9, -1e9
+    for cid in pairs(car.lut) do
+      local p = car.pos[cid]
+      if p then lo, hi, ylo, yhi = min(lo, p.z), max(hi, p.z), min(ylo, p.y), max(yhi, p.y) end
+    end
+    pts = {}
+    for cid in pairs(car.lut) do
+      local p = car.pos[cid]
+      if p and ((region == 'top' and p.z > hi - (hi - lo) * 0.25) or (region == 'front' and p.y < ylo + (yhi - ylo) * 0.25)) then pts[#pts + 1] = cid end
+    end
+    car.regions = car.regions or {}
+    car.regions[region] = pts
+  end
+  if #pts == 0 then return end
+  local m = mem(id)
+  for _ = 1, n do
+    local e = car.lut[pts[random(#pts)]]
+    local s, blobs = e[9], {}
+    for i = 1, 3 do
+      local k = #blobs
+      blobs[k+1] = e[1] + (random() - 0.5) * 0.25 * s
+      blobs[k+2] = 1 - (e[2] + (random() - 0.5) * 0.25 * s)
+      blobs[k+3] = settings.dirtSize * (size or 1) * (0.5 + random() * 0.6) * s
+    end
+    draw(veh, 'csfxBlobs', { l = blobs, c = colour, a = opacity, k = kind or 'mud' })
+    for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(opacity), kind == 'dust' and 1 or 2 }) end
+  end
+end
+
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
 function M.washSplats(id, fDust, fMud)
   for _, veh in ipairs(getAllVehicles()) do

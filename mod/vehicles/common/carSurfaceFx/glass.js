@@ -9,7 +9,7 @@
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
   var sim = CsfxSim.create();
-  var p = { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
+  var p = { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
   var emissive = q('mode') === 'emissive', basePath = q('base');
@@ -61,6 +61,8 @@
     c.putImageData(data, 0, 0);
   })();
 
+  var frostTex = CsfxSim.frostTexture(document, 256);
+
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(); };
 
@@ -75,6 +77,11 @@
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H;
       ctx.drawImage(sprite, sim.x[i] * W - R, sim.y[i] * H - R, R * 2, R * 2);
+    }
+    if (p.frost > 0.01) {                                             // ice over the drops
+      ctx.globalAlpha = Math.min(1, p.frost * 1.2) * (emissive ? 0.7 : 1);
+      ctx.drawImage(frostTex, 0, 0, W, H);
+      ctx.globalAlpha = 1;
     }
     requestAnimationFrame(frame);
   }
