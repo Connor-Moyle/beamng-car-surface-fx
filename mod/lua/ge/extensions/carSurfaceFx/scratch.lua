@@ -242,17 +242,17 @@ end
 
 -- dirt splats on the bodywork around the wheels of car id: n splats of colour c (rgb 0..1) and opacity a, around random wheels. carSurfaceFx calls this from its wheel
 -- reports while the wheels run on loose ground, more of it the dirtier the ground.
-function M.splat(id, c, a, n)
+function M.splat(id, c, a, n, kind)
   local car = cars[id]
   if not car or not car.lut or not settings.dirtEnabled or not car.wheels then return end
   local keys = {}
   for wi in pairs(car.wheels) do keys[#keys + 1] = wi end
   if #keys == 0 then return end
-  for _ = 1, n do M.wheelDirt(id, keys[random(#keys)], c, a) end
+  for _ = 1, n do M.wheelDirt(id, keys[random(#keys)], c, a, kind) end
 end
 
 -- wheel wi is rolling on loose ground: one dirt splat somewhere on the bodywork around that wheel
-function M.wheelDirt(id, wi, colour, opacity)
+function M.wheelDirt(id, wi, colour, opacity, kind)
   local car = cars[id]
   if not car or not car.lut or not settings.dirtEnabled then return end
   local pts = car.wheelPts[wi]
@@ -280,7 +280,24 @@ function M.wheelDirt(id, wi, colour, opacity)
     blobs[n+2] = 1 - (e[2] + (random() - 0.5) * 0.2 * s)
     blobs[n+3] = settings.dirtSize * (0.4 + random() * 0.6) * s
   end
-  draw(veh, 'csfxBlobs', { l = blobs, c = colour or settings.dirtColour, a = opacity or settings.dirtOpacity })
+  draw(veh, 'csfxBlobs', { l = blobs, c = colour or settings.dirtColour, a = opacity or settings.dirtOpacity, k = kind or 'mud' })
+end
+
+-- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
+function M.washSplats(id, fDust, fMud)
+  for _, veh in ipairs(getAllVehicles()) do
+    if (id == nil or veh:getId() == id) and hasCanvas(veh) then
+      local js = ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud)
+      veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
+    end
+  end
+end
+
+-- repair: every car's scratches buffed out; the dirt stays
+function M.repair()
+  for _, veh in ipairs(getAllVehicles()) do
+    if hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxRepair()'); veh:queueJSUITexture(TAG_P, 'csfxRepair()') end
+  end
 end
 
 function M.buffOut()

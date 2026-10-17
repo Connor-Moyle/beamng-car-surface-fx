@@ -183,12 +183,13 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers)
     local n = math.floor(x + math.random())
     if n > 0 then
       local muddy = mud > 0.2 or wet > 0.3
-      carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n)
+      carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
     end
   end
   if not (settings and settings.mud.buildup and settings.mud.enabled) then return end
   local d = rules.dirtBuild(dirtBy[id] or rules.dirtNew(), dt, { loose = loose, mud = mud, road = road, slip = slip }, speed, wet)
   dirtBy[id] = water > 0 and rules.dirtWash(d, dt, 0, water) or d
+  if water > 0 and scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(1 - water * dt / 3, 0, 1), rules.clamp(1 - water * dt / 12, 0, 1)) end
 end
 
 -- a wheel went through a puddle (Street Legal's puddlefx.wheelIn can call this): washes about two seconds' worth, more for a deeper puddle
@@ -200,6 +201,7 @@ end
 function M.wash(id, amount)
   id = id or be:getPlayerVehicleID(0)
   dirtBy[id] = rules.dirtClean(dirtBy[id] or rules.dirtNew(), amount)
+  if scratchOn() then local f = rules.clamp(1 - (amount or 1), 0, 1) carSurfaceFx_scratch.washSplats(id, f, f) end
   return 'dirt ' .. rules.dirtTotal(dirtBy[id])
 end
 
@@ -242,8 +244,8 @@ local function stopScratch()
   end
 end
 
--- carSurfaceFx.repair(): buff out every scratch and splat
-function M.repair() if scratchOn() then carSurfaceFx_scratch.buffOut() return 'buffed out' end return 'scratch module is not running' end
+-- carSurfaceFx.repair(): buff out every car's scratches (the dirt stays); washing is the dirt's way off and never touches scratches
+function M.repair() if scratchOn() then carSurfaceFx_scratch.repair() return 'scratches buffed out' end return 'scratch module is not running' end
 
 local function wantedIds()
   local ids = {}
@@ -277,6 +279,7 @@ end
 
 -- the water canvas of the player's car gets the weather and the car's motion; every second, cars spawned since get their canvas too
 local ensureT = 0
+local rainT = 0                              -- seconds since the rain last washed the splats off
 function M.pushGlass(car, mo)
   local bound = false
   for _, info in ipairs(car.mats) do if info.glass and info.rung > 0 then bound = true end end
@@ -325,6 +328,11 @@ local function update(dtReal)
   local want = rules.level(wet, rung)
   if settings.mud.buildup and wet > 0 then
     for id, d in pairs(dirtBy) do dirtBy[id] = rules.dirtWash(d, dt, wet, 0) end        -- rain
+  end
+  rainT = rainT + dt
+  if rainT >= 5 then
+    if wet > 0.05 and scratchOn() then carSurfaceFx_scratch.washSplats(nil, rules.clamp(1 - wet * rainT / 60, 0, 1), rules.clamp(1 - wet * rainT / 420, 0, 1)) end
+    rainT = 0
   end
   for _, id in ipairs(wantedIds()) do
     local car = cars[id]

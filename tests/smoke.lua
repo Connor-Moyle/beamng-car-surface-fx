@@ -7,9 +7,10 @@ function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
-local splats, started = 0, {}
+local splats, started, repaired, washes = 0, {}, 0, 0
 extensions = {
-  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end } end,
+  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, repair = function() repaired = repaired + 1 end,
+    washSplats = function() washes = washes + 1 end } end,
   unload = function(n) _G[n] = nil end,
 }
 function setExtensionUnloadMode() end
@@ -90,6 +91,9 @@ assert(M.status():find('dust 0%.00 mud 0%.00'), 'water washed it: ' .. M.status(
 M.onGround(7, 0, 0, 1, 1, 0, 20, 0.5, 0)
 M.wash()
 tick(3)
+assert(washes > 0, 'washing reaches the splats')
+M.repair()
+assert(repaired == 1, 'repair reaches the scratches')
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()
