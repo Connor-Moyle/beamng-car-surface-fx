@@ -7,9 +7,9 @@ const { execFileSync } = require('child_process');
 
 execFileSync('node', [path.join(__dirname, '..', 'tools', 'build_overlay.js'), '--check'], { stdio: 'inherit' });     // the built file matches its sources
 
-const calls = { clip: 0, draws: 0, clears: 0, begin: 0, strokes: 0 };
+const calls = { fills: 0, clip: 0, draws: 0, clears: 0, begin: 0, strokes: 0 };
 const ctx = new Proxy({}, {
-  get: (t, k) => (k === 'clip' ? () => calls.clip++ : k === 'drawImage' ? () => calls.draws++ : k === 'clearRect' ? () => calls.clears++ : k === 'beginPath' ? () => calls.begin++ : k === 'stroke' ? () => calls.strokes++
+  get: (t, k) => (k === 'fill' ? () => calls.fills++ : k === 'clip' ? () => calls.clip++ : k === 'drawImage' ? () => calls.draws++ : k === 'clearRect' ? () => calls.clears++ : k === 'beginPath' ? () => calls.begin++ : k === 'stroke' ? () => calls.strokes++
     : k === 'createImageData' ? (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) : () => {}),
   set: () => true,
 });
@@ -48,6 +48,22 @@ for (let i = 0; i < 600; i++) { t += 34; rafCb(t); }
 const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
 assert(ms < 0.5, 'frame cost ' + ms.toFixed(3) + ' ms');
 console.log('overlay frame JS cost: ' + ms.toFixed(3) + ' ms');
+
+// the wipers: arcs are cleared (two blades), and the drops in the swept area are gone
+o.handle('csfxScreen', { on: true, hull: [0.2, 0.2, 0.8, 0.2, 0.9, 0.6, 0.1, 0.6], rain: 1, wet: 1, wiper: 0 });
+for (let i = 0; i < 120; i++) { t += 34; rafCb(t); }
+const f0 = calls.fills;
+let drops0 = 0, minAlive = 1e9;
+for (let i = 0; i < o.sim().n; i++) drops0 += o.sim().alive[i];
+o.handle('csfxScreen', { on: true, hull: [0.2, 0.2, 0.8, 0.2, 0.9, 0.6, 0.1, 0.6], rain: 1, wet: 1, wiper: 1 });
+for (let i = 0; i < 40; i++) {
+  t += 34; rafCb(t);
+  let a = 0;
+  for (let k = 0; k < o.sim().n; k++) a += o.sim().alive[k];
+  minAlive = Math.min(minAlive, a);
+}
+assert(calls.fills - f0 >= 40, 'the blades clear arcs: ' + (calls.fills - f0) + ' fills');
+assert(minAlive < drops0, 'drops in the swept arcs are gone: ' + drops0 + ' -> ' + minAlive);
 
 // frost: with no rain at all the overlay still shows (the ice is drawn under the drops)
 o.handle('csfxScreen', { on: true, hull: [0.2, 0.2, 0.8, 0.2, 0.9, 0.6, 0.1, 0.6], rain: 0, wet: 0, frost: 0.9 });

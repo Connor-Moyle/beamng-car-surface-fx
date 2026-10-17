@@ -103,6 +103,12 @@ assert(gh[#gh][2].on == false, 'the overlay is switched off in another camera')
 camName = 'driver'
 assert(js[#js]:find('wiper=1', 1, true), 'the wipers reach the canvas: ' .. js[#js])
 M.debug('wiper', 0) tick(10)
+M.debug('rain', 1) M.onGround(7, 0, 0, 0, 0, 0, 5, 0.5, -1) tick(10)
+assert(js[#js]:find('wiper=1', 1, true), 'a car with no wiper value gets wipers by the rain: ' .. js[#js])
+M.onGround(7, 0, 0, 0, 0, 0, 5, 0.5, 0.0) tick(10)
+assert(js[#js]:find('wiper=0', 1, true), 'its own wipers off: ' .. js[#js])
+M.onGround(7, 0, 0, 0, 0, 0, 5, 0.5, 1) tick(10)
+assert(js[#js]:find('wiper=1', 1, true), 'its own wipers on: ' .. js[#js])
 M.debug('mud', 0.8) tick(5)
 M.onVehicleSpawned(7) tick(10)                            -- respawn: attaches again
 M.debug() tick(5)

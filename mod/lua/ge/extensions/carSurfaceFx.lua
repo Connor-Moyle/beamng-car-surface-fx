@@ -28,6 +28,13 @@ local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug valu
 local doubleSided = true                  -- carSurfaceFx.glassDouble(false) to switch it off
 local flood = 0                           -- debug: the window canvases solid (carSurfaceFx.debug('flood', 1))
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
+local wiperHold, wiperNone = {}, {}         -- vehicle id -> os.clock() until which its wipers count as running (the reported value may be the blade's angle, which crosses zero); car has no wiper value at all
+-- the wipers of a car 0..1: forced, else running when the car says so, else (no wiper value on the car) by the rain falling
+local function wipersOf(id, rain)
+  if wiperForced then return wiperForced end
+  if wiperNone[id] then return rain > 0.7 and 1 or (rain > 0.3 and 0.6 or 0) end
+  return (wiperHold[id] or 0) > os.clock() and 1 or 0
+end
 local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime, snow, bugs } 0..1 built up by driving and weather (settings.mud.buildup)
 local forcedDirt                          -- the debug amounts { kind = value }
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
@@ -38,7 +45,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 10                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 11                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -237,7 +244,9 @@ end
 -- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua), every 0.5 s: the shares of that time on loose ground (weighted), mud and road,
 -- skidding, and with a wheel in water; the speed; the wipers 0..1
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine)
-  wiperBy[id] = wipers or 0
+  wipers = tonumber(wipers) or 0
+  wiperBy[id], wiperNone[id] = wipers, wipers < 0
+  if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
   engineBy[id] = tonumber(engine)
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
     local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
@@ -359,7 +368,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP }) .. ')')
+        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -398,7 +407,7 @@ local function pushScreen(dt)
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
   guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize, debug = screenDebug, frost = frostP })
+    wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostP })
   screenOn = true
 end
 

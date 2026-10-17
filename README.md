@@ -4,7 +4,7 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
 
 - **Wet paint.** When it rains the paint gets darker and glossier, and fine water beads form on it. The beads grow and merge as the rain goes on and shrink away again as the car dries over a few minutes.
 - **Water on the windows.** Drops land on the glass, merge, and the big ones run down and leave small drops behind. Speed pushes them up the glass, hard braking throws them forward, cornering slides them sideways, and the wipers sweep them off. They dry up when the rain stops.
-- **Rain on the windscreen from the driver's seat.** In the driver or onboard camera the drops are drawn on the screen over the windscreen as small lenses, with thin wobbling streaks behind the running ones. More rain means more drops, speed pushes them up, cornering sideways, and each wiper sweep leaves a clean arc that fills again.
+- **Rain on the windscreen from the driver's seat.** In the driver or onboard camera the drops are drawn on the screen over the windscreen as small lenses, with thin wobbling streaks behind the running ones. More rain means more drops, speed pushes them up, cornering sideways, and each wiper sweep (two blades, only while the car's wipers run; a car without wipers gets them by the rain) leaves a clean arc that fills again.
 - **Dirt, in four kinds.**
   - *Dust* builds on dry dirt, gravel and sand and washes off quickly.
   - *Mud* builds on mud and on wet loose ground and stays longer.

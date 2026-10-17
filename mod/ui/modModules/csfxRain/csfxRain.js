@@ -134,10 +134,20 @@ function createOverlay(doc, win) {
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
   var st = { on: false, hull: null, p: { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
-  var last = null, lastDraw = 0, running = false, wipePrev = 0;
+  var last = null, lastDraw = 0, running = false;
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
+  var frostLayer = doc.createElement('canvas');                      // the frost as it is now: the blades clear arcs out of it, which stay clear until the frost is gone
+  frostLayer.width = frostLayer.height = 256;
+  var fctx = frostLayer.getContext('2d'), frostFresh = false;
+  // two blades (tandem): pivots on the bottom edge of the windscreen, sweeping from lying to the left up and over to the right; the angle is measured up from the +x axis
+  var BLADES = [{ px: 0.28, len: 0.62 }, { px: 0.74, len: 0.62 }], A_REST = 2.9, A_END = 0.25;
+  var ph = 0, phDir = 1, aPrev = A_REST, aNow = A_REST;
+  function wedge(c2d, cx, cy, L, a0, a1) {                           // the circle sector between two blade angles, as a filled path
+    var lo = Math.min(a0, a1) - 0.02, hi = Math.max(a0, a1) + 0.02;
+    c2d.beginPath(); c2d.moveTo(cx, cy); c2d.arc(cx, cy, L, -hi, -lo, false); c2d.closePath(); c2d.fill();
+  }
 
   // one drop as a lens: a faint light film, darker toward the centre, a lighter rim up-left, a dark crescent down-right, one glint
   var S = 64, sprite = doc.createElement('canvas');
@@ -179,7 +189,10 @@ function createOverlay(doc, win) {
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; trails.width = W; trails.height = H; }
     ctx.clearRect(0, 0, W, H);
     if (!st.hull || !st.bbox) return;
+    var wp = st.p.wiper;
+    st.p.wiper = 0;                                                   // the blades are the overlay's own (arcs), not the simulation's column
     CsfxSim.step(sim, dt, st.p);
+    st.p.wiper = wp;
     var b = st.bbox, bw = b.w * W, bh = b.h * H, bx = b.x0 * W, by = b.y0 * H;
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
@@ -202,11 +215,32 @@ function createOverlay(doc, win) {
       }
       px[k] = X; py[k] = Y; seen[k] = 1;
     }
-    if (st.p.wiper > 0.05) {                                          // the blade sweeps across (sim.wipe 0..1): the band it crossed is clean
-      var a = Math.min(wipePrev, sim.wipe) - 0.03, c2 = Math.max(wipePrev, sim.wipe) + 0.03;
-      tctx.clearRect(bx + a * bw, by, Math.max(2, (c2 - a) * bw), bh);
+    if (st.p.frost < 0.05) frostFresh = false;
+    else if (!frostFresh) { fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
+    aPrev = aNow;
+    if (st.p.wiper > 0.05) {                                          // the blades sweep a clear arc (the car's own wipers are on): drops in it are gone, the streaks and the frost too
+      ph += phDir * dt * st.p.wiper * 0.9;
+      if (ph > 1) { ph = 1; phDir = -1; } else if (ph < 0) { ph = 0; phDir = 1; }
+      aNow = A_REST + (A_END - A_REST) * ph;
+      tctx.globalCompositeOperation = 'destination-out'; tctx.fillStyle = 'rgba(0,0,0,1)';
+      fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,1)';
+      fctx.setTransform(256 / bw, 0, 0, 256 / bh, -bx * 256 / bw, -by * 256 / bh);
+      for (var wb = 0; wb < 2; wb++) {
+        var cx = bx + (BLADES[wb].px) * bw, cy = by + bh, L = BLADES[wb].len * bw;
+        wedge(tctx, cx, cy, L, aPrev, aNow);
+        if (st.p.frost > 0.01) wedge(fctx, cx, cy, L, aPrev, aNow);
+        var lo = Math.min(aPrev, aNow) - 0.02, hi = Math.max(aPrev, aNow) + 0.02;
+        for (var q = 0; q < sim.n; q++) {
+          if (!sim.alive[q]) continue;
+          var ddx = bx + sim.x[q] * bw - cx, ddy = cy - (by + sim.y[q] * bh);
+          if (ddx * ddx + ddy * ddy > L * L) continue;
+          var an = Math.atan2(ddy, ddx);
+          if (an >= lo && an <= hi) sim.alive[q] = 0;
+        }
+      }
+      tctx.globalCompositeOperation = 'source-over';
+      fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'source-over';
     }
-    wipePrev = sim.wipe;
 
     ctx.save();
     ctx.beginPath();
@@ -217,7 +251,7 @@ function createOverlay(doc, win) {
     ctx.clip();
     if (st.p.frost > 0.01) {                                          // ice under the drops
       ctx.globalAlpha = Math.min(1, st.p.frost * 1.2);
-      ctx.drawImage(frostTex, bx, by, bw, bh);
+      ctx.drawImage(frostLayer, bx, by, bw, bh);
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(trails, 0, 0);

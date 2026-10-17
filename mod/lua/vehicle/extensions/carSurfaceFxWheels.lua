@@ -23,6 +23,7 @@ local function wipers(dt)
     wiperKeys = {}
     for k in pairs(electrics.values) do if tostring(k):lower():find('wiper', 1, true) then wiperKeys[#wiperKeys + 1] = k end end
   end
+  if #wiperKeys == 0 then return -1 end                 -- this car has no wiper value: the game side decides by the rain
   local w = 0
   for _, k in ipairs(wiperKeys) do
     local v = tonumber(electrics.values[k]) or 0

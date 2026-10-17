@@ -62,6 +62,9 @@
   })();
 
   var frostTex = CsfxSim.frostTexture(document, 256);
+  var frostLayer = document.createElement('canvas');                // the frost as it is now: the blade's band is cleared out of it and stays clear until the frost is gone
+  frostLayer.width = frostLayer.height = 256;
+  var fctx = frostLayer.getContext('2d'), frostFresh = false, wipePrev = 0;
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(); };
@@ -78,9 +81,19 @@
       var R = sim.r[i] * H;
       ctx.drawImage(sprite, sim.x[i] * W - R, sim.y[i] * H - R, R * 2, R * 2);
     }
+    if (p.frost < 0.05) frostFresh = false;
+    else if (!frostFresh) { fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
+    if (p.frost > 0.01 && p.wiper > 0.05 && sim.wipe !== wipePrev) {     // the blade's band, along the glass's axis (as in sim.js), is clear
+      var a = Math.min(wipePrev, sim.wipe) - 0.03, b = Math.max(wipePrev, sim.wipe) + 0.03;
+      if (-p.gy + p.gx < 0) { var t = 1 - b; b = 1 - a; a = t; }
+      fctx.globalCompositeOperation = 'destination-out';
+      if (Math.abs(p.gy) > Math.abs(p.gx)) fctx.fillRect(a * 256, 0, (b - a) * 256, 256); else fctx.fillRect(0, a * 256, 256, (b - a) * 256);
+      fctx.globalCompositeOperation = 'source-over';
+    }
+    wipePrev = sim.wipe;
     if (p.frost > 0.01) {                                             // ice over the drops
       ctx.globalAlpha = Math.min(1, p.frost * 1.2) * (emissive ? 0.7 : 1);
-      ctx.drawImage(frostTex, 0, 0, W, H);
+      ctx.drawImage(frostLayer, 0, 0, W, H);
       ctx.globalAlpha = 1;
     }
     requestAnimationFrame(frame);
