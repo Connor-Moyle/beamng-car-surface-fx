@@ -152,6 +152,7 @@
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
   function frame(now) {
+    requestAnimationFrame(frame);                                  // first: whatever goes wrong below, the next frame still comes
     var dt = Math.min((now - last) / 1000, 0.2); last = now;
     try {
       if (!palette && water && water.nodes) {
@@ -159,33 +160,31 @@
         CsfxPaintWater.step(water, dt, wp);
         live = CsfxPaintWater.alive(water);
       }
-    } catch (e) { window.csfxError = String(e); water = null; }
-    if (dirty || live > 0 || window.csfxWasLive || wdebug) {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(sc, 0, 0);
-      if (!palette && water) {
-        for (var i = 0; i < water.n; i++) {
-          if (!water.alive[i]) continue;
-          var R = Math.max(2, water.r[i] * W) * 1.6;
-          ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
-          if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
-        }
-        if (wdebug) {                                                                       // what the page knows, written at body nodes (which are on visible paint)
-          ctx.font = 'bold 22px sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgb(0,0,0)'; ctx.fillStyle = 'rgb(255,0,255)';
-          var txt = 'v7 ' + (water ? 'n' + water.count + ' d' + live + ' r' + wp.rain.toFixed(1) + ' f' + wp.fz.toFixed(1) : 'NO SIM') + (window.csfxError ? ' ERR ' + window.csfxError : '');
-          if (water && water.nodes) for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) {
-            ctx.strokeText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W); ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
-          }
-        }
-        if (wdebug && water && water.nodes) {
-          ctx.fillStyle = 'rgb(255,0,0)';
-          for (var k = 0; k < water.count; k++) ctx.fillRect(water.nodes[k * 9] * W - 2, water.nodes[k * 9 + 1] * W - 2, 4, 4);
-        }
+    } catch (e) { window.csfxError = 'step ' + String(e); water = null; }
+    if (!(dirty || live > 0 || window.csfxWasLive || wdebug)) return;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(sc, 0, 0);
+    dirty = false;
+    window.csfxWasLive = live > 0;                                 // one more frame after the last drop is gone, to wipe it from the picture
+    if (palette || !water) return;
+    try {
+      for (var i = 0; i < water.n; i++) {
+        if (!water.alive[i]) continue;
+        var R = Math.max(2, water.r[i] * W) * 1.6;
+        ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
+        if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
       }
-      dirty = false;
-      window.csfxWasLive = live > 0;                              // one more frame after the last drop is gone, to wipe it from the picture
-    }
-    requestAnimationFrame(frame);
+    } catch (e) { window.csfxError = 'drops ' + String(e); }
+    if (!wdebug || !water.nodes) return;
+    try {
+      ctx.fillStyle = 'rgb(255,0,0)';
+      for (var k = 0; k < water.count; k++) ctx.fillRect(water.nodes[k * 9] * W - 2, water.nodes[k * 9 + 1] * W - 2, 4, 4);
+    } catch (e) { window.csfxError = 'dots ' + String(e); }
+    try {                                                           // what the page knows, written at body nodes (which are on visible paint)
+      ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = 'rgb(255,0,255)';
+      var txt = 'v8 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
+    } catch (e) { window.csfxError = 'text ' + String(e); }
   }
   blank();
   requestAnimationFrame(frame);
