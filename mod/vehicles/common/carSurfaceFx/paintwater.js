@@ -5,10 +5,10 @@
 // one vector in the car's coordinates, in m/s^2) into a direction on the texture, and runs that way if the pull along the panel beats what holds a drop of its size.
 (function (root) {
   var MAXD = 180, CELLS = 32, REACH = 0.03;
-  var RMAX = 4 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
+  var RMAX = 7 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
 
   function create() {
-    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
+    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
   }
   function rnd(w) { w.seed = (w.seed * 16807) % 2147483647; return w.seed / 2147483647; }
 
@@ -60,7 +60,7 @@
     while (spawns > 0) {
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
-        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (1.6 + 2.2 * q * q * q) / 1024);
+        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (2.4 + 2.6 * q * q * q) / 1024);
       }
       spawns -= 1;
     }
@@ -72,11 +72,13 @@
       var b = k2 * 9, du = w.nodes[b + 2] * p.fx + w.nodes[b + 3] * p.fy + w.nodes[b + 4] * p.fz, dv = w.nodes[b + 5] * p.fx + w.nodes[b + 6] * p.fy + w.nodes[b + 7] * p.fz;
       var s = w.nodes[b + 8], len = Math.sqrt(du * du + dv * dv);
       var along = len / s;                                                                   // the pull along the panel, m/s^2
-      var r = w.r[i], hold = 2 + 0.006 / r;                                          // what holds a drop: small ones stay, big ones go
+      var r = w.r[i], hold = 2 + 0.006 / r;
+      w.moved[i] = 0;                                          // what holds a drop: small ones stay, big ones go
       if (along > hold) {
         var v = Math.min(0.5, 0.02 * (along - hold) * (r * 1024 / 2.5));                       // m/s
         w.x[i] += du / len * v * s * dt;
         w.y[i] += dv / len * v * s * dt;
+        w.moved[i] = 1;                                                                      // the page leaves a wet trail where a drop has run
       }
       w.r[i] -= evap;
       if (w.r[i] < 1.5 / 1024 || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;

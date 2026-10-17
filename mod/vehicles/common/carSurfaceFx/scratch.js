@@ -124,7 +124,7 @@
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
   var live = 0, last = performance.now();
-  var DR = 24, drop = document.createElement('canvas');            // one drop: a clear body with a darker rim, lower right darker still (what multiplies the paint colour)
+  var DR = 24, drop = document.createElement('canvas');            // one drop: a faint dark body, a darker rim, lower right darker still (what multiplies the paint colour)
   drop.width = drop.height = DR;
   (function () {
     var c = drop.getContext('2d'), data = c.createImageData(DR, DR);
@@ -132,7 +132,7 @@
       var u = (x + 0.5) / DR * 2 - 1, v = (y + 0.5) / DR * 2 - 1, d2 = u * u + v * v, o = (y * DR + x) * 4;
       var d = Math.sqrt(d2);
       var ring = d < 1 ? Math.max(0, 1 - Math.abs(d - 0.8) / 0.25) : 0;
-      var shade = Math.min(0.9, ring * (0.55 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 0.8 ? 0.08 : 0));
+      var shade = Math.min(0.9, ring * (0.5 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 1 ? 0.2 + 0.12 * Math.max(0, (u + v) * 0.7) : 0));
       data.data[o] = data.data[o + 1] = data.data[o + 2] = 0;
       data.data[o + 3] = Math.min(255, shade * 255 * Math.min(1, (1 - d) * 5 + 0.0));
     }
@@ -142,6 +142,11 @@
   var wdebug = 0;
   window.csfxDebug = function (v) { wdebug = v; dirty = true; };                  // 1: the body nodes as red dots and the drops as big green discs, to see what reaches the paint
   var acc = [];
+  var tc = document.createElement('canvas');                         // wet trails: white = nothing, dark where a drop has run, fading back to white
+  tc.width = tc.height = W;
+  var tctx = tc.getContext('2d');
+  tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, W, W);
+  var trailLive = 0;
   window.csfxNodes = function (rows, more) {                                      // the node map comes in pieces (a long script string may not get through): the first piece starts it over
     if (!more) acc = [];
     for (var i = 0; i < rows.length; i++) acc.push(rows[i]);
@@ -165,12 +170,27 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(sc, 0, 0);
     dirty = false;
-    window.csfxWasLive = live > 0;                                 // one more frame after the last drop is gone, to wipe it from the picture
+    window.csfxWasLive = live > 0 || trailLive > 0;                // a few more frames after the last drop is gone, to wipe it from the picture
     if (palette || !water) return;
+    try {                                                           // trails: fade, add a dark dot where a drop moved, lay them over the paint (multiply: dark darkens, white changes nothing)
+      tctx.globalCompositeOperation = 'source-over';
+      tctx.fillStyle = 'rgba(255,255,255,0.03)'; tctx.fillRect(0, 0, W, W);
+      var moving = 0;
+      for (var t = 0; t < water.n; t++) {
+        if (!water.alive[t] || !water.moved[t]) continue;
+        moving++;
+        tctx.fillStyle = 'rgba(0,0,0,0.22)';
+        tctx.beginPath(); tctx.arc(water.x[t] * W, water.y[t] * W, Math.max(1.5, water.r[t] * W * 0.7), 0, Math.PI * 2); tctx.fill();
+      }
+      trailLive = moving > 0 ? 40 : Math.max(0, trailLive - 1);
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.drawImage(tc, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    } catch (e) { window.csfxError = 'trail ' + String(e); }
     try {
       for (var i = 0; i < water.n; i++) {
         if (!water.alive[i]) continue;
-        var R = Math.max(2, water.r[i] * W) * 1.3;
+        var R = Math.max(2.5, water.r[i] * W) * 1.3;
         ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
         if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 0.5, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }
@@ -182,7 +202,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v10 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v11 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }
