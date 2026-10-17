@@ -113,11 +113,13 @@ end
 local DUST, MUD = { 0.55, 0.47, 0.36 }, { 0.30, 0.22, 0.14 }
 function M.dirtPaint(p, d)
   local k = d * math.sqrt(d)
+  local km = 0.85 * k                                    -- colour never fully replaced: some of the paint shows through
   local c = p.baseColor
   local tint = {}
   for i = 1, 3 do tint[i] = DUST[i] + (MUD[i] - DUST[i]) * d end
   local function mix(a, b) return a + (b - a) * k end
-  return { baseColor = { mix(c[1], tint[1]), mix(c[2], tint[2]), mix(c[3], tint[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * k),
+  local function mixc(a, b) return a + (b - a) * km end
+  return { baseColor = { mixc(c[1], tint[1]), mixc(c[2], tint[2]), mixc(c[3], tint[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * k),
     roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - k), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
 end
 

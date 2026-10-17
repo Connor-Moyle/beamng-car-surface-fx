@@ -48,7 +48,7 @@ eq(peel.detailNormalMap, R.DROPLETS, 'beads replace the orange peel while wet')
 
 local dp = R.dirtPaint({ baseColor = { 0.4, 0.58, 0.07, 1 }, metallic = 0.8, roughness = 0.65, clearcoat = 1, clearcoatRoughness = 0.1 }, 1)
 eq(dp.clearcoat, 0, 'dirt kills the clear coat')
-eq(math.abs(dp.baseColor[1] - 0.30) < 1e-9, true, 'full dirt is the mud colour')
+eq(math.abs(dp.baseColor[1] - (0.4 + (0.30 - 0.4) * 0.85)) < 1e-9, true, 'full dirt is 85% of the way to the mud colour')
 local dust = R.dirtPaint({ baseColor = { 0.4, 0.58, 0.07, 1 }, metallic = 0.8, roughness = 0.65, clearcoat = 1, clearcoatRoughness = 0.1 }, 0.1)
 eq(dust.clearcoat > 0.95, true, 'light dust keeps the gloss')
 eq(math.abs(dp.metallic - 0.16) < 1e-9, true, 'dirt dulls the metal')
