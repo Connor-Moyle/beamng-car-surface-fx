@@ -352,7 +352,7 @@ local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
 local DRIVER_CAMS = { driver = true, onboard = true }
-local screenT, screenOn, screenSize, screenDebug, screenWhy = 0, false, 3.0, false, ''
+local screenT, screenOn, screenSize, screenDebug, screenWhy = 0, false, 4.5, false, ''
 local function pushScreen(dt)
   screenT = screenT + dt
   if screenT < 0.066 then return end
