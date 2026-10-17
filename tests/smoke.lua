@@ -7,9 +7,10 @@ function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
-local splats, started, repaired, washes = 0, {}, 0, 0
+local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {}, 0, 0, nil, nil, nil
 extensions = {
-  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, repair = function() repaired = repaired + 1 end,
+  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
+    getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
     washSplats = function() washes = washes + 1 end } end,
   unload = function(n) _G[n] = nil end,
 }
@@ -95,7 +96,18 @@ M.wash()
 tick(3)
 assert(washes > 0, 'washing reaches the splats')
 M.repair()
-assert(repaired == 1, 'repair reaches the scratches')
+assert(repaired == 1 and repairedId == 7, 'repair reaches the scratches, of the player car by default')
+M.repair(9)
+assert(repairedId == 9, 'repair of one car by id')
+assert(M.apiVersion == 2, 'api version')
+local lv = M.level(7)
+assert(lv.scratchName == 'heavy' and (lv.dirtName == 'clean' or lv.dirtName == 'dusty' or lv.dirtName == 'muddy'), 'level names: ' .. lv.dirtName .. ' ' .. lv.scratchName)
+M.setState(5, { dirt = { dust = 0.2, mud = 0.8, rubber = 0, grime = 0.1 }, marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} })
+assert(restoredId == 5 and #restored.marks == 1, 'setState hands the marks to the scratch module')
+local gs = M.getState(5)
+assert(gs.dirt.mud == 0.8 and gs.marks and #gs.marks == 1, 'getState gives back what was set')
+assert(M.level(5).dirtName == 'muddy', 'a muddy car is muddy')
+assert(M.getState(6) == nil or M.getState(6).dirt == nil, 'a car with nothing has no dirt state')
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()

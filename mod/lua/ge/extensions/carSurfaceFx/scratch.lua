@@ -47,6 +47,7 @@ local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
 local SIZE, FPS = 1024, 6   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
+local unpack = unpack or table.unpack
 
 local function defaults()
   return {
@@ -63,6 +64,22 @@ local function defaults()
   }
 end
 local settings = defaults()
+
+-- what each car has been marked with, kept GE-side (the canvas pages are write-only for us): scratch lines { x1, y1, x2, y2, width } and dirt splats { x, y, r, opacity, kind }
+-- (kind 1 = dust, 2 = mud), quantised and capped, so a car's marks can be saved (getState) and drawn again on a respawned car (restore, and after a mesh rebuild).
+local memory, replayAt = {}, {}
+local MEMORY_CAP = 60
+local function mem(id)
+  local m = memory[id]
+  if not m then m = { marks = {}, splats = {} } memory[id] = m end
+  return m
+end
+local function remember(list, rec)
+  list[#list + 1] = rec
+  if #list > MEMORY_CAP then table.remove(list, 1) end
+end
+local function q(x, k) k = k or 1000 return floor(x * k + 0.5) / k end
+local MUD, DUST = { 0.20, 0.14, 0.09 }, { 0.50, 0.42, 0.30 }
 
 local cars  = {}     -- vehId -> { building=true } | { none=true } | { lut=, pos=, axes=, wheelPts={} }
 local bound = {}     -- material name -> { [layer] = original field values }
@@ -194,6 +211,7 @@ local function start(veh)
     cars[id] = { lut = lut.nodes, count = lut.count, pos = pos, axes = axes, wheels = d.wheels, wheelPts = {} }
     for _, l in ipairs(layers) do if lut.mats[l.mapTo] then bind(l) end end
     ensureCanvases()
+    if memory[id] then replayAt[id] = os.clock() + 2 end       -- a rebuilt car gets its marks drawn again once its pages are up
   end)
 end
 
@@ -238,6 +256,8 @@ function M.hit(id, cid, force, slip, a, b, c)
     lines[n+5] = (0.001 + random() * 0.003) * s              -- 1-4mm wide
   end
   draw(veh, 'csfxLines', { l = lines, c = settings.colour, a = settings.opacity * (0.55 + 0.45 * sev) })
+  local m = mem(id)
+  for i = 1, #lines, 5 do remember(m.marks, { q(lines[i]), q(lines[i + 1]), q(lines[i + 2]), q(lines[i + 3]), q(lines[i + 4], 100000) }) end
 end
 
 -- dirt splats on the bodywork around the wheels of car id: n splats of colour c (rgb 0..1) and opacity a, around random wheels. carSurfaceFx calls this from its wheel
@@ -281,6 +301,8 @@ function M.wheelDirt(id, wi, colour, opacity, kind)
     blobs[n+3] = settings.dirtSize * (0.4 + random() * 0.6) * s
   end
   draw(veh, 'csfxBlobs', { l = blobs, c = colour or settings.dirtColour, a = opacity or settings.dirtOpacity, k = kind or 'mud' })
+  local m = mem(id)
+  for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(opacity or settings.dirtOpacity), kind == 'dust' and 1 or 2 }) end
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
@@ -291,18 +313,65 @@ function M.washSplats(id, fDust, fMud)
       veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
     end
   end
-end
-
--- repair: every car's scratches buffed out; the dirt stays
-function M.repair()
-  for _, veh in ipairs(getAllVehicles()) do
-    if hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxRepair()'); veh:queueJSUITexture(TAG_P, 'csfxRepair()') end
+  for vid, m in pairs(memory) do
+    if id == nil or vid == id then
+      local keep = {}
+      for _, sp in ipairs(m.splats) do
+        sp[4] = q(sp[4] * (sp[5] == 1 and fDust or fMud))
+        if sp[4] > 0.04 then keep[#keep + 1] = sp end
+      end
+      m.splats = keep
+    end
   end
 end
 
+-- repair: the scratches of car id buffed out (every car's when id is nil); the dirt stays
+function M.repair(id)
+  for _, veh in ipairs(getAllVehicles()) do
+    if (id == nil or veh:getId() == id) and hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxRepair()'); veh:queueJSUITexture(TAG_P, 'csfxRepair()') end
+  end
+  for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} end end
+end
+
 function M.buffOut()
+  memory = {}
   for _, veh in ipairs(getAllVehicles()) do
     if hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxClear()'); veh:queueJSUITexture(TAG_P, 'csfxClear()') end
+  end
+end
+
+-- how many scratches car id carries (the last MEMORY_CAP are remembered)
+function M.count(id) local m = memory[id] return m and #m.marks or 0 end
+
+-- the marks of car id as plain numbers (the last 40 scratch lines and splats), or nil
+function M.getState(id)
+  local m = memory[id]
+  if not m or (#m.marks == 0 and #m.splats == 0) then return nil end
+  local out = { marks = {}, splats = {} }
+  for i = math.max(1, #m.marks - 39), #m.marks do out.marks[#out.marks + 1] = { unpack(m.marks[i]) } end
+  for i = math.max(1, #m.splats - 39), #m.splats do out.splats[#out.splats + 1] = { unpack(m.splats[i]) } end
+  return out
+end
+
+-- put marks back on car id (from getState): remembered now, drawn as soon as the car's canvases are up
+function M.restore(id, st)
+  local m = { marks = {}, splats = {} }
+  for _, r in ipairs(type(st) == 'table' and st.marks or {}) do if #r >= 5 then m.marks[#m.marks + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
+  for _, r in ipairs(type(st) == 'table' and st.splats or {}) do if #r >= 5 then m.splats[#m.splats + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
+  memory[id] = m
+  replayAt[id] = os.clock() + 1
+end
+
+local function replay(id)
+  local m, veh = memory[id], getObjectByID(id)
+  if not m or not veh then return end
+  for i = 1, #m.marks, 10 do
+    local l = {}
+    for j = i, math.min(i + 9, #m.marks) do for k = 1, 5 do l[#l + 1] = m.marks[j][k] end end
+    draw(veh, 'csfxLines', { l = l, c = settings.colour, a = settings.opacity * 0.8 })
+  end
+  for _, sp in ipairs(m.splats) do
+    draw(veh, 'csfxBlobs', { l = { sp[1], sp[2], sp[3] }, c = sp[5] == 1 and DUST or MUD, a = sp[4], k = sp[5] == 1 and 'dust' or 'mud' })
   end
 end
 
@@ -388,12 +457,16 @@ function M.onUpdate(dt)
     if active() and not cars[id] and (settings.allVehicles or id == player) then start(veh) end
   end
   ensureCanvases()
+  for id, t in pairs(replayAt) do
+    local car, veh = cars[id], getObjectByID(id)
+    if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then replay(id) replayAt[id] = nil end
+  end
 end
 function M.onVehicleSpawned(id)
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
-function M.onVehicleDestroyed(id) cars[id] = nil end
+function M.onVehicleDestroyed(id) cars[id] = nil memory[id] = nil replayAt[id] = nil end
 function M.onClientEndMission()   restoreAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 

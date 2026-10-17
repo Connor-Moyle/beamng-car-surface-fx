@@ -11,6 +11,7 @@
 -- Debug: carSurfaceFx.debug('rain', 1.0) / ('mud'|'dust'|'rubber'|'grime', 0.8) force a value (debug() clears), carSurfaceFx.status(), carSurfaceFx.tune(scale, strength).
 local M = {}
 local TAG = 'carSurfaceFx'
+M.apiVersion = 2                          -- 2: repair(id), getState / setState, level
 local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
@@ -257,8 +258,13 @@ local function stopScratch()
   end
 end
 
--- carSurfaceFx.repair(): buff out every car's scratches (the dirt stays); washing is the dirt's way off and never touches scratches
-function M.repair() if scratchOn() then carSurfaceFx_scratch.repair() return 'scratches buffed out' end return 'scratch module is not running' end
+-- carSurfaceFx.repair(id): buff out the scratches of that car (the player's when nil; the dirt stays); washing is the dirt's way off and never touches scratches
+function M.repair(id)
+  if not scratchOn() then return 'scratch module is not running' end
+  id = id or be:getPlayerVehicleID(0)
+  carSurfaceFx_scratch.repair(id)
+  return 'scratches buffed out on car ' .. tostring(id)
+end
 
 local function wantedIds()
   local ids = {}
@@ -443,6 +449,45 @@ function M.tune(scale, strength)
   rules.beadStrength = tonumber(strength) or rules.beadStrength
   for _, info in pairs(mats) do if info.rung > 0 then setRung(info, info.rung) end end
   return 'beads ' .. rules.beadScale .. ' strength ' .. rules.beadStrength
+end
+
+-- carSurfaceFx.level(id) (the player's car when nil): how dirty and scratched a car is, for a phone or garage screen
+function M.level(id)
+  id = id or be:getPlayerVehicleID(0)
+  local d = dirtBy[id] or rules.dirtNew()
+  local dirt = math.max(d.mud, d.dust * 0.7, d.grime * 0.6, d.rubber * 0.5)
+  local scratches = scratchOn() and rules.clamp(carSurfaceFx_scratch.count(id) / 30, 0, 1) or 0
+  return { dirt = dirt, dirtName = d.mud >= 0.3 and 'muddy' or (dirt >= 0.15 and 'dusty' or 'clean'),
+    scratches = scratches, scratchName = scratches < 0.02 and 'none' or (scratches < 0.35 and 'light' or 'heavy') }
+end
+
+-- carSurfaceFx.getState(id): everything a car carries as plain numbers (json-safe), or nil when it is clean and unmarked:
+-- { dirt = { dust, mud, rubber, grime }, marks = { {x1,y1,x2,y2,width} ...  at most 40 }, splats = { {x,y,r,opacity,kind} ... at most 40 } }
+function M.getState(id)
+  id = id or be:getPlayerVehicleID(0)
+  local st = {}
+  local d = dirtBy[id]
+  if d and rules.dirtTotal(d) > 0 then
+    st.dirt = {}
+    for _, k in ipairs(rules.KINDS) do st.dirt[k] = math.floor(d[k] * 1000 + 0.5) / 1000 end
+  end
+  local sc = scratchOn() and carSurfaceFx_scratch.getState(id)
+  if sc then st.marks, st.splats = sc.marks, sc.splats end
+  return next(st) and st or nil
+end
+
+-- carSurfaceFx.setState(id, state): put a getState result back on a car (a respawned one)
+function M.setState(id, st)
+  if type(st) ~= 'table' then return 'no state' end
+  if type(st.dirt) == 'table' then
+    local d = rules.dirtNew()
+    for _, k in ipairs(rules.KINDS) do d[k] = rules.clamp(tonumber(st.dirt[k]) or 0, 0, 1) end
+    dirtBy[id] = d
+    if cars[id] then cars[id].dirt = nil end              -- applied again at the next tick
+  end
+  if settings and settings.scratch.enabled and not scratchOn() then startScratch() end
+  if scratchOn() then carSurfaceFx_scratch.restore(id, st) end
+  return 'state set on car ' .. tostring(id)
 end
 
 -- carSurfaceFx.insideMode('color' | 'emissive'): which slot the INSIDE glass (names ending 'int') takes its canvas in; the glass is rebound at the next tick
