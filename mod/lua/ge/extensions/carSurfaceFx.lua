@@ -352,7 +352,7 @@ local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
 local DRIVER_CAMS = { driver = true, onboard = true }
-local screenT, screenOn, screenSize = 0, false, 2.2
+local screenT, screenOn, screenSize = 0, false, 3.0
 local function pushScreen(dt)
   screenT = screenT + dt
   if screenT < 0.066 then return end
@@ -372,7 +372,7 @@ local function pushScreen(dt)
   screenOn = true
 end
 
--- carSurfaceFx.tuneScreen(2.2): drop size of the overlay in the driver's view
+-- carSurfaceFx.tuneScreen(3.0): drop size of the overlay in the driver's view
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
 local function update(dtReal)

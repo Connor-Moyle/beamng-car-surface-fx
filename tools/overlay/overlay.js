@@ -26,11 +26,14 @@ function createOverlay(doc, win) {
       if (d2 >= 1) { data.data[o + 3] = 0; continue; }
       var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8);
       var ring = Math.max(0, 1 - Math.abs(d - 0.86) / 0.14), dir = (u + v) * 0.7071;
-      var s = 0.08 + ring * (dir > 0 ? -0.5 * dir : 0.7 * -dir);
+      var s = ring * (dir > 0 ? -0.9 * dir : 0.7 * -dir);
       var gx = u + 0.4, gy = v + 0.45;
-      s += 0.9 * Math.exp(-(gx * gx + gy * gy) / 0.012);
-      data.data[o] = data.data[o + 1] = data.data[o + 2] = s >= 0 ? 255 : 0;
-      data.data[o + 3] = Math.min(255, Math.min(1, Math.abs(s)) * fade * 255);
+      s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);
+      var r = 205, g = 222, b = 240, a = 0.16 + 0.1 * (1 - d);                         // the body: a faint light-blue film (water bends the light behind it)
+      if (s > 0.15) { r = g = b = 255; a = Math.min(1, s); }                          // glint and bright rim
+      else if (s < -0.05) { r = g = b = 0; a = Math.min(0.85, -s * 1.3); }            // the dark crescent
+      data.data[o] = r; data.data[o + 1] = g; data.data[o + 2] = b;
+      data.data[o + 3] = Math.min(255, a * fade * 255);
     }
     c.putImageData(data, 0, 0);
   })();
