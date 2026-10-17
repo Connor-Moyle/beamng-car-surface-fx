@@ -449,6 +449,10 @@ function M.glassInfo()
       local info = mats[name]
       out[#out + 1] = string.format('%s mapTo=%s mode=%s bound=%s meshes=[%s]', name, info and info.mapTo or '?', info and info.mode or '-', tostring(info and info.rung or '-'),
         veh:getMeshesContainingMaterial(info and info.mapTo or name) or '')
+      if info and info.glass then
+        local ok, dbg = pcall(function() return dumps(veh:getActiveUITextureDebugInfo(info.tag)) end)
+        out[#out + 1] = '  canvas ' .. info.tag .. ': ' .. (ok and tostring(dbg) or ('no debug info: ' .. tostring(dbg)))
+      end
     end
   end
   return table.concat(out, '\n')
