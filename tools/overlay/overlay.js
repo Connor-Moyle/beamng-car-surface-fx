@@ -16,11 +16,20 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false;
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
+  var mistTex = (function () {                                       // road spray: a haze and a fine grey-white speckle, made once
+    var c = doc.createElement('canvas');
+    c.width = c.height = 256;
+    var m = c.getContext('2d'), seed = 777;
+    function rr() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    m.fillStyle = 'rgba(200,208,216,0.35)'; m.fillRect(0, 0, 256, 256);
+    for (var i = 0; i < 1800; i++) { m.fillStyle = 'rgba(235,240,246,' + (0.25 + rr() * 0.5) + ')'; m.beginPath(); m.arc(rr() * 256, rr() * 256, 0.6 + rr() * 1.4, 0, 6.283); m.fill(); }
+    return c;
+  })();
   var frostLayer = doc.createElement('canvas');                      // the frost as it is now: the blades clear arcs out of it, which stay clear until the frost is gone
   frostLayer.width = frostLayer.height = 256;
   var fctx = frostLayer.getContext('2d'), frostFresh = false;
@@ -138,6 +147,11 @@ function createOverlay(doc, win) {
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(trails, 0, 0);
+    if (st.p.spray > 0.02) {
+      ctx.globalAlpha = Math.min(0.7, st.p.spray * 0.9);
+      ctx.drawImage(mistTex, bx, by, bw, bh);
+      ctx.globalAlpha = 1;
+    }
     var alive = 0;
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
@@ -162,7 +176,7 @@ function createOverlay(doc, win) {
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;
     var p = st.p;
-    ['frost', 'rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
+    ['spray', 'frost', 'rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
     if (!st.on) { st.on = true; last = null; lastDraw = 0; }
     root.style.display = 'block';
     if (!running) { running = true; win.requestAnimationFrame(frame); }

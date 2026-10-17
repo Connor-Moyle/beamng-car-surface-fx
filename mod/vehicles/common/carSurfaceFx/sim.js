@@ -44,6 +44,13 @@
       if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z); }
       spawns -= 1;
     }
+    if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
+      var sp = p.spray * 140 * z * dt;
+      while (sp > 0) {
+        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z);
+        sp -= 1;
+      }
+    }
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
     var down = 0.02 - Math.pow(p.speed / 30, 2) * 0.35 - p.aLong * 0.012;
     var across = p.aLat * 0.012;

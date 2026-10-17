@@ -189,6 +189,17 @@ function M.frostStep(f, dt, airC, engineC, wet)
   return clamp(f, 0, 1)
 end
 
+-- Road spray from a car ahead (0..1): c = { dist (m, along your direction), lateral (m, sideways offset), align (the two cars' heading dot, 1 = same way), speed (its m/s),
+-- len (its length in m) }. Within SPRAY_RANGE ahead, roughly in your lane, going the same way and fast enough; stronger the faster and the closer, and for long vehicles.
+M.SPRAY_RANGE = 25
+function M.spray(c)
+  if not (c.dist > 1 and c.dist < M.SPRAY_RANGE and math.abs(c.lateral) < 2.4 and c.align > 0.6 and c.speed > 7) then return 0 end
+  local sizeK = clamp(0.7 + ((c.len or 4.5) - 4) / 10, 0.7, 1.6)
+  return clamp(clamp((c.speed - 7) / 20, 0, 1) * (1 - c.dist / M.SPRAY_RANGE) ^ 1.2 * sizeK, 0, 1)
+end
+-- how much of that spray there is on a road this wet (wet 0..1)
+function M.sprayWet(wet) return clamp(((wet or 0) - 0.2) / 0.6, 0, 1) end
+
 -- snow weather: precipitation with the air below SNOW_AIR C (snowing 0..1), and whether it is warm enough to melt it
 M.SNOW_AIR = 1.5
 function M.snowing(drops, airC)

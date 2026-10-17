@@ -58,12 +58,13 @@ function car:destroyUITexture(tag) tags[tag] = nil order[#order + 1] = 'destroy'
 function car:queueJSUITexture(tag, code) js[#js + 1] = code end
 function car:switchMaterial() end
 local alive = true
+local lead                                   -- a second car ahead, set by the spray test
 be = {
   getObjectByID = function(_, id) return alive and car or nil end,
   getPlayerVehicle = function() return car end,
   getPlayerVehicleID = function() return 7 end,
-  getObjectCount = function() return 1 end,
-  getObject = function() return car end,
+  getObjectCount = function() return lead and 2 or 1 end,
+  getObject = function(_, i) if i == 1 then return lead end return car end,
 }
 core_environment = { getPrecipitation = function() return 600 end, getTemperatureK = function() return 288 end, groundModels = { MUD = { cdata = { collisiontype = 14 } } } }
 core_vehicle_manager = { getVehicleData = function() return { vdata = { flexbodies = { { mesh = 'vivace_windshield', ['_group_nodes'] = { 1, 2, 3, 4 } }, { mesh = 'vivace_windshield_int', ['_group_nodes'] = { 5, 6, 7 } } } }, config = { paints = { { baseColor = { 0.4, 0.6, 0.1, 1 }, metallic = 0.8, roughness = 0.6, clearcoat = 1, clearcoatRoughness = 0.1 } } } } end,
@@ -137,6 +138,19 @@ local gs = M.getState(5)
 assert(gs.dirt.mud == 0.8 and gs.marks and #gs.marks == 1, 'getState gives back what was set')
 assert(M.level(5).dirtName == 'muddy', 'a muddy car is muddy')
 assert(M.getState(6) == nil or M.getState(6).dirt == nil, 'a car with nothing has no dirt state')
+
+-- spray from a car ahead
+lead = { getID = function() return 8 end, getPosition = function() return { x = 0, y = 12, z = 0 } end, getDirectionVector = function() return { x = 0, y = 1, z = 0 } end,
+  getVelocity = function() return { x = 0, y = 25, z = 0 } end, getInitialLength = function() return 12 end, getMaterialNames = function() return {} end,
+  getActiveUITextureTagNames = function() return {} end, getMeshesContainingMaterial = function() return '' end }
+car.getDirectionVector = function() return { x = 0, y = 1, z = 0 } end
+M.debug('rain', 1) tick(20)
+assert(M.status():find('spray 0%.[1-9]') or M.status():find('spray 1'), 'a truck 12 m ahead sprays the windscreen: ' .. M.status())
+assert(js[#js]:find('spray=', 1, true), 'spray reaches the window canvas')
+lead = nil tick(40)
+assert(M.status():find('spray 0%.00'), 'the spray fades when it is gone: ' .. M.status())
+car.getDirectionVector = function() return { x = 1, y = 0, z = 0 } end
+M.debug()
 
 -- snow, frost, bugs
 M.debug() tick(5)

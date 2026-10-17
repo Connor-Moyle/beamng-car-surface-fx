@@ -3,6 +3,7 @@
 ## Unreleased (after 0.2.0)
 
 - Wipers: two blades sweep clear arcs on the driver's view (drops, streaks and frost in the arc are gone and the drops bead up again behind them); the window canvases clear their frost in the blade's band. A car with no wiper value gets its wipers from the rain.
+- Road spray from the car ahead on a wet road (mist and tiny drops on the windscreen and the driver's view, scaled by speed, closeness, length and wetness; the nearby cars are looked at four times a second).
 - Snow, frost and bugs: see below. (0.2.0 is tagged on the last commit proven in the game; these ship as 0.2.1 once proven.)
 
 - Snow (settles on roof and hood, blows off at speed, melts), frost (glass and the driver's view, clears with the engine), bugs (on the nose after fast dry driving). Options switch "Snow, frost and bugs", settings `weather.snow/frost/bugs`, debug forcing.

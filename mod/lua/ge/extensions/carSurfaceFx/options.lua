@@ -26,7 +26,7 @@ function M.apply(s, get)
   v = flag('scratch') if v ~= nil then s.scratch.enabled = v end
   v = number('markSize', 0.3, 3) if v then s.scratch.markSize = v end
   v = flag('allCars') if v ~= nil then s.traffic = v s.scratch.allVehicles = v end
-  v = flag('weather') if v ~= nil then s.weather.snow, s.weather.frost, s.weather.bugs = v, v, v end
+  v = flag('weather') if v ~= nil then s.weather.snow, s.weather.frost, s.weather.bugs, s.weather.spray = v, v, v, v end
   return s
 end
 
@@ -64,7 +64,7 @@ function M.group()
       sliderItem('Dirt build-up speed', k.dirtSpeed, 'How fast dirt builds up while you drive (dust on dirt roads, mud when it is wet, rubber from skids, grime on tarmac). 0 means it does not build up at all; 1 is the normal speed.', 0, 3, 0.1),
       checkItem('Scratches and wheel-arch dirt splats', k.scratch, 'Hard scrapes leave scratch marks where the body touched; dirt splats build up around the wheels. Washing removes the splats, a repair removes the scratches.'),
       sliderItem('Scratch length', k.markSize, 'How long the scratch marks are (1 is normal).', 0.3, 3, 0.1),
-      checkItem('Snow, frost and bugs', k.weather, 'Snow settles on the roof and hood and blows off at speed, frost forms on the glass on cold nights and clears as the engine warms up, bugs gather on the nose in fast driving. Rain and a car wash take them off.'),
+      checkItem('Snow, frost, bugs and road spray', k.weather, 'Snow settles on the roof and hood and blows off at speed, frost forms on the glass on cold nights and clears as the engine warms up, bugs gather on the nose in fast driving, and a car ahead throws road spray on a wet road. Rain and a car wash take them off.'),
       checkItem('Apply to all cars, traffic too', k.allCars, 'Off: only the car you drive gets the effects. On: every car in the level does (costs more).'),
     },
   })
