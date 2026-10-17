@@ -45,7 +45,8 @@ M.TOP_FIELDS = { 'version', 'translucent', 'translucentBlendOp', 'translucentRec
   'castShadows', 'invertBackFaceNormals', 'dynamicCubemap', 'cubemap', 'annotation', 'activeLayers', 'beamngDiffuseColorSlot', 'materialTag0', 'materialTag1',
   'materialTag2', 'materialTag3', 'detailMapScale0' }
 M.STAGES = 4
-local DETAIL_MAPS = { 'detailMap', 'detailNormalMap', 'roughnessDetailMap', 'metallicDetailMap', 'opacityDetailMap' }
+local DETAIL_MAPS = { 'detailMap', 'roughnessDetailMap', 'metallicDetailMap', 'opacityDetailMap' }   -- other detail maps share detailScale: leave those stages alone
+M.beadScale, M.beadStrength = '6 6', 0.6               -- tunable (carSurfaceFx.tune): how big and how strong the water beads are
 
 local function set(v) return v ~= nil and v ~= '' end
 
@@ -87,7 +88,8 @@ local function color4(v)
   return { t[1] or 1, t[2] or 1, t[3] or 1, t[4] or 1 }
 end
 
--- the fields (name -> string for setField) one paint stage gets at a rung: darker, glossier, with beads of water (only when it has no detail map of its own)
+-- the fields (name -> string for setField) one paint stage gets at a rung: darker, glossier, with beads of water (they replace the paint's own
+-- orange-peel normal detail while wet: a water film hides it)
 function M.wetFields(st, rung)
   local f = FRACTION[rung]
   local out = {}
@@ -100,10 +102,19 @@ function M.wetFields(st, rung)
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
   if not own then
     out.detailNormalMap = M.DROPLETS
-    out.detailNormalMapStrength = string.format('%.3f', 0.6 * f)
-    out.detailScale = '6 6'
+    out.detailNormalMapStrength = string.format('%.3f', M.beadStrength * f)
+    out.detailScale = M.beadScale
   end
   return out
+end
+
+-- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with dirt d (0..1) on it: browner, flat, no gloss.
+local DIRT = { 0.30, 0.22, 0.14 }
+function M.dirtPaint(p, d)
+  local function mix(a, b) return a + (b - a) * d end
+  local c = p.baseColor
+  return { baseColor = { mix(c[1], DIRT[1]), mix(c[2], DIRT[2]), mix(c[3], DIRT[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * d),
+    roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - d), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
 end
 
 return M

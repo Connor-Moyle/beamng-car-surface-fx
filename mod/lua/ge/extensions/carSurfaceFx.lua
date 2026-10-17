@@ -1,10 +1,10 @@
 -- Car Surface FX: weather and wear on the body of every car, at runtime, with no per-car textures.
--- How: for each paint material of a car (the stages that take the car's colour or have a clear coat) the mod builds a ladder of clones
--- (<material>.cfxw1..3: darker, glossier, with a shared droplet normal map) from the material's own materials.json entry, then switches the car's
--- meshes between the rungs with vehicle:switchMaterial (the way the game's own light/damage materials work, lua/common/jbeam/materials.lua).
--- Switching is ~free; only building a rung costs a material reload, so the rungs are built one per frame after a car appears.
--- The wetness comes from sl_weather.wetness() when Street Legal runs, else from the rain object. Settings: <user>/settings/carSurfaceFx.json.
--- Debug: carSurfaceFx.debug('rain', 1.0)  (forces the wetness, debug() clears), carSurfaceFx.status().
+-- Rain: the wet look goes on each body paint material in place (darker, glossier, shared water-bead normal detail), one material reload per change,
+-- spread over frames, and the original values are put back when it dries, on level change and on unload. Cars of one model share a material, so they
+-- get wet together. (Clones switched per car were tried and render chrome: the hidden per-car paint state does not reach a material made from Lua.)
+-- Dirt: the car's own paint data (the same call the paint shop uses) is mixed toward dirt, per car, no reload.
+-- Wetness comes from sl_weather.wetness() when Street Legal runs, else from the rain object. Settings: <user>/settings/carSurfaceFx.json.
+-- Debug: carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value (debug() clears), carSurfaceFx.status(), carSurfaceFx.tune(scale, strength).
 local M = {}
 local TAG = 'carSurfaceFx'
 local rules = require('carSurfaceFx/rules')
@@ -12,16 +12,15 @@ local rules = require('carSurfaceFx/rules')
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1 }, scratch = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield' }   -- name parts that are never body paint
+local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
 local settings
-local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the cars are on
+local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
+local dirt, forcedDirt = 0, nil              -- dirt on the player car (debug only so far)
 local timer = 0
-local CLONE = '.cfxw'                        -- clone name: <material>.cfxw1..3 (.cfxa1..3 in the assign mode)
-local mode = 'fields'                        -- how clones are copied: 'fields' (getField/setField per field) or 'assign' (the engine's own field copy)
-local cars = {}                               -- vehicle id -> { mats = { { name, mapTo, msc = {...} } } }
-local ladders = {}                            -- material name -> what was read from it + have[rung]
-local queue = {}                              -- clones still to build: { name, rung }
-local built = 0
+local cars = {}                               -- vehicle id -> { veh, mats = { info... }, dirt = last applied dirt }
+local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
+local queue = {}                              -- material edits still to do, one per frame
 
 local function log_(level, msg) log(level, TAG, msg) end
 
@@ -49,14 +48,13 @@ local function count(str)
   return n
 end
 
--- what the game loaded for a material: every stage's fields and the material's own, read from the live Material object
+-- what the game loaded for a material, read from the live Material object (taken once, before the first edit)
 local function readMaterial(name)
   local mat = scenetree.findObject(name)
   if not mat then return nil end
-  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, top = {} }
+  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0 }
   if not info.mapTo or info.mapTo == '' then info.mapTo = name end
-  for _, k in ipairs(rules.TOP_FIELDS) do info.top[k] = mat:getField(k, 0) end
-  info.version, info.translucent = info.top.version, info.top.translucent
+  info.version, info.translucent = mat:getField('version', 0), mat:getField('translucent', 0)
   for L = 0, rules.STAGES - 1 do
     local st = {}
     for _, k in ipairs(rules.STAGE_FIELDS) do
@@ -68,47 +66,12 @@ local function readMaterial(name)
   return info
 end
 
--- one rung: a copy of the material (everything read above) with the wet fields laid over the paint stages. Built before any car shows a rung.
-local function buildRung(lad, r)
-  local cloneName = lad.name .. CLONE .. r
-  if scenetree.findObject(cloneName) then return true end
-  local c = createObject('Material')
-  if not c then return false end
-  c.canSave = false
-  if mode == 'assign' then
-    local src = scenetree.findObject(lad.name)
-    local ok, err = pcall(function() c:assignFieldsFrom(src) end)
-    if not ok then log_('E', 'assignFieldsFrom failed: ' .. tostring(err)) return false end
-    c:setField('name', 0, cloneName)
-  else
-    for k, v in pairs(lad.top) do
-      if v ~= nil and v ~= '' then c:setField(k, 0, tostring(v)) end
-    end
-  end
-  c:setField('mapTo', 0, lad.mapTo .. CLONE .. r)       -- own mapTo, so no car that spawns later binds to the clone
+-- the wet fields of rung r on the paint stages of the material itself (r = 0 puts the originals back), then one reload
+local function setRung(info, r)
+  local m = scenetree.findObject(info.name)
+  if not m then return end
   for L = 0, rules.STAGES - 1 do
-    local st = lad.stages[L]
-    if mode ~= 'assign' then
-      for k, v in pairs(st) do c:setField(k, L, v) end
-    end
-    if rules.isPaintStage(st) then
-      for k, v in pairs(rules.wetFields(st, r)) do c:setField(k, L, v) end
-    end
-  end
-  local fn = scenetree.findObject(lad.name):getFilename()
-  if fn and fn ~= '' then pcall(function() c:setFilename(fn) end) end   -- a vehicle material knows its file (the shader's per-car paint may depend on it)
-  c:registerObject(cloneName)
-  Sim.upcast(c):reload()
-  return true
-end
-
--- in-place mode (rain only, no clones): the wet fields go on the original material itself, one reload per change. All cars of that model share it.
-local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
-local function setInPlace(lad, r)
-  local m = scenetree.findObject(lad.name)
-  if not m then return false end
-  for L = 0, rules.STAGES - 1 do
-    local st = lad.stages[L]
+    local st = info.stages[L]
     if rules.isPaintStage(st) then
       local wetF = r > 0 and rules.wetFields(st, r) or {}
       for _, k in ipairs(WET_KEYS) do
@@ -119,79 +82,49 @@ local function setInPlace(lad, r)
     end
   end
   Sim.upcast(m):reload()
-  lad.rung = r
-  return true
+  info.rung = r
 end
 
--- find the car's body paint materials and queue their rungs
+-- find the car's body paint materials (first time a material is seen its originals are read)
 local function attach(id)
   local veh = be:getObjectByID(id)
   if not veh then return end
-  local car = { mats = {}, veh = veh }
-  local infos = {}
+  local car = { veh = veh, mats = {} }
+  local seen = {}
   for _, name in ipairs(veh:getMaterialNames()) do
     if not skipped(name) then
-      local info = ladders[name] or readMaterial(name)
+      local info = mats[name] or readMaterial(name)
       if info then
         info.meshes = count(veh:getMeshesContainingMaterial(info.mapTo))
-        infos[#infos + 1] = info
+        seen[#seen + 1] = info
       end
     end
   end
-  for name in pairs(rules.paintNames(infos)) do
-    local lad = ladders[name]
-    if not lad then
-      for _, info in ipairs(infos) do if info.name == name then lad = info end end
-      lad.have = {}
-      ladders[name] = lad
-      lad.rung = 0
-      if mode ~= 'inplace' then for r = 1, rules.RUNGS do queue[#queue + 1] = { lad, r } end end
+  for name in pairs(rules.paintNames(seen)) do
+    for _, info in ipairs(seen) do
+      if info.name == name then
+        mats[name] = info
+        car.mats[#car.mats + 1] = info
+      end
     end
-    car.mats[#car.mats + 1] = { name = name, mapTo = lad.mapTo, lad = lad }
   end
   cars[id] = car
   log_('I', string.format('car %d: %d paint materials', id, #car.mats))
 end
 
--- the car's mesh slots for a material. The slot's "off" material must be the original (as the game's own deform switches do, jbeam/materials.lua):
--- the first version passed the wet clone there, and resetMaterials then fell back to the clone, not the paint.
-local function slots(car, m)
-  if m.msc then return m.msc end
-  m.msc = {}
-  for mesh in string.gmatch(car.veh:getMeshesContainingMaterial(m.mapTo) or '', '%S+') do
-    local s = car.veh:getSwitchableMaterial(m.mapTo, m.mapTo, mesh)
-    if s >= 0 then m.msc[#m.msc + 1] = s end
-  end
-  return m.msc
+local function originalPaints(id)
+  local data = core_vehicle_manager.getVehicleData(id)
+  return data and data.config and data.config.paints
 end
 
-local function ready(car)
-  for _, m in ipairs(car.mats) do
-    for r = 1, rules.RUNGS do if not m.lad.have[r] then return false end end
+-- mix the car's paints toward dirt d (d = 0 puts the paint shop's values back)
+local function setDirt(id, car, d)
+  local paints = originalPaints(id)
+  if not paints then return end
+  for i = 1, 3 do
+    if paints[i] then core_vehicle_manager.liveUpdateVehicleColors(id, car.veh, i, d > 0 and rules.dirtPaint(paints[i], d) or paints[i]) end
   end
-  return true
-end
-
--- back to the original material first, then the new rung: never rung to rung directly
-local function apply(car, r)
-  if not ready(car) then return false end
-  for _, m in ipairs(car.mats) do
-    for _, msc in ipairs(slots(car, m)) do
-      car.veh:resetMaterials(msc)
-      if r > 0 then car.veh:switchMaterial(msc, m.name .. CLONE .. r) end
-    end
-  end
-  return true
-end
-
-local function detach(id)
-  local car = cars[id]
-  if not car then return end
-  cars[id] = nil
-  if not be:getObjectByID(id) then return end
-  for _, m in ipairs(car.mats) do
-    for _, msc in ipairs(m.msc or {}) do car.veh:resetMaterials(msc) end
-  end
+  car.dirt = d
 end
 
 local function wantedIds()
@@ -218,10 +151,10 @@ end
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
   local q = queue[1]
-  if q then                                         -- one clone per frame
+  if q then                                         -- one material reload per frame
     table.remove(queue, 1)
-    if q.inplace then setInPlace(q[1], q[2]) q[1].pending = nil
-    elseif buildRung(q[1], q[2]) then q[1].have[q[2]] = true built = built + 1 end
+    setRung(q[1], q[2])
+    q[1].pending = nil
   end
   timer = timer + dtReal
   if timer < 0.2 then return end
@@ -229,19 +162,17 @@ function M.onUpdate(dtReal)
   timer = 0
   wet = forced and forced or rules.wetStep(wet, targetWet(), dt)
   local want = rules.level(wet, rung)
-  local ids = wantedIds()
-  for _, id in ipairs(ids) do
+  for _, id in ipairs(wantedIds()) do
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
-    if car and mode == 'inplace' then
-      for _, m in ipairs(car.mats) do
-        if m.lad.rung ~= want and not m.lad.pending then m.lad.pending = true queue[#queue + 1] = { m.lad, want, inplace = true } end
+    if car then
+      for _, info in ipairs(car.mats) do
+        if info.rung ~= want and not info.pending then info.pending = true queue[#queue + 1] = { info, want } end
       end
-    elseif car and not car.slotted and ready(car) then
-      for _, m in ipairs(car.mats) do slots(car, m) end
-      car.slotted = true
+      local d = (forcedDirt or dirt) * settings.mud.intensity
+      if not settings.mud.enabled then d = 0 end
+      if math.abs(d - (car.dirt or 0)) > 0.02 or (d == 0 and (car.dirt or 0) > 0) then setDirt(id, car, d) end
     end
-    if car and mode ~= 'inplace' and (car.rung or 0) ~= want and apply(car, want) then car.rung = want end
   end
   for id in pairs(cars) do
     if not be:getObjectByID(id) then cars[id] = nil end
@@ -250,60 +181,41 @@ function M.onUpdate(dtReal)
 end
 
 function M.onVehicleDestroyed(id) cars[id] = nil end
-function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes: attach again on the next update
+function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
+-- everything back to how the game had it
 local function reset()
-  for _, lad in pairs(ladders) do if lad.rung and lad.rung > 0 and mode == 'inplace' then setInPlace(lad, 0) end end
-  for id in pairs(cars) do detach(id) end
-  cars, queue, rung, wet, forced = {}, {}, 0, 0, nil
+  for _, info in pairs(mats) do if info.rung > 0 then setRung(info, 0) end end
+  for id, car in pairs(cars) do
+    if (car.dirt or 0) > 0 and be:getObjectByID(id) then setDirt(id, car, 0) end
+  end
+  cars, queue, rung, wet, forced, forcedDirt, dirt = {}, {}, 0, 0, nil, nil, 0
 end
 M.onClientEndMission = reset
 M.onExtensionUnloaded = reset
 
--- every stage field of the original vs a clone: where they differ (the wet rungs differ in a few paint fields by design)
-function M.diff(name, cloneName)
-  local a, b = scenetree.findObject(name), scenetree.findObject(cloneName)
-  if not a or not b then return 'missing: ' .. tostring(a ~= nil) .. ' ' .. tostring(b ~= nil) end
-  local out = {}
-  for L = 0, rules.STAGES - 1 do
-    for _, k in ipairs(rules.STAGE_FIELDS) do
-      local x, y = tostring(a:getField(k, L)), tostring(b:getField(k, L))
-      if x ~= y then out[#out + 1] = string.format('L%d %s: [%s] vs [%s]', L, k, x, y) end
-    end
-  end
-  for _, k in ipairs(rules.TOP_FIELDS) do
-    local x, y = tostring(a:getField(k, 0)), tostring(b:getField(k, 0))
-    if x ~= y then out[#out + 1] = string.format('top %s: [%s] vs [%s]', k, x, y) end
-  end
-  return #out == 0 and 'identical' or table.concat(out, ' | ')
-end
-
--- carSurfaceFx.rebuild('fields'|'assign'|'inplace'): put the cars back to their paint, forget the clones and build them again that way
-function M.rebuild(m)
-  reset()
-  mode = (m == 'assign' or m == 'inplace') and m or 'fields'
-  CLONE = mode == 'assign' and '.cfxa' or '.cfxw'
-  ladders, built = {}, 0
-  return 'rebuilding with ' .. mode
-end
-
--- carSurfaceFx.debug('rain', 1.0) forces the wetness; debug() puts the weather back
+-- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced = nil return 'debug cleared' end
-  if kind == 'rain' then
-    forced = rules.clamp(tonumber(value) or 1, 0, 1)
-    wet = forced
-    return 'rain forced to ' .. forced
-  end
+  if kind == nil then forced, forcedDirt = nil, nil return 'debug cleared' end
+  value = rules.clamp(tonumber(value) or 1, 0, 1)
+  if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
+  if kind == 'mud' then forcedDirt = value return 'mud forced to ' .. value end
   return kind .. ': not built yet'
 end
 
+-- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials
+function M.tune(scale, strength)
+  rules.beadScale = tostring(scale or rules.beadScale)
+  rules.beadStrength = tonumber(strength) or rules.beadStrength
+  for _, info in pairs(mats) do if info.rung > 0 then setRung(info, info.rung) end end
+  return 'beads ' .. rules.beadScale .. ' strength ' .. rules.beadStrength
+end
+
 function M.status()
-  local n = 0
+  local n, names = 0, {}
   for _ in pairs(cars) do n = n + 1 end
-  local mats = {}
-  for name, lad in pairs(ladders) do mats[#mats + 1] = name .. '=' .. (lad.have[1] and 1 or 0) + (lad.have[2] and 1 or 0) + (lad.have[3] and 1 or 0) end
-  return string.format('wet %.2f rung %d forced %s cars %d queue %d built %d materials [%s]', wet, rung, tostring(forced), n, #queue, built, table.concat(mats, ' '))
+  for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung end
+  return string.format('wet %.2f rung %d forced %s dirt %s cars %d queue %d materials [%s]', wet, rung, tostring(forced), tostring(forcedDirt), n, #queue, table.concat(names, ' '))
 end
 
 return M
