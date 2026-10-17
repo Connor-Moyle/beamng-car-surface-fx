@@ -21,21 +21,27 @@ eq(R.wetStep(0, 1, 5), 0.2, 'soaks in at 1/25 per second')
 eq(R.wetStep(0.9, 0, 30), 0.8, 'dries at 1/300 per second')
 eq(R.wetStep(0.99, 1, 60), 1, 'does not overshoot')
 
-eq(R.isPaintStage({ clearCoatFactor = 1 }), true, 'clear coat is paint')
 eq(R.isPaintStage({ colorPaletteMap = '/a.png' }), true, 'palette is paint')
-eq(R.isPaintStage({ roughnessFactor = 0.5 }), false, 'plain stage')
-eq(R.isPaintMaterial({ Stages = { {}, { clearCoatFactor = 1 } } }), true, 'material with a paint stage')
-eq(R.isPaintMaterial({ Stages = { { clearCoatFactor = 1 } }, translucent = true }), false, 'glass is not paint')
+eq(R.isPaintStage({ clearCoatFactor = '1' }), false, 'a clear coat alone is not paint')
 
-local w = R.wetFields({ baseColorFactor = { 1, 0.5, 0, 1 }, roughnessFactor = 0.8 }, 3)
+local body = { name = 'vivace_main', version = '1.5', translucent = '0', meshes = 35, stages = { [0] = { colorPaletteMap = '/p.png' }, [1] = {} } }
+local wheel = { name = 'wheel', version = '1.5', translucent = '0', meshes = 4, stages = { [0] = { colorPaletteMap = '/p.png' } } }
+local glass = { name = 'glass', version = '1.5', translucent = '1', meshes = 6, stages = { [0] = { colorPaletteMap = '/p.png' } } }
+local old = { name = 'old', version = '1', translucent = '0', meshes = 50, stages = { [0] = { colorPaletteMap = '/p.png' } } }
+local p = R.paintNames({ body, wheel, glass, old })
+eq(p.vivace_main, true, 'body is paint')
+eq(p.wheel, nil, 'wheel is not')
+eq(p.glass, nil, 'glass is not')
+eq(p.old, nil, 'v0 material is not')
+local nopal = R.paintNames({ { name = 'a', version = '1.5', translucent = '0', meshes = 3, stages = { [0] = {} } }, { name = 'b', version = '1.5', translucent = '0', meshes = 9, stages = { [0] = {} } } })
+eq(nopal.b, true, 'no palette: the biggest')
+
+local w = R.wetFields({ baseColorFactor = '1 0.5 0 1', roughnessFactor = '0.8' }, 3)
 eq(w.baseColorFactor, '0.7500 0.3750 0.0000 1.0000', 'darker')
 eq(w.roughnessFactor, '0.4000', 'glossier')
-eq(w.normalDetailMap, R.DROPLETS, 'droplets filled in')
-eq(w.detailScale, '6 6', 'detail scale set when unset')
-local keep = R.wetFields({ normalDetailMap = '/x.png', detailScale = { 2, 2 } }, 1)
-eq(keep.normalDetailMap, nil, 'own detail map kept')
+eq(w.detailNormalMap, R.DROPLETS, 'droplets filled in')
+eq(w.detailScale, '6 6', 'detail scale set')
+local keep = R.wetFields({ detailNormalMap = '/x.png' }, 1)
+eq(keep.detailNormalMap, nil, 'own detail map kept')
 eq(keep.detailScale, nil, 'own detail scale kept')
-
-eq(R.fieldString({ 1, 0.5 }), '1 0.5', 'array')
-eq(R.fieldString(true), '1', 'bool')
 print('carSurfaceFx rules: ' .. n .. ' checks passed')

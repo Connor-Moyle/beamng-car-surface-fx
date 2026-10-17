@@ -31,26 +31,63 @@ function M.wetStep(w, target, dt)
   return math.max(target, w - dt / 300)
 end
 
--- a material stage (one entry of Stages in a materials.json) is paint when it takes the car's colour or has a clear coat
-function M.isPaintStage(st)
-  if type(st) ~= 'table' then return false end
-  if st.colorPaletteMap and st.colorPaletteMap ~= '' then return true end
-  return (tonumber(st.clearCoatFactor) or 0) > 0
-end
+-- The v1.5 fields copied from the live Material object, per stage (0..3) and for the whole material. Read with getField, so the clone matches
+-- what the game actually loaded (every texture map and factor), whichever file defined it.
+M.STAGE_FIELDS = { 'ambientOcclusionMap', 'ambientOcclusionMapUseUV', 'animFlags', 'baseColorFactor', 'baseColorMap', 'clearCoatBottomNormalMapStrength',
+  'clearCoatFactor', 'clearCoatMap', 'clearCoatMapUseUV', 'clearCoatRoughnessFactor', 'colorPaletteMap', 'colorPaletteMapUseUV', 'detailBaseColorMapStrength',
+  'detailMap', 'detailMapUseUV', 'detailMetallicMapStrength', 'detailNormalMap', 'detailNormalMapStrength', 'detailRoughnessMapStrength', 'detailScale',
+  'emissiveFactor', 'emissiveIntensityNits', 'emissiveMap', 'emissiveMapUseUV', 'glow', 'metallicDetailMap', 'metallicFactor', 'metallicMap', 'metallicMapUseUV',
+  'normalDetailMapUseUV', 'normalMap', 'normalMapStrength', 'normalMapUseUV', 'opacityDetailMap', 'opacityDetailMapUseUV', 'opacityFactor', 'opacityMap',
+  'opacityMapUseUV', 'overlayMap', 'paletteBaseColor', 'paletteClearCoat', 'paletteClearCoatRoughness', 'paletteMetallic', 'paletteRoughness',
+  'retroreflectiveColor', 'retroreflectivity', 'roughnessDetailMap', 'roughnessFactor', 'roughnessMap', 'roughnessMapUseUV', 'scrollDir', 'useAnisotropic',
+  'vertColor', 'vertColorEmissive' }
+M.TOP_FIELDS = { 'version', 'translucent', 'translucentBlendOp', 'translucentRecvShadows', 'translucentZWrite', 'doubleSided', 'alphaTest', 'alphaRef',
+  'castShadows', 'invertBackFaceNormals', 'dynamicCubemap', 'cubemap', 'annotation', 'activeLayers', 'beamngDiffuseColorSlot', 'materialTag0', 'materialTag1',
+  'materialTag2', 'materialTag3', 'detailMapScale0' }
+M.STAGES = 4
+local DETAIL_MAPS = { 'detailMap', 'detailNormalMap', 'roughnessDetailMap', 'metallicDetailMap', 'opacityDetailMap' }
 
-function M.isPaintMaterial(def)
-  if type(def) ~= 'table' or type(def.Stages) ~= 'table' then return false end
-  if def.translucent or def.alphaBlend then return false end
-  for _, st in pairs(def.Stages) do if M.isPaintStage(st) then return true end end
+local function set(v) return v ~= nil and v ~= '' end
+
+-- stage = { field = string } read from the Material. A stage is paint when it takes the car's colour.
+function M.isPaintStage(st) return type(st) == 'table' and set(st.colorPaletteMap) end
+
+local function anyStage(stages, f)
+  for _, st in pairs(stages) do if f(st) then return true end end
   return false
 end
 
-local function color4(v)
-  if type(v) == 'table' then return { v[1] or 1, v[2] or 1, v[3] or 1, v[4] or 1 } end
-  return { 1, 1, 1, 1 }
+-- Which of a car's materials are body paint. mats = { { name, stages, meshes (count), version, translucent } }. Paint = a v1.5, opaque material with a palette
+-- stage and a mesh count of at least 40% of the biggest such material (the body, not the wheels or the interior); if none has a palette, the biggest one.
+function M.paintNames(mats)
+  local cand, top = {}, 0
+  for _, m in ipairs(mats) do
+    if tonumber(m.version) == 1.5 and not (m.translucent == '1' or m.translucent == 'true') and m.meshes > 0 then
+      cand[#cand + 1] = m
+    end
+  end
+  local pal = {}
+  for _, m in ipairs(cand) do
+    if anyStage(m.stages, M.isPaintStage) then pal[#pal + 1] = m if m.meshes > top then top = m.meshes end end
+  end
+  local out = {}
+  if #pal == 0 then
+    local best
+    for _, m in ipairs(cand) do if not best or m.meshes > best.meshes then best = m end end
+    if best then out[best.name] = true end
+    return out
+  end
+  for _, m in ipairs(pal) do if m.meshes >= 0.4 * top then out[m.name] = true end end
+  return out
 end
 
--- the fields (name -> string for setField) one stage gets at a rung: darker, glossier, with beads of water
+local function color4(v)
+  local t = {}
+  for x in tostring(v or ''):gmatch('%S+') do t[#t + 1] = tonumber(x) end
+  return { t[1] or 1, t[2] or 1, t[3] or 1, t[4] or 1 }
+end
+
+-- the fields (name -> string for setField) one paint stage gets at a rung: darker, glossier, with beads of water (only when it has no detail map of its own)
 function M.wetFields(st, rung)
   local f = FRACTION[rung]
   local out = {}
@@ -59,24 +96,14 @@ function M.wetFields(st, rung)
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
   out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.5 * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
-  if not st.normalDetailMap or st.normalDetailMap == '' then
-    out.normalDetailMap = M.DROPLETS
-    out.normalDetailMapStrength = string.format('%.3f', 0.6 * f)
-    if not st.detailScale then out.detailScale = '6 6' end
+  local own = false
+  for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
+  if not own then
+    out.detailNormalMap = M.DROPLETS
+    out.detailNormalMapStrength = string.format('%.3f', 0.6 * f)
+    out.detailScale = '6 6'
   end
   return out
-end
-
--- a JSON value as the string setField takes
-function M.fieldString(v)
-  local t = type(v)
-  if t == 'boolean' then return v and '1' or '0' end
-  if t == 'table' then
-    local p = {}
-    for i, x in ipairs(v) do p[i] = M.fieldString(x) end
-    return table.concat(p, ' ')
-  end
-  return tostring(v)
 end
 
 return M
