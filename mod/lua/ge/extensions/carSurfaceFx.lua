@@ -22,6 +22,7 @@ local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
+local doubleSided = true                  -- carSurfaceFx.glassDouble(false) to switch it off
 local flood = 0                           -- debug: the window canvases solid (carSurfaceFx.debug('flood', 1))
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
 local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime } 0..1 built up by driving (settings.mud.buildup)
@@ -73,6 +74,7 @@ local function readMaterial(name)
   local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name), tag = rules.glassTag(name), mode = rules.glassMode(name) }
   if not info.mapTo or info.mapTo == '' then info.mapTo = name end
   info.version, info.translucent = mat:getField('version', 0), mat:getField('translucent', 0)
+  info.doubleSided = mat:getField('doubleSided', 0)
   for L = 0, rules.STAGES - 1 do
     local st = {}
     for _, k in ipairs(rules.STAGE_FIELDS) do
@@ -127,6 +129,9 @@ local function setRung(info, r)
         if v ~= nil then m:setField(k, L, v) end
       end
     end
+  end
+  if info.glass and info.mode == 'color' then               -- the outside pane is also what the cockpit looks through when the inside pane shows nothing: draw its back face too while wet
+    m:setField('doubleSided', 0, (r > 0 and doubleSided) and '1' or tostring(info.doubleSided or '0'))
   end
   Sim.upcast(m):reload()
   if info.glass and r == 0 then canvases(info, false) end
@@ -452,6 +457,13 @@ function M.insideMode(mode)
     end
   end
   return 'inside glass: ' .. mode
+end
+
+-- carSurfaceFx.glassDouble(true|false): while wet, draw the outer window panes from behind too (so the cockpit sees their water); applies at the next bind
+function M.glassDouble(on)
+  doubleSided = on and true or false
+  for _, info in pairs(mats) do if info.glass and info.mode == 'color' and info.rung > 0 then info.rung = -1 end end
+  return 'outer glass double sided while wet: ' .. tostring(doubleSided)
 end
 
 -- carSurfaceFx.glassInfo(): the player car's window materials: which meshes use each, the slot the canvas goes in, and whether it is bound
