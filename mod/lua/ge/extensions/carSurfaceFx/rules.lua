@@ -140,71 +140,15 @@ end
 -- rain washes the car: ~7 min of full rain from dirty to clean
 function M.washStep(d, dt, wet) return clamp(d - (wet or 0) * dt / 420, 0, 1) end
 
--- ---------------------------------------------------------------------------------------------------------------------
--- Windscreen drops: a fixed pool in screen fractions (x 0..1 left to right, y 0..1 top to bottom, r in screen heights). Pure, so it is tested here.
--- ---------------------------------------------------------------------------------------------------------------------
-M.POOL = 150
-local SLIDE_R = 0.008                                   -- drops bigger than this run down the glass
-
-function M.dropsNew()
-  local d = { n = M.POOL, x = {}, y = {}, r = {}, alive = {}, sweep = 0, t = 0 }
-  for i = 1, M.POOL do d.x[i], d.y[i], d.r[i], d.alive[i] = 0, 0, 0, false end
-  return d
+-- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
+function M.isGlassName(name)
+  local n = tostring(name):lower()
+  return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true)
 end
 
-local function free(d)
-  for i = 1, d.n do if not d.alive[i] then return i end end
-end
-
--- add a drop; one that lands on another merges into it (areas add)
-function M.dropAdd(d, x, y, r)
-  for i = 1, d.n do
-    if d.alive[i] then
-      local dx, dy = d.x[i] - x, d.y[i] - y
-      local rr = d.r[i] + r
-      if dx * dx + dy * dy < rr * rr then
-        local nr = math.sqrt(d.r[i] * d.r[i] + r * r)
-        d.x[i], d.y[i], d.r[i] = (d.x[i] * d.r[i] + x * r) / (d.r[i] + r), (d.y[i] * d.r[i] + y * r) / (d.r[i] + r), nr
-        return i
-      end
-    end
-  end
-  local i = free(d)
-  if not i then return nil end
-  d.x[i], d.y[i], d.r[i], d.alive[i] = x, y, r, true
-  return i
-end
-
--- rain 0..1 (falling now), speed m/s, wiper 0..1 (0 off), rnd() -> 0..1
-function M.dropsStep(d, dt, rain, speed, wiper, rnd)
-  d.t = d.t + dt
-  local spawns = rain * 60 * (0.5 + clamp(speed / 30, 0, 1)) * dt
-  while spawns > 0 do
-    if spawns >= 1 or rnd() < spawns then
-      local q = rnd()
-      M.dropAdd(d, rnd(), rnd() * 0.95, 0.003 + 0.007 * q * q)
-    end
-    spawns = spawns - 1
-  end
-  local push = (speed / 40) * (speed / 40) * 0.12                       -- air pushes drops up the glass
-  for i = 1, d.n do
-    if d.alive[i] then
-      local r = d.r[i]
-      local vy = (r > SLIDE_R and 0.03 * (r / SLIDE_R) * (r / SLIDE_R) or 0) - (r > 0.005 and push or (speed > 8 and push * 0.5 or 0))
-      d.y[i] = d.y[i] + vy * dt
-      if r > SLIDE_R then d.x[i] = d.x[i] + (rnd() - 0.5) * 0.01 * dt end
-      if d.y[i] > 1.05 or d.y[i] < -0.05 then d.alive[i] = false end
-    end
-  end
-  if wiper > 0.05 then                                                   -- the blade sweeps left-right-left; whatever it crosses is wiped
-    local phase = (d.t * wiper * 0.9) % 2
-    local pos = phase < 1 and phase or 2 - phase
-    local lo, hi = math.min(d.sweep, pos), math.max(d.sweep, pos)
-    for i = 1, d.n do
-      if d.alive[i] and d.x[i] >= lo - 0.02 and d.x[i] <= hi + 0.02 and d.y[i] > 0.15 then d.alive[i] = false end
-    end
-    d.sweep = pos
-  end
+function M.glassFields(st, rung)
+  for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then return {} end end
+  return { detailNormalMap = M.DROPLETS, detailNormalMapStrength = string.format('%.3f', M.beadStrength * FRACTION[rung]), detailScale = M.beadScale }
 end
 
 return M

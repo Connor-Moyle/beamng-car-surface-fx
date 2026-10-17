@@ -61,28 +61,10 @@ eq(R.dirtStep(0.99, 100, 1, 20, 1), 1, 'capped')
 eq(R.dirtStep(0.3, 10, 0, 20, 0), 0.3, 'road adds nothing')
 eq(R.washStep(1, 210, 1), 0.5, 'rain washes')
 eq(R.washStep(0.1, 1000, 1), 0, 'floor')
--- windscreen drops
-local seq = 0
-local function rnd() seq = (seq * 16807 + 12345) % 2147483647 return seq / 2147483647 end
-local function alive(d) local n = 0 for i = 1, d.n do if d.alive[i] then n = n + 1 end end return n end
-local d = R.dropsNew()
-for _ = 1, 120 do R.dropsStep(d, 1 / 60, 0, 0, 0, rnd) end
-eq(alive(d), 0, 'no rain, no drops')
-for _ = 1, 600 do R.dropsStep(d, 1 / 60, 1, 10, 0, rnd) end
-eq(alive(d) > 10, true, 'rain makes drops')
-eq(alive(d) <= R.POOL, true, 'pool is bounded')
-local m = R.dropsNew()
-local i = R.dropAdd(m, 0.5, 0.5, 0.004)
-local j = R.dropAdd(m, 0.5, 0.5, 0.003)
-eq(i, j, 'a drop landing on another merges into it')
-eq(math.abs(m.r[i] - 0.005) < 1e-9, true, 'areas add')
-local big = R.dropsNew(); local k = R.dropAdd(big, 0.5, 0.2, 0.012)
-R.dropsStep(big, 1, 0, 0, 0, rnd)
-eq(big.y[k] > 0.2, true, 'a big drop runs down')
-local fast = R.dropsNew(); local f = R.dropAdd(fast, 0.5, 0.5, 0.006)
-R.dropsStep(fast, 1, 0, 40, 0, rnd)
-eq(fast.y[f] < 0.5, true, 'speed pushes drops up the glass')
-local wp = R.dropsNew(); local w1 = R.dropAdd(wp, 0.5, 0.5, 0.004)
-for _ = 1, 120 do R.dropsStep(wp, 1 / 60, 0, 0, 1, rnd) end
-eq(wp.alive[w1], false, 'the wiper clears the drop')
+-- glass
+eq(R.isGlassName('vivace_glass'), true, 'glass')
+eq(R.isGlassName('vivace_glass_dmg'), false, 'damaged glass is a different material')
+eq(R.isGlassName('vivace_main'), false, 'paint')
+eq(R.glassFields({}, 3).detailNormalMap, R.DROPLETS, 'beads on plain glass')
+eq(R.glassFields({ detailMap = '/x.png' }, 3).detailNormalMap, nil, 'glass with its own detail map is left alone')
 print('carSurfaceFx rules: ' .. n .. ' checks passed')

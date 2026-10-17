@@ -2,6 +2,7 @@
 -- Rain: the wet look goes on each body paint material in place (darker, glossier, shared water-bead normal detail), one material reload per change,
 -- spread over frames, and the original values are put back when it dries, on level change and on unload. Cars of one model share a material, so they
 -- get wet together. (Clones switched per car were tried and render chrome: the hidden per-car paint state does not reach a material made from Lua.)
+-- Glass: the same beads go on the glass materials (windscreen and windows) and the wipers take them off again.
 -- Dirt: the car's own paint data (the same call the paint shop uses) is mixed toward dirt, per car, no reload. With settings.mud.buildup the dirt grows
 -- while the wheels run on dirt/mud/sand/gravel/grass ground models (lua/vehicle/extensions/carSurfaceFxWheels.lua reports them), rain washes it off,
 -- carSurfaceFx.wash() cleans it (a car wash calls that).
@@ -12,14 +13,13 @@ local TAG = 'carSurfaceFx'
 local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = false, intensity = 1 }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
-local pool = rules.dropsNew()                -- windscreen drops (screen fractions)
-local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value
+local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
 local dirtBy = {}                          -- vehicle id -> dirt 0..1 built up by driving (settings.mud.buildup)
 local forcedDirt                          -- the debug value
 local timer = 0
@@ -58,7 +58,7 @@ end
 local function readMaterial(name)
   local mat = scenetree.findObject(name)
   if not mat then return nil end
-  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0 }
+  local info = { name = name, mapTo = mat:getField('mapTo', 0), stages = {}, rung = 0, glass = rules.isGlassName(name) }
   if not info.mapTo or info.mapTo == '' then info.mapTo = name end
   info.version, info.translucent = mat:getField('version', 0), mat:getField('translucent', 0)
   for L = 0, rules.STAGES - 1 do
@@ -76,10 +76,10 @@ end
 local function setRung(info, r)
   local m = scenetree.findObject(info.name)
   if not m then return end
-  for L = 0, rules.STAGES - 1 do
+  for L = 0, info.glass and 0 or rules.STAGES - 1 do      -- glass: its first stage only
     local st = info.stages[L]
-    if rules.isPaintStage(st) then
-      local wetF = r > 0 and rules.wetFields(st, r) or {}
+    if info.glass or rules.isPaintStage(st) then
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, r) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(WET_KEYS) do
         local v = wetF[k] or st[k]
         if v == nil and k == 'detailNormalMap' then v = '' end
@@ -98,13 +98,16 @@ local function attach(id)
   local car = { veh = veh, mats = {} }
   local seen = {}
   for _, name in ipairs(veh:getMaterialNames()) do
-    if not skipped(name) then
+    if not skipped(name) or rules.isGlassName(name) then
       local info = mats[name] or readMaterial(name)
       if info then
         info.meshes = count(veh:getMeshesContainingMaterial(info.mapTo))
         seen[#seen + 1] = info
       end
     end
+  end
+  for _, info in ipairs(seen) do
+    if info.glass then mats[info.name] = info car.mats[#car.mats + 1] = info end
   end
   for name in pairs(rules.paintNames(seen)) do
     for _, info in ipairs(seen) do
@@ -186,67 +189,8 @@ end
 
 local reset
 
--- Windscreen drops: a 2D overlay (imgui background draw list) in the driver/onboard camera, fed by the pure pool in rules.lua
-local DRIVER_CAMS = { driver = true, onboard = true }
-local seed = 1
-local function rnd() seed = (seed * 16807) % 2147483647 return seed / 2147483647 end
-
-local wsMode = 'bg'                        -- 'bg': imgui background draw list; 'window': a see-through full-screen imgui window
-local wsFrames, wsErr, squareOn = 0, nil, false
-
-local function drawAll(dl, im, w, h)
-  local body, shine = im.GetColorU322(im.ImVec4(0.85, 0.92, 1, 0.14)), im.GetColorU322(im.ImVec4(1, 1, 1, 0.6))
-  for i = 1, pool.n do
-    if pool.alive[i] then
-      local px, py, pr = pool.x[i] * w, pool.y[i] * h, pool.r[i] * h
-      im.ImDrawList_AddCircleFilled(dl, im.ImVec2(px, py), pr, body, 12)
-      im.ImDrawList_AddCircleFilled(dl, im.ImVec2(px - pr * 0.3, py - pr * 0.35), pr * 0.28, shine, 8)
-    end
-  end
-  if squareOn then                                       -- debug: a red square in the middle, to tell "not drawn" from "not captured"
-    im.ImDrawList_AddRectFilled(dl, im.ImVec2(w * 0.4, h * 0.4), im.ImVec2(w * 0.6, h * 0.6), im.GetColorU322(im.ImVec4(1, 0, 0, 0.9)))
-  end
-end
-
-local function draw()
-  local im = ui_imgui
-  local io = im.GetIO()
-  local w, h = io.DisplaySize.x, io.DisplaySize.y
-  if wsMode == 'window' then
-    im.SetNextWindowPos(im.ImVec2(0, 0), im.Cond_Always)
-    im.SetNextWindowSize(im.ImVec2(w, h), im.Cond_Always)
-    im.SetNextWindowBgAlpha(0)
-    local flags = im.WindowFlags_NoTitleBar + im.WindowFlags_NoResize + im.WindowFlags_NoMove + im.WindowFlags_NoScrollbar + im.WindowFlags_NoBackground
-      + im.WindowFlags_NoSavedSettings + im.WindowFlags_NoBringToFrontOnFocus + (im.WindowFlags_NoInputs or 0) + (im.WindowFlags_NoDocking or 0)
-    if im.Begin('##carSurfaceFxScreen', nil, flags) then drawAll(im.GetWindowDrawList(), im, w, h) end
-    im.End()
-  else
-    drawAll(im.GetBackgroundDrawList1(), im, w, h)
-  end
-  wsFrames = wsFrames + 1
-end
-
-local function windscreen(dt)
-  local on = settings.windscreen.enabled and DRIVER_CAMS[core_camera and core_camera.getActiveCamName() or '']
-  local pv = be:getPlayerVehicle(0)
-  if not ((on or squareOn) and pv) then
-    if pool.live then pool = rules.dropsNew() end     -- a fresh, empty pool for next time (allocated once per camera switch, not per frame)
-    return
-  end
-  pool.live = true
-  local rainNow = forced or rules.target(nil, core_environment.getPrecipitation())   -- the rain falling now, not the wetness that lingers
-  local speed = 0
-  pcall(function() speed = pv:getVelocity():length() end)
-  if on then rules.dropsStep(pool, dt, rainNow * settings.windscreen.intensity, speed, wiperForced or wiperBy[pv:getID()] or 0, rnd) end
-  local ok, err = pcall(draw)
-  if not ok then wsErr = tostring(err) end
-end
--- Enhanced Skid Marks' surfaceFXBody edits the same paint fields in place (roughness, clear coat, detail map): while it is loaded we stay out of its way
-local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
-
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
-  if settings.windscreen.enabled or pool.live or squareOn then windscreen(dtReal) end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
     return
@@ -270,8 +214,11 @@ function M.onUpdate(dtReal)
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
     if car then
+      local wiping = settings.windscreen.enabled and (wiperForced or wiperBy[id] or 0) > 0.1
       for _, info in ipairs(car.mats) do
-        if info.rung ~= want and not info.pending then info.pending = true queue[#queue + 1] = { info, want } end
+        local w = want
+        if info.glass and (wiping or not settings.windscreen.enabled) then w = 0 end       -- the wipers clear the glass
+        if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       local d = (forcedDirt or dirtBy[id] or 0) * settings.mud.intensity
       if not settings.mud.enabled then d = 0 end
@@ -300,12 +247,10 @@ M.onExtensionUnloaded = reset
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced, squareOn = nil, nil, nil, false return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced = nil, nil, nil return 'debug cleared' end
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   if kind == 'mud' then forcedDirt = value return 'mud forced to ' .. value end
-  if kind == 'square' then squareOn = value > 0 return 'square ' .. tostring(squareOn) end
-  if kind == 'wsmode' then wsMode = value > 0.5 and 'window' or 'bg' return 'windscreen draw mode ' .. wsMode end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
@@ -331,13 +276,7 @@ function M.status()
   for _ in pairs(cars) do n = n + 1 end
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung end
   local d = be:getPlayerVehicleID(0)
-  local alive = 0
-  for i = 1, pool.n do if pool.alive[i] then alive = alive + 1 end end
-  local imOn = 'n/a'
-  pcall(function() imOn = tostring(Engine.imgui.isEnabled()) .. '/' .. tostring(ui_visibility.getImgui()) end)
-  local cam = core_camera and core_camera.getActiveCamName() or '?'
-  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d materials [%s] | windscreen on=%s mode=%s cam=%s drops=%d frames=%d err=%s imgui=%s wiper=%s',
-    wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, table.concat(names, ' '), tostring(settings and settings.windscreen.enabled), wsMode, cam, alive, wsFrames, tostring(wsErr), imOn, tostring(wiperBy[d]))
+  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d wiper=%s materials [%s]', wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, tostring(wiperBy[d]), table.concat(names, ' '))
 end
 
 return M
