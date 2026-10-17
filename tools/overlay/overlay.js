@@ -46,7 +46,8 @@ function createOverlay(doc, win) {
     c2d.beginPath(); c2d.moveTo(cx, cy); c2d.arc(cx, cy, L, -hi, -lo, false); c2d.closePath(); c2d.fill();
   }
 
-  // one drop as a lens: a faint light film, darker toward the centre, a lighter rim up-left, a dark crescent down-right, one glint
+  // one drop as a lens, for a bright scene: a dark film (darker in the top half: the drop shows the darker ground there), a soft light spot low right, a dark edge all
+  // round (heavier low right), a bright rim up-left and one glint. (A light film vanishes against a bright sky or concrete: only dark reads there.)
   var S = 64, sprite = doc.createElement('canvas');
   sprite.width = sprite.height = S;
   (function () {
@@ -54,17 +55,19 @@ function createOverlay(doc, win) {
     for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
       var u = (x + 0.5) / S * 2 - 1, v = (y + 0.5) / S * 2 - 1, d2 = u * u + v * v, o = (y * S + x) * 4;
       if (d2 >= 1) { data.data[o + 3] = 0; continue; }
-      var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8);
-      var ring = Math.max(0, 1 - Math.abs(d - 0.84) / 0.16), dir = (u + v) * 0.7071;
-      var s = ring * (dir > 0 ? -0.9 * dir : 0.7 * -dir);
+      var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8), dir = (u + v) * 0.7071, px = [0, 0, 0, 0];
+      var top = Math.max(0, -v), body = 0.1 + (true ? 0.20 * Math.pow(top, 1.3) : 0);
+      over(px, 12, 18, 30, body * (d < 0.9 ? 1 : 0.5));                                          // the body: a dark film, darker toward the top
+      var cx = u - 0.22, cy = v - 0.4;
+      over(px, 255, 255, 255, 0.30 * Math.exp(-(cx * cx + cy * cy) / 0.10) * (d < 0.9 ? 1 : 0));   // light that the drop focuses, low right
+      var ring = Math.max(0, 1 - Math.abs(d - 0.86) / 0.14);
+      over(px, 10, 14, 24, Math.min(0.9, ring * 0.85 * (0.75 + 0.25 * Math.max(0, dir))));      // the dark edge all round, heavier low right
+      var rim = ring * Math.max(0, -dir);
+      over(px, 255, 255, 255, Math.min(1, rim * 0.95));                                           // the bright rim up-left
       var gx = u + 0.4, gy = v + 0.45;
-      s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);
-      var r = 205, g = 222, b = 240, a = 0.18 + 0.10 * d;                              // the film: a little lighter toward the edge (the middle looks through)
-      a += 0.14 * (1 - d) * (dir > 0 ? 1 : 0.4);                                       // and a darker core down-right: the lens turns the picture
-      if (s > 0.15) { r = g = b = 255; a = Math.min(1, s); }                          // glint and bright rim
-      else if (s < -0.05) { r = g = b = 0; a = Math.min(0.85, -s * 1.3); }            // the dark crescent
-      else if (d < 0.6) { r = g = b = 20; a = 0.14 * (1 - d); }                        // dark core
-      data.data[o] = r; data.data[o + 1] = g; data.data[o + 2] = b;
+      over(px, 255, 255, 255, Math.min(1, 1.0 * Math.exp(-(gx * gx + gy * gy) / 0.012)));       // the glint
+      var a = px[3];
+      data.data[o] = a > 0 ? Math.round(px[0] / a) : 0; data.data[o + 1] = a > 0 ? Math.round(px[1] / a) : 0; data.data[o + 2] = a > 0 ? Math.round(px[2] / a) : 0;
       data.data[o + 3] = Math.min(255, a * fade * 255);
     }
     c.putImageData(data, 0, 0);
@@ -113,10 +116,10 @@ function createOverlay(doc, win) {
       if (seen[k] && sim.r[k] > 0.012 * st.p.size * 0.6) {
         var dx = X - px[k], dy = Y - py[k];
         if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
-          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.9;
-          tctx.strokeStyle = 'rgba(215,230,245,0.34)';
+          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
+          tctx.strokeStyle = 'rgba(30,40,55,0.20)';
           tctx.lineWidth = w;
-          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.9, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
+          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
         }
       }
       px[k] = X; py[k] = Y; seen[k] = 1;
