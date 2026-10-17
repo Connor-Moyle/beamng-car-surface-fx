@@ -381,15 +381,23 @@ end
 -- texture units per metre there (see paintwater.js)
 local function sendNodes(id)
   local car, veh = cars[id], getObjectByID(id)
-  if not (car and car.lut and veh) then return end
-  local rows = {}
+  if not (car and car.lut and veh) then return 0 end
+  local rows, calls = {}, 0
+  local function flush(more)
+    veh:queueJSUITexture(TAG_B, 'csfxNodes(' .. jsonEncode(rows) .. (more and ',1' or ',0') .. ')')
+    rows, calls = {}, calls + 1
+  end
+  local n = 0
   for _, e in pairs(car.lut) do
     rows[#rows + 1] = q(e[1], 10000); rows[#rows + 1] = q(1 - e[2], 10000)
     rows[#rows + 1] = q(e[3], 1000); rows[#rows + 1] = q(e[4], 1000); rows[#rows + 1] = q(e[5], 1000)
     rows[#rows + 1] = q(-e[6], 1000); rows[#rows + 1] = q(-e[7], 1000); rows[#rows + 1] = q(-e[8], 1000)
     rows[#rows + 1] = q(e[9], 10000)
+    n = n + 1
+    if n % 60 == 0 then flush(calls > 0) end                      -- pieces of 60 nodes; every piece after the first adds to the map
   end
-  veh:queueJSUITexture(TAG_B, 'csfxNodes(' .. jsonEncode(rows) .. ')')
+  if #rows > 0 then flush(calls > 0) end
+  return calls
 end
 
 -- carSurfaceFx_scratch.water(id, { rain, wet, speed, aLong, aLat }): the weather and the car's motion for the drops on the paint. The force on the water in the car's own
@@ -405,10 +413,10 @@ end
 function M.waterDebug(on)
   local veh = getPlayerVehicle(0)
   if not veh then return 'no player vehicle' end
-  sendNodes(veh:getId())
+  local pieces = sendNodes(veh:getId())
   veh:queueJSUITexture(TAG_B, 'csfxDebug(' .. (on and 1 or 0) .. ')')
   local car = cars[veh:getId()]
-  return 'water debug ' .. tostring(on) .. ', nodes ' .. tostring(car and car.count or 'none') .. ', settings.water ' .. tostring(settings.water)
+  return 'water debug ' .. tostring(on) .. ', node map sent in ' .. tostring(pieces) .. ' pieces, nodes ' .. tostring(car and car.count or 'none') .. ', settings.water ' .. tostring(settings.water)
 end
 
 -- carSurfaceFx_scratch.buffOut(): every car's scratches and splats gone

@@ -121,7 +121,7 @@
   window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
 
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
-  var water = CsfxPaintWater.create();
+  var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
   var live = 0, last = performance.now();
   var DR = 24, drop = document.createElement('canvas');            // one drop: a clear body with a darker rim, lower right darker still (what multiplies the paint colour)
@@ -141,19 +141,28 @@
 
   var wdebug = 0;
   window.csfxDebug = function (v) { wdebug = v; dirty = true; };                  // 1: the body nodes as red dots and the drops as big green discs, to see what reaches the paint
-  window.csfxNodes = function (rows) { CsfxPaintWater.setNodes(water, rows); dirty = true; };
+  var acc = [];
+  window.csfxNodes = function (rows, more) {                                      // the node map comes in pieces (a long script string may not get through): the first piece starts it over
+    if (!more) acc = [];
+    for (var i = 0; i < rows.length; i++) acc.push(rows[i]);
+    if (water) CsfxPaintWater.setNodes(water, acc);
+    dirty = true;
+  };
   window.csfxWater = function (o) { for (var k in o) wp[k] = o[k]; };
+  window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
   function frame(now) {
     var dt = Math.min((now - last) / 1000, 0.2); last = now;
-    if (!palette && water.nodes) {
-      CsfxPaintWater.step(water, dt, wp);
-      live = CsfxPaintWater.alive(water);
-    }
+    try {
+      if (!palette && water && water.nodes) {
+        CsfxPaintWater.step(water, dt, wp);
+        live = CsfxPaintWater.alive(water);
+      }
+    } catch (e) { window.csfxError = String(e); water = null; }
     if (dirty || live > 0 || window.csfxWasLive || wdebug) {
       ctx.globalCompositeOperation = 'source-over';
       ctx.drawImage(sc, 0, 0);
-      if (!palette) {
+      if (!palette && water) {
         for (var i = 0; i < water.n; i++) {
           if (!water.alive[i]) continue;
           var R = Math.max(2, water.r[i] * W) * 1.6;
