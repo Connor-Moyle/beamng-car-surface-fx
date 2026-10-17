@@ -9,7 +9,7 @@ local INTERVAL = 0.5
 
 local loose, mud, road = {}, {}, {}      -- collision type id -> weight
 local timer = 0
-local sLoose, sMud, sRoad, tSlip, tWater = 0, 0, 0, 0, 0    -- time-weighted sums over the interval
+local sLoose, sMud, sRoad, tSlip, tWater, tWaterL, tWaterR = 0, 0, 0, 0, 0, 0, 0    -- time-weighted sums over the interval
 local wiperKeys, wiperScan = {}, 0
 
 function M.setClasses(l, m, r)
@@ -39,9 +39,13 @@ local function engineTemp()
 end
 
 function M.updateGFX(dt)
-  local n, l, m, r, skid, water = 0, 0, 0, 0, false, false
+  local n, l, m, r, skid, water, wl, wr = 0, 0, 0, 0, false, false, false, false
   for _, wd in pairs(wheels.wheels) do
-    if wd.node1 and obj:inWater(wd.node1) then water = true end
+    if wd.node1 and obj:inWater(wd.node1) then
+      water = true
+      local side = tostring(wd.name or ''):upper()                 -- FL FR RL RR: which side of the car the wheel is on
+      if side:find('L', 1, true) then wl = true elseif side:find('R', 1, true) then wr = true else wl, wr = true, true end
+    end
     if (wd.downForce or 0) >= MIN_DOWNFORCE then
       local id = wd.contactMaterialID1 or -1
       if id == RUBBER_MAT then id = wd.contactMaterialID2 or -1 end
@@ -55,12 +59,14 @@ function M.updateGFX(dt)
     if skid then tSlip = tSlip + dt end
   end
   if water then tWater = tWater + dt end
+  if wl then tWaterL = tWaterL + dt end
+  if wr then tWaterR = tWaterR + dt end
   timer = timer + dt
   if timer < INTERVAL then return end
   local v = obj:getVelocity()
-  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f, %s) end', obj:getId(),
-    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer), engineTemp()))
-  timer, sLoose, sMud, sRoad, tSlip, tWater = 0, 0, 0, 0, 0, 0
+  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f, %s, %.3f, %.3f) end', obj:getId(),
+    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer), engineTemp(), tWaterL / timer, tWaterR / timer))
+  timer, sLoose, sMud, sRoad, tSlip, tWater, tWaterL, tWaterR = 0, 0, 0, 0, 0, 0, 0, 0
 end
 
 return M

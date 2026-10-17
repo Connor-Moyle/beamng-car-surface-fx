@@ -16,6 +16,7 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
 - **Frost.** On a cold night (air below 2 C, engine cold) the windows frost over, on the outside glass and on the windscreen in the driver's view. It clears as the engine warms up, and rain clears it too.
 - **Bugs.** Fast driving in the dry leaves small dark splats on the nose; rain, water and a car wash take them off.
 - **Road spray.** On a wet road a car ahead of you (within 25 m, in your lane, going your way) throws spray on your windscreen: a fine mist and a shower of tiny drops, more the faster and the closer it is, and more from long vehicles such as trucks. Changes with the same switch as snow and frost.
+- **Puddle splash.** Driving through a puddle above about 10 m/s throws dirty water up the lower doors, sills and wheel arches on the side whose wheels went through, and a deep puddle at speed throws a sheet of water over the windscreen for a moment.
 - **Washing.** Rain washes the dirt off slowly (dust fastest, rubber hardly at all), driving through water and puddles washes it faster, and a car wash takes everything off.
 - **Scratches.** Hard scrapes against walls and barriers leave real scratch marks where the body touched, in the direction it slid. Scratches stay until the car is repaired; washing never removes them.
 

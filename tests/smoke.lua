@@ -152,6 +152,20 @@ assert(M.status():find('spray 0%.00'), 'the spray fades when it is gone: ' .. M.
 car.getDirectionVector = function() return { x = 1, y = 0, z = 0 } end
 M.debug()
 
+-- splash from a puddle: left wheels in water at speed
+M.debug() tick(10)
+bodySplats = {}
+M.onGround(7, 0, 0, 1, 0, 1, 22, 0.5, 0, 20, 1, 0)
+assert((bodySplats.lowL or 0) > 0 and (bodySplats.lowR or 0) == 0, 'splash on the left side only: ' .. tostring(bodySplats.lowL) .. ' ' .. tostring(bodySplats.lowR))
+M.onGround(7, 0, 0, 1, 0, 1, 25, 0.5, 0, 20, 1, 1)
+tick(1, 0.25)
+assert(M.status():find('spray 0%.[1-9]'), 'a deep puddle at speed throws a sheet over the windscreen: ' .. M.status())
+tick(30)
+assert(M.status():find('spray 0%.00'), 'and it runs off: ' .. M.status())
+bodySplats = {}
+M.onGround(7, 0, 0, 1, 0, 1, 6, 0.5, 0, 20, 1, 1)
+assert(next(bodySplats) == nil, 'slow through a puddle: no splash')
+
 -- snow, frost, bugs
 M.debug() tick(5)
 M.debug('rain', 0)  tick(10)

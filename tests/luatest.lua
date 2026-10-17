@@ -134,4 +134,12 @@ eq(R.spray({ dist = 10, lateral = 0, align = 1, speed = 25, len = 12 }) > R.spra
 eq(R.spray({ dist = 5, lateral = 0, align = 1, speed = 25 }) > R.spray({ dist = 20, lateral = 0, align = 1, speed = 25 }), true, 'closer is more')
 eq(R.sprayWet(0), 0, 'a dry road: no spray')
 eq(R.sprayWet(1), 1, 'a wet road: full')
+-- splash
+local sl, sr, sh = R.splash(20, 1, 0, 0.5)
+eq(sl > 1 and sr == 0 and sh == 0, true, 'one side in a puddle: that side only, no sheet')
+local _, _, sh2 = R.splash(25, 1, 1, 1)
+eq(sh2 > 0.8, true, 'both sides, deep, fast: a sheet over the windscreen')
+local a1, b1, c1 = R.splash(8, 1, 1, 1)
+eq(a1 + b1 + c1, 0, 'slow: nothing')
+eq(R.splash(20, 0, 0, 1), 0, 'no wheel in water: nothing')
 print('carSurfaceFx rules: ' .. n .. ' checks passed')

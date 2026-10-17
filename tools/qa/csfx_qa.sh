@@ -2,7 +2,7 @@
 # Car Surface FX in-game QA: forces each effect with carSurfaceFx.debug(), reads carSurfaceFx.status() / screenInfo() back as the check, and takes a named screenshot of each.
 # The game must be up with a car on any level (the same arrangement as qa_game/run.sh --no-launch); this script launches and kills nothing.
 #
-#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray scrape
+#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape
 #   QA_SHOT_DIR=<dir>  where the screenshots go (default: the wc\morning folder), named surfacefx_<check>.jpg
 #   QA_CONTROL=<dir>   the control repo whose tools/qa_game/lib.sh (R, SHOT, rec) is used (read only), default /c/Dev/SLRR BeamNG Graph
 # Wired into the control suite as:  csfx) bash "/c/Dev/BeamNG Car Surface FX/tools/qa/csfx_qa.sh" ;;
@@ -103,6 +103,37 @@ if want spray; then
   dbg "'rain', 1"; dbg "'spray', 0.8"; cam driver; nap 8
   expect "spray forced" 'spray 0\.[5-9]' "$(status)"
   shot spray_cockpit
+  dbg ""
+fi
+
+if want lead; then
+  # a real car ahead: a pickup spawned 15 m in front of the player on a wet road (rain forced, spray NOT forced); both drive on; the spray value must rise; the pickup is removed again
+  dbg ""; dbg "'rain', 1"; cam driver
+  LEAD="$(R "local v=be:getPlayerVehicle(0) local f=v:getDirectionVector() f.z=0 f:normalize() local o=core_vehicles.spawnNewVehicle('pickup', {pos=v:getPosition()+f*15, rot=quatFromDir(f, vec3(0,0,1)), autoEnterVehicle=false}) if not o then return -1 end csfxQaLead=o:getID() o:queueLuaCommand('input.event(\"throttle\",0.8)') v:queueLuaCommand('input.event(\"throttle\",0.8)') return csfxQaLead" | tr -d '')"
+  BEST=0
+  for i in $(seq 1 14); do
+    nap 1
+    V="$(status | sed -n 's/.* spray \([0-9.]*\) .*//p')"
+    BEST="$(awk -v a="$BEST" -v b="${V:-0}" 'BEGIN{print (b > a) ? b : a}')"
+    [ "$i" = 8 ] && shot spray_lead
+  done
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') local o=be:getObjectByID(csfxQaLead or -1) if o then o:delete() end csfxQaLead=nil return 1" > /dev/null
+  if awk -v b="$BEST" 'BEGIN{exit !(b > 0.05)}'; then rec "spray from a real car ahead (no forcing)" PASS "best spray $BEST, lead id $LEAD"; else rec "spray from a real car ahead (no forcing)" FAIL "best spray $BEST, lead id $LEAD (spawn failed, too far apart, or too slow)"; fi
+  dbg ""
+fi
+
+if want splash; then
+  # own wheels in a puddle at speed: puddle() is what Street Legal's puddle effect calls; the sheet of water must show up in the spray value
+  dbg ""; dbg "'rain', 0"; cam driver
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",1)') return 1" > /dev/null
+  nap 5
+  R "return carSurfaceFx.puddle(nil, 0.2)" > /dev/null
+  nap 0.6
+  expect "a puddle at speed throws a sheet over the windscreen" 'spray 0\.[1-9]|spray 1' "$(status)"
+  shot splash_cockpit
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
+  nap 3
+  cam external; shot splash_body
   dbg ""
 fi
 

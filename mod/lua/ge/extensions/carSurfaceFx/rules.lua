@@ -200,6 +200,17 @@ end
 -- how much of that spray there is on a road this wet (wet 0..1)
 function M.sprayWet(wet) return clamp(((wet or 0) - 0.2) / 0.6, 0, 1) end
 
+-- A puddle splash on your own car: the shares (0..1) of the last interval a left / right wheel was in water, the speed (m/s) and a depth 0..1 (1 = deep). Above SPLASH_SPEED
+-- the wheels throw dirty water up the lower body on their side: expected splats per side, and the sheet of water over the windscreen (0..1) that a deep puddle at speed throws.
+M.SPLASH_SPEED = 10
+function M.splash(speed, shareL, shareR, depth)
+  local over = math.max(0, (speed or 0) - M.SPLASH_SPEED)
+  local d = clamp(depth or 0.5, 0, 1)
+  local sheet = 0
+  if (shareL or 0) + (shareR or 0) > 1.2 and (speed or 0) > 14 then sheet = clamp((speed - 14) / 12, 0, 1) * d end
+  return (shareL or 0) * over / 3 * (0.5 + d), (shareR or 0) * over / 3 * (0.5 + d), sheet
+end
+
 -- snow weather: precipitation with the air below SNOW_AIR C (snowing 0..1), and whether it is warm enough to melt it
 M.SNOW_AIR = 1.5
 function M.snowing(drops, airC)

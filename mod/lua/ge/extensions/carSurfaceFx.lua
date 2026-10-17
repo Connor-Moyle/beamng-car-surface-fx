@@ -39,6 +39,7 @@ local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber,
 local forcedDirt                          -- the debug amounts { kind = value }
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
 local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
+local sheetP = 0                           -- a sheet of water thrown over the windscreen by a puddle: decays in about a second
 local sprayP, sprayTarget, sprayT, forcedSpray = 0, 0, 0, nil   -- spray from the car ahead on the player's windscreen: smoothed, the last scan's, seconds since it, the debug value
 local frostP = 0                           -- the player's frost: the window materials are shared by name, so they follow this car
 local timer = 0
@@ -244,11 +245,25 @@ end
 
 -- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua), every 0.5 s: the shares of that time on loose ground (weighted), mud and road,
 -- skidding, and with a wheel in water; the speed; the wipers 0..1
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine)
+-- splash from your own wheels in a puddle: dirty water up the lower body on the sides whose wheels were in it, a sheet over the windscreen for a deep one at speed
+local function splash(id, shareL, shareR, speed, depth)
+  local nL, nR, sheet = rules.splash(speed, shareL, shareR, depth)
+  if nL + nR <= 0 and sheet <= 0 then return end
+  if scratchOn() and settings.scratch.dirtEnabled then
+    local c = { 0.26, 0.21, 0.15 }
+    local a, b = math.floor(nL + math.random()), math.floor(nR + math.random())
+    if a > 0 then carSurfaceFx_scratch.bodySplat(id, 'lowL', c, 0.7, a, 'mud', 1.1) end
+    if b > 0 then carSurfaceFx_scratch.bodySplat(id, 'lowR', c, 0.7, b, 'mud', 1.1) end
+  end
+  if id == be:getPlayerVehicleID(0) and settings.weather.spray and sheet > sheetP then sheetP = sheet end
+end
+
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR)
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
   engineBy[id] = tonumber(engine)
+  if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
     local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
     local n = math.floor(x + math.random())
@@ -272,6 +287,8 @@ end
 
 -- a wheel went through a puddle (Street Legal's puddlefx.wheelIn can call this): washes about two seconds' worth, more for a deeper puddle
 function M.puddle(id, depth)
+  local m = motion[id or be:getPlayerVehicleID(0)]
+  if m then splash(id or be:getPlayerVehicleID(0), 1, 1, m.speed, rules.clamp((depth or 0.05) * 6, 0.1, 1)) end
   if dirtBy[id] then dirtBy[id] = rules.dirtWash(dirtBy[id], 2, 0, rules.clamp((depth or 0.05) * 6, 0.1, 1)) end
 end
 
@@ -367,7 +384,9 @@ local function scanSpray(dt, pv, wetNow)
     end
     sprayTarget = rules.clamp(t * rules.sprayWet(wetNow), 0, 1)
   end
-  local goal = forcedSpray or sprayTarget
+  sheetP = sheetP * math.exp(-dt * 1.8)
+  if sheetP < 0.01 then sheetP = 0 end
+  local goal = forcedSpray or math.max(sprayTarget, sheetP)
   sprayP = sprayP + (goal - sprayP) * math.min(1, dt * 3)
   if sprayP < 0.005 and goal == 0 then sprayP = 0 end
 end

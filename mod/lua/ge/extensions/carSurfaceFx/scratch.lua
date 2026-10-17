@@ -308,7 +308,8 @@ function M.wheelDirt(id, wi, colour, opacity, kind)
   for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(opacity or settings.dirtOpacity), kind == 'dust' and 1 or 2 }) end
 end
 
--- n soft splats on the bodywork where the region says: 'top' (the upper quarter of the body, snow on the roof and hood) or 'front' (the front quarter, bugs on the nose).
+-- n soft splats on the bodywork where the region says: 'top' (the upper quarter of the body, snow on the roof and hood), 'front' (the front quarter, bugs on the nose),
+-- 'lowL' / 'lowR' (the lower third on the left / right side, splash from the wheels; jbeam x is left).
 -- Node axes are the jbeam ones (x left, y back, z up). kind 'dust' washes with the dust factor, anything else with the mud factor. size is a multiplier of the splat radius.
 function M.bodySplat(id, region, colour, opacity, n, kind, size)
   local car = cars[id]
@@ -317,15 +318,17 @@ function M.bodySplat(id, region, colour, opacity, n, kind, size)
   if not veh then return end
   local pts = car.regions and car.regions[region]
   if not pts then
-    local lo, hi, ylo, yhi = 1e9, -1e9, 1e9, -1e9
+    local lo, hi, ylo, yhi, xlo, xhi = 1e9, -1e9, 1e9, -1e9, 1e9, -1e9
     for cid in pairs(car.lut) do
       local p = car.pos[cid]
-      if p then lo, hi, ylo, yhi = min(lo, p.z), max(hi, p.z), min(ylo, p.y), max(yhi, p.y) end
+      if p then lo, hi, ylo, yhi, xlo, xhi = min(lo, p.z), max(hi, p.z), min(ylo, p.y), max(yhi, p.y), min(xlo, p.x), max(xhi, p.x) end
     end
+    local xm = (xlo + xhi) * 0.5
     pts = {}
     for cid in pairs(car.lut) do
       local p = car.pos[cid]
-      if p and ((region == 'top' and p.z > hi - (hi - lo) * 0.25) or (region == 'front' and p.y < ylo + (yhi - ylo) * 0.25)) then pts[#pts + 1] = cid end
+      if p and ((region == 'top' and p.z > hi - (hi - lo) * 0.25) or (region == 'front' and p.y < ylo + (yhi - ylo) * 0.25)
+          or (region == 'lowL' and p.z < lo + (hi - lo) * 0.3 and p.x > xm) or (region == 'lowR' and p.z < lo + (hi - lo) * 0.3 and p.x < xm)) then pts[#pts + 1] = cid end
     end
     car.regions = car.regions or {}
     car.regions[region] = pts
