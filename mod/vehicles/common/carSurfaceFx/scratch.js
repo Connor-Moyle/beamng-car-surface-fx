@@ -170,7 +170,12 @@
           ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
           if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
         }
-        if (wdebug && water.nodes) {
+        if (wdebug) {                                                                       // what the page knows, written all over the canvas so some of it lands on visible paint
+          ctx.fillStyle = 'rgb(255,0,255)'; ctx.font = 'bold 26px sans-serif';
+          var txt = 'v6 ' + (water ? 'nodes ' + water.count + ' drops ' + live + ' rain ' + wp.rain.toFixed(1) : 'NO SIM') + (window.csfxError ? ' ERR ' + window.csfxError : '');
+          for (var ty = 1; ty < 8; ty++) for (var tx = 0; tx < 3; tx++) ctx.fillText(txt, 20 + tx * 340, ty * 140);
+        }
+        if (wdebug && water && water.nodes) {
           ctx.fillStyle = 'rgb(255,0,0)';
           for (var k = 0; k < water.count; k++) ctx.fillRect(water.nodes[k * 9] * W - 2, water.nodes[k * 9 + 1] * W - 2, 4, 4);
         }

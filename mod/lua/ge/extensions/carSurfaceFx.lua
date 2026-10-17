@@ -33,6 +33,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
+local GLASS_PAGE_V = 6                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -107,7 +108,7 @@ local function canvases(info, on)
       if on and not hasCanvas(veh, info.tag) then
         log_('I', 'water canvas ' .. info.tag .. ' for car ' .. veh:getID())
         local _, src = rules.glassMap(info.stages[0], info.mode)
-        veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&base=' .. urlEncode(src or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
+        veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&v=' .. GLASS_PAGE_V .. '&base=' .. urlEncode(src or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
       elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) end
     end
   end

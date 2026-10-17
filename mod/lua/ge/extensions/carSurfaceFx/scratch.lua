@@ -44,6 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
+local PAGE_V = 6                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -163,8 +164,8 @@ local function ensureCanvases()
       end
       if any then
         -- no palette to punch through on this car = marks can only darken the paint: tell the page to draw them dark
-        veh:createUITexture(TAG_B, PAGE .. (pal and '?m=b' or '?m=b&dark=1'), SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
-        veh:createUITexture(TAG_P, PAGE .. '?m=p', SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
+        veh:createUITexture(TAG_B, PAGE .. (pal and '?m=b' or '?m=b&dark=1') .. '&v=' .. PAGE_V, SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
+        veh:createUITexture(TAG_P, PAGE .. '?m=p&v=' .. PAGE_V, SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
       end
     end
   end
