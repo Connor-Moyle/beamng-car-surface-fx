@@ -45,4 +45,12 @@ assert.strictEqual(d.alive[e], 0, 'drops dry up when the rain stops');
 d = S.create(); S.add(d, 0.5, 0.2, 0.02);
 for (let i = 0; i < 60; i++) S.step(d, 1 / 60, P({ wet: 1 }));
 assert(S.count(d) > 1, 'a running drop leaves small ones behind');
+d = S.create();
+for (let i = 0; i < 600; i++) S.step(d, 1 / 60, P({ rain: 1, speed: 10, size: 1 }));
+const n1 = S.count(d);
+let rbig = 0, nbig = 0;
+d = S.create();
+for (let i = 0; i < 600; i++) S.step(d, 1 / 60, P({ rain: 1, speed: 10, size: 3 }));
+for (let i = 0; i < d.n; i++) if (d.alive[i]) { rbig += d.r[i]; nbig++; }
+assert(nbig > 0 && rbig / nbig > 0.006, 'size scales the drops up');
 console.log('carSurfaceFx sim: ok');

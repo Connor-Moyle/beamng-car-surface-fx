@@ -291,7 +291,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       js = js or ('csfxSet(' .. jsonEncode({ rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y }) .. ')')
+        wiper = wiperForced or wiperBy[car.veh:getID()] or 0, gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -412,15 +412,16 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1'): the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- carSurfaceFx.tuneGlass('0 1', 2.5): (axis, drop size) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up)
-function M.tuneGlass(axis)
+function M.tuneGlass(axis, size)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
     if l > 0 then rules.glassAxis = { x = tonumber(x) / l, y = tonumber(y) / l } end
   end
-  return string.format('glass down = %.2f %.2f', rules.glassAxis.x, rules.glassAxis.y)
+  rules.glassSize = tonumber(size) or rules.glassSize
+  return string.format('glass down = %.2f %.2f, drop size %.1f', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials

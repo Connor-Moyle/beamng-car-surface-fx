@@ -31,13 +31,15 @@
 
   var SLIDE = 0.012;       // a drop bigger than this runs down the glass
 
-  // p: { rain 0..1 (falling now), wet 0..1 (how wet the glass is), speed m/s, aLong, aLat (m/s^2, braking < 0, right > 0), wiper 0..1, gx, gy }
+  // p: { rain 0..1 (falling now), wet 0..1 (how wet the glass is), speed m/s, aLong, aLat (m/s^2, braking < 0, right > 0), wiper 0..1, gx, gy,
+  //       size: drop size and density scale (a window uses only part of the texture, so the drops must be bigger than the numbers below say; default 1) }
   function step(d, dt, p) {
     d.t += dt;
     var gx = p.gx, gy = p.gy, px = -gy, py = gx;                      // px,py: across the glass
-    var spawns = p.rain * 70 * (0.5 + Math.min(p.speed / 30, 1)) * dt;
+    var z = p.size || 1, slide = SLIDE * z;
+    var spawns = p.rain * 70 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), 0.004 + 0.011 * q * q * q); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.004 + 0.011 * q * q * q) * z); }
       spawns -= 1;
     }
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
@@ -47,19 +49,19 @@
     for (var i = 0; i < d.n; i++) {
       if (!d.alive[i]) continue;
       var r = d.r[i];
-      var slide = r > SLIDE ? (r / SLIDE) : 0;                       // big drops move on their own, small ones only when the air pushes hard
+      var big = r > slide ? (r / slide) : 0;                          // big drops move on their own, small ones only when the air pushes hard
       var air = p.speed > 6 ? Math.min((p.speed - 6) / 20, 1) : 0;
-      var f = Math.max(slide, air);
+      var f = Math.max(big, air);
       var vd = down * f, va = across * f;
-      if (r > SLIDE && down > 0) vd += 0.03 * slide * slide;         // the weight of a big drop
+      if (r > slide && down > 0) vd += 0.03 * big * big;             // the weight of a big drop
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
-      if (r > SLIDE) {                                                // a running drop leaves small drops behind
+      if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, 0.0025 + 0.002 * rnd(d));
+        if (moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;
-      if (d.r[i] < 0.0022 || d.x[i] < -0.05 || d.x[i] > 1.05 || d.y[i] < -0.05 || d.y[i] > 1.05) d.alive[i] = 0;
+      if (d.r[i] < 0.0022 * z || d.x[i] < -0.05 || d.x[i] > 1.05 || d.y[i] < -0.05 || d.y[i] > 1.05) d.alive[i] = 0;
     }
     if (p.wiper > 0.05) {                                             // the blade sweeps across the glass (along px,py) and wipes what it crosses
       var prev = d.wipe;
