@@ -104,7 +104,7 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null };
+  var st = { on: false, hull: null, p: { rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, wipePrev = 0;
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
@@ -186,17 +186,27 @@ function createOverlay(doc, win) {
     ctx.closePath();
     ctx.clip();
     ctx.drawImage(trails, 0, 0);
+    var alive = 0;
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
+      alive++;
       var R = Math.max(1.5, sim.r[n] * bh);
       ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
     }
     ctx.restore();
+    if (st.debug) {                                                  // outline of the clip area and a counter: proves the module is loaded and the hull arrives
+      ctx.strokeStyle = 'rgba(255,0,0,0.9)'; ctx.lineWidth = 3; ctx.beginPath();
+      for (var j = 0; j < st.hull.length; j += 2) { if (j === 0) ctx.moveTo(st.hull[j] * W, st.hull[j + 1] * H); else ctx.lineTo(st.hull[j] * W, st.hull[j + 1] * H); }
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,0,0,0.9)'; ctx.font = '16px sans-serif';
+      ctx.fillText('csfx overlay: ' + alive + ' drops, rain ' + st.p.rain.toFixed(2) + ', msgs ' + st.msgs, bx + 10, by + 24);
+    }
   }
 
   function handle(name, data) {
     if (!data) return;
     if (!data.on) { st.on = false; sim = CsfxSim.create(); seen.fill(0); return; }
+    st.msgs++; st.debug = !!data.debug;
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;
     var p = st.p;

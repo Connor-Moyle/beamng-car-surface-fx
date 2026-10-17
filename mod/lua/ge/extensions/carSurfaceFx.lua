@@ -352,7 +352,7 @@ local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
 local DRIVER_CAMS = { driver = true, onboard = true }
-local screenT, screenOn, screenSize = 0, false, 3.0
+local screenT, screenOn, screenSize, screenDebug, screenWhy = 0, false, 3.0, false, ''
 local function pushScreen(dt)
   screenT = screenT + dt
   if screenT < 0.066 then return end
@@ -361,6 +361,7 @@ local function pushScreen(dt)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
   local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and wet > 0.03 and not conflict()
   local hull = want and screen.windscreen(pv) or nil
+  screenWhy = 'cam=' .. tostring(cam) .. ' wet=' .. string.format('%.2f', wet) .. ' overlay=' .. tostring(settings.windscreen.overlay) .. ' want=' .. tostring(want and true or false) .. ' hull=' .. (hull and (#hull / 2) or 'nil') .. ' on=' .. tostring(screenOn)
   if not hull then
     if screenOn then guihooks.trigger('csfxScreen', { on = false }) screenOn = false end
     return
@@ -368,11 +369,14 @@ local function pushScreen(dt)
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
   guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize })
+    wiper = wiperForced or wiperBy[pv:getID()] or 0, size = screenSize, debug = screenDebug })
   screenOn = true
 end
 
 -- carSurfaceFx.tuneScreen(3.0): drop size of the overlay in the driver's view
+-- carSurfaceFx.screenInfo(true): why the overlay is on or off; true also draws the windscreen's outline and a counter on the screen
+function M.screenInfo(dbg) if dbg ~= nil then screenDebug = dbg and true or false end return screenWhy .. ' debug=' .. tostring(screenDebug) end
+
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
 local function update(dtReal)
