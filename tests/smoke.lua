@@ -7,6 +7,12 @@ function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
+local splats, started = 0, {}
+extensions = {
+  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end } end,
+  unload = function(n) _G[n] = nil end,
+}
+function setExtensionUnloadMode() end
 
 local function material(name, glass, stages, mapTo)
   local m = { name = name, fields = {} }
@@ -77,6 +83,8 @@ M.debug() tick(5)
 for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end   -- a minute on a dirt road in the rain: mud
 assert(M.status():find('mud 0%.[1-9]') or M.status():find('mud 1'), 'mud built: ' .. M.status())
 assert(paintCalls > 0, 'the paint was updated')
+assert(started[1] == 'carSurfaceFx_meshuv' and started[2] == 'carSurfaceFx_scratch', 'the scratch module started, map first')
+assert(splats > 0, 'dirt splats were asked for on loose ground')
 for _ = 1, 40 do M.onGround(7, 0, 0, 0, 0, 1, 5, 0.5, 0) tick(2) end   -- then through a river: washed
 assert(M.status():find('dust 0%.00 mud 0%.00'), 'water washed it: ' .. M.status())
 M.onGround(7, 0, 0, 1, 1, 0, 20, 0.5, 0)
@@ -85,6 +93,7 @@ tick(3)
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()
+assert(rawget(_G, 'carSurfaceFx_scratch') == nil, 'the scratch module is unloaded with the mod')
 assert(mats.vivace_main.fields[0].detailNormalMap == '/peel.png', 'the original orange peel is back: ' .. tostring(mats.vivace_main.fields[0].detailNormalMap))
 assert(mats.vivace_main.fields[0].detailScale == '128 64', 'the original detail scale is back')
 assert(mats.vivace_glass.fields[0].detailNormalMap == '', 'the glass is unbound')

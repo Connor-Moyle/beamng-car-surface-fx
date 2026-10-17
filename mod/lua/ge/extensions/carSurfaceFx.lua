@@ -14,7 +14,8 @@ local TAG = 'carSurfaceFx'
 local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+    dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
@@ -32,6 +33,7 @@ local GLASS_SIZE, GLASS_FPS = 1024, 15
 local queue = {}                              -- material edits still to do, one per frame
 
 local function log_(level, msg) log(level, TAG, msg) end
+local function scratchOn() return rawget(_G, 'carSurfaceFx_scratch') ~= nil end
 
 local function loadSettings()
   settings = deepcopy(DEFAULTS)
@@ -39,9 +41,13 @@ local function loadSettings()
   if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) return end
   for k, d in pairs(DEFAULTS) do
     if type(d) == 'table' and type(s[k]) == 'table' then
-      if s[k].enabled ~= nil then settings[k].enabled = s[k].enabled and true or false end
-      settings[k].intensity = rules.clamp(tonumber(s[k].intensity) or d.intensity, 0, 1)
-      if d.buildup ~= nil and s[k].buildup ~= nil then settings[k].buildup = s[k].buildup and true or false end
+      for key, dv in pairs(d) do
+        local v = s[k][key]
+        if type(dv) == 'boolean' and v ~= nil then settings[k][key] = v and true or false
+        elseif type(dv) == 'number' and tonumber(v) then settings[k][key] = tonumber(v)
+        elseif type(dv) == 'table' and type(v) == 'table' and #v == #dv then settings[k][key] = v end
+      end
+      settings[k].intensity = rules.clamp(settings[k].intensity or 1, 0, 1)
     elseif type(d) == 'boolean' and s[k] ~= nil then settings[k] = s[k] and true or false end
   end
 end
@@ -172,6 +178,14 @@ end
 -- skidding, and with a wheel in water; the speed; the wipers 0..1
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers)
   wiperBy[id] = wipers or 0
+  if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
+    local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
+    local n = math.floor(x + math.random())
+    if n > 0 then
+      local muddy = mud > 0.2 or wet > 0.3
+      carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n)
+    end
+  end
   if not (settings and settings.mud.buildup and settings.mud.enabled) then return end
   local d = rules.dirtBuild(dirtBy[id] or rules.dirtNew(), dt, { loose = loose, mud = mud, road = road, slip = slip }, speed, wet)
   dirtBy[id] = water > 0 and rules.dirtWash(d, dt, 0, water) or d
@@ -209,6 +223,27 @@ local function dirtChanged(a, b)
   for _, k in ipairs(rules.KINDS) do if math.abs((a and a[k] or 0) - (b and b[k] or 0)) > 0.02 then return true end end
   return false
 end
+
+-- The scratch module (carSurfaceFx/scratch.lua + meshuv.lua, from Enhanced Skid Marks' hi-fi engine) draws real scratches where the body is hit and dirt splats around the
+-- wheels on a per-car canvas. Not started while Enhanced Skid Marks' own copy runs (the two would fight over the paint layer).
+local function startScratch()
+  if scratchOn() or rawget(_G, 'surfaceFXHiFiScratch') ~= nil or not settings.scratch.enabled then return end
+  for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch' }) do
+    extensions.load(name)
+    setExtensionUnloadMode(name, 'manual')
+  end
+  carSurfaceFx_scratch.configure(settings.scratch)
+  log_('I', 'scratch module started')
+end
+
+local function stopScratch()
+  for _, name in ipairs({ 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
+    if rawget(_G, name) ~= nil then extensions.unload(name) end
+  end
+end
+
+-- carSurfaceFx.repair(): buff out every scratch and splat
+function M.repair() if scratchOn() then carSurfaceFx_scratch.buffOut() return 'buffed out' end return 'scratch module is not running' end
 
 local function wantedIds()
   local ids = {}
@@ -265,6 +300,7 @@ local reset
 local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
 local function update(dtReal)
+  if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if not settings then loadSettings() end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
@@ -339,7 +375,7 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy = {}, {}, 0, 0, nil, nil, {}
 end
 M.onClientEndMission = reset
-M.onExtensionUnloaded = reset
+function M.onExtensionUnloaded() reset() stopScratch() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
