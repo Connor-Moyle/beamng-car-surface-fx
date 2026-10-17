@@ -440,6 +440,20 @@ function M.tune(scale, strength)
   return 'beads ' .. rules.beadScale .. ' strength ' .. rules.beadStrength
 end
 
+-- carSurfaceFx.insideMode('color' | 'emissive'): which slot the INSIDE glass (names ending 'int') takes its canvas in; the glass is rebound at the next tick
+function M.insideMode(mode)
+  if mode ~= 'color' and mode ~= 'emissive' then return "use 'color' or 'emissive'" end
+  rules.insideMode = mode
+  for _, info in pairs(mats) do
+    if info.glass and info.name:lower():find('int$') then
+      if info.rung > 0 then canvases(info, false) end
+      info.mode = mode
+      if info.rung > 0 then info.rung = -1 end
+    end
+  end
+  return 'inside glass: ' .. mode
+end
+
 -- carSurfaceFx.glassInfo(): the player car's window materials: which meshes use each, the slot the canvas goes in, and whether it is bound
 function M.glassInfo()
   local veh = getPlayerVehicle(0)

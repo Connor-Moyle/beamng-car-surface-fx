@@ -205,7 +205,8 @@ function M.glassTag(name) return '@csfx_' .. tostring(name):gsub('[^%w_]', '_') 
 
 -- The inside glass (name ends in 'int') is clear, so a colour change on it is invisible, and the engine does not resolve a '@tag' in its opacity map (tried): its EMISSIVE map
 -- becomes the canvas instead (light adds to the picture whatever the glass opacity is; the page draws only the glints and bright rims).
-function M.glassMode(name) return tostring(name):lower():find('int$') and 'emissive' or 'color' end
+M.insideMode = 'emissive'                                         -- or 'color' (carSurfaceFx.insideMode): which slot the inside glass's canvas goes in
+function M.glassMode(name) return tostring(name):lower():find('int$') and M.insideMode or 'color' end
 
 -- the map the canvas replaces and the original image under the drops: field, path (nil when the canvas has no image under it, as with light only)
 function M.glassMap(st, mode)
