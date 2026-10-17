@@ -1,9 +1,9 @@
 -- Runs the extension against a mocked game for a few hundred ticks: rain on, a car that brakes and corners, wipers, mud, a respawn, unload.
 -- Catches runtime errors (nil fields, wrong calls) that the pure-rules tests cannot see. Mock methods mirror what the game's API gave in the spikes.
-local logs, fields, reloads = {}, {}, 0
+local logs, fields, reloads, paintCalls = {}, {}, 0, 0
 function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
 function deepcopy(t) if type(t) ~= 'table' then return t end local c = {} for k, v in pairs(t) do c[k] = deepcopy(v) end return c end
-function jsonReadFile() return nil end
+function jsonReadFile() return { mud = { buildup = true } } end
 function jsonWriteFile() end
 
 local function material(name, glass, stages, mapTo)
@@ -46,7 +46,7 @@ be = {
 }
 core_environment = { getPrecipitation = function() return 600 end, groundModels = { MUD = { cdata = { collisiontype = 14 } } } }
 core_vehicle_manager = { getVehicleData = function() return { config = { paints = { { baseColor = { 0.4, 0.6, 0.1, 1 }, metallic = 0.8, roughness = 0.6, clearcoat = 1, clearcoatRoughness = 0.1 } } } } end,
-  liveUpdateVehicleColors = function() end }
+  liveUpdateVehicleColors = function() paintCalls = paintCalls + 1 end }
 core_camera = { getActiveCamName = function() return 'driver' end }
 
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx.lua')
@@ -64,6 +64,15 @@ assert(mats.vivace_glass.fields[0].detailNormalMap == nil or mats.vivace_glass.f
 M.debug('wiper', 0) tick(10)
 M.debug('mud', 0.8) tick(5)
 M.onVehicleSpawned(7) tick(10)                            -- respawn: attaches again
+M.debug() tick(5)
+for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end   -- a minute on a dirt road in the rain: mud
+assert(M.status():find('mud 0%.[1-9]') or M.status():find('mud 1'), 'mud built: ' .. M.status())
+assert(paintCalls > 0, 'the paint was updated')
+for _ = 1, 40 do M.onGround(7, 0, 0, 0, 0, 1, 5, 0.5, 0) tick(2) end   -- then through a river: washed
+assert(M.status():find('dust 0%.00 mud 0%.00'), 'water washed it: ' .. M.status())
+M.onGround(7, 0, 0, 1, 1, 0, 20, 0.5, 0)
+M.wash()
+tick(3)
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()

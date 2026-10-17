@@ -110,37 +110,89 @@ function M.wetFields(st, rung)
   return out
 end
 
--- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with dirt d (0..1) on it. Low dirt is a light tan dust and
--- barely changes the paint (k = d^1.5); high dirt is dark mud that takes the gloss and the metal off.
-local DUST, MUD = { 0.55, 0.47, 0.36 }, { 0.30, 0.22, 0.14 }
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Dirt: four kinds, each with its own tint, how strongly it shows, and how fast it builds and washes off. Amounts are 0..1 per kind.
+-- ---------------------------------------------------------------------------------------------------------------------
+M.KINDS = { 'dust', 'mud', 'rubber', 'grime' }
+local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 } }
+local SHOW = { dust = 0.55, mud = 0.85, rubber = 0.45, grime = 0.5 }              -- how much of the paint a full amount of that kind covers
+local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6 }                  -- how much of the gloss and metal it takes off
+M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6 }                             -- a road film never gets as thick as mud
+
+function M.dirtNew() return { dust = 0, mud = 0, rubber = 0, grime = 0 } end
+
+-- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with these dirt amounts on it: the colour is the kinds' tints weighted by
+-- how much each shows (k = amount^1.5 x SHOW), low amounts barely touch the paint, and gloss and metal go with the amounts.
 function M.dirtPaint(p, d)
-  local k = d * math.sqrt(d)
-  local km = 0.85 * k                                    -- colour never fully replaced: some of the paint shows through
+  local cover, gloss, tint, wsum = 1, 1, { 0, 0, 0 }, 0
+  for _, kind in ipairs(M.KINDS) do
+    local a = d[kind] or 0
+    local k = a * math.sqrt(a) * SHOW[kind]
+    cover = cover * (1 - k)
+    gloss = gloss * (1 - (k / SHOW[kind]) * GLOSS[kind])
+    for i = 1, 3 do tint[i] = tint[i] + TINT[kind][i] * k end
+    wsum = wsum + k
+  end
+  local T = 1 - cover
   local c = p.baseColor
-  local tint = {}
-  for i = 1, 3 do tint[i] = DUST[i] + (MUD[i] - DUST[i]) * d end
-  local function mix(a, b) return a + (b - a) * k end
-  local function mixc(a, b) return a + (b - a) * km end
-  return { baseColor = { mixc(c[1], tint[1]), mixc(c[2], tint[2]), mixc(c[3], tint[3]), c[4] or 1 }, metallic = (p.metallic or 0) * (1 - 0.8 * k),
-    roughness = mix(p.roughness or 0.5, 0.95), clearcoat = (p.clearcoat or 0) * (1 - k), clearcoatRoughness = mix(p.clearcoatRoughness or 0, 0.9) }
+  local out = { baseColor = { c[1], c[2], c[3], c[4] or 1 }, metallic = (p.metallic or 0) * gloss, roughness = p.roughness or 0.5, clearcoat = (p.clearcoat or 0) * gloss,
+    clearcoatRoughness = p.clearcoatRoughness or 0 }
+  if wsum > 0 then
+    for i = 1, 3 do out.baseColor[i] = c[i] + (tint[i] / wsum - c[i]) * T * 0.9 end
+    out.roughness = out.roughness + (0.95 - out.roughness) * T
+    out.clearcoatRoughness = out.clearcoatRoughness + (0.9 - out.clearcoatRoughness) * T
+  end
+  return out
 end
 
--- How much dirt a ground model puts on the car, by its name (core_environment.groundModels keys: MUD, DIRT, GRAVEL...).
-local GROUND = { { 'mud', 1 }, { 'clay', 0.7 }, { 'dirt', 0.6 }, { 'sand', 0.5 }, { 'gravel', 0.5 }, { 'grass', 0.25 }, { 'snow', 0.15 }, { 'rock', 0.15 } }
-function M.groundWeight(name)
+-- What a ground model puts on the car, by name (core_environment.groundModels keys). Returns class, weight: 'mud' / 'loose' (dust when dry, mud when wet) / 'road' / nil.
+local LOOSE = { { 'clay', 0.7 }, { 'dirt', 0.6 }, { 'sand', 0.5 }, { 'gravel', 0.5 }, { 'grass', 0.25 }, { 'snow', 0.15 }, { 'rock', 0.15 } }
+local ROAD = { 'asphalt', 'concrete', 'tarmac', 'road', 'cobble', 'paved', 'brick' }
+function M.groundClass(name)
   local n = tostring(name):lower()
-  for _, g in ipairs(GROUND) do if n:find(g[1], 1, true) then return g[2] end end
-  return 0
+  if n:find('mud', 1, true) then return 'mud', 1 end
+  for _, g in ipairs(LOOSE) do if n:find(g[1], 1, true) then return 'loose', g[2] end end
+  for _, r in ipairs(ROAD) do if n:find(r, 1, true) then return 'road', 1 end end
+  return nil, 0
 end
 
--- dirt after dt seconds on ground of weight w at speed (m/s): full mud at speed takes ~90 s, wet ground builds faster
-function M.dirtStep(d, dt, w, speed, wet)
-  local rate = w * (0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)) * (1 + (wet or 0)) / 90
-  return clamp(d + rate * dt, 0, 1)
+-- One report from the car, covering dt seconds: fractions of that time on loose ground (weighted), mud, road, skidding, and with a wheel in water; speed in m/s.
+-- Dry loose ground gives dust, wet gives mud; mud ground and wet loose ground give mud; tarmac gives a slow film, faster in the wet; skids lay rubber.
+function M.dirtBuild(d, dt, r, speed, wet)
+  local sf = 0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)
+  local wetK = clamp((wet or 0) * 1.5, 0, 1)
+  local out = {}
+  out.dust = d.dust + (r.loose or 0) * (1 - wetK) * sf * dt / 60
+  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90
+  out.rubber = d.rubber + (r.slip or 0) * dt / 25
+  out.grime = d.grime + (r.road or 0) * sf * (1 + (wet or 0)) * dt / 1200
+  for _, k in ipairs(M.KINDS) do out[k] = clamp(out[k], 0, M.CAP[k]) end
+  return out
 end
 
--- rain washes the car: ~7 min of full rain from dirty to clean
-function M.washStep(d, dt, wet) return clamp(d - (wet or 0) * dt / 420, 0, 1) end
+-- washing: rain (wet 0..1, per second) and water (the share of the time a wheel was in water). Dust goes fast, mud and film slowly, rubber hardly at all.
+local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000 }                -- seconds of full rain to wash a full amount off
+local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200 }                   -- seconds in water
+function M.dirtWash(d, dt, wet, water)
+  local out = {}
+  for _, k in ipairs(M.KINDS) do
+    out[k] = clamp(d[k] - (wet or 0) * dt / RAIN[k] - (water or 0) * dt / WATER[k], 0, 1)
+  end
+  return out
+end
+
+-- a car wash takes off `amount` (0..1) of every kind
+function M.dirtClean(d, amount)
+  local out = {}
+  for _, k in ipairs(M.KINDS) do out[k] = clamp(d[k] - (amount or 1), 0, 1) end
+  return out
+end
+
+function M.dirtTotal(d)
+  local t = 0
+  for _, k in ipairs(M.KINDS) do t = t + (d[k] or 0) end
+  return t
+end
 
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
 function M.isGlassName(name)

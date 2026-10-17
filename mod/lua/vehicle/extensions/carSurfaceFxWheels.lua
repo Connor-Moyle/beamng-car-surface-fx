@@ -1,15 +1,20 @@
--- Car Surface FX, vehicle side: what the wheels are standing on. Twice a second it sends the GE extension the average dirt weight of the ground
--- under the wheels that carry load (weights by collision-type id, pushed in by carSurfaceFx), the speed and the wipers (0..1, the highest electrics value
--- whose name contains 'wiper').
+-- Car Surface FX, vehicle side: what the wheels are doing. Twice a second it sends the GE extension, as shares of that time: wheels loaded on loose ground
+-- (weighted), on mud, on road, skidding, and with a wheel in water; plus the speed and the wipers (0..1, the highest electrics value whose name contains 'wiper').
+-- The ground classes are collision-type ids pushed in by carSurfaceFx (setClasses).
 local M = {}
 local MIN_DOWNFORCE = 200       -- N: a wheel in the air or barely touching does not count
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one
+local SKID = 3                  -- m/s of slip (scaled by load) that counts as skidding
 local INTERVAL = 0.5
 
-local weights = {}              -- collision type id -> dirt weight
-local acc, timer = 0, 0
-local grounded = 0
+local loose, mud, road = {}, {}, {}      -- collision type id -> weight
+local timer = 0
+local sLoose, sMud, sRoad, tSlip, tWater = 0, 0, 0, 0, 0    -- time-weighted sums over the interval
 local wiperKeys, wiperScan = {}, 0
+
+function M.setClasses(l, m, r)
+  loose, mud, road = type(l) == 'table' and l or {}, type(m) == 'table' and m or {}, type(r) == 'table' and r or {}
+end
 
 local function wipers(dt)
   wiperScan = wiperScan - dt
@@ -26,25 +31,29 @@ local function wipers(dt)
   return math.min(w, 1)
 end
 
-function M.setWeights(t) weights = type(t) == 'table' and t or {} end
-
 function M.updateGFX(dt)
-  local sum, n = 0, 0
+  local n, l, m, r, skid, water = 0, 0, 0, 0, false, false
   for _, wd in pairs(wheels.wheels) do
+    if wd.node1 and obj:inWater(wd.node1) then water = true end
     if (wd.downForce or 0) >= MIN_DOWNFORCE then
-      local m = wd.contactMaterialID1 or -1
-      if m == RUBBER_MAT then m = wd.contactMaterialID2 or -1 end
-      sum = sum + (weights[m] or 0)
+      local id = wd.contactMaterialID1 or -1
+      if id == RUBBER_MAT then id = wd.contactMaterialID2 or -1 end
+      l, m, r = l + (loose[id] or 0), m + (mud[id] or 0), r + (road[id] or 0)
       n = n + 1
+      if math.abs(wd.lastSlip or 0) * math.min((wd.downForce or 0) * 0.1, 1) >= SKID then skid = true end
     end
   end
-  if n > 0 then acc = acc + sum / n * dt grounded = grounded + dt end
+  if n > 0 then
+    sLoose, sMud, sRoad = sLoose + l / n * dt, sMud + m / n * dt, sRoad + r / n * dt
+    if skid then tSlip = tSlip + dt end
+  end
+  if water then tWater = tWater + dt end
   timer = timer + dt
   if timer < INTERVAL then return end
-  local w = grounded > 0 and acc / grounded or 0
   local v = obj:getVelocity()
-  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.2f, %.3f, %.2f) end', obj:getId(), w, v:length(), timer, wipers(timer)))
-  acc, timer, grounded = 0, 0, 0
+  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f) end', obj:getId(),
+    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer)))
+  timer, sLoose, sMud, sRoad, tSlip, tWater = 0, 0, 0, 0, 0, 0
 end
 
 return M
