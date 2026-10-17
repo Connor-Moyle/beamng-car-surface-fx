@@ -481,7 +481,7 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1', 1.4, 0.5, 1, 0.4): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2, inside glint brightness) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- carSurfaceFx.tuneGlass('0 1', 2.0, 0.5, 1, 0.4): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2, inside glint brightness) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up)
 function M.tuneGlass(axis, size, tint, passes, emissive)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
