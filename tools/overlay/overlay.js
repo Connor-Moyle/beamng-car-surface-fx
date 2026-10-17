@@ -52,6 +52,7 @@ function createOverlay(doc, win) {
   sprite.width = sprite.height = S;
   (function () {
     var c = sprite.getContext('2d'), data = c.createImageData(S, S);
+    function over(dst, r, g, b, a) { if (a <= 0) return; var k = 1 - a; dst[0] = r * a + dst[0] * k; dst[1] = g * a + dst[1] * k; dst[2] = b * a + dst[2] * k; dst[3] = a + dst[3] * k; }      // (premultiplied)
     for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
       var u = (x + 0.5) / S * 2 - 1, v = (y + 0.5) / S * 2 - 1, d2 = u * u + v * v, o = (y * S + x) * 4;
       if (d2 >= 1) { data.data[o + 3] = 0; continue; }
