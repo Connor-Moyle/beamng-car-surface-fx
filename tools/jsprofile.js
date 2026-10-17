@@ -105,6 +105,14 @@ for (const [label, wp] of [['rain 0.3', { rain: 0.3, wet: 1 }], ['rain 1', { rai
   row(`paint base: ${label}`, d, 'drops ' + pg.win.csfxInfo());
 }
 {
+  const pg = stage('?m=b', 1024);
+  for (let i = 0; i < rows.length; i += 90) pg.win.csfxNodes(rows.slice(i, i + 90), i > 0 ? 1 : 0);
+  pg.win.csfxWater({ rain: 1, wet: 1, fx: 0, fy: 0, fz: -9.8 });
+  pg.win.csfxThrottle(80);
+  pg.run(FPS * 25);
+  row('paint base: rain 1, csfxThrottle(80)', pg.run(FPS * 10), 'drops ' + pg.win.csfxInfo());
+}
+{
   const pg = stage('?m=p', 1024);
   const d = pg.run(FPS * 5);
   row('paint palette: idle (no marks changing)', d, '');

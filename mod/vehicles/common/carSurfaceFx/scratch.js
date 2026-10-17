@@ -123,7 +123,7 @@
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
-  var live = 0, last = performance.now();
+  var live = 0, last = performance.now(), rate = 0;
   var DR = 24, drop = document.createElement('canvas');            // one drop: a faint dark body, a darker rim, lower right darker still (what multiplies the paint colour)
   drop.width = drop.height = DR;
   (function () {
@@ -157,9 +157,13 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
+  var minMs = 0;                                                    // 0: work on every frame the browser gives; csfxThrottle(80) works at most every 80 ms (the texture is only taken at FPS)
+  window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
     requestAnimationFrame(frame);                                  // first: whatever goes wrong below, the next frame still comes
+    if (minMs && now - last < minMs) return;
     var dt = Math.min((now - last) / 1000, 0.2); last = now;
+    if (dt > 0) rate += (1 / dt - rate) * 0.1;                      // how often the browser really calls this page (shown in the debug text)
     try {
       if (!palette && water && water.nodes) {
         if (wdebug) { wp.rain = 1; wp.wet = 1; }                                         // debug: rain on, whatever the game side says
@@ -203,7 +207,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v15 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v15 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + ' fps' + Math.round(rate) + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }

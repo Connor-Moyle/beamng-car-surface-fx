@@ -10,13 +10,16 @@
 
   function freeSlot(d) { for (var i = 0; i < d.n; i++) if (!d.alive[i]) return i; return -1; }
 
-  // add a drop; one that lands on another merges into it (areas add, the centre moves toward the bigger one)
-  function add(d, x, y, r) {
+  // add a drop; one that lands on another merges into it (areas add, the centre moves toward the bigger one) unless that would make it bigger than maxR: then the new
+  // one is simply not added. (Without the limit a drop could swallow its neighbours until it was bigger than the whole window: one run in 190 at the overlay's size
+  // did, and a sprite thousands of pixels wide is drawn every frame after that.)
+  function add(d, x, y, r, maxR) {
     for (var i = 0; i < d.n; i++) {
       if (!d.alive[i]) continue;
       var dx = d.x[i] - x, dy = d.y[i] - y, rr = d.r[i] + r;
       if (dx * dx + dy * dy < rr * rr * 0.6) {
         var nr = Math.sqrt(d.r[i] * d.r[i] + r * r), w = d.r[i] / (d.r[i] + r);
+        if (maxR && nr > maxR) return -1;
         d.x[i] = d.x[i] * w + x * (1 - w); d.y[i] = d.y[i] * w + y * (1 - w); d.r[i] = nr;
         return i;
       }
@@ -30,24 +33,25 @@
   function count(d) { var n = 0; for (var i = 0; i < d.n; i++) n += d.alive[i]; return n; }
 
   var SLIDE = 0.012;       // a drop bigger than this runs down the glass
+  var MAXR = 0.07;         // no drop grows beyond this (times the size): about four times the biggest that falls
 
   // p: { rain 0..1 (falling now), wet 0..1 (how wet the glass is), speed m/s, aLong, aLat (m/s^2, braking < 0, right > 0), wiper 0..1, gx, gy,
   //       size: drop size and density scale (a window uses only part of the texture, so the drops must be bigger than the numbers below say; default 1) }
   function step(d, dt, p) {
     d.t += dt;
     var gx = p.gx, gy = p.gy, px = -gy, py = gx;                      // px,py: across the glass
-    var z = p.size || 1, slide = SLIDE * z;
+    var z = p.size || 1, slide = SLIDE * z, maxR = MAXR * z;
     var cap = Math.floor((60 + 240 * p.rain) / z);                      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
     var spawns = n0 < cap ? p.rain * 80 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z, maxR); }
       spawns -= 1;
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
       var sp = p.spray * 140 * z * dt;
       while (sp > 0) {
-        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z);
+        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z, maxR);
         sp -= 1;
       }
     }
@@ -66,7 +70,7 @@
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
       if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z);
+        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z, maxR);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;

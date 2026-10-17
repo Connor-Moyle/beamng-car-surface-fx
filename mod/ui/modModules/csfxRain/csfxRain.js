@@ -13,13 +13,16 @@
 
   function freeSlot(d) { for (var i = 0; i < d.n; i++) if (!d.alive[i]) return i; return -1; }
 
-  // add a drop; one that lands on another merges into it (areas add, the centre moves toward the bigger one)
-  function add(d, x, y, r) {
+  // add a drop; one that lands on another merges into it (areas add, the centre moves toward the bigger one) unless that would make it bigger than maxR: then the new
+  // one is simply not added. (Without the limit a drop could swallow its neighbours until it was bigger than the whole window: one run in 190 at the overlay's size
+  // did, and a sprite thousands of pixels wide is drawn every frame after that.)
+  function add(d, x, y, r, maxR) {
     for (var i = 0; i < d.n; i++) {
       if (!d.alive[i]) continue;
       var dx = d.x[i] - x, dy = d.y[i] - y, rr = d.r[i] + r;
       if (dx * dx + dy * dy < rr * rr * 0.6) {
         var nr = Math.sqrt(d.r[i] * d.r[i] + r * r), w = d.r[i] / (d.r[i] + r);
+        if (maxR && nr > maxR) return -1;
         d.x[i] = d.x[i] * w + x * (1 - w); d.y[i] = d.y[i] * w + y * (1 - w); d.r[i] = nr;
         return i;
       }
@@ -33,24 +36,25 @@
   function count(d) { var n = 0; for (var i = 0; i < d.n; i++) n += d.alive[i]; return n; }
 
   var SLIDE = 0.012;       // a drop bigger than this runs down the glass
+  var MAXR = 0.07;         // no drop grows beyond this (times the size): about four times the biggest that falls
 
   // p: { rain 0..1 (falling now), wet 0..1 (how wet the glass is), speed m/s, aLong, aLat (m/s^2, braking < 0, right > 0), wiper 0..1, gx, gy,
   //       size: drop size and density scale (a window uses only part of the texture, so the drops must be bigger than the numbers below say; default 1) }
   function step(d, dt, p) {
     d.t += dt;
     var gx = p.gx, gy = p.gy, px = -gy, py = gx;                      // px,py: across the glass
-    var z = p.size || 1, slide = SLIDE * z;
+    var z = p.size || 1, slide = SLIDE * z, maxR = MAXR * z;
     var cap = Math.floor((60 + 240 * p.rain) / z);                      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
     var spawns = n0 < cap ? p.rain * 80 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z, maxR); }
       spawns -= 1;
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
       var sp = p.spray * 140 * z * dt;
       while (sp > 0) {
-        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z);
+        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z, maxR);
         sp -= 1;
       }
     }
@@ -69,7 +73,7 @@
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
       if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z);
+        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z, maxR);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;
@@ -142,6 +146,11 @@ function createOverlay(doc, win) {
   var sim = CsfxSim.create();
   var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false;
+  // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
+  // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
+  // ever been drawn on since it was last empty (the fade has to reach all of it). Rectangles are { x0, y0, x1, y1 } in pixels.
+  var drawn = null, trailBox = null, PAD = 24;
+  function join(a, b) { return a ? { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) } : b; }
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
@@ -202,9 +211,18 @@ function createOverlay(doc, win) {
     var dt = last === null ? 0.033 : Math.min((now - last) / 1000, 0.1);
     last = now; lastDraw = now;
     var W = win.innerWidth || 1280, H = win.innerHeight || 720;
-    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; trails.width = W; trails.height = H; }
-    ctx.clearRect(0, 0, W, H);
-    if (!st.hull || !st.bbox) return;
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; trails.width = W; trails.height = H; drawn = trailBox = null; }
+    var cur = null;
+    if (st.hull && st.bbox) {
+      var bb = st.bbox;
+      cur = { x0: Math.max(0, Math.floor(bb.x0 * W - PAD)), y0: Math.max(0, Math.floor(bb.y0 * H - PAD)), x1: Math.min(W, Math.ceil((bb.x0 + bb.w) * W + PAD)), y1: Math.min(H, Math.ceil((bb.y0 + bb.h) * H + PAD)) };
+      if (st.debug) cur.x1 = Math.min(W, Math.max(cur.x1, Math.ceil(bb.x0 * W + 460)));          // (the debug text may run past the box)
+    }
+    var wipe = join(drawn, cur || drawn || { x0: 0, y0: 0, x1: 0, y1: 0 });
+    ctx.clearRect(wipe.x0, wipe.y0, wipe.x1 - wipe.x0, wipe.y1 - wipe.y0);
+    drawn = cur;
+    if (!cur) return;
+    trailBox = join(trailBox, cur);
     var wp = st.p.wiper;
     st.p.wiper = 0;                                                   // the blades are the overlay's own (arcs), not the simulation's column
     CsfxSim.step(sim, dt, st.p);
@@ -214,7 +232,7 @@ function createOverlay(doc, win) {
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
     tctx.fillStyle = 'rgba(0,0,0,0.035)';
-    tctx.fillRect(0, 0, W, H);
+    tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
     tctx.lineCap = 'round';
     for (var k = 0; k < sim.n; k++) {
@@ -270,7 +288,7 @@ function createOverlay(doc, win) {
       ctx.drawImage(frostLayer, bx, by, bw, bh);
       ctx.globalAlpha = 1;
     }
-    ctx.drawImage(trails, 0, 0);
+    ctx.drawImage(trails, cur.x0, cur.y0, cur.x1 - cur.x0, cur.y1 - cur.y0, cur.x0, cur.y0, cur.x1 - cur.x0, cur.y1 - cur.y0);      // (the clip is inside the box: nothing else shows)
     if (st.p.spray > 0.02) {
       ctx.globalAlpha = Math.min(0.7, st.p.spray * 0.9);
       ctx.drawImage(mistTex, bx, by, bw, bh);
