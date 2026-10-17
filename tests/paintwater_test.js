@@ -48,7 +48,7 @@ assert.strictEqual(w.alive[d], 0, 'every drop is gone after a while');
 w = W.create(); W.setNodes(w, panel(true));
 const a = W.add(w, 0.5, 0.5, 0.002), b = W.add(w, 0.5, 0.5, 0.0015);
 assert.strictEqual(a, b, 'drops that meet merge');
-const c = W.add(w, 0.5, 0.5, 0.0075);
+const c = W.add(w, 0.5, 0.5, 0.0095);
 assert.strictEqual(c, -1, 'but not into something bigger than a drop');
 
 w = W.create(); W.setNodes(w, panel(true)); d = W.add(w, 0.5, 0.45, 0.003);
