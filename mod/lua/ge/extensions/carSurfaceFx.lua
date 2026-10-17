@@ -95,8 +95,31 @@ local function buildRung(lad, r)
       for k, v in pairs(rules.wetFields(st, r)) do c:setField(k, L, v) end
     end
   end
+  local fn = scenetree.findObject(lad.name):getFilename()
+  if fn and fn ~= '' then pcall(function() c:setFilename(fn) end) end   -- a vehicle material knows its file (the shader's per-car paint may depend on it)
   c:registerObject(cloneName)
   Sim.upcast(c):reload()
+  return true
+end
+
+-- in-place mode (rain only, no clones): the wet fields go on the original material itself, one reload per change. All cars of that model share it.
+local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
+local function setInPlace(lad, r)
+  local m = scenetree.findObject(lad.name)
+  if not m then return false end
+  for L = 0, rules.STAGES - 1 do
+    local st = lad.stages[L]
+    if rules.isPaintStage(st) then
+      local wetF = r > 0 and rules.wetFields(st, r) or {}
+      for _, k in ipairs(WET_KEYS) do
+        local v = wetF[k] or st[k]
+        if v == nil and k == 'detailNormalMap' then v = '' end
+        if v ~= nil then m:setField(k, L, v) end
+      end
+    end
+  end
+  Sim.upcast(m):reload()
+  lad.rung = r
   return true
 end
 
@@ -121,7 +144,8 @@ local function attach(id)
       for _, info in ipairs(infos) do if info.name == name then lad = info end end
       lad.have = {}
       ladders[name] = lad
-      for r = 1, rules.RUNGS do queue[#queue + 1] = { lad, r } end
+      lad.rung = 0
+      if mode ~= 'inplace' then for r = 1, rules.RUNGS do queue[#queue + 1] = { lad, r } end end
     end
     car.mats[#car.mats + 1] = { name = name, mapTo = lad.mapTo, lad = lad }
   end
@@ -196,7 +220,8 @@ function M.onUpdate(dtReal)
   local q = queue[1]
   if q then                                         -- one clone per frame
     table.remove(queue, 1)
-    if buildRung(q[1], q[2]) then q[1].have[q[2]] = true built = built + 1 end
+    if q.inplace then setInPlace(q[1], q[2]) q[1].pending = nil
+    elseif buildRung(q[1], q[2]) then q[1].have[q[2]] = true built = built + 1 end
   end
   timer = timer + dtReal
   if timer < 0.2 then return end
@@ -208,11 +233,15 @@ function M.onUpdate(dtReal)
   for _, id in ipairs(ids) do
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
-    if car and not car.slotted and ready(car) then
+    if car and mode == 'inplace' then
+      for _, m in ipairs(car.mats) do
+        if m.lad.rung ~= want and not m.lad.pending then m.lad.pending = true queue[#queue + 1] = { m.lad, want, inplace = true } end
+      end
+    elseif car and not car.slotted and ready(car) then
       for _, m in ipairs(car.mats) do slots(car, m) end
       car.slotted = true
     end
-    if car and (car.rung or 0) ~= want and apply(car, want) then car.rung = want end
+    if car and mode ~= 'inplace' and (car.rung or 0) ~= want and apply(car, want) then car.rung = want end
   end
   for id in pairs(cars) do
     if not be:getObjectByID(id) then cars[id] = nil end
@@ -224,6 +253,7 @@ function M.onVehicleDestroyed(id) cars[id] = nil end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes: attach again on the next update
 
 local function reset()
+  for _, lad in pairs(ladders) do if lad.rung and lad.rung > 0 and mode == 'inplace' then setInPlace(lad, 0) end end
   for id in pairs(cars) do detach(id) end
   cars, queue, rung, wet, forced = {}, {}, 0, 0, nil
 end
@@ -248,10 +278,10 @@ function M.diff(name, cloneName)
   return #out == 0 and 'identical' or table.concat(out, ' | ')
 end
 
--- carSurfaceFx.rebuild('assign'|'fields'): put the cars back to their paint, forget the clones and build them again that way
+-- carSurfaceFx.rebuild('fields'|'assign'|'inplace'): put the cars back to their paint, forget the clones and build them again that way
 function M.rebuild(m)
   reset()
-  mode = m == 'assign' and 'assign' or 'fields'
+  mode = (m == 'assign' or m == 'inplace') and m or 'fields'
   CLONE = mode == 'assign' and '.cfxa' or '.cfxw'
   ladders, built = {}, 0
   return 'rebuilding with ' .. mode
