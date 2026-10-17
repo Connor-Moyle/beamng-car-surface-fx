@@ -44,7 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 8                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 9                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -412,7 +412,7 @@ function M.water(id, p)
   veh:queueJSUITexture(TAG_B, ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(p.rain, p.wet, f.x, f.y, f.z))
 end
 
--- carSurfaceFx_scratch.waterDebug(true): the player car's paint shows its body nodes as red dots and the running drops as big green discs (and sends the node map again)
+-- carSurfaceFx_scratch.waterDebug(true): the player car's paint shows its body nodes as small black dots, the running drops as big black discs and the page's numbers as black text (the base map multiplies the paint colour: only dark shows on bright paint) (and sends the node map again)
 function M.waterDebug(on)
   local veh = getPlayerVehicle(0)
   if not veh then return 'no player vehicle' end

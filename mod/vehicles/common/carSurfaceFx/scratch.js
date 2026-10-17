@@ -172,17 +172,17 @@
         if (!water.alive[i]) continue;
         var R = Math.max(2, water.r[i] * W) * 1.6;
         ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
-        if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
+        if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }
     } catch (e) { window.csfxError = 'drops ' + String(e); }
     if (!wdebug || !water.nodes) return;
     try {
-      ctx.fillStyle = 'rgb(255,0,0)';
+      ctx.fillStyle = 'rgb(0,0,0)';
       for (var k = 0; k < water.count; k++) ctx.fillRect(water.nodes[k * 9] * W - 2, water.nodes[k * 9 + 1] * W - 2, 4, 4);
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
-      ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = 'rgb(255,0,255)';
-      var txt = 'v8 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
+      var txt = 'v9 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }
