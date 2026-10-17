@@ -181,8 +181,16 @@ local function targetWet()
   return rules.target(sl, drops) * settings.rain.intensity
 end
 
+local reset
+-- Enhanced Skid Marks' surfaceFXBody edits the same paint fields in place (roughness, clear coat, detail map): while it is loaded we stay out of its way
+local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
+
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
+  if conflict() then
+    if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
+    return
+  end
   local q = queue[1]
   if q then                                         -- one material reload per frame
     table.remove(queue, 1)
@@ -220,7 +228,7 @@ function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil end
 function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
-local function reset()
+function reset()
   for _, info in pairs(mats) do if info.rung > 0 then setRung(info, 0) end end
   for id, car in pairs(cars) do
     if (car.dirt or 0) > 0 and be:getObjectByID(id) then setDirt(id, car, 0) end
