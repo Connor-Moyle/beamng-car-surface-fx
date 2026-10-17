@@ -69,8 +69,16 @@ core_camera = { getActiveCamName = function() return 'driver' end }
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx.lua')
 local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
 
+local gameValues = {}
+settings = { getValue = function(k) return gameValues[k] end, setValue = function(k, v) gameValues[k] = v end }   -- the game's own settings module
 M.debug('rain', 1.0)
-tick(40)                                                  -- rain climbs, glass and paint get their rungs, one reload per tick
+tick(40)
+assert(gameValues.csfxRain == true and gameValues.csfxDirtSpeed == 1, 'the options keys got start values')
+gameValues.csfxDirtSpeed = 1.5 gameValues.csfxMarkSize = 2 gameValues.csfxGlass = false
+M.onSettingsChanged()
+assert(M.getSettings().mud.buildup and M.getSettings().mud.rate == 1.5 and M.getSettings().scratch.markSize == 2 and not M.getSettings().windscreen.enabled, 'an Options change is taken over at once')
+gameValues.csfxGlass = true
+M.onSettingsChanged()                                                  -- rain climbs, glass and paint get their rungs, one reload per tick
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
 assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
