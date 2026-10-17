@@ -13,7 +13,7 @@ local rules = require('carSurfaceFx/rules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false }, scratch = { enabled = true, intensity = 1 }, windscreen = { enabled = false, intensity = 1 }, traffic = false }
-local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield' }   -- name parts that are never body paint
+local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 
 local settings
@@ -191,22 +191,10 @@ local DRIVER_CAMS = { driver = true, onboard = true }
 local seed = 1
 local function rnd() seed = (seed * 16807) % 2147483647 return seed / 2147483647 end
 
-local function windscreen(dt)
-  local on = settings.windscreen.enabled and DRIVER_CAMS[core_camera and core_camera.getActiveCamName() or '']
-  local pv = be:getPlayerVehicle(0)
-  if not (on and pv) then
-    if pool.live then pool = rules.dropsNew() end     -- a fresh, empty pool for next time (allocated once per camera switch, not per frame)
-    return
-  end
-  pool.live = true
-  local rainNow = forced or rules.target(nil, core_environment.getPrecipitation())   -- the rain falling now, not the wetness that lingers
-  local speed = 0
-  pcall(function() speed = pv:getVelocity():length() end)
-  rules.dropsStep(pool, dt, rainNow * settings.windscreen.intensity, speed, wiperForced or wiperBy[pv:getID()] or 0, rnd)
-  local im = ui_imgui
-  local dl = im.GetBackgroundDrawList1()
-  local io = im.GetIO()
-  local w, h = io.DisplaySize.x, io.DisplaySize.y
+local wsMode = 'bg'                        -- 'bg': imgui background draw list; 'window': a see-through full-screen imgui window
+local wsFrames, wsErr, squareOn = 0, nil, false
+
+local function drawAll(dl, im, w, h)
   local body, shine = im.GetColorU322(im.ImVec4(0.85, 0.92, 1, 0.14)), im.GetColorU322(im.ImVec4(1, 1, 1, 0.6))
   for i = 1, pool.n do
     if pool.alive[i] then
@@ -215,13 +203,50 @@ local function windscreen(dt)
       im.ImDrawList_AddCircleFilled(dl, im.ImVec2(px - pr * 0.3, py - pr * 0.35), pr * 0.28, shine, 8)
     end
   end
+  if squareOn then                                       -- debug: a red square in the middle, to tell "not drawn" from "not captured"
+    im.ImDrawList_AddRectFilled(dl, im.ImVec2(w * 0.4, h * 0.4), im.ImVec2(w * 0.6, h * 0.6), im.GetColorU322(im.ImVec4(1, 0, 0, 0.9)))
+  end
+end
+
+local function draw()
+  local im = ui_imgui
+  local io = im.GetIO()
+  local w, h = io.DisplaySize.x, io.DisplaySize.y
+  if wsMode == 'window' then
+    im.SetNextWindowPos(im.ImVec2(0, 0), im.Cond_Always)
+    im.SetNextWindowSize(im.ImVec2(w, h), im.Cond_Always)
+    im.SetNextWindowBgAlpha(0)
+    local flags = im.WindowFlags_NoTitleBar + im.WindowFlags_NoResize + im.WindowFlags_NoMove + im.WindowFlags_NoScrollbar + im.WindowFlags_NoBackground
+      + im.WindowFlags_NoSavedSettings + im.WindowFlags_NoBringToFrontOnFocus + (im.WindowFlags_NoInputs or 0) + (im.WindowFlags_NoDocking or 0)
+    if im.Begin('##carSurfaceFxScreen', nil, flags) then drawAll(im.GetWindowDrawList(), im, w, h) end
+    im.End()
+  else
+    drawAll(im.GetBackgroundDrawList1(), im, w, h)
+  end
+  wsFrames = wsFrames + 1
+end
+
+local function windscreen(dt)
+  local on = settings.windscreen.enabled and DRIVER_CAMS[core_camera and core_camera.getActiveCamName() or '']
+  local pv = be:getPlayerVehicle(0)
+  if not ((on or squareOn) and pv) then
+    if pool.live then pool = rules.dropsNew() end     -- a fresh, empty pool for next time (allocated once per camera switch, not per frame)
+    return
+  end
+  pool.live = true
+  local rainNow = forced or rules.target(nil, core_environment.getPrecipitation())   -- the rain falling now, not the wetness that lingers
+  local speed = 0
+  pcall(function() speed = pv:getVelocity():length() end)
+  if on then rules.dropsStep(pool, dt, rainNow * settings.windscreen.intensity, speed, wiperForced or wiperBy[pv:getID()] or 0, rnd) end
+  local ok, err = pcall(draw)
+  if not ok then wsErr = tostring(err) end
 end
 -- Enhanced Skid Marks' surfaceFXBody edits the same paint fields in place (roughness, clear coat, detail map): while it is loaded we stay out of its way
 local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
-  if settings.windscreen.enabled or pool.live then windscreen(dtReal) end
+  if settings.windscreen.enabled or pool.live or squareOn then windscreen(dtReal) end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
     return
@@ -275,10 +300,12 @@ M.onExtensionUnloaded = reset
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced = nil, nil, nil return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced, squareOn = nil, nil, nil, false return 'debug cleared' end
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   if kind == 'mud' then forcedDirt = value return 'mud forced to ' .. value end
+  if kind == 'square' then squareOn = value > 0 return 'square ' .. tostring(squareOn) end
+  if kind == 'wsmode' then wsMode = value > 0.5 and 'window' or 'bg' return 'windscreen draw mode ' .. wsMode end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
@@ -304,7 +331,13 @@ function M.status()
   for _ in pairs(cars) do n = n + 1 end
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung end
   local d = be:getPlayerVehicleID(0)
-  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d materials [%s]', wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, table.concat(names, ' '))
+  local alive = 0
+  for i = 1, pool.n do if pool.alive[i] then alive = alive + 1 end end
+  local imOn = 'n/a'
+  pcall(function() imOn = tostring(Engine.imgui.isEnabled()) .. '/' .. tostring(ui_visibility.getImgui()) end)
+  local cam = core_camera and core_camera.getActiveCamName() or '?'
+  return string.format('wet %.2f rung %d forced %s dirt %.2f (forced %s) cars %d queue %d materials [%s] | windscreen on=%s mode=%s cam=%s drops=%d frames=%d err=%s imgui=%s wiper=%s',
+    wet, rung, tostring(forced), dirtBy[d] or 0, tostring(forcedDirt), n, #queue, table.concat(names, ' '), tostring(settings and settings.windscreen.enabled), wsMode, cam, alive, wsFrames, tostring(wsErr), imOn, tostring(wiperBy[d]))
 end
 
 return M
