@@ -4,8 +4,8 @@
 // step) and s = texture units per metre there. A drop looks up the nearest node, turns the force on the water (gravity, the car's acceleration, the wind of driving, all as
 // one vector in the car's coordinates, in m/s^2) into a direction on the texture, and runs that way if the pull along the panel beats what holds a drop of its size.
 (function (root) {
-  var MAXD = 180, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
-  var RMAX = 7 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
+  var MAXD = 420, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
+  var RMAX = 9 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
 
   function create() {
     return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
@@ -60,7 +60,7 @@
     while (spawns > 0) {
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
-        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (2.4 + 2.6 * q * q * q) / 1024);
+        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (3 + 3 * q * q * q) / 1024);
       }
       spawns -= 1;
     }
@@ -74,7 +74,7 @@
       var b = k2 * 9, du = w.nodes[b + 2] * p.fx + w.nodes[b + 3] * p.fy + w.nodes[b + 4] * p.fz, dv = w.nodes[b + 5] * p.fx + w.nodes[b + 6] * p.fy + w.nodes[b + 7] * p.fz;
       var s = w.nodes[b + 8], len = Math.sqrt(du * du + dv * dv);
       var along = len / s;                                                                   // the pull along the panel, m/s^2
-      var r = w.r[i], hold = 2 + 0.006 / r;
+      var r = w.r[i], hold = 1.5 + 0.004 / r;
       w.moved[i] = 0;                                          // what holds a drop: small ones stay, big ones go
       if (along > hold) {
         var v = Math.min(0.5, 0.02 * (along - hold) * (r * 1024 / 2.5));                       // m/s

@@ -132,7 +132,7 @@
       var u = (x + 0.5) / DR * 2 - 1, v = (y + 0.5) / DR * 2 - 1, d2 = u * u + v * v, o = (y * DR + x) * 4;
       var d = Math.sqrt(d2);
       var ring = d < 1 ? Math.max(0, 1 - Math.abs(d - 0.8) / 0.25) : 0;
-      var shade = Math.min(0.9, ring * (0.5 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 1 ? 0.2 + 0.12 * Math.max(0, (u + v) * 0.7) : 0));
+      var shade = Math.min(0.9, ring * (0.5 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 1 ? 0.3 + 0.15 * Math.max(0, (u + v) * 0.7) : 0));
       data.data[o] = data.data[o + 1] = data.data[o + 2] = 0;
       data.data[o + 3] = Math.min(255, shade * 255 * Math.min(1, (1 - d) * 5 + 0.0));
     }
@@ -203,7 +203,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v14 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v15 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }
