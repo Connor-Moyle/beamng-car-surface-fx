@@ -113,7 +113,7 @@ if want lead; then
   BEST=0
   for i in $(seq 1 14); do
     nap 1
-    V="$(status | sed -n 's/.* spray \([0-9.]*\) .*//p')"
+    V="$(status | sed -n 's/.* spray \([0-9.]*\) .*/\1/p')"
     BEST="$(awk -v a="$BEST" -v b="${V:-0}" 'BEGIN{print (b > a) ? b : a}')"
     [ "$i" = 8 ] && shot spray_lead
   done
