@@ -122,7 +122,7 @@ function createOverlay(doc, win) {
       var s = ring * (dir > 0 ? -0.9 * dir : 0.7 * -dir);
       var gx = u + 0.4, gy = v + 0.45;
       s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);
-      var r = 205, g = 222, b = 240, a = 0.10 + 0.08 * d;                              // the film: a little lighter toward the edge (the middle looks through)
+      var r = 205, g = 222, b = 240, a = 0.18 + 0.10 * d;                              // the film: a little lighter toward the edge (the middle looks through)
       a += 0.14 * (1 - d) * (dir > 0 ? 1 : 0.4);                                       // and a darker core down-right: the lens turns the picture
       if (s > 0.15) { r = g = b = 255; a = Math.min(1, s); }                          // glint and bright rim
       else if (s < -0.05) { r = g = b = 0; a = Math.min(0.85, -s * 1.3); }            // the dark crescent
@@ -165,7 +165,7 @@ function createOverlay(doc, win) {
         var dx = X - px[k], dy = Y - py[k];
         if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
           var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.9;
-          tctx.strokeStyle = 'rgba(215,230,245,0.22)';
+          tctx.strokeStyle = 'rgba(215,230,245,0.34)';
           tctx.lineWidth = w;
           tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.9, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
         }
