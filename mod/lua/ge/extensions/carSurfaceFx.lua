@@ -18,7 +18,7 @@ local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -333,6 +333,17 @@ local function startScratch()
   log_('I', 'scratch module started')
 end
 
+local function marksOn() return rawget(_G, 'carSurfaceFx_marks') ~= nil end
+local function startMarks()
+  if marksOn() or not settings.marks.enabled then return end
+  extensions.load('carSurfaceFx_marks')
+  setExtensionUnloadMode('carSurfaceFx_marks', 'manual')
+  log_('I', 'marks module started')
+end
+local function stopMarks()
+  if marksOn() then extensions.unload('carSurfaceFx_marks') end
+end
+
 local function stopScratch()
   for _, name in ipairs({ 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
     if rawget(_G, name) ~= nil then extensions.unload(name) end
@@ -433,8 +444,31 @@ local function targetWet()
 end
 
 local reset
--- Enhanced Skid Marks' body extension edits the same paint fields: pause while it is loaded
-local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
+-- The old Surface FX / Enhanced Skid Marks (dirtSkidMarks) is what this mod now contains: if it is loaded as well it is switched off (its extensions unloaded, on the cars too)
+-- and the player is told once to remove it. Its own versions of everything run here.
+local OLD_GE = { 'dirtSkidManager', 'surfaceFX', 'surfaceFXStore', 'surfaceFXBody', 'surfaceFXGlass', 'surfaceFXDebris', 'surfaceFXSparks', 'surfaceFXHiFiScratch', 'surfaceFXMeshUV',
+  'surfaceFXDebug', 'dirtDeform', 'dirtScratch' }
+local OLD_VEH = "{'dirtSkidWheels','dirtSkidBody','dirtScratchBody','dirtSkidDrips','dirtGrip','dirtGlass','dirtDebris','dirtSparks','dirtScratchHiFi','dirtDeformWheels'}"
+local oldTold = false
+local function retireOldMod()
+  local found = false
+  for _, n in ipairs(OLD_GE) do
+    if rawget(_G, n) ~= nil then
+      found = true
+      pcall(extensions.unload, n)
+    end
+  end
+  if not found then return end
+  for _, v in ipairs(getAllVehicles()) do
+    v:queueLuaCommand('for _, n in ipairs(' .. OLD_VEH .. ') do if rawget(_G, n) ~= nil then extensions.unload(n) end end')
+  end
+  if not oldTold then
+    oldTold = true
+    log_('W', 'the old Surface FX / Enhanced Skid Marks mod is installed as well: switched off, Car Surface FX has all of its features. Please remove the old mod (dirtSkidMarks).')
+    if guihooks and guihooks.message then guihooks.message('Car Surface FX now includes Surface FX (Enhanced Skid Marks). The old mod was switched off for this session: please remove it from your mods.', 20, 'csfx') end
+  end
+end
+local retireT = 1
 
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
@@ -446,7 +480,7 @@ local function pushScreen(dt)
   screenT = 0
   local pv = be:getPlayerVehicle(0)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
-  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03 or sprayP > 0.03) and not conflict()
+  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03 or sprayP > 0.03)
   local hull = want and screen.windscreen(pv) or nil
   screenWhy = 'cam=' .. tostring(cam) .. ' wet=' .. string.format('%.2f', wet) .. ' overlay=' .. tostring(settings.windscreen.overlay) .. ' want=' .. tostring(want and true or false) .. ' hull=' .. (hull and (#hull / 2) or 'nil') .. ' on=' .. tostring(screenOn)
   if not hull then
@@ -467,12 +501,11 @@ function M.screenInfo(dbg) if dbg ~= nil then screenDebug = dbg and true or fals
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
 local function update(dtReal)
+  retireT = retireT + dtReal
+  if retireT >= 1 then retireT = 0 retireOldMod() end
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
+  if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
   if not settings then loadSettings() end
-  if conflict() then
-    if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
-    return
-  end
   local q = queue[1]
   if q then                                         -- one material reload per frame
     table.remove(queue, 1)
@@ -581,7 +614,7 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)

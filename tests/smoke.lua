@@ -17,6 +17,10 @@ extensions = {
   unload = function(n) _G[n] = nil end,
 }
 function setExtensionUnloadMode() end
+local unloaded = {}
+extensions.unload = function(n) unloaded[#unloaded + 1] = n _G[n] = nil end
+function getAllVehicles() return {} end
+guihooks = guihooks or {}
 
 local function material(name, glass, stages, mapTo)
   local m = { name = name, fields = {} }
@@ -186,6 +190,20 @@ M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
 tick(1200)
 assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
 M.debug()
+-- the old Surface FX mod loaded as well: switched off, the player told once, ours keeps running
+local told = 0
+guihooks.message = function() told = told + 1 end
+surfaceFXBody = {} dirtSkidManager = {}
+tick(8)
+assert(rawget(_G, 'surfaceFXBody') == nil and rawget(_G, 'dirtSkidManager') == nil, 'the old mod was unloaded')
+assert(told == 1, 'the player is told once: ' .. told)
+surfaceFXBody = {}
+tick(8)
+assert(told == 1, 'and not again')
+assert(M.status() and not M.status():find('SWITCHED OFF'), 'Car Surface FX keeps running')
+local hasMarks = false
+for _, n in ipairs(started) do if n == 'carSurfaceFx_marks' then hasMarks = true end end
+assert(hasMarks, 'the marks module started')
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()
