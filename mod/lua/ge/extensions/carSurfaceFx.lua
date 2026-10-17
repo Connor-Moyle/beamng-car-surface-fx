@@ -18,7 +18,7 @@ local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = t
     dirtSize = 0.045, dirtRate = 1, allVehicles = false }, windscreen = { enabled = true, intensity = 1 }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
-local GLASS_KEYS = { 'baseColorMap', 'opacityMap' }
+local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -121,7 +121,8 @@ local function setRung(info, r)
       local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
-        if v == nil and (k == 'detailNormalMap' or (info.glass and (k == 'baseColorMap' or k == 'opacityMap'))) then v = '' end
+        if v == nil and (k == 'detailNormalMap' or (info.glass and (k == 'baseColorMap' or k == 'emissiveMap'))) then v = ''
+        elseif v == nil and info.glass and k == 'emissiveFactor' then v = '0 0 0' end
         if v ~= nil then m:setField(k, L, v) end
       end
     end
@@ -413,9 +414,9 @@ function M.enable(effect, on)
   return effect .. (on and ' on' or ' off')
 end
 
--- carSurfaceFx.tuneGlass('0 1', 2.5, 1, 1): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
+-- carSurfaceFx.tuneGlass('0 1', 2.5, 0.5, 1, 0.4): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2, inside glint brightness) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up)
-function M.tuneGlass(axis, size, tint, passes)
+function M.tuneGlass(axis, size, tint, passes, emissive)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
@@ -424,7 +425,9 @@ function M.tuneGlass(axis, size, tint, passes)
   rules.glassSize = tonumber(size) or rules.glassSize
   rules.glassTint = tonumber(tint) or rules.glassTint
   rules.glassPasses = tonumber(passes) or rules.glassPasses
-  return string.format('glass down = %.2f %.2f, drop size %.1f, tint %.2f, passes %d', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize, rules.glassTint, rules.glassPasses)
+  rules.glassEmissive = tonumber(emissive) or rules.glassEmissive
+  for _, info in pairs(mats) do if info.glass and info.mode == 'emissive' and info.rung > 0 then info.rung = -1 end end    -- the inside glass takes the new brightness at the next tick
+  return string.format('glass down = %.2f %.2f, drop size %.1f, tint %.2f, passes %d, inside glint %.2f', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize, rules.glassTint, rules.glassPasses, rules.glassEmissive)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials

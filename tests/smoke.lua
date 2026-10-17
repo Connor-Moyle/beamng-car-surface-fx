@@ -72,7 +72,7 @@ tick(40)                                                  -- rain climbs, glass 
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
 assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
-assert(mats.vivace_glass_int.fields[0].opacityMap == '@csfx_vivace_glass_int' and mats.vivace_glass_int.fields[0].baseColorMap == '/b.png', 'inside glass: opacity map is the canvas, tint kept')
+assert(mats.vivace_glass_int.fields[0].emissiveMap == '@csfx_vivace_glass_int' and mats.vivace_glass_int.fields[0].baseColorMap == '/b.png', 'inside glass: emissive map is the canvas, tint kept')
 assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
 assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
