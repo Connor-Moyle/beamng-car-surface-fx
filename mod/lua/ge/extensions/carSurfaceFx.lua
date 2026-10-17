@@ -212,6 +212,8 @@ local function targetWet()
 end
 
 local reset
+-- Enhanced Skid Marks' body extension edits the same paint fields: pause while it is loaded
+local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 
 function M.onUpdate(dtReal)
   if not settings then loadSettings() end
