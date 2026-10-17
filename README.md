@@ -43,7 +43,7 @@ Run in the game's Lua console.
 - `carSurfaceFx.debug('rain', 1.0)` forces the wetness; `carSurfaceFx.debug('dust'|'mud'|'rubber'|'grime', 0.8)` forces a dirt amount; `carSurfaceFx.debug('wiper', 1)` forces the wipers; `carSurfaceFx.debug()` puts the real weather back.
 - `carSurfaceFx.wash()` cleans the dirt of your car; `carSurfaceFx.repair()` buffs out its scratches.
 - `carSurfaceFx.status()` shows what the mod is doing.
-- `carSurfaceFx.tune('12 12', 0.35)` sets the size and strength of the beads on the paint; `carSurfaceFx.tuneGlass('0 1', 2.5)` sets which direction is down on the glass (`'1 0'`, `'-1 0'`, `'0 -1'` if the water runs sideways or up) and the drop size.
+- `carSurfaceFx.tune('12 12', 0.35)` sets the size and strength of the beads on the paint; `carSurfaceFx.tuneGlass('0 1', 1.4)` sets which direction is down on the glass (`'1 0'`, `'-1 0'`, `'0 -1'` if the water runs sideways or up) and the drop size.
 
 ## Other mods
 

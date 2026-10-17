@@ -50,10 +50,10 @@
       var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8);
       var ring = Math.max(0, 1 - Math.abs(d - 0.86) / 0.14);                      // a thin ring near the edge
       var dir = (u + v) * 0.7071;                                                  // + toward the bottom right
-      var s = ring * (dir > 0 ? -0.55 * dir : 0.8 * -dir);                         // dark on the lower right of the rim, bright on the upper left
+      var s = ring * (dir > 0 ? -0.32 * dir : 0.6 * -dir);                         // dark on the lower right of the rim, bright on the upper left
       var gx = u + 0.4, gy = v + 0.45;
       s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);                          // the glint
-      s -= 0.1 * Math.max(0, dir) * (1 - ring);                                    // a slight shade inside, lower right
+      s -= 0.06 * Math.max(0, dir) * (1 - ring);                                    // a slight shade inside, lower right
       if (emissive && s < 0) s = 0;
       data.data[o] = data.data[o + 1] = data.data[o + 2] = s >= 0 ? 255 : 0;
       data.data[o + 3] = Math.min(255, Math.min(1, Math.abs(s)) * fade * 255);

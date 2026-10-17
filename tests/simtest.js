@@ -53,4 +53,7 @@ d = S.create();
 for (let i = 0; i < 600; i++) S.step(d, 1 / 60, P({ rain: 1, speed: 10, size: 3 }));
 for (let i = 0; i < d.n; i++) if (d.alive[i]) { rbig += d.r[i]; nbig++; }
 assert(nbig > 0 && rbig / nbig > 0.006, 'size scales the drops up');
+d = S.create();
+for (let i = 0; i < 60 * 30; i++) S.step(d, 1 / 60, P({ rain: 1, speed: 0, size: 1.4 }));
+assert(S.count(d) <= Math.floor(120 / 1.4) + 3, 'a window carries a limited number of drops');
 console.log('carSurfaceFx sim: ok');
