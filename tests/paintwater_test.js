@@ -43,8 +43,10 @@ W.step(w, 1 / 30, gravity);
 assert.strictEqual(w.alive[d], 0, 'a drop off the mapped paint is gone');
 
 w = W.create(); W.setNodes(w, panel(true));
-const a = W.add(w, 0.5, 0.5, 0.004), b = W.add(w, 0.5, 0.5, 0.003);
+const a = W.add(w, 0.5, 0.5, 0.002), b = W.add(w, 0.5, 0.5, 0.0015);
 assert.strictEqual(a, b, 'drops that meet merge');
+const c = W.add(w, 0.5, 0.5, 0.0035);
+assert.strictEqual(c, -1, 'but not into something bigger than a drop');
 
 w = W.create(); W.setNodes(w, panel(true)); d = W.add(w, 0.5, 0.45, 0.003);
 for (let i = 0; i < 30 * 40; i++) W.step(w, 1 / 30, { rain: 0, wet: 0, fx: 0, fy: 0, fz: 0 });
