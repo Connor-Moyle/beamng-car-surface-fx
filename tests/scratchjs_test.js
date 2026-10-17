@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+const frames = {};
 function page(query) {
   const ops = { strokes: 0, arcs: 0, fills: 0 };
   const ctx = new Proxy({}, {
@@ -14,7 +15,7 @@ function page(query) {
   const canvas = { getContext: () => ctx };
   const win = {};
   const sandbox = { window: win, document: { getElementById: () => canvas, createElement: () => ({ getContext: () => ctx }) }, location: { search: query }, Math,
-    performance: { now: () => 0 }, requestAnimationFrame: () => {}, Float32Array, Uint8Array };
+    performance: { now: () => 0 }, requestAnimationFrame: (cb) => { frames.cb = cb; }, Float32Array, Uint8Array };
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'paintwater.js'), 'utf8'), sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'scratch.js'), 'utf8'), sandbox);
@@ -50,4 +51,15 @@ assert.strictEqual(p.ops.arcs + p.ops.strokes, 0, 'clear removes everything');
 const pal = page('?m=p');                                // the palette page never draws splats
 pal.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
 assert.strictEqual(pal.ops.arcs, 0, 'splats are base page only');
+// the running drops through the page, as the game side drives it: the node map in pieces, the debug switch, a few frames
+const wp = page('?m=b');
+const rows = [];
+for (let i = 0; i < 20; i++) for (let j = 0; j < 20; j++) rows.push(0.4 + i * 0.01, 0.4 + j * 0.01, 0, 0.2, 0, 0, 0, -0.2, 0.2);
+for (let i = 0; i < rows.length; i += 90) wp.w.csfxNodes(rows.slice(i, i + 90), i > 0 ? 1 : 0);
+wp.w.csfxWater({ rain: 1, wet: 1, fx: 0, fy: 0, fz: -9.8 });
+wp.w.csfxDebug(1);
+wp.reset();
+let now = 0;
+for (let i = 0; i < 20; i++) { now += 100; frames.cb(now); }
+assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs + ' disc draws)');
 console.log('carSurfaceFx scratch page: ok');

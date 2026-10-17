@@ -170,10 +170,12 @@
           ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
           if (wdebug) { ctx.fillStyle = 'rgb(0,255,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 2, 0, Math.PI * 2); ctx.fill(); }
         }
-        if (wdebug) {                                                                       // what the page knows, written all over the canvas so some of it lands on visible paint
-          ctx.fillStyle = 'rgb(255,0,255)'; ctx.font = 'bold 26px sans-serif';
-          var txt = 'v6 ' + (water ? 'nodes ' + water.count + ' drops ' + live + ' rain ' + wp.rain.toFixed(1) : 'NO SIM') + (window.csfxError ? ' ERR ' + window.csfxError : '');
-          for (var ty = 1; ty < 8; ty++) for (var tx = 0; tx < 3; tx++) ctx.fillText(txt, 20 + tx * 340, ty * 140);
+        if (wdebug) {                                                                       // what the page knows, written at body nodes (which are on visible paint)
+          ctx.font = 'bold 22px sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgb(0,0,0)'; ctx.fillStyle = 'rgb(255,0,255)';
+          var txt = 'v7 ' + (water ? 'n' + water.count + ' d' + live + ' r' + wp.rain.toFixed(1) + ' f' + wp.fz.toFixed(1) : 'NO SIM') + (window.csfxError ? ' ERR ' + window.csfxError : '');
+          if (water && water.nodes) for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) {
+            ctx.strokeText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W); ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
+          }
         }
         if (wdebug && water && water.nodes) {
           ctx.fillStyle = 'rgb(255,0,0)';
