@@ -111,13 +111,13 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Dirt: four kinds, each with its own tint, how strongly it shows, and how fast it builds and washes off. Amounts are 0..1 per kind.
 -- ---------------------------------------------------------------------------------------------------------------------
-M.KINDS = { 'dust', 'mud', 'rubber', 'grime' }
-local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 } }
-local SHOW = { dust = 0.55, mud = 0.85, rubber = 0.45, grime = 0.5 }              -- how much of the paint a full amount of that kind covers
-local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6 }                  -- how much of the gloss and metal it takes off
-M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6 }                             -- a road film never gets as thick as mud
+M.KINDS = { 'dust', 'mud', 'rubber', 'grime', 'snow', 'bugs' }
+local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 }, snow = { 0.93, 0.95, 0.98 }, bugs = { 0.14, 0.11, 0.07 } }
+local SHOW = { dust = 0.55, mud = 0.85, rubber = 0.45, grime = 0.5, snow = 0.55, bugs = 0.2 }              -- how much of the paint a full amount of that kind covers
+local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6, snow = 0.5, bugs = 0.1 }                  -- how much of the gloss and metal it takes off
+M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6, snow = 1, bugs = 0.5 }                             -- a road film never gets as thick as mud
 
-function M.dirtNew() return { dust = 0, mud = 0, rubber = 0, grime = 0 } end
+function M.dirtNew() return { dust = 0, mud = 0, rubber = 0, grime = 0, snow = 0, bugs = 0 } end
 
 -- A paint ({ baseColor = {r,g,b,a}, metallic, roughness, clearcoat, clearcoatRoughness }) with these dirt amounts on it: the colour is the kinds' tints weighted by
 -- how much each shows (k = amount^1.5 x SHOW), low amounts barely touch the paint, and gloss and metal go with the amounts.
@@ -164,17 +164,45 @@ function M.dirtBuild(d, dt, r, speed, wet)
   out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90
   out.rubber = d.rubber + (r.slip or 0) * dt / 25
   out.grime = d.grime + (r.road or 0) * sf * (1 + (wet or 0)) * dt / 1200
+  -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
+  local snowing, v = r.snowing or 0, speed or 0
+  out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 90 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
+  -- bugs hit the nose in fast driving (not in the wet), a few per minute
+  out.bugs = (d.bugs or 0) + ((wet or 0) < 0.3 and v > M.BUG_SPEED and (v - M.BUG_SPEED) / 20 * dt / 300 or 0)
   for _, k in ipairs(M.KINDS) do out[k] = clamp(out[k], 0, M.CAP[k]) end
   return out
 end
 
+M.SNOW_BLOW, M.BUG_SPEED = 8, 18
+
+-- Frost on glass, 0..1 per car. Builds in the cold (air below FROST_AIR C) while the engine is cold and it is not raining, faster the colder it is; clears with the
+-- engine's warm-up (coolant above FROST_ENGINE C), by rain and by the wipers (the caller handles the arc). Returns the new frost and, for the rising clear-up edge, nothing else.
+M.FROST_AIR, M.FROST_ENGINE = 2, 30
+function M.frostStep(f, dt, airC, engineC, wet)
+  if airC == nil then return f end
+  if airC < M.FROST_AIR and (engineC or airC) < M.FROST_ENGINE and (wet or 0) < 0.2 then
+    f = f + dt / 240 * clamp((M.FROST_AIR - airC) / 6, 0.2, 1.5)
+  end
+  if engineC and engineC > M.FROST_ENGINE then f = f - dt * clamp((engineC - M.FROST_ENGINE) / 60, 0.02, 0.5) end
+  if airC > M.FROST_AIR + 1 then f = f - dt / 120 end
+  f = f - (wet or 0) * dt / 90
+  return clamp(f, 0, 1)
+end
+
+-- snow weather: precipitation with the air below SNOW_AIR C (snowing 0..1), and whether it is warm enough to melt it
+M.SNOW_AIR = 1.5
+function M.snowing(drops, airC)
+  if airC == nil or airC > M.SNOW_AIR then return 0 end
+  return clamp((drops or 0) * 4, 0, 1)
+end
+
 -- washing: rain (wet 0..1, per second) and water (the share of the time a wheel was in water). Dust goes fast, mud and film slowly, rubber hardly at all.
-local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000 }                -- seconds of full rain to wash a full amount off
-local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200 }                   -- seconds in water
+local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000, snow = 400, bugs = 500 }                -- seconds of full rain to wash a full amount off
+local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200, snow = 15, bugs = 30 }                   -- seconds in water
 function M.dirtWash(d, dt, wet, water)
   local out = {}
   for _, k in ipairs(M.KINDS) do
-    out[k] = clamp(d[k] - (wet or 0) * dt / RAIN[k] - (water or 0) * dt / WATER[k], 0, 1)
+    out[k] = clamp((d[k] or 0) - (wet or 0) * dt / RAIN[k] - (water or 0) * dt / WATER[k], 0, 1)
   end
   return out
 end
@@ -182,7 +210,7 @@ end
 -- a car wash takes off `amount` (0..1) of every kind
 function M.dirtClean(d, amount)
   local out = {}
-  for _, k in ipairs(M.KINDS) do out[k] = clamp(d[k] - (amount or 1), 0, 1) end
+  for _, k in ipairs(M.KINDS) do out[k] = clamp((d[k] or 0) - (amount or 1), 0, 1) end
   return out
 end
 
