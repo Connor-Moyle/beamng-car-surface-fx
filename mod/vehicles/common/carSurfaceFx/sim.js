@@ -37,11 +37,11 @@
     d.t += dt;
     var gx = p.gx, gy = p.gy, px = -gy, py = gx;                      // px,py: across the glass
     var z = p.size || 1, slide = SLIDE * z;
-    var cap = Math.floor((30 + 90 * p.rain) / z);                      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
+    var cap = Math.floor((60 + 240 * p.rain) / z);                      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
-    var spawns = n0 < cap ? p.rain * 50 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
+    var spawns = n0 < cap ? p.rain * 80 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.004 + 0.011 * q * q * q) * z); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z); }
       spawns -= 1;
     }
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
