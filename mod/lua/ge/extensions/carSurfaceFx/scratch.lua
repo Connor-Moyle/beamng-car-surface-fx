@@ -44,7 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 12                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 13                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -403,15 +403,26 @@ end
 
 -- carSurfaceFx_scratch.water(id, { rain, wet, speed, aLong, aLat }): the weather and the car's motion for the drops on the paint. The force on the water in the car's own
 -- coordinates (along its left / back / up lines): gravity, the car's acceleration thrown back at the water, and the wind of driving along the body.
+local waterCalls, waterSent, lastWaterJs, waterWhy = 0, 0, '', ''
 function M.water(id, p)
+  waterCalls = waterCalls + 1
   local car, veh = cars[id], getObjectByID(id)
-  if not (settings.water and car and car.lut and veh and hasCanvas(veh)) then return end
+  if not (settings.water and car and car.lut and veh and hasCanvas(veh)) then
+    waterWhy = ('settings.water=%s car=%s lut=%s veh=%s canvas=%s'):format(tostring(settings.water), tostring(car ~= nil), tostring(car and car.lut ~= nil), tostring(veh ~= nil), tostring(veh and hasCanvas(veh)))
+    return
+  end
   -- a page that is still loading drops what it is sent, and the page cannot tell us it is up: send the node map again every 20 s (it is cheap and replaces the old one)
   if (nodesSent[id] or 0) + 20 < os.clock() then sendNodes(id) nodesSent[id] = os.clock() end
   -- the car's own left / back / up lines when its reference nodes give them, else the jbeam axes (x left, y back, z up: gravity is right either way)
   local ax = car.axes or { vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1) }
   local f = ax[1] * p.aLat + ax[2] * (p.aLong + p.speed * p.speed / 80) + ax[3] * -9.8
-  veh:queueJSUITexture(TAG_B, ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(p.rain, p.wet, f.x, f.y, f.z))
+  -- a number that is not finite would print as 'nan' or 'inf', which is no JavaScript: the whole call would be lost and the page would never get any rain
+  local function ok(v) return (v == v and v > -1e6 and v < 1e6) and v or 0 end
+  local fx, fy, fz = ok(f.x), ok(f.y), ok(f.z)
+  if fx == 0 and fy == 0 and fz == 0 then fz = -9.8 end
+  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz)
+  waterSent = waterSent + 1
+  veh:queueJSUITexture(TAG_B, lastWaterJs)
 end
 
 -- carSurfaceFx_scratch.waterDebug(true): the player car's paint shows its body nodes as small black dots, the running drops as big black discs and the page's numbers as black text (the base map multiplies the paint colour: only dark shows on bright paint) (and sends the node map again)
@@ -460,6 +471,7 @@ function M.diagnose()
       if line:find('pal=[^ ]') and not line:find('pal= ') then out[#out + 1] = line end
     end
   end
+  out[#out + 1] = ('paint water: %d calls, %d sent, last [%s], blocked because [%s], map sent %s s ago'):format(waterCalls, waterSent, lastWaterJs, waterWhy, tostring(nodesSent[veh:getId()] and math.floor(os.clock() - nodesSent[veh:getId()]) or 'never'))
   out[#out + 1] = 'canvases on the car: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
   for nm, layers in pairs(bound) do
     local mat = scenetree.findObject(nm)

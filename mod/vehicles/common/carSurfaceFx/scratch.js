@@ -153,7 +153,8 @@
     if (water) CsfxPaintWater.setNodes(water, acc);
     dirty = true;
   };
-  window.csfxWater = function (o) { for (var k in o) wp[k] = o[k]; };
+  var gotWater = 0;
+  window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
   function frame(now) {
@@ -202,7 +203,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v11 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v13 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }
