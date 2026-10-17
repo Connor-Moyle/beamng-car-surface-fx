@@ -4,11 +4,11 @@
 // step) and s = texture units per metre there. A drop looks up the nearest node, turns the force on the water (gravity, the car's acceleration, the wind of driving, all as
 // one vector in the car's coordinates, in m/s^2) into a direction on the texture, and runs that way if the pull along the panel beats what holds a drop of its size.
 (function (root) {
-  var MAXD = 180, CELLS = 32, REACH = 0.03;
+  var MAXD = 180, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
   var RMAX = 7 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
 
   function create() {
-    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
+    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
   }
   function rnd(w) { w.seed = (w.seed * 16807) % 2147483647; return w.seed / 2147483647; }
 
@@ -25,7 +25,7 @@
 
   function nearest(w, x, y) {
     var cx = Math.floor(x * CELLS), cy = Math.floor(y * CELLS), best = -1, bd = REACH * REACH, rows = w.nodes;
-    for (var gy = cy - 1; gy <= cy + 1; gy++) for (var gx = cx - 1; gx <= cx + 1; gx++) {
+    for (var gy = cy - 2; gy <= cy + 2; gy++) for (var gx = cx - 2; gx <= cx + 2; gx++) {
       if (gx < 0 || gy < 0 || gx >= CELLS || gy >= CELLS) continue;
       var cell = w.grid[gy * CELLS + gx];
       for (var i = 0; i < cell.length; i++) {
@@ -47,7 +47,7 @@
         return i;
       }
     }
-    for (var j = 0; j < w.n; j++) if (!w.alive[j]) { w.x[j] = x; w.y[j] = y; w.r[j] = r; w.alive[j] = 1; return j; }
+    for (var j = 0; j < w.n; j++) if (!w.alive[j]) { w.x[j] = x; w.y[j] = y; w.r[j] = r; w.alive[j] = 1; w.age[j] = 0; w.life[j] = 6 + rnd(w) * 14; return j; }
     return -1;
   }
 
@@ -56,7 +56,7 @@
   // p: { rain 0..1 (falling now), wet 0..1, fx, fy, fz: the force on the water in the car's coordinates (m/s^2) }
   function step(w, dt, p) {
     if (!w.nodes || w.count === 0) return;
-    var spawns = p.rain * 45 * dt;
+    var spawns = p.rain * 70 * dt;
     while (spawns > 0) {
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
@@ -68,7 +68,9 @@
     for (var i = 0; i < w.n; i++) {
       if (!w.alive[i]) continue;
       var k2 = nearest(w, w.x[i], w.y[i]);
-      if (k2 < 0) { w.alive[i] = 0; continue; }                                              // ran off the mapped paint
+      w.age[i] += dt;
+      if (w.age[i] > w.life[i]) { w.alive[i] = 0; continue; }                                // every drop is gone after a while (blown off, run off, dried)
+      if (k2 < 0) continue;                                                                  // no body node near: it stays where it is until its time is up
       var b = k2 * 9, du = w.nodes[b + 2] * p.fx + w.nodes[b + 3] * p.fy + w.nodes[b + 4] * p.fz, dv = w.nodes[b + 5] * p.fx + w.nodes[b + 6] * p.fy + w.nodes[b + 7] * p.fz;
       var s = w.nodes[b + 8], len = Math.sqrt(du * du + dv * dv);
       var along = len / s;                                                                   // the pull along the panel, m/s^2

@@ -40,7 +40,10 @@ assert(Math.abs(w.y[d] - 0.45) < 0.02 || !w.alive[d], 'a tiny drop stays put (or
 w = W.create(); W.setNodes(w, panel(true));
 d = W.add(w, 0.9, 0.9, 0.006);                                                                // no body node within reach: off the mapped paint
 W.step(w, 1 / 30, gravity);
-assert.strictEqual(w.alive[d], 0, 'a drop off the mapped paint is gone');
+assert.strictEqual(w.alive[d], 1, 'a drop away from every body node stays put');
+assert(Math.abs(w.y[d] - 0.9) < 1e-6, '...and does not move');
+for (let i = 0; i < 30 * 30; i++) W.step(w, 1 / 30, { rain: 0, wet: 1, fx: 0, fy: 0, fz: 0 });
+assert.strictEqual(w.alive[d], 0, 'every drop is gone after a while');
 
 w = W.create(); W.setNodes(w, panel(true));
 const a = W.add(w, 0.5, 0.5, 0.002), b = W.add(w, 0.5, 0.5, 0.0015);

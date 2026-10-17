@@ -203,7 +203,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v13 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v14 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }
