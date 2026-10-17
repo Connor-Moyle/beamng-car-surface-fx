@@ -119,12 +119,13 @@ local function attach(id)
   log_('I', string.format('car %d: %d paint materials', id, #car.mats))
 end
 
--- the car's mesh slots for a material (getSwitchableMaterial needs the alt material to exist)
+-- the car's mesh slots for a material. The slot's "off" material must be the original (as the game's own deform switches do, jbeam/materials.lua):
+-- the first version passed the wet clone there, and resetMaterials then fell back to the clone, not the paint.
 local function slots(car, m)
   if m.msc then return m.msc end
   m.msc = {}
   for mesh in string.gmatch(car.veh:getMeshesContainingMaterial(m.mapTo) or '', '%S+') do
-    local s = car.veh:getSwitchableMaterial(m.mapTo, m.name .. CLONE .. '1', mesh)
+    local s = car.veh:getSwitchableMaterial(m.mapTo, m.mapTo, mesh)
     if s >= 0 then m.msc[#m.msc + 1] = s end
   end
   return m.msc
@@ -197,6 +198,10 @@ function M.onUpdate(dtReal)
   for _, id in ipairs(ids) do
     local car = cars[id]
     if not car then attach(id) car = cars[id] end
+    if car and not car.slotted and ready(car) then
+      for _, m in ipairs(car.mats) do slots(car, m) end
+      car.slotted = true
+    end
     if car and (car.rung or 0) ~= want and apply(car, want) then car.rung = want end
   end
   for id in pairs(cars) do
