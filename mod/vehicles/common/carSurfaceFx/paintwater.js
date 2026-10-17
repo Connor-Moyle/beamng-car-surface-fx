@@ -4,7 +4,7 @@
 // step) and s = texture units per metre there. A drop looks up the nearest node, turns the force on the water (gravity, the car's acceleration, the wind of driving, all as
 // one vector in the car's coordinates, in m/s^2) into a direction on the texture, and runs that way if the pull along the panel beats what holds a drop of its size.
 (function (root) {
-  var MAXD = 420, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
+  var MAXD = 250, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
   var RMAX = 9 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
 
   function create() {

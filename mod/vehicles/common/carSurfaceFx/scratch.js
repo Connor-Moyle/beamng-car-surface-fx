@@ -147,6 +147,7 @@
   var tctx = tc.getContext('2d');
   tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, W, W);
   var trailLive = 0;
+  var tpx = new Float32Array(water ? water.n : 0), tpy = new Float32Array(water ? water.n : 0), tseen = new Uint8Array(water ? water.n : 0);      // where each moving drop was at the last frame
   window.csfxNodes = function (rows, more) {                                      // the node map comes in pieces (a long script string may not get through): the first piece starts it over
     if (!more) acc = [];
     for (var i = 0; i < rows.length; i++) acc.push(rows[i]);
@@ -179,15 +180,25 @@
     if (palette || !water) return;
     try {                                                           // trails: fade, add a dark dot where a drop moved, lay them over the paint (multiply: dark darkens, white changes nothing)
       tctx.globalCompositeOperation = 'source-over';
-      tctx.fillStyle = 'rgba(255,255,255,0.03)'; tctx.fillRect(0, 0, W, W);
+      // (written for 60 frames a second: at any other rate the fade is for the time that has passed, and a moving drop leaves a dot for every 1/60 s along its way,
+      // so the trails look the same however often the browser calls this page)
+      var steps = Math.max(1, Math.min(12, Math.round(dt * 60)));
+      tctx.fillStyle = 'rgba(255,255,255,' + (1 - Math.pow(0.97, steps)) + ')'; tctx.fillRect(0, 0, W, W);
       var moving = 0;
+      tctx.fillStyle = 'rgba(0,0,0,0.22)';
       for (var t = 0; t < water.n; t++) {
-        if (!water.alive[t] || !water.moved[t]) continue;
+        if (!water.alive[t] || !water.moved[t]) { tseen[t] = 0; continue; }
         moving++;
-        tctx.fillStyle = 'rgba(0,0,0,0.22)';
-        tctx.beginPath(); tctx.arc(water.x[t] * W, water.y[t] * W, Math.max(1.5, water.r[t] * W * 0.7), 0, Math.PI * 2); tctx.fill();
+        var rr = Math.max(1.5, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
+        for (var s = 1; s <= steps; s++) {
+          var u = tseen[t] ? s / steps : 1;                         // from where it was, if it was moving a frame ago
+          var dx = tseen[t] ? tpx[t] + (cx - tpx[t]) * u : cx, dy = tseen[t] ? tpy[t] + (cy - tpy[t]) * u : cy;
+          tctx.beginPath(); tctx.arc(dx, dy, rr, 0, Math.PI * 2); tctx.fill();
+          if (!tseen[t]) break;
+        }
+        tpx[t] = cx; tpy[t] = cy; tseen[t] = 1;
       }
-      trailLive = moving > 0 ? 40 : Math.max(0, trailLive - 1);
+      trailLive = moving > 0 ? 40 : Math.max(0, trailLive - steps);
       ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(tc, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
