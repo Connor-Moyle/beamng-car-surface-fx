@@ -54,7 +54,7 @@
       var gx = u + 0.4, gy = v + 0.45;
       s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);                          // the glint
       s -= 0.06 * Math.max(0, dir) * (1 - ring);                                    // a slight shade inside, lower right
-      if (emissive && s < 0) s = 0;
+      if (emissive) s = Math.max(0, s - 0.12 + 0.06 * (1 - Math.min(1, d * 1.5)));      // light only, and no lit body: just the bright rim up-left and the glint (a lit body made the whole glass hazy)
       data.data[o] = data.data[o + 1] = data.data[o + 2] = s >= 0 ? 255 : 0;
       data.data[o + 3] = Math.min(255, Math.min(1, Math.abs(s)) * fade * 255);
     }

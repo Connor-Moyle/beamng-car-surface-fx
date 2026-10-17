@@ -34,7 +34,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 8                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 9                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -565,6 +565,25 @@ function M.glassDouble(on)
   doubleSided = on and true or false
   for _, info in pairs(mats) do if info.glass and info.mode == 'color' and info.rung > 0 then info.rung = -1 end end
   return 'outer glass double sided while wet: ' .. tostring(doubleSided)
+end
+
+-- carSurfaceFx.refreshGlass(): the windscreen's inside pane (vivace_windshield_int) is a flexbody with a material switch slot (deformMaterialBase = deformMaterialDamaged = its own
+-- material, lua/common/jbeam/materials.lua), and may keep showing the material as it was when the slot was made. This asks every glass mesh of the player car to take its
+-- material again through its slot, which should pick up the canvas.
+function M.refreshGlass()
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  local n, out = 0, {}
+  for _, info in pairs(mats) do
+    if info.glass and info.rung > 0 then
+      for mesh in string.gmatch(veh:getMeshesContainingMaterial(info.mapTo) or '', '%S+') do
+        local slot = veh:getSwitchableMaterial(info.mapTo, info.mapTo, mesh)
+        if slot >= 0 then veh:switchMaterial(slot, info.name) n = n + 1 end
+      end
+      out[#out + 1] = info.name
+    end
+  end
+  return string.format('%d glass meshes switched again (%s)', n, table.concat(out, ', '))
 end
 
 -- carSurfaceFx.glassInfo(): the player car's window materials: which meshes use each, the slot the canvas goes in, and whether it is bound
