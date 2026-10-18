@@ -133,7 +133,7 @@ function createOverlay(doc, win) {
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
-    tctx.fillStyle = 'rgba(0,0,0,0.02)';
+    tctx.fillStyle = 'rgba(0,0,0,0.04)';
     tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
     tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(35,45,60,0.34)'; tctx.lineWidth = 1.3; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop

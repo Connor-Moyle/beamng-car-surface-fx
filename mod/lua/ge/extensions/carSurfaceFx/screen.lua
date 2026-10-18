@@ -81,7 +81,7 @@ end
 
 -- the glass mesh runs up under the headliner and the pillar trim, so the part you can see is smaller than the node hull: shrink the hull toward its bottom centre
 -- (kx across, ky up). On the covet the visible glass is about 0.93 as wide and 0.68 as tall as the hull; shortcut: one factor for every car, measure per car if one is off.
-M.INSET = { 0.93, 0.68, 0.03, 0.012, 0.012 }
+M.INSET = { 0.93, 0.68, 0.03, 0.012, 0.03 }
 function M.inset(hull, kx, ky, lift, taper, rightTrim)
   if not hull then return nil end
   local x0, x1, ymin, ymax = 1, 0, 1, 0
