@@ -139,7 +139,8 @@
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H, px = sim.x[i] * W, py = sim.y[i] * H;
       if (R < 2.2) {
-        var rr = Math.max(0.9, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
+        if (emissive && R < 0.7) continue;                           // the fine mist of the sim is too small to be one lit pixel: drawn, it fogs the glass
+        var rr = Math.max(1.1, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
         if (emissive) dots.push(px - rr * 0.8, py - rr * 0.8, rr * 1.6);      // a ring of 2 px rasterises as a plus and a lit plus is a star up close: on the light map a small drop is one soft lit square
         else { ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true; }
         glints.push(px - 0.35 * rr - 0.5, py - 0.4 * rr - 0.5);
@@ -148,7 +149,7 @@
       }
     }
     if (tiny) ctx.stroke();
-    if (dots.length) { ctx.fillStyle = 'rgba(255,255,255,0.4)'; for (var di = 0; di < dots.length; di += 3) ctx.fillRect(dots[di], dots[di + 1], dots[di + 2], dots[di + 2]); }
+    if (dots.length) { ctx.fillStyle = 'rgba(255,255,255,0.65)'; for (var di = 0; di < dots.length; di += 3) ctx.fillRect(dots[di], dots[di + 1], dots[di + 2], dots[di + 2]); }
     if (glints.length && !emissive) {      // the inside light map has no glints: at 4 mm a texel any lit mark of a drop reads as a white dot up close; the disc and the ring carry it
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1.2, 1.2);

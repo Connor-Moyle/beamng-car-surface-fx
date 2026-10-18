@@ -56,7 +56,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 35                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 36                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -264,7 +264,7 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- yet) the plain regions of the old placement are used.
 local COL = { mud = { 0.25, 0.17, 0.10 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 2400, 0.9, 0.045 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 2400, 0.9, 0.045 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 600, 0.9, 0.02 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
