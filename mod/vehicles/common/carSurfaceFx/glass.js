@@ -134,6 +134,9 @@
         var flx = p.flow, n = flx && flx.n ? flx.n : 0, alive = 0;
         for (var di = 0; di < sim.n; di++) alive += sim.alive[di];
         if (flx && flx.cells) { ctx.fillStyle = emissive ? 'rgba(255,255,255,0.18)' : 'rgba(255,0,0,0.25)'; for (var ci = 0; ci < flx.cells.length; ci++) { var cc2 = flx.cells[ci]; ctx.fillRect((cc2 % n) * W / n, Math.floor(cc2 / n) * H / n, W / n - 1, H / n - 1); } }
+        ctx.font = 'bold ' + Math.round(H / 12) + 'px sans-serif'; ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,0,0.5)'; ctx.lineWidth = 1;       // the texture in 8 x 8 labelled squares (A1 top left): which squares a window shows says which part of the map it samples
+        ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,255,0)';
+        for (var lx = 0; lx < 8; lx++) for (var ly = 0; ly < 8; ly++) { ctx.strokeRect(lx * W / 8, ly * H / 8, W / 8, H / 8); ctx.fillText(String.fromCharCode(65 + lx) + (ly + 1), (lx + 0.12) * W / 8, (ly + 0.62) * H / 8); }
         ctx.font = 'bold 26px sans-serif'; ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,255,0)';
         var txt = 'drops ' + alive + ' flow ' + (flx ? (flx.ready ? 'ready' : 'partial') : 'none') + ' cells ' + (flx && flx.cells ? flx.cells.length : 0) + ' rain ' + Number(p.rain).toFixed(2) + ' mm ' + p.glassMm + ' uv/m ' + Number(p.uvPerM || 0).toFixed(2) + ' ' + W + 'x' + H;
         for (var ty = 0.15; ty < 1; ty += 0.3) ctx.fillText(txt, 6, ty * H);
