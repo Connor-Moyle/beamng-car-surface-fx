@@ -732,6 +732,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
+        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
