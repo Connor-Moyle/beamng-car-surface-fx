@@ -18,7 +18,7 @@ local grassRules = require('carSurfaceFx/grassRules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, fluids = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -368,6 +368,17 @@ local function stopFluids()
   if fluidsOn() then extensions.unload('carSurfaceFx_fluids') end
 end
 
+local function impactsOn() return rawget(_G, 'carSurfaceFx_impacts') ~= nil end
+local function startImpacts()
+  if impactsOn() or not settings.impacts.enabled then return end
+  extensions.load('carSurfaceFx_impacts')
+  setExtensionUnloadMode('carSurfaceFx_impacts', 'manual')
+  log_('I', 'crash effects module started (glass, debris, sparks)')
+end
+local function stopImpacts()
+  if impactsOn() then extensions.unload('carSurfaceFx_impacts') end
+end
+
 -- Grass that bends under the wheels (carSurfaceFx/grass.lua): the game's own surface mask, stamped from the wheels. Runs while settings.grass.enabled.
 local function startGrass()
   if grassOn() or not settings.grass.enabled then return end
@@ -574,6 +585,7 @@ local function update(dtReal)
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
   if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
+  if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
   if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
   if not settings then loadSettings() end
   local q = queue[1]
@@ -702,7 +714,7 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)

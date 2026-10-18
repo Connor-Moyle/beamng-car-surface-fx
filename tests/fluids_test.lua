@@ -1,5 +1,9 @@
 -- The leaking fluids: the rules (fluidrules.lua), the GE module (fluids.lua) against a mocked game, and the car side (carSurfaceFxFluids.lua) with a mocked car.
 local R = require('carSurfaceFx/fluidrules')
+local dp = { x = 0, y = 0, z = 1, vz = 0, gz = 0 }
+local landed, steps = false, 0
+while not landed and steps < 100 do landed = R.fallStep(dp, 0.02) steps = steps + 1 end
+assert(landed and steps >= 20 and steps <= 30 and dp.z == 0, 'a drop falls a metre in about 0.45 s: ' .. steps)
 
 -- ---- the rules
 local cfg = R.defaults()
@@ -106,6 +110,33 @@ assert(F.count() >= 1 and F.count() <= 4 and st:find('oil=%d') and st:find('leak
 local biggest = 0
 for i = 1, 400 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1) end
 assert(F.status():find('oil=%d%(r0%.[4-9]') or F.status():find('oil=%d%(r[1-9]'), 'and it grows while the car stays: ' .. F.status())
+
+-- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
+castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height
+local sphere = 0
+debugDrawer = { drawSphere = function() sphere = sphere + 1 end }
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
+assert(F.dropCount() >= 1 and F.count() == 0, 'drips start as drops in the air: ' .. F.dropCount() .. ' ' .. F.count())
+F.onPreRender(0.016)
+assert(sphere >= 1, 'a falling drop is drawn')
+for _ = 1, 8 do F.onUpdate(0.05) end
+assert(F.dropCount() == 0 and F.count() >= 1, 'and lands as a drip: ' .. F.dropCount() .. ' ' .. F.count())
+for i = 1, 200 do t = t + 0.05 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, true, true, true, 'nil', 'nil', 0.4, 1, true, true, 1) end
+assert(F.dropCount() <= F.settings().maxDrops, 'at most maxDrops in the air')
+F.set('fallingDrops', false)
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
+assert(F.dropCount() == 0 and F.count() >= 1, 'with the setting off the spots just appear')
+F.set('fallingDrops', true)
+castRayStatic = function() return 0.6 end
+debugDrawer = nil
 
 -- the same car driving leaves drip spots
 F.clear()

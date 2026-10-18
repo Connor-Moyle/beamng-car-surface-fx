@@ -17,11 +17,13 @@ local DROP_TEX = 'art/decals/fluids/drop.png'
 local settings = rules.defaults()
 local store = rules.newStore(settings.maxPuddles)
 local colors = {}                                                 -- kind -> ColorF (rebuilt when a colour changes)
+local dropCol = {}                                                -- kind -> ColorF for the falling drops
 local reports = {}                                                -- vehicle id -> what the car last said { oil, coolant, fuel, exhaust, grip, at }
 local pools = {}                                                  -- 'kind:variant' -> decal slots
 local dirty, lastSave = false, 0
 local injectT, ageT, gripT = 0, 0, 0
 local forced = {}                                                 -- debug: kinds forced to leak on the player's car
+local drops, dropN = {}, 0                                       -- the drops in the air (a small list, reused slots)
 
 local clamp = rules.clamp
 local function mergeInto(dst, src)
@@ -39,6 +41,7 @@ local function rebuildColors()
   for _, kind in ipairs(rules.KINDS) do
     local c = settings.kinds[kind].color
     colors[kind] = c
+    if ColorF then dropCol[kind] = ColorF(c[1], c[2], c[3], 0.9) end
   end
 end
 
@@ -131,7 +134,41 @@ function M.addDrip(x, y, z, kind, amount, speed)
   if not settings.enabled then return end
   local gz = groundZ(x, y, z)
   if not gz then return end
+  if settings.fallingDrops and settings.kinds[kind] and settings.kinds[kind].enabled and z - gz > 0.08 and dropN < settings.maxDrops then
+    dropN = dropN + 1
+    local d = drops[dropN] or { pos = vec3(0, 0, 0) }
+    d.x, d.y, d.z, d.vz, d.gz, d.kind, d.amount, d.speed = x, y, z, 0, gz, kind, amount or 1, speed or 0
+    drops[dropN] = d
+    return
+  end
   rules.drip(store, x, y, gz, kind, amount or 1, settings, (speed or 0) > settings.stainSpeed, math.random())
+end
+
+-- the drops in the air fall; the one that lands makes its drip. Swap-remove keeps the list packed without allocating.
+local function fallDrops(dt)
+  local i = 1
+  while i <= dropN do
+    local d = drops[i]
+    if rules.fallStep(d, dt) then
+      rules.drip(store, d.x, d.y, d.gz, d.kind, d.amount, settings, d.speed > settings.stainSpeed, math.random())
+      drops[i], drops[dropN] = drops[dropN], d
+      dropN = dropN - 1
+    else
+      i = i + 1
+    end
+  end
+end
+
+local function drawDrops()
+  if dropN == 0 or not debugDrawer then return end
+  for i = 1, dropN do
+    local d = drops[i]
+    local c = dropCol[d.kind]
+    if c then
+      d.pos:set(d.x, d.y, d.z)
+      pcall(debugDrawer.drawSphere, debugDrawer, d.pos, settings.dropSize, c)
+    end
+  end
 end
 
 -- what a car says about itself, twice a second: its leak intensities and the grip multiplier its tyres are on
@@ -165,7 +202,8 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
 end
 
 function M.count() return store.count end
-function M.clear() store = rules.newStore(settings.maxPuddles) reports = {} carry, lastAt = {}, {} end
+function M.dropCount() return dropN end
+function M.clear() store = rules.newStore(settings.maxPuddles) reports = {} carry, lastAt = {}, {} dropN = 0 end
 
 -- ---- drawing: one batch per fluid and texture variant, through marks.drawBatch (the seam where the scene light goes)
 local function slot(pool, i)
@@ -185,7 +223,9 @@ local function draw(pool, n)
 end
 
 function M.onPreRender(dt)
-  if not settings.enabled or store.count == 0 then return end
+  if not settings.enabled then return end
+  drawDrops()
+  if store.count == 0 then return end
   if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
   local camX, camY = cam and cam.x, cam and cam.y
@@ -291,6 +331,7 @@ function M.onVehicleSwitched() pcall(injectAll) end
 function M.onUpdate(dt)
   injectT = injectT + dt
   if injectT >= 2 then injectT = 0 pcall(injectAll) end
+  fallDrops(dt)
   ageT = ageT + dt
   if ageT >= 1 then rules.age(store, ageT, settings) ageT = 0 end
   gripT = gripT + dt

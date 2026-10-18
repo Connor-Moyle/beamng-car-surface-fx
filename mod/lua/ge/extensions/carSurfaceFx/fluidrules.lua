@@ -16,6 +16,7 @@ function M.defaults()
     gripEnabled = false,                                         -- the real physics part: off unless the player turns it on
     maxPuddles = 60,                                             -- ring size: the oldest are recycled
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
+    fallingDrops = true, dropSize = 0.025, maxDrops = 32,        -- drops seen falling from the leak to the ground (a small cap, a few spheres)
     stainSpeed = 3.0,                                            -- m/s: faster than this a leak leaves drip spots along the road instead of a puddle
     others = { enabled = false, maxCars = 4, range = 60 },       -- AI and traffic cars leak too (the nearest ones)
     kinds = {
@@ -51,6 +52,15 @@ function M.drips(intensity, dt, carry)
   local x = (carry or 0) + (intensity or 0) * M.DRIPS_PER_SECOND * (dt or 0)
   local n = math.floor(x)
   return n, x - n
+end
+
+-- ---- a falling drop: { x, y, z, vz, gz (the ground), kind, amount, speed }; falls under gravity from where it left the car. Returns true when it has hit the ground.
+M.GRAVITY = 9.81
+function M.fallStep(d, dt)
+  d.vz = d.vz - M.GRAVITY * dt
+  d.z = d.z + d.vz * dt
+  if d.z <= d.gz then d.z = d.gz return true end
+  return false
 end
 
 -- ---- puddles. A store is a ring: { list = {}, head = 0, count = 0, max = n }
