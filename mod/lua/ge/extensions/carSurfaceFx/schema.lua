@@ -279,7 +279,7 @@ function M.build(S, owner)
   end
   add({
     F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
-    lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). Off by default: it changes how the car drives.', 'gripEnabled'),
+    lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). It changes how the car drives: braking in an oil puddle spins the car.', 'gripEnabled'),
     { id = 'leaks_texture', tab = 'leaks', group = 'Pictures', type = 'texture', label = 'Puddle picture', tooltip = 'The picture of a puddle. Drop your own white-on-transparent png (name starting with puddle) into art/decals/fluids and it shows up here; none means any of them, at random.',
       folder = '/art/decals/fluids/', exts = { 'png' }, thumbs = true, none = true, default = '', store = fluidStore('texture', 'texture'), apply = 'live' },
     lk('leaks_drops', 'Leaks', 'bool', 'Drops falling from the leak', 'Small drops visibly fall from the engine to the ground before they make a spot. Off: the spots just appear.', 'fallingDrops'),

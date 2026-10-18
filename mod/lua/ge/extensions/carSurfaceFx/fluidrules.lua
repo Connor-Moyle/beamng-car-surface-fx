@@ -16,7 +16,7 @@ function M.defaults()
   return {
     enabled = true,
     texture = '',                                                -- the puddle picture: a file in art/decals/fluids ('' = any of them)
-    gripEnabled = false,                                         -- the real physics part: off unless the player turns it on
+    gripEnabled = true,                                          -- the real physics part: a tyre in a puddle slips (proven by yaw logs under braking); the setting turns it off
     maxPuddles = 60,                                             -- ring size: the oldest are recycled
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
     fallingDrops = true, dropSize = 0.06, dropCount = 2, maxDrops = 32,   -- the game's own drop particles from the leak (width m, drops per burst), and a cap on the drops followed to where they land
