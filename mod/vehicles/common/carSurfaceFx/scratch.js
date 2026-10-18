@@ -205,7 +205,7 @@
       for (var t = 0; t < water.n; t++) {
         if (!water.alive[t] || !water.moved[t]) { tseen[t] = 0; continue; }
         moving++;
-        var rr = Math.max(1.5, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
+        var rr = Math.max(1.0, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
         for (var s = 1; s <= steps; s++) {
           var u = tseen[t] ? s / steps : 1;                         // from where it was, if it was moving a frame ago
           var dx = tseen[t] ? tpx[t] + (cx - tpx[t]) * u : cx, dy = tseen[t] ? tpy[t] + (cy - tpy[t]) * u : cy;
@@ -222,7 +222,7 @@
     try {
       for (var i = 0; i < water.n; i++) {
         if (!water.alive[i]) continue;
-        var R = Math.max(2.5, water.r[i] * W) * 1.3;
+        var R = Math.max(1.4, water.r[i] * W) * 1.3;                        // a 3 mm bead is about one texel: drawn at least this big
         ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
         if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 0.5, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }

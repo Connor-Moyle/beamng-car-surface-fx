@@ -33,7 +33,7 @@ for (let i = 0; i < 30; i++) W.step(w, 1 / 30, { rain: 0, wet: 1, fx: 0, fy: 30,
 assert(w.x[d] > 0.5, 'the wind pushes it along a horizontal panel');
 
 w = W.create(); W.setNodes(w, panel(true));
-d = W.add(w, 0.5, 0.45, 0.0012);
+d = W.add(w, 0.5, 0.45, 0.0005);
 for (let i = 0; i < 60; i++) W.step(w, 1 / 30, gravity);
 assert(Math.abs(w.y[d] - 0.45) < 0.02 || !w.alive[d], 'a tiny drop stays put (or dries)');
 
@@ -46,7 +46,7 @@ for (let i = 0; i < 30 * 30; i++) W.step(w, 1 / 30, { rain: 0, wet: 1, fx: 0, fy
 assert.strictEqual(w.alive[d], 0, 'every drop is gone after a while');
 
 w = W.create(); W.setNodes(w, panel(true));
-const a = W.add(w, 0.5, 0.5, 0.002), b = W.add(w, 0.5, 0.5, 0.0015);
+const a = W.add(w, 0.5, 0.5, 0.0004, 0.2), b = W.add(w, 0.5, 0.5, 0.0003, 0.2);
 assert.strictEqual(a, b, 'drops that meet merge');
 const c = W.add(w, 0.5, 0.5, 0.0095);
 assert.strictEqual(c, -1, 'but not into something bigger than a drop');

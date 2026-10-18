@@ -4,8 +4,9 @@
 // step) and s = texture units per metre there. A drop looks up the nearest node, turns the force on the water (gravity, the car's acceleration, the wind of driving, all as
 // one vector in the car's coordinates, in m/s^2) into a direction on the texture, and runs that way if the pull along the panel beats what holds a drop of its size.
 (function (root) {
-  var MAXD = 250, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
-  var RMAX = 9 / 1024;                                    // a drop that has merged this big stays a drop: on a flat panel they must not grow into a puddle
+  var MAXD = 500, CELLS = 32, REACH = 0.07;                                           // a body node this close to a drop tells which way is down there (the nodes are sparse: a door has few)
+  var RMAX_M = 0.006;                                     // metres: a drop that has merged this big (6 mm radius) stays a drop: on a flat panel they must not grow into a puddle
+  // Every size here is in metres and meets the texture through s, the texture units per metre at the drop's place (the node map gives it), so a drop is the same real size on every car.
 
   function create() {
     return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
@@ -36,13 +37,13 @@
     return best;
   }
 
-  function add(w, x, y, r) {
+  function add(w, x, y, r, s) {
     for (var i = 0; i < w.n; i++) {
       if (!w.alive[i]) continue;
       var dx = w.x[i] - x, dy = w.y[i] - y, rr = w.r[i] + r;
       if (dx * dx + dy * dy < rr * rr * 0.6) {
         var nr = Math.sqrt(w.r[i] * w.r[i] + r * r), t = w.r[i] / (w.r[i] + r);
-        if (nr > RMAX) return -1;                                                    // too big to merge: the new one is simply not added
+        if (nr > RMAX_M * (s || 0.2)) return -1;                                                    // too big to merge: the new one is simply not added
         w.x[i] = w.x[i] * t + x * (1 - t); w.y[i] = w.y[i] * t + y * (1 - t); w.r[i] = nr;
         return i;
       }
@@ -56,15 +57,16 @@
   // p: { rain 0..1 (falling now), wet 0..1, fx, fy, fz: the force on the water in the car's coordinates (m/s^2) }
   function step(w, dt, p) {
     if (!w.nodes || w.count === 0) return;
-    var spawns = p.rain * 70 * dt;
+    var spawns = p.rain * 220 * dt;                                                          // many small drops
     while (spawns > 0) {
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
-        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (3 + 3 * q * q * q) / 1024);
+        var sk = w.nodes[k * 9 + 8];
+        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (0.0015 + 0.0015 * q * q * q) * sk, sk);     // 1.5 to 3 mm radius: 3 to 6 mm drops
       }
       spawns -= 1;
     }
-    var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.5 + 1.5 * (1 - p.wet)) / 1024;       // texels per second a dry drop shrinks by
+    var evapM = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0003 + 0.0008 * (1 - p.wet));       // metres of radius per second a dry drop shrinks by
     for (var i = 0; i < w.n; i++) {
       if (!w.alive[i]) continue;
       var k2 = nearest(w, w.x[i], w.y[i]);
@@ -74,16 +76,16 @@
       var b = k2 * 9, du = w.nodes[b + 2] * p.fx + w.nodes[b + 3] * p.fy + w.nodes[b + 4] * p.fz, dv = w.nodes[b + 5] * p.fx + w.nodes[b + 6] * p.fy + w.nodes[b + 7] * p.fz;
       var s = w.nodes[b + 8], len = Math.sqrt(du * du + dv * dv);
       var along = len / s;                                                                   // the pull along the panel, m/s^2
-      var r = w.r[i], hold = 1.5 + 0.004 / r;
+      var r = w.r[i], rm = r / s, hold = 2 + 0.03 / rm;                                      // small beads stay on any panel; one that has merged to about 4 mm radius runs on a steep one
       w.moved[i] = 0;                                          // what holds a drop: small ones stay, big ones go
       if (along > hold) {
-        var v = Math.min(0.5, 0.02 * (along - hold) * (r * 1024 / 2.5));                       // m/s
+        var v = Math.min(0.5, 0.02 * (along - hold) * (rm * 1000 / 2.5));                      // m/s
         w.x[i] += du / len * v * s * dt;
         w.y[i] += dv / len * v * s * dt;
         w.moved[i] = 1;                                                                      // the page leaves a wet trail where a drop has run
       }
-      w.r[i] -= evap;
-      if (w.r[i] < 1.5 / 1024 || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;
+      w.r[i] -= evapM * s;
+      if (w.r[i] < 0.0008 * s || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;
     }
   }
 
