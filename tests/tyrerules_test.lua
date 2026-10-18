@@ -81,8 +81,8 @@ end
 -- a burnout: 37 kW into the tyre, a few seconds
 local bt = R.new('road', 16, 0.305, 0.175, 20)
 run(bt, 6, { power = 37000, v = 4, fz = 4000, ambient = 20 })
--- (research 8.4 expects ~150 C in 6 s from all 37 kW; with half of the slip power going into the tyre (as = 0.5) the model gives ~75 C, which is about 130 C at 12 s: tune `as` in the game)
-assert(bt.Ts > 60 and bt.Ts < 400, 'a burnout heats the surface by tens of degrees in six seconds: ' .. bt.Ts)
+assert(bt.Ts > 150 and bt.Ts < 400, 'a burnout takes the thin surface layer past 150 C in six seconds: ' .. bt.Ts)
+assert(bt.Tc < 60, 'while the carcass is still cool: ' .. bt.Tc)
 assert(bt.Tc < bt.Ts - 30, 'the carcass lags the surface')
 -- cooling at speed with no slip: the surface goes back toward the ambient, faster than standing
 local cool1, cool2 = R.new('road', 16) cool1.Ts, cool2 = 120, R.new('road', 16)

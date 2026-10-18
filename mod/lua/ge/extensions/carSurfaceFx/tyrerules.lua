@@ -108,7 +108,8 @@ end
 
 -- ---- temperature (research 8.4). Lumped surface + core temperature per tyre, a flash temperature per sector.
 -- ctx = { dt, power (W of slip power into the tyre this tick, all slots), v (m/s), fz (N), ambient, road (C), wet (0..1), brake (C or nil), pressure, pNom }
-local P = { Cs = 1700, Cc = 10000, as = 0.5, bs = 0.3, h0 = 10, h1 = 5, Aout = 0.6, Groad = 30, Gsc = 85, Gin = 15, Gbrake = 5, tauFlash = 2 }
+-- Cs: the surface is a thin layer (~0.7 mm of rubber over the contact ring), so a burnout spikes it in seconds while the carcass (Cc) lags; Gsc is the slow link between them
+local P = { Cs = 500, Cc = 10000, as = 0.5, bs = 0.3, h0 = 10, h1 = 5, Aout = 0.6, Groad = 30, Gsc = 30, Gin = 15, Gbrake = 5, tauFlash = 2 }
 M.THERMAL = P
 function M.tempStep(t, ctx, cfg)
   local dt = clamp(ctx.dt or 0.05, 0, 0.1)
