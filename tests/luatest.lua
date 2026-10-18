@@ -214,3 +214,4 @@ do
   eq(on3 == false and speed3 == nil and moved3, true, 'an on stays as it is, the version moves up')
 end
 print('carSurfaceFx rules: ' .. n .. ' checks passed')
+assert(R.dirtBuild(R.dirtNew(), 60, { loose = 1 }, 7, 1).mud > 0.1, 'a wet dirt road at 25 km/h for a minute: the car is visibly muddy')
