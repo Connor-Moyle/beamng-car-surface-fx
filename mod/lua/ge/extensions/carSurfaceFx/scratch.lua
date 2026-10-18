@@ -584,6 +584,7 @@ function M.onExtensionLoaded() end
 local pollTimer = 0
 function M.onUpdate(dt)
   carSurfaceFx_meshuv.tick()
+  bodydirt.tick()
   pollTimer = pollTimer + (dt or 0)
   if pollTimer < 1.0 then return end
   pollTimer = 0
