@@ -697,14 +697,19 @@ function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new me
 
 -- everything back to how the game had it
 function reset()
-  if screenOn then guihooks.trigger('csfxScreen', { on = false }) screenOn = false end
-  for _, info in pairs(mats) do if info.rung > 0 then setRung(info, 0) end end
+  if screenOn then pcall(guihooks.trigger, 'csfxScreen', { on = false }) screenOn = false end
+  for _, info in pairs(mats) do if info.rung > 0 then pcall(setRung, info, 0) end end
   for id, car in pairs(cars) do
-    if car.dirt and rules.dirtTotal(car.dirt) > 0 and be:getObjectByID(id) then setDirt(id, car, rules.dirtNew()) end
+    if car.dirt and rules.dirtTotal(car.dirt) > 0 and be:getObjectByID(id) then pcall(setDirt, id, car, rules.dirtNew()) end
   end
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
-M.onClientEndMission = reset
+-- the level is ending: its materials, canvases and cars go with it, so nothing is reloaded or destroyed in the tick the engine takes the cars down; only our own state is dropped
+function M.onClientEndMission()
+  if screenOn then pcall(guihooks.trigger, 'csfxScreen', { on = false }) screenOn = false end
+  for _, info in pairs(mats) do info.rung = 0 end
+  cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
+end
 function M.onExtensionUnloaded() reset() stopScratch() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
