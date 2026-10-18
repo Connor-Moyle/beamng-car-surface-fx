@@ -172,6 +172,8 @@ function M.build(S, owner)
     F('paint_water', 'rain', 'Wet paint', 'bool', 'Drops running over the paint', 'Drops run down the doors and fenders and stream back along the body while you drive. It needs "Scratches and wheel-arch dirt splats" switched on in Dirt & wear.', 'scratch.water'),
     F('glass', 'rain', 'Windows', 'bool', 'Water drops on the windows', 'Drops land on the glass, merge and run down; speed and braking push them around and the wipers sweep them off. Off: the glass stays clear.', 'windscreen.enabled'),
     F('glass_strength', 'rain', 'Windows', 'slider', 'Window drops amount', 'How much rain lands on the windows. 0 is none, 100% is full.', 'windscreen.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
+    { id = 'glass_fine', tab = 'rain', group = 'Water drops', type = 'bool', label = 'Fine window canvas on your car', tooltip = 'Draws the water on the windows of your car at twice the detail, so the drops are smaller and sharper. It costs frame rate. Applies to cars spawned afterwards. Other cars always use the normal detail.',
+      default = false, apply = 'spawn', store = { kind = 'custom', get = function() return (owner.getSettings().windscreen.canvasSize or 512) >= 1024 end, set = function(v) owner.set('windscreen.canvasSize', v and 1024 or 512) end } },
     F('body_drop_mm', 'rain', 'Water drops', 'slider', 'Body drop size', 'How big the water drops on the paint are, in real millimetres across, the same on every car. It is a look choice, not a cost one.', 'rain.bodyDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
     F('glass_drop_mm', 'rain', 'Water drops', 'slider', 'Glass drop size', 'How big the water drops on the windows are, in real millimetres across.', 'rain.glassDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
     F('drop_amount', 'rain', 'Water drops', 'slider', 'Drop amount', 'How many drops there are on the paint and the windows (1 is the normal amount).', 'rain.dropAmount', { min = 0.2, max = 3, step = 0.1, unit = 'x' }),
@@ -377,7 +379,7 @@ function M.build(S, owner)
 
   -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
   local PRESETS = {
-    all_cars = { false, false, false, true }, overlay_size = { 6, 4.5, 3.5, 3 },
+    all_cars = { false, false, false, true }, glass_fine = { false, false, true, true }, overlay_size = { 6, 4.5, 3.5, 3 },
     cull = { 60, 100, 140, 200 }, max_drawn = { 300, 800, 1200, 2000 }, skid_count = { 800, 2000, 3000, 5000 }, track_count = { 1000, 3000, 5000, 8000 },
     others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 120, 180, 300 }, leaks_cull = { 40, 80, 120, 160 },
     leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
