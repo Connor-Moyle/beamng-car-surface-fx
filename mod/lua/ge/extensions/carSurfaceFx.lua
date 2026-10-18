@@ -473,6 +473,7 @@ local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 local DRIVER_CAMS = { driver = true, onboard = true }
 local screenT, screenOn, screenSize, screenDebug, screenCam, overlayReport = 0, false, 4.5, false, nil, ''
 local screenWhy = {}      -- (the reason is kept as values and made into text only when asked, not at 15 Hz)
+local screenTrace, traceT = false, 0      -- carSurfaceFx.screenTrace(true): the reason is written to the log once a second
 local function pushScreen(dt)
   screenT = screenT + dt
   if screenT < 0.066 then return end
@@ -483,6 +484,15 @@ local function pushScreen(dt)
   if cam ~= screenCam then screenCam = cam if pv then screen.resetEye(pv:getID()) end end              -- another camera has another eye position
   local hull = want and screen.windscreen(pv) or nil
   screenWhy.cam, screenWhy.wet, screenWhy.overlay, screenWhy.want, screenWhy.hull, screenWhy.on = cam, wet, settings.windscreen.overlay, want and true or false, hull and #hull / 2 or nil, screenOn
+  if screenTrace then
+    traceT = traceT + 0.066
+    if traceT >= 1 then
+      traceT = 0
+      local mo = pv and motion[pv:getID()]
+      log_('I', 'screen trace: ' .. M.screenInfo() .. string.format(' speed=%.1f aLong=%.1f rain=%.2f sprayP=%.2f frostP=%.2f wiper=%s nodes=%s',
+        mo and mo.speed or -1, mo and mo.aLong or 0, forced or rules.target(nil, core_environment.getPrecipitation()), sprayP, frostP, tostring(pv and wipersOf(pv:getID(), 1)), tostring(pv and screen.windscreenNodeCount and screen.windscreenNodeCount(pv:getID()))))
+    end
+  end
   if not hull then
     if screenOn then guihooks.trigger('csfxScreen', { on = false }) screenOn = false end
     return
@@ -513,6 +523,10 @@ function M.overlayReport(text)
   overlayReport = tostring(text)
   if screenDebug then log_('I', 'overlay ' .. overlayReport .. ' | ' .. M.screenDiag()) end
 end
+
+-- carSurfaceFx.screenTrace(true): once a second, why the cockpit overlay is on or off (camera, wetness, the overlay setting, the hull, the car's speed, the rain value,
+-- the wipers, how many nodes the windscreen has) goes to beamng.log; false stops it
+function M.screenTrace(on) screenTrace = on and true or false traceT = 1 return 'screen trace ' .. tostring(screenTrace) end
 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
