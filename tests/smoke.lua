@@ -3,7 +3,8 @@
 local logs, fields, reloads, paintCalls = {}, {}, 0, 0
 function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
 function deepcopy(t) if type(t) ~= 'table' then return t end local c = {} for k, v in pairs(t) do c[k] = deepcopy(v) end return c end
-function jsonReadFile() return { mud = { buildup = true } } end
+fileData = { mud = { buildup = true } }
+function jsonReadFile() return fileData end
 function jsonWriteFile() end
 function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = k .. '=' .. tostring(v) end table.sort(o) return '{' .. table.concat(o, ',') .. '}' end
 UI_TEXTURE_USAGE_AUTOMATIC = 0
@@ -86,12 +87,11 @@ local gameValues = {}
 settings = { getValue = function(k) return gameValues[k] end, setValue = function(k, v) gameValues[k] = v end }   -- the game's own settings module
 M.debug('rain', 1.0)
 tick(40)
-assert(gameValues.csfxRain == true and gameValues.csfxDirtSpeed == 1, 'the options keys got start values')
-gameValues.csfxDirtSpeed = 1.5 gameValues.csfxMarkSize = 2 gameValues.csfxGlass = false
-M.onSettingsChanged()
-assert(M.getSettings().mud.buildup and M.getSettings().mud.rate == 1.5 and M.getSettings().scratch.markSize == 2 and not M.getSettings().windscreen.enabled, 'an Options change is taken over at once')
-gameValues.csfxGlass = true
-M.onSettingsChanged()                                                  -- rain climbs, glass and paint get their rungs, one reload per tick
+fileData = { mud = { buildup = true, rate = 1.5 }, scratch = { markSize = 2 }, windscreen = { enabled = false } }
+M.reloadSettings()
+assert(M.getSettings().mud.buildup and M.getSettings().mud.rate == 1.5 and M.getSettings().scratch.markSize == 2 and not M.getSettings().windscreen.enabled, 'a change of the settings file is taken over at once')
+fileData = { mud = { buildup = true } }
+M.reloadSettings()                                                     -- rain climbs, glass and paint get their rungs, one reload per tick
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
 assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
@@ -190,6 +190,45 @@ M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
 tick(1200)
 assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
 M.debug()
+-- the Mods menu schema: registered with the registry, every field complete and consistent with the mod's defaults
+local registered
+slrr_settings = {
+  register = function(sc) registered = sc end,
+  each = function(ids, fn) local out = {} for _, id in ipairs(ids) do for _, f in ipairs(fn(id)) do out[#out + 1] = f end end return out end,
+  join = function(...) local out = {} for _, l in ipairs({ ... }) do for _, f in ipairs(l) do out[#out + 1] = f end end return out end,
+}
+M.onSlrrSettingsReady()
+assert(registered and registered.mod == 'car_surface_fx', 'the mod registers itself with the Mods menu')
+local tabIds, seen, TYPES = {}, {}, { heading = 1, note = 1, bool = 1, slider = 1, int = 1, enum = 1, color = 1, texture = 1, button = 1, text = 1 }
+for _, t in ipairs(registered.tabs) do tabIds[t.id] = true assert(t.title and t.description, 'tab ' .. t.id .. ' has a title and a description') end
+assert(#registered.fields > 100, 'every setting is a field: ' .. #registered.fields)
+for _, f in ipairs(registered.fields) do
+  assert(f.id and not seen[f.id], 'unique field id ' .. tostring(f.id)) seen[f.id] = true
+  assert(tabIds[f.tab], f.id .. ': tab exists')
+  assert(TYPES[f.type], f.id .. ': known type ' .. tostring(f.type))
+  assert(f.label and #f.label > 2 and f.tooltip and #f.tooltip > 10, f.id .. ': label and tooltip')
+  assert(f.group, f.id .. ': in a group')
+  if f.type ~= 'button' then
+    assert(f.default ~= nil and f.store, f.id .. ': default and store')
+    if f.type == 'slider' or f.type == 'int' then
+      assert(type(f.default) == 'number' and f.default >= f.min and f.default <= f.max, f.id .. ': default ' .. tostring(f.default) .. ' within ' .. f.min .. '..' .. f.max)
+    end
+    if f.store.kind == 'json' then
+      local t = M.defaults()
+      for part in f.store.path:gmatch('[^%.]+') do t = t[part] end
+      assert(t == f.default, f.id .. ': default matches the default of the mod')
+    else
+      assert(f.store.get and f.store.set, f.id .. ': custom store has get and set')
+      local got = f.store.get()
+      assert(got ~= nil, f.id .. ': get answers without the module running')
+      if f.type == 'color' then assert(got.r and got.g and got.b and f.default.r == got.r, f.id .. ': colour default') end
+      if f.type ~= 'color' then assert(got == f.default, f.id .. ': default matches ' .. tostring(got) .. ' ~= ' .. tostring(f.default)) end
+    end
+  end
+end
+assert(seen.dirt_build and seen.takeover and seen.dirt_skid_w and seen.mud_skid_tex, 'the surfaces and the main tabs are there')
+slrr_settings = nil
+
 -- the old Surface FX mod loaded as well: switched off, the player told once, ours keeps running
 local told = 0
 guihooks.message = function() told = told + 1 end

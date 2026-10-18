@@ -40,7 +40,8 @@ function M.defaults()
     skidCount = 2000, trackCount = 3000,                        -- ring sizes: how many marks stay before the oldest are recycled
     wheelGap = 0.12,                                             -- reach toward the tyre in metres (grows with speed by itself)
     shade = 0.5,                                                 -- how dark marks made under cover or at night get (1 = not at all)
-    cullRadius = 160,                                            -- marks further than this from the camera are not drawn
+    cullRadius = 100,                                            -- marks further than this from the camera are not drawn
+    maxDrawn = 800,                                              -- at most this many decals are drawn in a frame (shortcut: the first ones found in the buffer, not the nearest)
     others = { enabled = true, maxCars = 6, range = 120 },       -- traffic and AI cars mark too: the nearest maxCars within range metres
   }
 end
@@ -147,9 +148,10 @@ end
 -- the one place a batch of decals goes to the engine (all with one texture)
 local function drawBatch(pool, n) Engine.Render.DynamicDecalMgr.addDecals(pool, n) end
 
+local budget = 0
 local function renderKind(kind, camX, camY, cr2)
   local b = buf[kind]
-  if b.count == 0 then return end
+  if b.count == 0 or budget <= 0 then return end
   for _, t in ipairs(M.TYPES) do
     local mm, cc = settings.mats[t], colors[t]
     if mm and cc then
@@ -160,11 +162,12 @@ local function renderKind(kind, camX, camY, cr2)
       local idx = 0
       for i = 1, b.count do
         local m = b.marks[i]
-        if m and m.terr == t then
+        if m and m.terr == t and budget > 0 then
           local draw = true
           if camX then local ddx, ddy = m.x - camX, m.y - camY draw = ddx * ddx + ddy * ddy <= cr2 end
           if draw then
             idx = idx + 1
+            budget = budget - 1
             ensureSlot(b, idx)
             local e = b.pool[idx]
             e.texture = tex
@@ -187,6 +190,7 @@ function M.onPreRender(dt)
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()        -- culled around the camera, so free-cam and replays keep their marks
   if cam then camX, camY = cam.x, cam.y end
   local cr2 = settings.cullRadius * settings.cullRadius
+  budget = settings.maxDrawn
   renderKind('track', camX, camY, cr2)
   renderKind('skid', camX, camY, cr2)
 end
@@ -287,9 +291,33 @@ function M.load()
 end
 function M.settings() return settings end
 
+-- a value by its path in the settings ('mats.dirt.skid.width'); the Mods menu reads and writes through these. A path that is not in the settings is refused.
+local function walk(path, create)
+  local t, key = settings, nil
+  local parts = {}
+  for part in tostring(path):gmatch('[^%.]+') do parts[#parts + 1] = part end
+  for i = 1, #parts - 1 do
+    t = type(t) == 'table' and t[parts[i]] or nil
+    if type(t) ~= 'table' then return nil end
+  end
+  key = parts[#parts]
+  if type(t) ~= 'table' or t[key] == nil then return nil end
+  return t, key
+end
+function M.get(path) local t, k = walk(path) if t then return t[k] end return nil end
+function M.set(path, value)
+  local t, k = walk(path)
+  if not t or type(value) ~= type(t[k]) then return false end
+  t[k] = value
+  M.configure()
+  return true
+end
+function M.reload() M.load() M.configure() end
+
 -- a setting changed (from the Options page or the Mods menu): take it over now
 function M.configure(s)
   if type(s) == 'table' then mergeInto(settings, s) end
+  settings.skidCount, settings.trackCount = math.max(10, math.floor(settings.skidCount)), math.max(10, math.floor(settings.trackCount))
   settings.cullRadius = math.max(40, math.floor(settings.cullRadius))
   settings.shade = clamp(settings.shade, 0.1, 1)
   rebuildColors()

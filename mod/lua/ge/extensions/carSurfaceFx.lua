@@ -13,12 +13,11 @@ local M = {}
 local TAG = 'carSurfaceFx'
 M.apiVersion = 2                          -- 2: repair(id), getState / setState, level
 local rules = require('carSurfaceFx/rules')
-local options = require('carSurfaceFx/options')
 local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -54,31 +53,13 @@ local queue = {}                              -- material edits still to do, one
 local function log_(level, msg) log(level, TAG, msg) end
 local function scratchOn() return rawget(_G, 'carSurfaceFx_scratch') ~= nil end
 
--- the Options page's own settings (game settings with our keys) win over the file once they exist; the file gives the start values
-local function gameSettings() local g = rawget(_G, 'settings') return g and g.getValue and g or nil end
-
-local function overlayOptions()
-  local g = gameSettings()
-  if g then options.apply(settings, function(key) return g.getValue(key) end) end
-end
-
-local function ensureOptionDefaults()
-  local g = gameSettings()
-  if not (g and g.setValue) then return end
-  local want = deepcopy(options.DEFAULTS)
-  want.rain, want.rainStrength = settings.rain.enabled, settings.rain.intensity
-  want.glass, want.paintWater = settings.windscreen.enabled, settings.scratch.water
-  want.dirt, want.dirtSpeed = settings.mud.enabled, settings.mud.buildup and settings.mud.rate or 0
-  want.scratch, want.markSize, want.allCars = settings.scratch.enabled, settings.scratch.markSize, settings.traffic
-  for name, key in pairs(options.KEYS) do
-    if g.getValue(key) == nil then g.setValue(key, want[name]) end
-  end
-end
+-- the settings file, <user>/settings/carSurfaceFx.json, is the one store; the Mods menu (Wrench Works' slrr_settings, see carSurfaceFx/schema.lua) reads and writes it
+local screenSize = 4.5
 
 local function loadSettings()
   settings = deepcopy(DEFAULTS)
   local s = jsonReadFile(SETTINGS_FILE)
-  if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) ensureOptionDefaults() overlayOptions() return end
+  if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlaySize return end
   for k, d in pairs(DEFAULTS) do
     if type(d) == 'table' and type(s[k]) == 'table' then
       for key, dv in pairs(d) do
@@ -90,8 +71,7 @@ local function loadSettings()
       settings[k].intensity = rules.clamp(settings[k].intensity or 1, 0, 1)
     elseif type(d) == 'boolean' and s[k] ~= nil then settings[k] = s[k] and true or false end
   end
-  ensureOptionDefaults()
-  overlayOptions()
+  rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlaySize
 end
 
 local function skipped(name)
@@ -473,7 +453,7 @@ local retireT = 1
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
 local DRIVER_CAMS = { driver = true, onboard = true }
-local screenT, screenOn, screenSize, screenDebug, screenWhy = 0, false, 4.5, false, ''
+local screenT, screenOn, screenDebug, screenWhy = 0, false, false, ''
 local function pushScreen(dt)
   screenT = screenT + dt
   if screenT < 0.066 then return end
@@ -579,26 +559,44 @@ end
 
 function M.resume() failed = nil return 'resumed' end
 
--- the Options page of the game: our group goes in on load (the page reads the layout when the UI loads: the first time needs one restart of the game)
+-- the Mods menu of Wrench Works (slrr_settings) lists our settings; it is registered at load and again when the registry says it is ready. Without Wrench Works nothing is
+-- registered and the mod runs on its defaults and its json file. A leftover group of an earlier build in the game's Options page is taken out.
+local OPTIONS_MARKER = 'carsurfacefx-v1'
+function M.onSlrrSettingsReady()
+  local S = rawget(_G, 'slrr_settings')
+  if S and S.register then S.register(require('carSurfaceFx/schema').build(S, M)) end
+end
 function M.onExtensionLoaded()
   if not settings then loadSettings() end
-  if rawget(_G, 'FS') then
-    require('slrr/optionsLayout').install({ marker = options.MARKER, group = options.group(), after = options.ANCHOR, log = function(level, msg) log(level, TAG, msg) end })
-  end
+  if rawget(_G, 'FS') then pcall(function() require('slrr/optionsLayout').uninstall(OPTIONS_MARKER) end) end
+  M.onSlrrSettingsReady()
 end
 
--- a setting of the Options page changed: take it over now, no restart
-function M.onSettingsChanged()
+-- the file was changed by the Mods menu (or by hand): take it over now
+function M.reloadSettings()
   if not settings then return end
-  overlayOptions()
+  loadSettings()
   if scratchOn() then carSurfaceFx_scratch.configure(settings.scratch) end
 end
+M.onSettingsChanged = M.reloadSettings
 
-function M.onModDeactivated(modData)
-  local name = type(modData) == 'table' and tostring(modData.modname or modData.modID or ''):lower() or ''
-  if name:find('carsurfacefx', 1, true) and rawget(_G, 'FS') then require('slrr/optionsLayout').uninstall(options.MARKER) end
+function M.onModDeactivated() end
+
+function M.defaults() return deepcopy(DEFAULTS) end
+
+-- carSurfaceFx.set('scratch.colour', { r, g, b }): one value of the settings by its path, kept in the file (for the values the Mods menu cannot store as plain json)
+function M.set(path, value)
+  local t, key = settings, nil
+  local parts = {}
+  for part in tostring(path):gmatch('[^%.]+') do parts[#parts + 1] = part end
+  for i = 1, #parts - 1 do t = type(t) == 'table' and t[parts[i]] or nil end
+  key = parts[#parts]
+  if type(t) ~= 'table' or type(t[key]) ~= type(value) then return false end
+  t[key] = value
+  jsonWriteFile(SETTINGS_FILE, settings, true)
+  M.reloadSettings()
+  return true
 end
-
 function M.getSettings() return settings end
 
 function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end

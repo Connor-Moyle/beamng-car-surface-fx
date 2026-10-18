@@ -26,9 +26,9 @@ Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to l
 
 ## Settings
 
-**Options page.** The game's Options page (Graphics) has a *Car Surface FX* group: wet paint and strength, window drops, drops running over the paint, dirt and its build-up speed, scratches and their length, and one switch to apply everything to all cars. Changes apply at once. The group appears after one restart of the game, the first time the mod runs.
+**Mods menu.** The pause menu has a Mods menu (part of Wrench Works) with a Car Surface FX page: tabs for Rain & glass, Dirt & wear, Weather extras, Skid marks & terrain and Textures, every setting with a plain description, a Reset for each tab, and buttons to wash the car or buff out the scratches. Changes apply at once. Without Wrench Works installed there is no menu: the mod runs on its defaults and the settings files below.
 
-**Settings file.** The first start also writes `settings/carSurfaceFx.json` in your BeamNG user folder. It gives the start values (the Options page takes over once it has its own values) and has a few more keys than the page. Edit it with the game closed.
+**Settings file.** The first start writes `settings/carSurfaceFx.json` in your BeamNG user folder. It gives the start values (the Options page takes over once it has its own values) and has a few more keys than the page. Edit it with the game closed.
 
 | Key | Meaning | Default |
 |---|---|---|
@@ -42,6 +42,8 @@ Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to l
 | `scratch.dirtEnabled`, `scratch.dirtColour`, `scratch.dirtOpacity`, `scratch.dirtSize`, `scratch.dirtRate` | the splats around the wheels | on |
 | `scratch.allVehicles` | scratch and splat other cars too, not only the one you drive | off |
 | `traffic` | apply the effects to every car in the level, not only the one you drive | off |
+| `windscreen.overlaySize`, `windscreen.dropSize` | drop size in the driver's view / on the outside of the glass | 4.5, 3 |
+| `marks.enabled` | skid marks and tyre tracks on the ground (their own settings are in `settings/carSurfaceFx_marks.json`) | on |
 
 How wet the car gets follows the weather: from Street Legal's wetness when that mod is running, otherwise from the level's rain.
 
