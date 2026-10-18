@@ -129,7 +129,12 @@
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], emissive ? 3 : 2, emissive ? 3 : 2);
     }
-    if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
+    if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
+      ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';
+      ctx.beginPath();
+      for (var bi = 0; bi < sim.n; bi++) if (sim.alive[bi]) { var BR = Math.max(6, sim.r[bi] * H * 8); ctx.moveTo(sim.x[bi] * W + BR, sim.y[bi] * H); ctx.arc(sim.x[bi] * W, sim.y[bi] * H, BR, 0, Math.PI * 2); }
+      ctx.fill();
+    } else if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
       try {
         var flx = p.flow, n = flx && flx.n ? flx.n : 0, alive = 0;
         for (var di = 0; di < sim.n; di++) alive += sim.alive[di];
