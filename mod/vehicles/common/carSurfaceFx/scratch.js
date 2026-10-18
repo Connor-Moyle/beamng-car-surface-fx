@@ -222,7 +222,7 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
-  var imp = [], IMP_LIFE = 0.3;                                       // raindrop impacts: [x, y, age] rings that open and fade in about 0.3 s (3 frames at 10 a second)
+  var imp = [], IMP_LIFE = 0.6;                                       // raindrop impacts: [x, y, age] rings that open and fade in about 0.3 s (3 frames at 10 a second)
   var minMs = 90;                                                   // the texture is only taken 10 times a second (FPS in scratch.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
@@ -286,15 +286,15 @@
     } catch (e) { window.csfxError = 'drops ' + String(e); }
     try {                                                           // impacts: a small ring opening where a raindrop landed (wp.imp: how many of the landings get one, 0 = none)
       var fr = water.fresh;
-      for (var f = 0; f < fr.length && wp.imp > 0; f++) if (imp.length < 80 && Math.random() < wp.imp) imp.push([water.x[fr[f]] * W, water.y[fr[f]] * W, 0]);
+      for (var f = 0; f < fr.length && wp.imp > 0; f++) if (imp.length < 160 && Math.random() < wp.imp) imp.push([water.x[fr[f]] * W, water.y[fr[f]] * W, 0]);
       fr.length = 0;
       var kept = 0;
       for (var m = 0; m < imp.length; m++) {
         var im = imp[m]; im[2] += dt;
         if (im[2] >= IMP_LIFE) continue;
         var ph = im[2] / IMP_LIFE;
-        ctx.strokeStyle = 'rgba(0,0,0,' + (0.30 * (1 - ph) + 0.04).toFixed(2) + ')'; ctx.lineWidth = 0.7;
-        ctx.beginPath(); ctx.arc(im[0], im[1], 0.7 + 1.9 * ph, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,' + (0.45 * (1 - ph) + 0.05).toFixed(2) + ')'; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.arc(im[0], im[1], 0.8 + 3.4 * ph, 0, Math.PI * 2); ctx.stroke();
         imp[kept++] = im;
       }
       imp.length = kept;
