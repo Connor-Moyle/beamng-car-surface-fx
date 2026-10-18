@@ -20,7 +20,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
-local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
+local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
 
@@ -168,7 +168,9 @@ local function setRung(info, r)
   if info.glass and r > 0 then canvases(info, true) end
   for L = 0, info.glass and 0 or rules.STAGES - 1 do      -- glass: its first stage only
     local st = info.stages[L]
-    if info.glass or rules.isPaintStage(st) then
+    local palette = false
+    for _, s2 in pairs(info.stages) do if rules.isPaintStage(s2) then palette = true end end
+    if info.glass or rules.isPaintStage(st) or (not palette and L == 0 and st) then      -- a material without a palette (trim, a carbon roof) is wetted on its first stage
       local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r)) or {}
       for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
@@ -205,9 +207,18 @@ local function attach(id)
   for _, info in ipairs(seen) do
     if info.glass then mats[info.name] = info car.mats[#car.mats + 1] = info end
   end
-  for name in pairs(rules.paintNames(seen)) do
+  local paint = rules.paintNames(seen)
+  for name in pairs(paint) do
     for _, info in ipairs(seen) do
       if info.name == name then
+        mats[name] = info
+        car.mats[#car.mats + 1] = info
+      end
+    end
+  end
+  for name in pairs(rules.trimNames(seen, paint)) do                  -- bumpers, trim, mirrors, wheels, seals: the rest of the outside gets wet too
+    for _, info in ipairs(seen) do
+      if info.name == name and not mats[name] then
         mats[name] = info
         car.mats[#car.mats + 1] = info
       end
