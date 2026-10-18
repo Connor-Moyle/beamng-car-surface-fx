@@ -860,6 +860,10 @@ function M.glassInfo()
       end
     end
   end
+  local car = veh and cars[veh:getID()]
+  local fi = car and car.flow and car.flow._info
+  out[#out + 1] = 'window flow: ' .. (fi and string.format('%d glass triangles in %d .dae file(s), %d fitted meshes of %d nodes, materials [%s], cells [%s], sent %s', fi.tris, fi.files, fi.matched, fi.nodeCount, fi.wantedMats, table.concat(fi.fields, '; '),
+    car.flowAt and next(car.flowAt) and 'yes' or 'not yet') or (car and 'not built (yet, or the car has no source mesh)' or 'no car'))
   return table.concat(out, '\n')
 end
 
