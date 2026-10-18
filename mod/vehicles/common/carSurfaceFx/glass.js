@@ -105,9 +105,8 @@
     fc.clearRect(0, 0, W, H);
     for (i = 0; i < fl.rear.length; i++) {
       var cx = (fl.rear[i] % fl.n + 0.5) * cw, cy = (Math.floor(fl.rear[i] / fl.n) + 0.5) * ch, k = 0.65 + 0.35 * Math.abs(Math.sin(fl.rear[i] * 12.9898));
-      var g = fc.createRadialGradient(cx, cy, 0, cx, cy, cw * 1.3);
-      g.addColorStop(0, 'rgba(255,255,255,' + (0.9 * k).toFixed(2) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
-      fc.fillStyle = g; fc.fillRect(cx - cw * 1.3, cy - ch * 1.3, cw * 2.6, ch * 2.6);
+      fc.fillStyle = 'rgba(255,255,255,' + (0.75 * k).toFixed(2) + ')';                         // every rear cell filled, a little different: an even film, not blobs
+      fc.fillRect(cx - cw * 0.5 - 0.5, cy - ch * 0.5 - 0.5, cw + 1, ch + 1);
     }
     filmBuilt = true;
   }
