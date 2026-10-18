@@ -351,7 +351,7 @@ function createOverlay(doc, win) {
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
       alive++;
-      var R = Math.max(1.5, sim.r[n] * bh);
+      var R = Math.max(2.8, sim.r[n] * bh);
       ctx.drawImage(R < 8 ? bead : sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
