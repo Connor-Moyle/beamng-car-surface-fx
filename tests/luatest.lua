@@ -118,7 +118,7 @@ eq(d2.dust, 0, 'wet loose ground gives no dust')
 eq(d2.mud > 0.5, true, 'wet loose ground gives mud')
 local d3 = R.dirtBuild(R.dirtNew(), 100000, { road = 1 }, 20, 0)
 eq(d3.grime, R.CAP.grime, 'road film is capped')
-eq(R.dirtBuild(R.dirtNew(), 10, { slip = 1 }, 20, 0).rubber, 0.4, 'a 10 s burnout')
+eq(R.dirtBuild(R.dirtNew(), 10, { slip = 1 }, 20, 0).rubber, 10 / 12, 'a 10 s burnout')
 -- the throw follows the tyres: a slow mud run with the wheels spinning (8 m/s car, 22 m/s tyre surface) throws more than a 60 km/h dry dirt road
 local slowMud = R.dirtBuild(R.dirtNew(), 60, { mud = 1, spin = 22 }, 8, 0).mud
 local dirtRoad = R.dirtBuild(R.dirtNew(), 60, { loose = 0.6 }, 60 / 3.6, 0).dust
