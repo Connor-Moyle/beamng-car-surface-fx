@@ -49,15 +49,16 @@
     if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
     var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
     if (mm && pc) amount *= Math.min(4, Math.max(1, pc.length / 180));      // the drops are per window area: a texture with several panes (730 cells) carries about four windscreens' worth
-    var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.min(DEFAULT_MAX, Math.floor((60 + 240 * p.rain) / Math.sqrt(z)));      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
+    var dn = p.density > 0 ? p.density : 1;                          // the driver's view asks for more, smaller drops than the size alone gives
+    var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.min(d.n, Math.floor((60 + 240 * p.rain) / Math.sqrt(z) * dn));      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
-    var spawns = n0 < cap ? p.rain * (mm ? 100 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
+    var spawns = n0 < cap ? p.rain * (mm ? 100 * amount : 80 * z * dn) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
       if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d), sx, sy; if (pc) { var cc = pc[Math.floor(rnd(d) * pc.length)]; sx = (cc % fl0.n + rnd(d)) / fl0.n; sy = (Math.floor(cc / fl0.n) + rnd(d)) / fl0.n; } else { sx = rnd(d); sy = rnd(d); } var j = add(d, sx, sy, mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); if (j >= 0 && d.fresh.length < 64) d.fresh.push(j); }
       spawns -= 1;
     }
     if (p.rain > 0.01 && n0 < cap * 0.8) {                            // a fine mist between the beads: tiny drops that fill in the glass and merge into the beads as they meet
-      var ms = p.rain * (mm ? 140 * amount : 110 * z) * dt;
+      var ms = p.rain * (mm ? 140 * amount : 110 * z * dn) * dt;
       while (ms > 0) {
         if (ms >= 1 || rnd(d) < ms) { var mx0 = rnd(d), my0 = rnd(d); if (pc) { var mc = pc[Math.floor(rnd(d) * pc.length)]; mx0 = (mc % fl0.n + rnd(d)) / fl0.n; my0 = (Math.floor(mc / fl0.n) + rnd(d)) / fl0.n; } add(d, mx0, my0, mm ? (0.0009 + 0.0006 * rnd(d)) * sg : (0.0026 + 0.0012 * rnd(d)) * z, maxR); }
         ms -= 1;
@@ -167,15 +168,15 @@ function createOverlay(doc, win) {
   var ctx = canvas.getContext('2d');
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
-  var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
+  var sim = CsfxSim.create(700);
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 2.5 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
   // ever been drawn on since it was last empty (the fade has to reach all of it). Rectangles are { x0, y0, x1, y1 } in pixels.
   var drawn = null, trailBox = null, PAD = 24;
   function join(a, b) { return a ? { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) } : b; }
-  var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
+  var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n), born = new Float64Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
   var mistTex = (function () {                                       // road spray: a haze and a fine grey-white speckle, made once
@@ -218,7 +219,9 @@ function createOverlay(doc, win) {
       var rim = ring * Math.max(0, -dir);
       over(px, 255, 255, 255, Math.min(1, rim * 0.95));                                           // the bright rim up-left
       var gx = u + 0.4, gy = v + 0.45;
-      over(px, 255, 255, 255, Math.min(1, 1.0 * Math.exp(-(gx * gx + gy * gy) / 0.012)));       // the glint
+      over(px, 255, 255, 255, Math.min(1, 1.6 * Math.exp(-(gx * gx + gy * gy) / 0.022)));       // the glint: big and hard, a wet drop is shiny
+      var g2x = u - 0.38, g2y = v - 0.42;
+      over(px, 255, 255, 255, Math.min(1, 0.7 * Math.exp(-(g2x * g2x + g2y * g2y) / 0.015)));   // and a smaller second one low right, the light that comes through
       var a = px[3];
       data.data[o] = a > 0 ? Math.round(px[0] / a) : 0; data.data[o + 1] = a > 0 ? Math.round(px[1] / a) : 0; data.data[o + 2] = a > 0 ? Math.round(px[2] / a) : 0;
       data.data[o + 3] = Math.min(255, a * fade * 255);
@@ -256,6 +259,8 @@ function createOverlay(doc, win) {
     CsfxSim.step(sim, dt, st.p);
     st.p.wiper = wp;
     var b = st.bbox, bw = b.w * W, bh = b.h * H, bx = b.x0 * W, by = b.y0 * H;
+    for (var fi = 0; fi < sim.fresh.length; fi++) born[sim.fresh[fi]] = now;       // drops that just landed get a ring (below)
+    sim.fresh.length = 0;
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
@@ -328,6 +333,12 @@ function createOverlay(doc, win) {
       alive++;
       var R = Math.max(1.5, sim.r[n] * bh);
       ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
+      var age = now - born[n];
+      if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
+        var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
+      }
     }
     ctx.restore();
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
@@ -348,7 +359,7 @@ function createOverlay(doc, win) {
 
   function handle(name, data) {
     if (!data) return;
-    if (!data.on) { st.on = false; sim = CsfxSim.create(); seen.fill(0); return; }
+    if (!data.on) { st.on = false; sim = CsfxSim.create(700); seen.fill(0); return; }
     st.msgs++; st.debug = !!data.debug;
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;

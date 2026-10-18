@@ -181,7 +181,7 @@ function M.build(S, owner)
     F('drop_impacts', 'rain', 'Water drops', 'slider', 'Raindrop impacts', 'The small ring where a raindrop lands on the paint and the glass. 0 is none.', 'rain.impacts', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('overlay', 'rain', 'Driver\'s view', 'bool', 'Drops on the windscreen from the driver\'s seat', 'In the driver and onboard cameras the drops are drawn over the windscreen as small lenses, with streaks behind the running ones and clean arcs where the wipers sweep. Off: you see no drops from inside.', 'windscreen.overlay'),
     F('overlay_amount', 'rain', 'Driver\'s view', 'slider', 'Driver\'s view: amount of rain drops', 'How many drops cover the windscreen when you look through it. Turn it down to see the road more clearly in the rain; 0 shows none (the rain still shows on the paint and outside).', 'windscreen.overlayStrength', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
-    F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlaySize', { min = 1.5, max = 8, step = 0.25, unit = 'x' }),
+    F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlayDropSize', { min = 0.5, max = 4, step = 0.1, unit = 'x' }),
   })
 
   -- ---- Dirt & wear
@@ -381,7 +381,7 @@ function M.build(S, owner)
 
   -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
   local PRESETS = {
-    all_cars = { false, false, false, true }, glass_fine = { false, false, true, true }, overlay_size = { 6, 4.5, 3.5, 3 },
+    all_cars = { false, false, false, true }, glass_fine = { false, false, true, true }, overlay_size = { 2.4, 1.6, 1.3, 1.1 },
     cull = { 60, 100, 140, 200 }, max_drawn = { 300, 800, 1200, 2000 }, skid_count = { 800, 2000, 3000, 5000 }, track_count = { 1000, 3000, 5000, 8000 },
     others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 120, 180, 300 }, leaks_cull = { 40, 80, 120, 160 },
     leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
