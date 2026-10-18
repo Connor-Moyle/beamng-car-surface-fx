@@ -80,4 +80,12 @@ assert(biggest <= 0.07 * 4.5 + 1e-6 && biggest < 0.5, 'a drop never grows past t
   for (let k = 0; k < 20; k++) S.step(d3, 0.05, p);
   assert(d3.y[q] > 0.52, 'without a field the old single axis is used');
 }
+// window drops in millimetres: bigger at 9 mm, more at a higher amount, and the same real size for a pane with another texture density
+{
+  const run = (mm, amount, uv) => { const d = S.create(); for (let i = 0; i < 20; i++) S.step(d, 1 / 30, { rain: 1, wet: 1, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, glassMm: mm, amount, uvPerM: uv }); let n = 0, r = 0; for (let i = 0; i < d.n; i++) if (d.alive[i]) { n++; r += d.r[i] / uv; } return { n, mean: r / Math.max(1, n) }; };
+  const a = run(3, 1, 0.5), b = run(8, 1, 0.5), c = run(5, 2, 0.5), e = run(5, 1, 0.5), f = run(5, 1, 0.25);
+  assert(a.mean < b.mean, 'the millimetre setting scales the window drops: ' + a.mean + ' ' + b.mean);
+  assert(c.n > e.n, 'the amount setting makes more window drops');
+  assert(Math.abs(e.mean - f.mean) / e.mean < 0.35, 'the same real size at another texture density: ' + e.mean + ' vs ' + f.mean);
+}
 console.log('carSurfaceFx sim: ok');

@@ -41,16 +41,19 @@ function M.triangleFlow(pos, uv)
     local l = sqrt(u * u + v * v)
     out[i] = l > 1e-9 and { u / l * slope, v / l * slope } or { 0, 0 }
   end
+  out.s = sqrt((gux * gux + guy * guy + guz * guz + gvx * gvx + gvy * gvy + gvz * gvz) / 2)           -- texture units per metre of this triangle
   return out
 end
 
 -- tris = list of { pos = {9 numbers}, uv = {6 numbers} } -> { g = { N*N*2 numbers }, b = ..., r = ..., filled = cells with data }
 function M.field(tris)
+  local sSum, sN = 0, 0
   local sum, cnt = { {}, {}, {} }, {}
   for i = 1, N * N do cnt[i] = 0 for d = 1, 3 do sum[d][i * 2 - 1], sum[d][i * 2] = 0, 0 end end
   for _, t in ipairs(tris) do
     local flow = M.triangleFlow(t.pos, t.uv)
     if flow then
+      if flow.s > 1e-6 and flow.s < 50 then sSum, sN = sSum + flow.s, sN + 1 end
       local uv = t.uv
       local x0, x1 = math.min(uv[1], uv[3], uv[5]), math.max(uv[1], uv[3], uv[5])
       local y0, y1 = math.min(uv[2], uv[4], uv[6]), math.max(uv[2], uv[4], uv[6])
@@ -111,6 +114,7 @@ function M.field(tris)
     cnt = fill
   end
   out.filled = filled
+  out.uvPerM = sN > 0 and sSum / sN or 0.5                                       -- the mean of the pane triangles: a drop of a given size in millimetres is this many texture units per metre
   return out
 end
 

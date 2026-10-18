@@ -33,6 +33,11 @@ eq(p.vivace_main, true, 'body is paint')
 eq(p.wheel, nil, 'wheel is not')
 eq(p.glass, nil, 'glass is not')
 eq(p.old, nil, 'v0 material is not')
+-- a carbon roof: clear-coated, translucent, few meshes: it gets wet like the rest of the body
+local roof = { name = 'car_cf', version = '1.5', translucent = 'true', meshes = 2, stages = { [0] = { clearCoatFactor = '0.5' } } }
+local plain = { name = 'car_plastic', version = '1.5', translucent = '0', meshes = 5, stages = { [0] = {} } }
+local with = R.paintNames({ body, wheel, glass, old, roof, plain })
+assert(with.car_cf and not with.car_plastic, 'a clear-coated translucent roof panel is body paint too, a plain material is not')
 local nopal = R.paintNames({ { name = 'a', version = '1.5', translucent = '0', meshes = 3, stages = { [0] = {} } }, { name = 'b', version = '1.5', translucent = '0', meshes = 9, stages = { [0] = {} } } })
 eq(nopal.b, true, 'no palette: the biggest')
 

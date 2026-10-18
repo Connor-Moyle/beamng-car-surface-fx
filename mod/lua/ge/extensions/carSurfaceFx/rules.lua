@@ -51,6 +51,7 @@ M.beadScale, M.beadStrength = '12 12', 0.35               -- tunable (carSurface
 local function set(v) return v ~= nil and v ~= '' end
 
 -- stage = { field = string } read from the Material. A stage is paint when it takes the car's colour.
+function M.isClearCoated(st) return type(st) == 'table' and (tonumber(st.clearCoatFactor) or 0) >= 0.3 end
 function M.isPaintStage(st) return type(st) == 'table' and set(st.colorPaletteMap) end
 
 local function anyStage(stages, f)
@@ -61,6 +62,14 @@ end
 -- Which of a car's materials are body paint. mats = { { name, stages, meshes (count), version, translucent } }. Paint = a v1.5, opaque material with a palette
 -- stage and a mesh count of at least 40% of the biggest such material (the body, not the wheels or the interior); if none has a palette, the biggest one.
 function M.paintNames(mats)
+  local out = M.mainPaint(mats)
+  for _, m in ipairs(mats) do                                         -- and the other clear-coated exterior panels: a carbon roof, a contrast roof, mirrors (often translucent or small materials)
+    if not out[m.name] and tonumber(m.version) == 1.5 and (m.meshes or 0) > 0 and anyStage(m.stages, M.isClearCoated) then out[m.name] = true end
+  end
+  return out
+end
+
+function M.mainPaint(mats)
   local cand, top = {}, 0
   for _, m in ipairs(mats) do
     if tonumber(m.version) == 1.5 and not (m.translucent == '1' or m.translucent == 'true') and m.meshes > 0 then
