@@ -377,16 +377,28 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
   local list = bodymap.sample(map, kind, n, random, wi, opts)
   if #list == 0 then return true end
-  local blobs, dirs = {}, {}
+  local blobs, dirs, cakes = {}, {}, {}
+  local b = map.bounds
   for i, s in ipairs(list) do
-    local k = #blobs
-    blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.6 + random() * 0.8) * s.s
-    if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
+    local h = s.h or (s.z and b and (s.z - b.z0) / math.max(0.01, b.z1 - b.z0))      -- how high on the car (0 sill .. 1 roof)
+    if kind == 'mud' and h and h < 0.3 and random() < 0.4 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
+      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.6 + random() * 1.4) * s.s
+    else
+      local k = #blobs
+      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.6 + random() * 0.8) * s.s
+      if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
+    end
   end
   local soft = SOFT[kind] and 'dust' or 'mud'
-  draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
   local m = mem(id)
-  for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
+  if #blobs > 0 then
+    draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
+    for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
+  end
+  if #cakes > 0 then
+    draw(veh, 'csfxBlobs', { l = cakes, c = c, a = math.min(1, a + 0.1), k = 'cake' })
+    for i = 1, #cakes, 3 do remember(m.splats, { q(cakes[i]), q(cakes[i + 1]), q(cakes[i + 2], 10000), q(a), 2 }) end
+  end
   return true
 end
 

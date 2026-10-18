@@ -193,6 +193,7 @@ function M.sample(map, kind, n, rnd, wi, opts)
     local c = map.list[lo]
     local s = {}
     s.u, s.v = (c.gx + rnd()) / N, (c.gy + rnd()) / N
+    s.h = c.h
     s.s = sqrt((c.jux ^ 2 + c.juy ^ 2 + c.juz ^ 2 + c.jvx ^ 2 + c.jvy ^ 2 + c.jvz ^ 2) / 2)
     if kind == 'mud' then                                                  -- along the spray: thrown backward and up from the tread
       local dux, dvx = c.jux * 0 + c.juy * 1 + c.juz * 0.5, c.jvx * 0 + c.jvy * 1 + c.jvz * 0.5

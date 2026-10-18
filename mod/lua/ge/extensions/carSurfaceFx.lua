@@ -256,7 +256,7 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { mud = { 0.33, 0.23, 0.14 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { mud = { 0.25, 0.17, 0.10 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
   mud = { 700, 0.85, 0.035 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
 }
@@ -269,7 +269,10 @@ local function bodyDirt(id, kind, amount, wi)
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
-  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then return end
+  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, n // 3), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    return
+  end
   local f = FALL[kind]
   if not f then return end                                          -- the road film and rubber need the body map
   sc.bodySplat(id, f[1], COL[kind], pl[2], n, f[2], f[3])

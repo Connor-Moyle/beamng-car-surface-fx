@@ -67,4 +67,12 @@ wp.reset();
 let now = 0;
 for (let i = 0; i < 20; i++) { now += 100; frames.cb(now); }
 assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs + ' disc draws)');
+// a clod of mud is drawn (a ring of lumps, a lit top, droplets) and washes with the mud
+{
+  const c = page('?m=b');
+  c.w.csfxBlobs({ l: [0.4, 0.4, 0.05], c: [0.25, 0.17, 0.1], a: 0.9, k: 'cake' });
+  assert(c.ops.arcs >= 12, 'a clod is a ring of lumps, a top and droplets: ' + c.ops.arcs);
+  c.reset(); c.w.csfxWash({ dust: 1, mud: 0.01 });
+  assert.strictEqual(c.ops.arcs, 0, 'a clod washes away with the mud');
+}
 console.log('carSurfaceFx scratch page: ok');
