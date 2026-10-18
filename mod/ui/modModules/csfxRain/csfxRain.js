@@ -72,7 +72,8 @@
       }
     }
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
-    var down = 0.02 - Math.pow(p.speed / 30, 2) * 0.35 - p.aLong * 0.012;
+    var airT = Math.pow(p.speed / 30, 2) * 0.35 * (p.airGain > 0 ? p.airGain : 1);       // airGain: the driver's view asks for the air to act harder (a windscreen's runs have to be seen)
+    var down = 0.02 - airT - p.aLong * 0.012;
     var across = p.aLat * 0.012;
     var fl = p.flow && p.flow.ready ? p.flow : null;                  // the per-pane directions, when the game side has sent them
     var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0015 + 0.004 * (1 - p.wet)) * (mm ? sg / 0.5 : 1);
@@ -83,7 +84,7 @@
       var air = p.speed > 6 ? Math.min((p.speed - 6) / 20, 1) : 0;
       var cling = Math.min(1, Math.max(0, (r / slide - 0.4) / 0.6));      // a small bead sticks to the glass: the air only moves it as it grows toward the size that runs
       var f = Math.max(big, air * cling);
-      var vd = down * f, va = across * f;
+      var vd = down * f, va = across * f - (p.fan > 0 ? (d.x[i] - 0.5) * p.fan * airT * f : 0);      // fan: on a windscreen the air also pushes outward, toward the pillars
       if (r > slide && down > 0) vd += 0.03 * big * big;             // the weight of a big drop
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
       var dirx = gx, diry = gy;
@@ -169,7 +170,7 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create(1100);
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5 }, bbox: null, msgs: 0, debug: false };
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5, airGain: 4, fan: 0.8 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has

@@ -102,3 +102,8 @@ assert(biggest <= 0.07 * 4.5 + 1e-6 && biggest < 0.5, 'a drop never grows past t
   assert(many > 2 * few && many <= 900, 'more pane cells, more drops: ' + few + ' vs ' + many);
 }
 console.log('carSurfaceFx sim: ok');
+{ // the driver's view: at 50 km/h a drop of running size is blown up the glass and out toward the pillar
+  const d2 = S.create(); const k = S.add(d2, 0.7, 0.5, 0.02);
+  for (let i = 0; i < 60; i++) S.step(d2, 1 / 60, P({ wet: 1, speed: 14, airGain: 4, fan: 0.8, size: 1.6 }));
+  assert(d2.alive[k] && d2.y[k] < 0.4 && d2.x[k] > 0.7, 'blown up and outward at 50 km/h: ' + d2.y[k] + ' ' + d2.x[k]);
+}

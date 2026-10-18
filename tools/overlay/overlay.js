@@ -16,7 +16,7 @@ function createOverlay(doc, win) {
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create(1100);
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5 }, bbox: null, msgs: 0, debug: false };
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5, airGain: 4, fan: 0.8 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has

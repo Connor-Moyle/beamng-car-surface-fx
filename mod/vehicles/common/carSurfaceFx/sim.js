@@ -69,7 +69,8 @@
       }
     }
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
-    var down = 0.02 - Math.pow(p.speed / 30, 2) * 0.35 - p.aLong * 0.012;
+    var airT = Math.pow(p.speed / 30, 2) * 0.35 * (p.airGain > 0 ? p.airGain : 1);       // airGain: the driver's view asks for the air to act harder (a windscreen's runs have to be seen)
+    var down = 0.02 - airT - p.aLong * 0.012;
     var across = p.aLat * 0.012;
     var fl = p.flow && p.flow.ready ? p.flow : null;                  // the per-pane directions, when the game side has sent them
     var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0015 + 0.004 * (1 - p.wet)) * (mm ? sg / 0.5 : 1);
@@ -80,7 +81,7 @@
       var air = p.speed > 6 ? Math.min((p.speed - 6) / 20, 1) : 0;
       var cling = Math.min(1, Math.max(0, (r / slide - 0.4) / 0.6));      // a small bead sticks to the glass: the air only moves it as it grows toward the size that runs
       var f = Math.max(big, air * cling);
-      var vd = down * f, va = across * f;
+      var vd = down * f, va = across * f - (p.fan > 0 ? (d.x[i] - 0.5) * p.fan * airT * f : 0);      // fan: on a windscreen the air also pushes outward, toward the pillars
       if (r > slide && down > 0) vd += 0.03 * big * big;             // the weight of a big drop
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
       var dirx = gx, diry = gy;
