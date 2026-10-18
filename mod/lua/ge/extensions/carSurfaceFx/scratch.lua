@@ -425,7 +425,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
       cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.0 + 2.6 * random() ^ 1.5) * s.s
     else
       local k = #blobs
-      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.3 + 1.4 * random() ^ 2) * s.s              -- many small, a few big
+      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (kind == 'mud' and (0.3 + 1.4 * random() ^ 2) or (0.6 + 0.8 * random())) * s.s       -- mud: many small, a few big; the soft kinds: even patches
       if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
     end
   end
