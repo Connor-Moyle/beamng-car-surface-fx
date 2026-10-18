@@ -624,6 +624,15 @@ function M.screenInfo(dbg)
   return 'cam=' .. tostring(w.cam) .. ' wet=' .. string.format('%.2f', w.wet or 0) .. ' overlay=' .. tostring(w.overlay) .. ' want=' .. tostring(w.want or false) .. ' hull=' .. (w.hull or 'nil') .. ' on=' .. tostring(w.on or false) .. ' debug=' .. tostring(screenDebug) .. ' | ' .. M.screenDiag()
 end
 
+-- carSurfaceFx.windscreenDump(): the windscreen flexbodies and their nodes in the car's frame, written to /settings/csfx_windscreen_nodes.json
+function M.windscreenDump()
+  local veh = be:getPlayerVehicle(0)
+  if not veh then return 'no car' end
+  local out = screen.dump(veh)
+  jsonWriteFile('/settings/csfx_windscreen_nodes.json', out, true)
+  return string.format('%d windscreen flexbodies, %s nodes in the first: written to /settings/csfx_windscreen_nodes.json', #out.flexbodies, out.flexbodies[1] and #out.flexbodies[1].nodes or 0)
+end
+
 -- what the projection and the overlay see: speed, how far the camera position was corrected, the windscreen's box on the screen, the points projected, and the last report of the page
 function M.screenDiag()
   local l = screen.last
