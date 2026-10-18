@@ -18,7 +18,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, canvasSize = 512 }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512 }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -60,7 +60,7 @@ local screenSize = 4.5
 local function loadSettings()
   settings = deepcopy(DEFAULTS)
   local s = jsonReadFile(SETTINGS_FILE)
-  if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlaySize return end
+  if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize return end
   for k, d in pairs(DEFAULTS) do
     if type(d) == 'table' and type(s[k]) == 'table' then
       for key, dv in pairs(d) do
@@ -78,7 +78,7 @@ local function loadSettings()
     settings.settingsVersion = rules.SETTINGS_VERSION
     jsonWriteFile(SETTINGS_FILE, settings, true)
   end
-  rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlaySize
+  rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize
 end
 
 local function skipped(name)

@@ -15,8 +15,8 @@ function createOverlay(doc, win) {
   var ctx = canvas.getContext('2d');
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
-  var sim = CsfxSim.create();
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
+  var sim = CsfxSim.create(700);
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 2.5 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
@@ -182,10 +182,9 @@ function createOverlay(doc, win) {
       ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
-        var k2 = age / 320, rr2 = R * (1.2 + 2.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;
-        ctx.lineWidth = 1.6;
-        ctx.strokeStyle = 'rgba(15,25,40,' + (0.55 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2 + 1.5, 0, 6.2832); ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
+        var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
       }
     }
     ctx.restore();
@@ -207,7 +206,7 @@ function createOverlay(doc, win) {
 
   function handle(name, data) {
     if (!data) return;
-    if (!data.on) { st.on = false; sim = CsfxSim.create(); seen.fill(0); return; }
+    if (!data.on) { st.on = false; sim = CsfxSim.create(700); seen.fill(0); return; }
     st.msgs++; st.debug = !!data.debug;
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;

@@ -46,7 +46,7 @@ function M.build(S, owner)
     F('drop_amount', 'rain', 'Water drops', 'slider', 'Drop amount', 'How many drops there are on the paint and the windows (1 is the normal amount).', 'rain.dropAmount', { min = 0.2, max = 3, step = 0.1, unit = 'x' }),
     F('drop_impacts', 'rain', 'Water drops', 'slider', 'Raindrop impacts', 'The small ring where a raindrop lands on the paint and the glass. 0 is none.', 'rain.impacts', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('overlay', 'rain', 'Driver\'s view', 'bool', 'Drops on the windscreen from the driver\'s seat', 'In the driver and onboard cameras the drops are drawn over the windscreen as small lenses, with streaks behind the running ones and clean arcs where the wipers sweep. Off: you see no drops from inside.', 'windscreen.overlay'),
-    F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlaySize', { min = 1.5, max = 8, step = 0.25, unit = 'x' }),
+    F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlayDropSize', { min = 0.5, max = 4, step = 0.1, unit = 'x' }),
   })
 
   -- ---- Dirt & wear
@@ -80,7 +80,7 @@ function M.build(S, owner)
   })
 
   -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
-  local PRESETS = { all_cars = { false, false, false, true }, overlay_size = { 6, 4.5, 3.5, 3 }, glass_fine = { false, false, true, true } }
+  local PRESETS = { all_cars = { false, false, false, true }, overlay_size = { 2.4, 1.6, 1.3, 1.1 }, glass_fine = { false, false, true, true } }
   local LEVELS = { 'performance', 'balanced', 'quality', 'max' }
   for _, f in ipairs(fields) do
     local list = PRESETS[f.id]
