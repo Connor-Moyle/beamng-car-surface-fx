@@ -48,7 +48,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 14                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 15                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -522,13 +522,17 @@ local rainT = 0                              -- seconds since the rain last wash
 -- back up shows the true state). The driver-view amounts are an accessibility setting: drops, frost and mist can each be turned down or off on their own.
 local function frostShown() return frostP * (settings.weather.frostStrength or 1) end
 local function sprayShown() return sprayP * (settings.weather.sprayStrength or 1) end
+-- carSurfaceFx.glassDebug(true): the window canvases show their glass cells and the page's numbers (drops, flow, cells, rain, size) written on the glass
+local glassDbg = false
+function M.glassDebug(on) glassDbg = on and true or false return 'glass debug ' .. tostring(glassDbg) end
+
 function M.pushGlass(car, mo)
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
   local js
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
-      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg and 1 or 0, uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
         wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostShown(), spray = sprayShown() }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
