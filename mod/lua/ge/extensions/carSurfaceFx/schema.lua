@@ -11,6 +11,7 @@ M.TABS = {
   { id = 'weather', title = 'Weather extras', description = 'Snow, frost, bugs and road spray.' },
   { id = 'marks', title = 'Skid marks & terrain', description = 'Marks your tyres leave on the ground, surface by surface.' },
   { id = 'leaks', title = 'Leaks & puddles', description = 'Oil, coolant and fuel that a damaged car drips, the puddles it leaves when it stands, and how slippery they are.' },
+  require('carSurfaceFx/grass').TAB,
   { id = 'textures', title = 'Textures', description = 'The pictures used for the marks. Drop your own white-on-transparent 256 x 256 PNG into a surface folder under art/decals and it shows up here.' },
 }
 
@@ -221,6 +222,8 @@ function M.build(S, owner)
         folder = '/' .. dir, exts = { 'png' }, thumbs = true, default = '/' .. dir .. (defaultAt('mats.' .. t .. '.trackVariant') or ''), store = marksStore('mats.' .. t .. '.trackVariant', 'texture', dir), apply = 'live' },
     }
   end))
+
+  add(require('carSurfaceFx/grass').fields(MAIN))
 
   return { mod = 'car_surface_fx', title = 'Car Surface FX', icon = 'wrench', order = 40, tabs = M.TABS, fields = fields }
 end

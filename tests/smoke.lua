@@ -1,4 +1,6 @@
 -- Runs the extension against a mocked game for a few hundred ticks: rain on, a car that brakes and corners, wipers, mud, a respawn, unload.
+vec3 = vec3 or function(x, y, z) return { x = x, y = y, z = z } end
+quat = quat or function(x, y, z, w) return { x = x, y = y, z = z, w = w } end
 -- Catches runtime errors (nil fields, wrong calls) that the pure-rules tests cannot see. Mock methods mirror what the game's API gave in the spikes.
 local logs, fields, reloads, paintCalls = {}, {}, 0, 0
 function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
@@ -12,7 +14,7 @@ local waterCalls, lastWater = 0, nil
 local bodySplats = {}
 local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {}, 0, 0, nil, nil, nil
 extensions = {
-  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
+  load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, noteGround = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
     getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
     washSplats = function() washes = washes + 1 end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
   unload = function(n) _G[n] = nil end,
@@ -121,6 +123,9 @@ for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end   -- a min
 assert(M.status():find('mud 0%.[1-9]') or M.status():find('mud 1'), 'mud built: ' .. M.status())
 assert(paintCalls > 0, 'the paint was updated')
 assert(started[1] == 'carSurfaceFx_meshuv' and started[2] == 'carSurfaceFx_scratch', 'the scratch module started, map first')
+local grassStarted = false
+for _, n in ipairs(started) do if n == 'carSurfaceFx_grass' then grassStarted = true end end
+assert(grassStarted, 'the grass module started with the default settings')
 assert(splats > 0, 'dirt splats were asked for on loose ground')
 assert(waterCalls > 0 and lastWater.rain >= 0 and lastWater.speed ~= nil, 'the paint water gets the weather and the motion')
 for _ = 1, 40 do M.onGround(7, 0, 0, 0, 0, 1, 5, 0.5, 0) tick(2) end   -- then through a river: washed
@@ -255,6 +260,7 @@ M.debug() tick(400)                                       -- the weather decides
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
 M.onExtensionUnloaded()
 assert(rawget(_G, 'carSurfaceFx_scratch') == nil, 'the scratch module is unloaded with the mod')
+assert(rawget(_G, 'carSurfaceFx_grass') == nil, 'the grass module is unloaded with the mod')
 assert(mats.vivace_main.fields[0].detailNormalMap == '/peel.png', 'the original orange peel is back: ' .. tostring(mats.vivace_main.fields[0].detailNormalMap))
 assert(mats.vivace_main.fields[0].detailScale == '128 64', 'the original detail scale is back')
 assert(mats.vivace_glass.fields[0].baseColorMap == 'vehicles/vivace/vivace_glass_b.color.png', 'the glass has its own tint map back')
