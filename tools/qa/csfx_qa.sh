@@ -179,7 +179,7 @@ if want fluids; then
   LOW=1
   for i in $(seq 1 16); do
     nap 0.4
-    G="$(FL 'status()' | sed -n 's/.* grip \([0-9.]*\) gripOn.*//p')"
+    G="$(FL 'status()' | sed -n 's/.* grip \([0-9.]*\) gripOn.*/\1/p')"
     LOW="$(awk -v a="$LOW" -v b="${G:-1}" 'BEGIN{print (b < a) ? b : a}')"
   done
   R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
