@@ -15,6 +15,7 @@ M.clamp = clamp
 function M.defaults()
   return {
     enabled = true,
+    texture = '',                                                -- the puddle picture: a file in art/decals/fluids ('' = any of them)
     gripEnabled = false,                                         -- the real physics part: off unless the player turns it on
     maxPuddles = 60,                                             -- ring size: the oldest are recycled
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
@@ -99,6 +100,7 @@ function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
   local p = store.list[i] or {}
   p.x, p.y, p.z, p.kind, p.r, p.age, p.stain = x, y, z, kind, k.dripSize * (stain and (0.7 + 0.6 * ((seed or 0.5))) or 1), 0, stain and true or false
   p.angle = (seed or 0.5) * 6.2832
+  p.seed = seed or 0.5
   p.variant = 1 + math.floor((seed or 0.5) * 3) % 3
   store.list[i], store.head = p, i
   if store.count < store.max then store.count = store.count + 1 end

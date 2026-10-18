@@ -75,12 +75,14 @@ local function impactStore(path, kind)
     get = function()
       local v = raw()
       if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
+      if kind == 'texture' then return (v and v ~= '') and ('/art/decals/impacts/' .. tostring(v)) or '' end
       return v
     end,
     set = function(value)
       local m = impactsModule()
       if not (m and m.set) then return end
       if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b } end
+      if kind == 'texture' then value = tostring(value or ''):match('([^/\\]+)$') or '' if m.rescan then m.rescan() end end
       m.set(path, value)
     end }
 end
@@ -106,12 +108,14 @@ local function fluidStore(path, kind)
     get = function()
       local v = raw()
       if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
+      if kind == 'texture' then return (v and v ~= '') and ('/art/decals/fluids/' .. tostring(v)) or '' end
       return v
     end,
     set = function(value)
       local m = fluidsModule()
       if not (m and m.set) then return end
       if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b } end
+      if kind == 'texture' then value = tostring(value or ''):match('([^/\\]+)$') or '' if m.rescan then m.rescan() end end
       m.set(path, value)
     end }
 end
@@ -223,6 +227,8 @@ function M.build(S, owner)
   add({
     F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
     lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). Off by default: it changes how the car drives.', 'gripEnabled'),
+    { id = 'leaks_texture', tab = 'leaks', group = 'Pictures', type = 'texture', label = 'Puddle picture', tooltip = 'The picture of a puddle. Drop your own white-on-transparent png (name starting with puddle) into art/decals/fluids and it shows up here; none means any of them, at random.',
+      folder = '/art/decals/fluids/', exts = { 'png' }, thumbs = true, none = true, default = '', store = fluidStore('texture', 'texture'), apply = 'live' },
     lk('leaks_drops', 'Leaks', 'bool', 'Drops falling from the leak', 'Small drops visibly fall from the engine to the ground before they make a spot. Off: the spots just appear.', 'fallingDrops'),
     lk('leaks_drop_size', 'Leaks', 'slider', 'Falling drop size', 'How wide the falling drops are, in metres.', 'dropSize', { min = 0.02, max = 0.2, step = 0.01, unit = 'm', advanced = true }),
     lk('leaks_drop_count', 'Leaks', 'int', 'Drops in a burst', 'How many drops fall at once from a leak, five times a second.', 'dropCount', { min = 1, max = 5, advanced = true }),
@@ -258,6 +264,10 @@ function M.build(S, owner)
     F('crash', 'crash', 'Crash effects', 'bool', 'Glass, debris and sparks', 'Master switch for what a crash leaves behind. Off: no glass piles, no flying pieces, no sparks.', 'impacts.enabled'),
     ic('crash_others', 'Crash effects', 'bool', 'Traffic and AI cars too', 'Off: only the car you drive leaves glass, pieces and sparks.', 'others.enabled'),
     ic('crash_glass_on', 'Glass', 'bool', 'Glass on the road', 'A broken window leaves a pile of glass shards on the ground under it.', 'glass.enabled'),
+    { id = 'crash_glass_texture', tab = 'crash', group = 'Glass', type = 'texture', label = 'Shard picture', tooltip = 'The picture of a pile of glass. Drop your own white-on-transparent png (name starting with shards) into art/decals/impacts and it shows up here; none means any of them.',
+      folder = '/art/decals/impacts/', exts = { 'png' }, thumbs = true, none = true, default = '', store = impactStore('glass.texture', 'texture'), apply = 'live' },
+    { id = 'crash_debris_texture', tab = 'crash', group = 'Debris', type = 'texture', label = 'Piece picture', tooltip = 'The picture of a piece of debris on the road. Drop your own white-on-transparent png (name starting with chip) into art/decals/impacts and it shows up here; none means any of them.',
+      folder = '/art/decals/impacts/', exts = { 'png' }, thumbs = true, none = true, default = '', store = impactStore('debris.texture', 'texture'), apply = 'live' },
     ic('crash_glass_color', 'Glass', 'color', 'Glass colour', 'The colour of the shards. It is multiplied over the shard picture.', 'glass.color'),
     ic('crash_glass_opacity', 'Glass', 'slider', 'Glass strength', 'How strongly the shards show.', 'glass.opacity', { min = 0.1, max = 1, step = 0.05, unit = '%', scale = 100 }),
     ic('crash_glass_size', 'Glass', 'slider', 'Pile size', 'How big a pile of shards is (1 is normal).', 'glass.size', { min = 0.3, max = 3, step = 0.1, unit = 'x' }),

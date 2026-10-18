@@ -7,12 +7,14 @@
 local M = {}
 
 local rules = require('carSurfaceFx/impactrules')
+local texlist = require('carSurfaceFx/texlist')
 
 local TAG = 'carSurfaceFx_impacts'
 local SETTINGS_FILE = 'settings/carSurfaceFx_impacts.json'
 local DEPTH = 1.5
-local GLASS_TEX = 'art/decals/impacts/shards_%d.png'
-local CHIP_TEX = 'art/decals/impacts/chip_%d.png'
+local DIR = 'art/decals/impacts/'
+local shardList = { 'shards_1.png', 'shards_2.png', 'shards_3.png' }      -- the pictures of the folder (rescanned: a png dropped in shows up)
+local chipList = { 'chip_1.png', 'chip_2.png' }
 
 local settings = rules.defaults()
 local piles, pileHead, pileN = {}, 0, 0                          -- shard piles (ring)
@@ -30,6 +32,16 @@ local function mergeInto(dst, src)
     if type(v) == 'table' and type(dst[k]) == 'table' then mergeInto(dst[k], v) elseif type(v) == type(dst[k]) then dst[k] = v end
   end
 end
+
+-- the pictures: every png in the folder whose name starts with shards / chip (the player's own too)
+function M.rescan()
+  local s, c = texlist.scan(DIR, 'shards'), texlist.scan(DIR, 'chip')
+  if #s > 0 then shardList = s end
+  if #c > 0 then chipList = c end
+  pools = {}
+  return shardList, chipList
+end
+function M.variants() return shardList, chipList end
 
 function M.defaults() return rules.defaults() end
 function M.settings() return settings end
@@ -122,7 +134,7 @@ function M.glass(vid, x, y, z, sev)
   local maxN = math.max(4, math.floor(settings.glass.maxPiles))
   pileHead = (pileHead % maxN) + 1
   local p = piles[pileHead] or {}
-  p.x, p.y, p.z, p.r, p.angle, p.variant = x, y, gz, rules.pileRadius(sev, settings.glass.size), math.random() * 6.2832, 1 + math.random(0, 2)
+  p.x, p.y, p.z, p.r, p.angle, p.seed = x, y, gz, rules.pileRadius(sev, settings.glass.size), math.random() * 6.2832, math.random()
   piles[pileHead] = p
   if pileN < maxN then pileN = pileN + 1 end
 end
@@ -143,7 +155,7 @@ function M.debris(vid, x, y, z, vx, vy, vz, kind, hard, spread)
     p.x, p.y, p.z = x + (math.random() - 0.5) * 0.2, y + (math.random() - 0.5) * 0.2, z
     p.vx, p.vy, p.vz = vx * 0.5 + (math.random() - 0.5) * sp, vy * 0.5 + (math.random() - 0.5) * sp, math.max(0.5, vz * 0.3) + math.random() * sp * 0.6
     p.kind, p.size, p.rest, p.gz = kind, (0.6 + math.random() * 0.8) * cfg.size, false, gz
-    p.angle, p.born, p.variant = math.random() * 6.2832, 0, 1 + math.random(0, 1)
+    p.angle, p.born, p.seed = math.random() * 6.2832, 0, math.random()
     flying[flyN] = p
   end
 end
@@ -152,7 +164,7 @@ local function settle(p)
   local maxN = math.max(8, math.floor(settings.debris.maxResting))
   restHead = (restHead % maxN) + 1
   local r = resting[restHead] or {}
-  r.x, r.y, r.z, r.kind, r.size, r.angle, r.variant, r.born = p.x, p.y, p.gz, p.kind, p.size, p.angle, p.variant, 0
+  r.x, r.y, r.z, r.kind, r.size, r.angle, r.seed, r.born = p.x, p.y, p.gz, p.kind, p.size, p.angle, p.seed, 0
   r.alive = true
   resting[restHead] = r
   if restN < maxN then restN = restN + 1 end
@@ -165,7 +177,7 @@ function M.sparks() counts.sparks = counts.sparks + 1 end
 local function slot(pool, i)
   local e = pool[i]
   if not e then
-    e = { texture = GLASS_TEX:format(1), position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
+    e = { texture = DIR .. shardList[1], position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
       fadeStart = settings.cullRadius * 0.8, fadeEnd = settings.cullRadius }
     pool[i] = e
   end
@@ -192,15 +204,16 @@ function M.onPreRender(dt)
   local cr2 = settings.cullRadius * settings.cullRadius
   if pileN > 0 and settings.glass.enabled then
     local color = colorOf('glass', settings.glass.color, settings.glass.opacity)
-    for v = 1, 3 do
+    local shown = texlist.shown(shardList, settings.glass.texture)
+    for v = 1, #shown do
       local pool, n = pools['g' .. v], 0
       if not pool then pool = {} pools['g' .. v] = pool end
       for i = 1, pileN do
         local p = piles[i]
-        if p and p.variant == v and (not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= cr2) then
+        if p and texlist.indexFor(#shown, p.seed) == v and (not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= cr2) then
           n = n + 1
           local e = slot(pool, n)
-          e.texture = GLASS_TEX:format(v)
+          e.texture = DIR .. shown[v]
           e.position:set(p.x, p.y, p.z)
           e.forwardVec:set(math.cos(p.angle), math.sin(p.angle), 0)
           e.scale:set(p.r * 2, p.r * 2, DEPTH)
@@ -213,15 +226,16 @@ function M.onPreRender(dt)
   if restN > 0 and settings.debris.enabled then
     for _, kind in ipairs(rules.DEBRIS) do
       local color = colorOf('r' .. kind, settings.debris.colors[kind], 0.95)
-      for v = 1, 2 do
+      local shownChips = texlist.shown(chipList, settings.debris.texture)
+      for v = 1, #shownChips do
         local pool, n = pools['d' .. kind .. v], 0
         if not pool then pool = {} pools['d' .. kind .. v] = pool end
         for i = 1, restN do
           local p = resting[i]
-          if p and p.alive and p.kind == kind and p.variant == v and (not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= cr2) then
+          if p and p.alive and p.kind == kind and texlist.indexFor(#shownChips, p.seed) == v and (not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= cr2) then
             n = n + 1
             local e = slot(pool, n)
-            e.texture = CHIP_TEX:format(v)
+            e.texture = DIR .. shownChips[v]
             e.position:set(p.x, p.y, p.z)
             e.forwardVec:set(math.cos(p.angle), math.sin(p.angle), 0)
             e.scale:set(0.07 * p.size, 0.05 * p.size, DEPTH)
@@ -305,7 +319,7 @@ end
 
 function M.onVehicleSpawned() pcall(injectAll) end
 function M.onVehicleSwitched() pcall(injectAll) end
-function M.onExtensionLoaded() M.load() M.clear() pools = {} pcall(injectAll) end
+function M.onExtensionLoaded() M.load() M.clear() M.rescan() pcall(injectAll) end
 function M.onExtensionUnloaded()
   pcall(function()
     for _, v in ipairs(getAllVehicles()) do v:queueLuaCommand('if carSurfaceFxImpacts then carSurfaceFxImpacts.setConfig(false, false, false) end') end

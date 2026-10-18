@@ -23,10 +23,10 @@ function M.defaults()
     enabled = true,
     others = { enabled = false, maxCars = 4, range = 60 },
     glass = {
-      enabled = true, color = { 0.80, 0.88, 0.92 }, opacity = 0.75, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
+      enabled = true, texture = '', color = { 0.80, 0.88, 0.92 }, opacity = 0.75, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
     },
     debris = {
-      enabled = true, particles = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
+      enabled = true, texture = '', particles = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
       size = 1.0, boltChance = 0.3,
       colors = { metal = { 0.45, 0.45, 0.47 }, bolt = { 0.30, 0.30, 0.32 }, plastic = { 0.12, 0.12, 0.13 }, glass = { 0.78, 0.86, 0.90 }, wood = { 0.40, 0.28, 0.16 }, rock = { 0.42, 0.40, 0.38 } },
     },

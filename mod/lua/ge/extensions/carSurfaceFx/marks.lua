@@ -261,6 +261,9 @@ end
 local function pushConfig(veh, emit)
   veh:queueLuaCommand(string.format('if not carSurfaceFxMarks then extensions.load("carSurfaceFxMarks") end carSurfaceFxMarks.setConfig(%.4f, %s, %s)',
     settings.wheelGap, settings.takeover and 'true' or 'false', emit and 'true' or 'false'))
+  -- the map's own ground materials (P12, carSurfaceFx/surfaces.lua): collision type id -> surface, for the ids the car does not know by name
+  local okS, lit = pcall(function() return require('carSurfaceFx/surfaces').literalNow() end)
+  if okS and lit and lit ~= '{}' then veh:queueLuaCommand('if carSurfaceFxMarks and carSurfaceFxMarks.setMaterials then carSurfaceFxMarks.setMaterials(' .. lit .. ') end') end
 end
 
 local function injectAll()

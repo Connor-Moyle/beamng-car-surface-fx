@@ -7,11 +7,13 @@
 local M = {}
 
 local rules = require('carSurfaceFx/fluidrules')
+local texlist = require('carSurfaceFx/texlist')
 
 local TAG = 'carSurfaceFx_fluids'
 local SETTINGS_FILE = 'settings/carSurfaceFx_fluids.json'
 local DEPTH = 1.5
-local TEX = 'art/decals/fluids/puddle_%d.png'
+local DIR = 'art/decals/fluids/'
+local variants = { 'puddle_1.png', 'puddle_2.png', 'puddle_3.png' }       -- the pictures of the folder (rescanned: a png dropped in shows up)
 local DROP_TEX = 'art/decals/fluids/drop.png'
 
 local settings = rules.defaults()
@@ -30,6 +32,15 @@ local function mergeInto(dst, src)
     if type(v) == 'table' and type(dst[k]) == 'table' then mergeInto(dst[k], v) elseif type(v) == type(dst[k]) then dst[k] = v end
   end
 end
+
+-- the puddle pictures: every png in the folder whose name starts with puddle (the player's own too); the three that ship if the folder cannot be read
+function M.rescan()
+  local found = texlist.scan(DIR, 'puddle')
+  if #found > 0 then variants = found end
+  pools = {}
+  return variants
+end
+function M.variants() return variants end
 
 function M.defaults() return rules.defaults() end
 function M.settings() return settings end
@@ -195,7 +206,7 @@ function M.clear() store = rules.newStore(settings.maxPuddles) reports = {} carr
 local function slot(pool, i)
   local e = pool[i]
   if not e then
-    e = { texture = TEX:format(1), position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
+    e = { texture = DIR .. variants[1], position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
       fadeStart = settings.cullRadius * 0.8, fadeEnd = settings.cullRadius }
     pool[i] = e
   end
@@ -217,18 +228,19 @@ function M.onPreRender(dt)
   local cr2 = settings.cullRadius * settings.cullRadius
   for _, kind in ipairs(rules.KINDS) do
     local c = colors[kind]
-    for v = 1, 3 do
+    local shown = texlist.shown(variants, settings.texture)
+    for v = 1, #shown do
       local pool, n = pools[kind .. ':' .. v], 0
       if not pool then pool = {} pools[kind .. ':' .. v] = pool end
       for i = 1, store.count do
         local p = store.list[i]
-        if p and p.kind == kind and (p.variant or 1) == v and p.r > 0.02 then
+        if p and p.kind == kind and texlist.indexFor(#shown, p.seed) == v and p.r > 0.02 then
           local draw_ = true
           if camX then local dx, dy = p.x - camX, p.y - camY draw_ = dx * dx + dy * dy <= cr2 end
           if draw_ then
             n = n + 1
             local e = slot(pool, n)
-            e.texture = p.stain and DROP_TEX or TEX:format(v)
+            e.texture = p.stain and DROP_TEX or (DIR .. shown[v])
             e.position:set(p.x, p.y, p.z)
             local ca, sa = math.cos(p.angle or 0), math.sin(p.angle or 0)
             e.forwardVec:set(ca, sa, 0)
@@ -330,7 +342,7 @@ local function stopCars()
   end)
 end
 
-function M.onExtensionLoaded() M.load() pools = {} pcall(injectAll) end
+function M.onExtensionLoaded() M.load() M.rescan() pcall(injectAll) end
 function M.onExtensionUnloaded() stopCars() end
 function M.onClientStartMission() M.clear() pcall(injectAll) end
 function M.onClientEndMission() M.clear() end
