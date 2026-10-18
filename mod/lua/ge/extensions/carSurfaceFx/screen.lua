@@ -251,11 +251,16 @@ function M.windscreen(veh)
     last.speed, last.fix = speed, M.stabilise(eyeBy[id], cam, fr, speed, v)
   end
   local pts = {}
+  local sr, su, sd, sn = 0, 0, 0, 0               -- the nodes' mean place in the camera's own frame (right, up, depth in m), for the diagnostics
   for _, cid in ipairs(nodes) do
     local w = veh:getNodePosition(cid)
-    local s = M.project({ x = w.x + base.x, y = w.y + base.y, z = w.z + base.z }, cam)
+    local p = { x = w.x + base.x, y = w.y + base.y, z = w.z + base.z }
+    local dx, dy, dz = p.x - cam.x, p.y - cam.y, p.z - cam.z
+    sr, su, sd, sn = sr + dx * cam.r.x + dy * cam.r.y + dz * cam.r.z, su + dx * cam.u.x + dy * cam.u.y + dz * cam.u.z, sd + dx * cam.f.x + dy * cam.f.y + dz * cam.f.z, sn + 1
+    local s = M.project(p, cam)
     if s then pts[#pts + 1] = s end
   end
+  last.camera = sn > 0 and string.format('nodes %d mean in camera frame right %.2f up %.2f depth %.2f m | fov %.1f deg aspect %.2f | camera forward %.2f,%.2f,%.2f up %.2f,%.2f,%.2f', sn, sr / sn, su / sn, sd / sn, math.deg(2 * math.atan(cam.halfTan)), cam.aspect, cam.f.x, cam.f.y, cam.f.z, cam.u.x, cam.u.y, cam.u.z) or 'no nodes'
   local whole = M.convexHull(pts)
   local hull = M.flat(M.clipHull(whole, 0, 0, 1, 1))
   last.clipped = whole ~= nil and hull ~= nil and #hull ~= #whole * 2
