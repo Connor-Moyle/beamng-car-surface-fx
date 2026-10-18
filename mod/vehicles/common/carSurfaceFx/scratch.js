@@ -17,7 +17,7 @@
   var palette = /[?&]m=p/.test(location.search);
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
-  var MAX_LINES = 300, MAX_BLOBS = 900;
+  var MAX_LINES = 300, MAX_BLOBS = 2500;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
 
@@ -76,6 +76,20 @@
       g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
       sctx.fillStyle = g;
       sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    } else if (b.dx || b.dy) {                                        // sprayed mud: an elongated splat along the spray, a tail of droplets behind it and a few ahead
+      var ang = Math.atan2(b.dy, b.dx), j;
+      sctx.fillStyle = rgba(b.c, b.a * 0.8);
+      sctx.beginPath(); sctx.ellipse(x, y, r * 1.7, r * 0.7, ang, 0, Math.PI * 2); sctx.fill();
+      sctx.fillStyle = rgba(b.c, b.a * 0.65);
+      for (j = 1; j <= 4; j++) {                                      // the streak: smaller and smaller drops back along the line the spray came from
+        var t = j * (0.9 + 0.5 * hash(b.x, b.y, j)), jr = Math.max(1, r * (0.55 - 0.1 * j));
+        sctx.beginPath(); sctx.arc(x - Math.cos(ang) * r * t, y - Math.sin(ang) * r * t + (hash(b.x, b.y, j + 9) - 0.5) * r * 0.6, jr, 0, Math.PI * 2); sctx.fill();
+      }
+      sctx.fillStyle = rgba(b.c, b.a * 0.9);
+      for (j = 0; j < 2 + Math.floor(hash(b.x, b.y, 3) * 3); j++) {
+        var f = 1.5 + 1.6 * hash(b.x, b.y, j + 20);
+        sctx.beginPath(); sctx.arc(x + Math.cos(ang) * r * f + (hash(b.x, b.y, j + 30) - 0.5) * r, y + Math.sin(ang) * r * f + (hash(b.x, b.y, j + 40) - 0.5) * r, Math.max(1, r * 0.18), 0, Math.PI * 2); sctx.fill();
+      }
     } else {                                                          // mud and bugs: a splat with a broken edge and droplets thrown around it
       var i, n = 4 + Math.floor(hash(b.x, b.y, 0) * 3);
       sctx.fillStyle = rgba(b.c, b.a * 0.55);
@@ -109,6 +123,7 @@
   window.csfxBlobs = function (o) {
     for (var i = 0; i < o.l.length; i += 3) {
       var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
+      if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
       blobs.push(b);
       drawBlob(b);
     }

@@ -13,7 +13,7 @@ local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {
 extensions = {
   load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
     getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
-    washSplats = function() washes = washes + 1 end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
+    washSplats = function() washes = washes + 1 end, dirtAt = function() return false end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
   unload = function(n) _G[n] = nil end,
 }
 function setExtensionUnloadMode() end

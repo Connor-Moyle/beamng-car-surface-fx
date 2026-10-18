@@ -13,12 +13,6 @@ local jobs = {}
 
 local floor, sqrt = math.floor, math.sqrt
 
-local function nums(s)
-  local t, n = {}, 0
-  for tok in s:gmatch('[^%s]+') do n = n + 1 t[n] = tonumber(tok) end
-  return t
-end
-
 -- the flow of one triangle: pos = { x1,y1,z1, x2,.. , x3,.. }, uv = { u1,v1, u2,v2, u3,v3 }; returns for each of the three directions (down, back, right) { du, dv } or nil for a
 -- degenerate triangle. du, dv is a UV direction (unit) multiplied by the slope: 1 when the direction lies in the pane, 0 when it is the pane's normal.
 local DIRS = { { 0, 0, -1 }, { 0, 1, 0 }, { -1, 0, 0 } }
@@ -120,75 +114,7 @@ function M.field(tris)
   return out
 end
 
--- ---- reading the triangles of the glass out of the car's .dae files ----
-local function parseDae(path, wanted, glassMat, tris)
-  local s = readFile(path)
-  if not s then return end
-  local yup = s:find('<up_axis>Y_UP', 1, true) ~= nil
-  local unit = tonumber(s:match('<unit[^>]-meter="([^"]+)"')) or 1
-  local matName, geomPos = {}, {}
-  for id, nm in s:gmatch('<material id="([^"]+)" name="([^"]+)"') do matName[id] = nm end
-  for p, id in s:gmatch('()<geometry id="([^"]+)"') do geomPos[id] = p end
-  coroutine.yield()
-  local pos = s:find('<library_visual_scenes', 1, true) or 1
-  while true do
-    local _, b, nm = s:find('<node [^>]-name="([^"]+)"', pos)
-    if not b then break end
-    pos = b + 1
-    local fb = wanted[nm]
-    if fb then
-      local chunk = s:sub(b, s:find('</node>', b, true) or (b + 4000))
-      local gid = chunk:match('<instance_geometry url="#([^"]+)"')
-      local symGlass = {}
-      for sym, tgt in chunk:gmatch('<instance_material symbol="([^"]+)" target="#([^"]+)"') do
-        local mn = matName[tgt] or tgt
-        if glassMat[mn] then symGlass[sym] = mn end
-      end
-      if gid and geomPos[gid] and next(symGlass) then
-        local gp = geomPos[gid]
-        local body = s:sub(gp, s:find('</geometry>', gp, true))
-        local src = {}
-        for id, txt in body:gmatch('<source id="([^"]+)"[^>]*>%s*<float_array[^>]*>([^<]*)<') do src[id] = txt end
-        local psrc = body:match('<vertices[^>]*>%s*<input semantic="POSITION" source="#([^"]+)"')
-        local P = psrc and src[psrc] and nums(src[psrc])
-        local m = nums(chunk:match('<matrix[^>]*>([^<]+)<') or '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1')
-        local ox, oy, oz = 0, 0, 0
-        if type(fb) == 'table' and fb.pos then ox, oy, oz = fb.pos.x or 0, fb.pos.y or 0, fb.pos.z or 0 end
-        for attrs, inner in body:gmatch('<triangles([^>]*)>(.-)</triangles>') do
-          local mn = symGlass[attrs:match('material="([^"]+)"') or '']
-          if mn and P then
-            local stride, vo, to, tsrc = 0, nil, nil, nil
-            for inp in inner:gmatch('<input([^>]*)/>') do
-              local sem, sc = inp:match('semantic="([^"]+)"'), inp:match('source="#([^"]+)"')
-              local off = tonumber(inp:match('offset="(%d+)"')) or 0
-              if off + 1 > stride then stride = off + 1 end
-              if sem == 'VERTEX' then vo = off elseif sem == 'TEXCOORD' and not to then to, tsrc = off, sc end      -- the first texture coordinate set: the one a base colour map reads
-            end
-            local idx = nums(inner:match('<p>([^<]*)</p>') or '')
-            if vo and to and src[tsrc] and #idx >= stride * 3 then
-              local T = nums(src[tsrc])
-              for k = 0, #idx / stride - 1, 3 do
-                local t = { pos = {}, uv = {}, mat = mn }
-                for c = 0, 2 do
-                  local vi, ti = idx[(k + c) * stride + vo + 1] * 3, idx[(k + c) * stride + to + 1] * 2
-                  local x, y, z = P[vi + 1], P[vi + 2], P[vi + 3]
-                  local wx = (m[1] * x + m[2] * y + m[3] * z + m[4]) * unit
-                  local wy = (m[5] * x + m[6] * y + m[7] * z + m[8]) * unit
-                  local wz = (m[9] * x + m[10] * y + m[11] * z + m[12]) * unit
-                  if yup then wy, wz = -wz, wy end
-                  t.pos[c * 3 + 1], t.pos[c * 3 + 2], t.pos[c * 3 + 3] = wx + ox, wy + oy, wz + oz
-                  t.uv[c * 2 + 1], t.uv[c * 2 + 2] = T[ti + 1], T[ti + 2]
-                end
-                tris[#tris + 1] = t
-              end
-            end
-          end
-        end
-        coroutine.yield()
-      end
-    end
-  end
-end
+local read = require('carSurfaceFx/daeread').read
 
 -- the field of every glass material of a car, built a few ms a frame: cb({ [dae material name] = field }) or cb(nil). glassMat = { [dae material name] = true }
 function M.request(vehId, glassMat, cb)
@@ -207,7 +133,7 @@ function M.request(vehId, glassMat, cb)
     local files = {}
     pcall(function() files = FS:findFiles(vd.vehicleDirectory, '*.dae', -1, false, false) or {} end)
     for _, path in ipairs(files) do
-      local ok, err = pcall(parseDae, path, wanted, glassMat, tris)
+      local ok, err = pcall(read, path, wanted, glassMat, nil, tris)
       if not ok then log('W', TAG, 'could not read ' .. path .. ': ' .. tostring(err)) end
       coroutine.yield()
     end
