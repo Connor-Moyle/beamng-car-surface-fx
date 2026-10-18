@@ -28,7 +28,8 @@
 
   // the engine reads this texture as LINEAR colour, so a plain sRGB value comes out washed-out: pre-darken it
   function ch(x) { return Math.round(Math.pow(Math.max(0, Math.min(1, x)), 2.2) * 255); }
-  function rgba(c, a) { return 'rgba(' + ch(c[0]) + ',' + ch(c[1]) + ',' + ch(c[2]) + ',' + a + ')'; }
+  function rgbaColour(c, a) { return 'rgba(' + ch(c[0]) + ',' + ch(c[1]) + ',' + ch(c[2]) + ',' + a + ')'; }
+  var rgba = rgbaColour;
   // base page: paint in colour c. palette page: punch the same shape out instead.
   // the base goes on much heavier than the punch-out: what shows is base x (white..paint by what's left of
   // the palette), so any white left in the base under a part-erased palette reads as chalky, not as the colour.
@@ -67,9 +68,11 @@
   // right for a scratch, but it made dirt look like chrome with a dark rim.
   // a number 0..1 from a place and an index, the same every time (a redraw must give the same splatter)
   function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
+  // On the palette page the same splat is punched out of the palette (the paint's tint goes where the dirt is, so the dirt shows in ITS colour, not multiplied with the paint:
+  // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
   function drawBlob(b) {
-    if (palette) return;
-    sctx.globalCompositeOperation = 'source-over';
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     if (b.k === 'dust') {                                             // dust and snow: soft patches
       var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);

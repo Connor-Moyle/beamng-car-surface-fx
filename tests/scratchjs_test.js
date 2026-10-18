@@ -53,9 +53,9 @@ p.reset();
 p.w.csfxBlobs({ l: [0.3, 0.3, 0.02], d: [0.8, 0.6], c: [0.3, 0.2, 0.1], a: 0.7, k: 'mud' });
 assert(p.ops.arcs >= 7, 'a sprayed splat has a streak: ' + p.ops.arcs + ' arcs');
 
-const pal = page('?m=p');                                // the palette page never draws splats
+const pal = page('?m=p');                                // the palette page punches the same splats out of the palette
 pal.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
-assert.strictEqual(pal.ops.arcs, 0, 'splats are base page only');
+assert(pal.ops.arcs >= 7, 'the palette page draws the same splat (punched out): ' + pal.ops.arcs);
 // the running drops through the page, as the game side drives it: the node map in pieces, the debug switch, a few frames
 const wp = page('?m=b');
 const rows = [];
