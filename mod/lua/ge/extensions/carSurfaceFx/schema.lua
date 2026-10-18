@@ -292,6 +292,32 @@ function M.build(S, owner)
 
   add(require('carSurfaceFx/grass').fields(MAIN))
 
+  -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
+  local PRESETS = {
+    all_cars = { false, false, false, true }, overlay_size = { 6, 4.5, 3.5, 3 }, glass_size = { 4.5, 3, 2.5, 2 },
+    cull = { 60, 100, 140, 200 }, max_drawn = { 300, 800, 1200, 2000 }, skid_count = { 800, 2000, 3000, 5000 }, track_count = { 1000, 3000, 5000, 8000 },
+    others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 120, 180, 300 }, leaks_cull = { 40, 80, 120, 160 },
+    leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
+  }
+  local SCALED = { crash_glass_max = 1, crash_debris_flying = 1, crash_debris_resting = 1, crash_sparks_max = 1 }   -- no fixed numbers: the default times 0.4, 1, 1.5 and 2.5
+  local SCALE = { 0.4, 1, 1.5, 2.5 }
+  local LEVELS = { 'performance', 'balanced', 'quality', 'max' }
+  for _, f in ipairs(fields) do
+    local list = PRESETS[f.id]
+    if not list and SCALED[f.id] and type(f.default) == 'number' then
+      list = {}
+      for i = 1, 4 do
+        local v = f.default * SCALE[i]
+        if f.type == 'int' then v = math.floor(v + 0.5) end
+        list[i] = math.max(f.min or v, math.min(f.max or v, v))
+      end
+    end
+    if list then
+      f.presets = {}
+      for i, level in ipairs(LEVELS) do f.presets[level] = list[i] end
+    end
+  end
+
   return { mod = 'car_surface_fx', title = 'Car Surface FX', icon = 'wrench', order = 40, tabs = M.TABS, fields = fields }
 end
 

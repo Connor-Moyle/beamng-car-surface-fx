@@ -239,6 +239,18 @@ for _, f in ipairs(registered.fields) do
     end
   end
 end
+local nPresets = 0
+for _, f in ipairs(registered.fields) do
+  if f.presets then
+    nPresets = nPresets + 1
+    for _, level in ipairs({ 'performance', 'balanced', 'quality', 'max' }) do
+      local v = f.presets[level]
+      assert(v ~= nil and type(v) == type(f.default), f.id .. ': preset ' .. level .. ' has the type of the field')
+      if type(v) == 'number' then assert(v >= f.min and v <= f.max, f.id .. ': preset ' .. level .. ' ' .. tostring(v) .. ' within ' .. f.min .. '..' .. f.max) end
+    end
+  end
+end
+assert(nPresets >= 12, 'the frame-costing settings have presets: ' .. nPresets)
 assert(seen.dirt_build and seen.takeover and seen.dirt_skid_w and seen.mud_skid_tex, 'the surfaces and the main tabs are there')
 slrr_settings = nil
 
