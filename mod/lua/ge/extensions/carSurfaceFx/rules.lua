@@ -190,7 +190,7 @@ function M.dirtBuild(d, dt, r, speed, wet)
   out.grime = d.grime + (r.road or 0) * sf * dt * ((1 - wetK) / 1200 + wetK / 400)              -- wet tarmac throws a road film three times faster
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
   local snowing, v = r.snowing or 0, speed or 0
-  out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 90 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
+  out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 180 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
   -- bugs hit the nose in fast driving, by the air temperature and the time of day (r.airC, r.tod are optional)
   out.bugs = (d.bugs or 0) + M.bugRate(v, r.airC, r.tod, wet) * dt
   for _, k in ipairs(M.KINDS) do out[k] = clamp(out[k], 0, M.CAP[k]) end
