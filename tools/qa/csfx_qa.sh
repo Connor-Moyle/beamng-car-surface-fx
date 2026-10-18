@@ -2,7 +2,7 @@
 # Car Surface FX in-game QA: forces each effect with carSurfaceFx.debug(), reads carSurfaceFx.status() / screenInfo() back as the check, and takes a named screenshot of each.
 # The game must be up with a car on any level (the same arrangement as qa_game/run.sh --no-launch); this script launches and kills nothing.
 #
-#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids shards crash ruts
+#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids shards crash ruts debug
 #   QA_SHOT_DIR=<dir>  where the screenshots go (default: the wc\morning folder), named surfacefx_<check>.jpg
 #   QA_CONTROL=<dir>   the control repo whose tools/qa_game/lib.sh (R, SHOT, rec) is used (read only), default /c/Dev/SLRR BeamNG Graph
 # Wired into the control suite as:  csfx) bash "/c/Dev/BeamNG Car Surface FX/tools/qa/csfx_qa.sh" ;;
@@ -252,6 +252,19 @@ if want ruts; then
   nap 2; shot ruts_layers
   expect "a rut test of three passes is deeper than one" 'cells [1-9]' "$(RT 'status()')"
   R "carSurfaceFx_ruts.force(nil) carSurfaceFx_ruts.clear() return 1" > /dev/null
+fi
+
+if want debug; then
+  # P16: the console set loads, counts, labels each wheel's ground, clears
+  DB() { R "return carSurfaceFx_debug and carSurfaceFx_debug.$1" | tr -d ''; }
+  R "return carSurfaceFx.debugTools()" > /dev/null
+  expect "the debug set loads and lists its commands" 'counts' "$(DB 'help()')"
+  expect "counts and status answer" 'main:' "$(DB 'status()')"
+  DB "surfaces(true)" > /dev/null
+  cam external; nap 2; shot debug_surfaces
+  expect "the car reports its wheels" 'surface labels on' "$(DB 'surfaces(true)')"
+  DB "surfaces(false)" > /dev/null
+  expect "clear all reaches the running modules" 'cleared [0-9]+ modules' "$(DB 'clearAll()')"
 fi
 
 dbg ""

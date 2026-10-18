@@ -548,12 +548,15 @@ local OLD_GE = { 'dirtSkidManager', 'surfaceFX', 'surfaceFXStore', 'surfaceFXBod
   'surfaceFXDebug', 'dirtDeform', 'dirtScratch' }
 local OLD_VEH = "{'dirtSkidWheels','dirtSkidBody','dirtScratchBody','dirtSkidDrips','dirtGrip','dirtGlass','dirtDebris','dirtSparks','dirtScratchHiFi','dirtDeformWheels'}"
 local oldTold = false
+local SHIMS = { surfaceFX = true, surfaceFXStore = true, surfaceFXBody = true }
 local function retireOldMod()
   local found = false
   for _, n in ipairs(OLD_GE) do
-    if rawget(_G, n) ~= nil then
+    local g = rawget(_G, n)
+    if g ~= nil and not (type(g) == 'table' and g.csfxShim) then       -- our own compatibility modules (surfaceFX, surfaceFXStore, surfaceFXBody) are not the old mod
       found = true
       pcall(extensions.unload, n)
+      if SHIMS[n] then pcall(extensions.load, n) end                  -- the old one is gone: ours takes the name back
     end
   end
   if not found then return end
@@ -781,7 +784,13 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() stopRuts() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() stopRuts() if rawget(_G, 'carSurfaceFx_debug') then extensions.unload('carSurfaceFx_debug') end end
+
+-- carSurfaceFx.debugTools(): loads the console debug set (counts, status, wheel contact markers, ground kind labels, clear all, test all); see carSurfaceFx_debug.lua
+function M.debugTools()
+  if not rawget(_G, 'carSurfaceFx_debug') then extensions.load('carSurfaceFx_debug') end
+  return carSurfaceFx_debug.help()
+end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
