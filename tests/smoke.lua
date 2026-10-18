@@ -152,6 +152,14 @@ assert(M.status():find('spray 0%.00'), 'the spray fades when it is gone: ' .. M.
 car.getDirectionVector = function() return { x = 1, y = 0, z = 0 } end
 M.debug()
 
+-- forced snow and bugs show in status and put their splats on the body
+bodySplats = {}
+M.debug('snow', 0.9) M.debug('bugs', 1)
+assert(M.status():find('snow 0%.90') and M.status():find('bugs 1%.00'), 'forced amounts are in the status: ' .. M.status())
+assert((bodySplats.top or 0) > 0 and (bodySplats.front or 0) > 0, 'forced snow and bugs put splats on the roof and the nose')
+assert(M.status():find('wiperNow=') and M.status():find('reports='), 'the status says what the wipers and the wheel reports are doing')
+M.debug()
+
 -- splash from a puddle: left wheels in water at speed
 M.debug() tick(10)
 bodySplats = {}

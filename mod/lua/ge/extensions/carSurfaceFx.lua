@@ -258,7 +258,9 @@ local function splash(id, shareL, shareR, speed, depth)
   if id == be:getPlayerVehicleID(0) and settings.weather.spray and sheet > sheetP then sheetP = sheet end
 end
 
+local groundCalls, groundAt = 0, 0
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR)
+  groundCalls, groundAt = groundCalls + 1, os.clock()
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
@@ -590,7 +592,13 @@ function M.debug(kind, value)
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   for _, k in ipairs(rules.KINDS) do
-    if kind == k then forcedDirt = forcedDirt or rules.dirtNew() forcedDirt[k] = value return k .. ' forced to ' .. value end
+    if kind == k then
+      forcedDirt = forcedDirt or rules.dirtNew()
+      local old = deepcopy(forcedDirt)
+      forcedDirt[k] = value
+      if k == 'snow' or k == 'bugs' then weatherSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
+      return k .. ' forced to ' .. value
+    end
   end
   if kind == 'paintwater' then return scratchOn() and carSurfaceFx_scratch.waterDebug(value > 0) or 'scratch module is not running' end
   if kind == 'spray' then forcedSpray = value return 'spray forced to ' .. value end
@@ -738,8 +746,11 @@ function M.status()
   for _ in pairs(cars) do n = n + 1 end
   for name, info in pairs(mats) do names[#names + 1] = name .. '=r' .. info.rung .. (info.glass and string.format('(%.0fms)', info.reloadMs or 0) or '') end
   local d = be:getPlayerVehicleID(0)
-  local dd = dirtBy[d] or rules.dirtNew()
-  return string.format('wet %.2f rung %d forced %s dirt dust %.2f mud %.2f rubber %.2f grime %.2f snow %.2f bugs %.2f frost %.2f spray %.2f air %s (forced %s) cars %d queue %d wiper=%s motion=%s materials [%s]', wet, rung, tostring(forced), dd.dust, dd.mud, dd.rubber, dd.grime, dd.snow, dd.bugs, frostBy[d] or 0, sprayP, tostring(airC()), tostring(forcedDirt ~= nil), n, #queue, tostring(wiperBy[d]), motion[d] and string.format('v%.1f aL%.1f aT%.1f', motion[d].speed, motion[d].aLong, motion[d].aLat) or '-', table.concat(names, ' '))
+  local dd = forcedDirt or dirtBy[d] or rules.dirtNew()
+  local rainNow = forced or rules.target(nil, core_environment.getPrecipitation())
+  local extra = string.format(' wiperNow=%s snowing=%.2f flags=%s%s%s%s reports=%d (%.1fs ago) engine=%s', tostring(wipersOf(d, rainNow)), snowfall(), settings.weather.snow and 'S' or '-', settings.weather.frost and 'F' or '-',
+    settings.weather.bugs and 'B' or '-', settings.weather.spray and 'P' or '-', groundCalls, os.clock() - groundAt, tostring(engineBy[d]))
+  return extra .. string.format(' | wet %.2f rung %d forced %s dirt dust %.2f mud %.2f rubber %.2f grime %.2f snow %.2f bugs %.2f frost %.2f spray %.2f air %s (forced %s) cars %d queue %d wiper=%s motion=%s materials [%s]', wet, rung, tostring(forced), dd.dust, dd.mud, dd.rubber, dd.grime, dd.snow, dd.bugs, frostBy[d] or 0, sprayP, tostring(airC()), tostring(forcedDirt ~= nil), n, #queue, tostring(wiperBy[d]), motion[d] and string.format('v%.1f aL%.1f aT%.1f', motion[d].speed, motion[d].aLong, motion[d].aLat) or '-', table.concat(names, ' '))
 end
 
 return M

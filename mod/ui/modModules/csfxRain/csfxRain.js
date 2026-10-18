@@ -150,8 +150,8 @@ function createOverlay(doc, win) {
     c.width = c.height = 256;
     var m = c.getContext('2d'), seed = 777;
     function rr() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
-    m.fillStyle = 'rgba(200,208,216,0.35)'; m.fillRect(0, 0, 256, 256);
-    for (var i = 0; i < 1800; i++) { m.fillStyle = 'rgba(235,240,246,' + (0.25 + rr() * 0.5) + ')'; m.beginPath(); m.arc(rr() * 256, rr() * 256, 0.6 + rr() * 1.4, 0, 6.283); m.fill(); }
+    m.fillStyle = 'rgba(205,212,220,0.55)'; m.fillRect(0, 0, 256, 256);
+    for (var i = 0; i < 1800; i++) { m.fillStyle = 'rgba(245,248,252,' + (0.4 + rr() * 0.5) + ')'; m.beginPath(); m.arc(rr() * 256, rr() * 256, 0.8 + rr() * 2.0, 0, 6.283); m.fill(); }
     return c;
   })();
   var frostLayer = doc.createElement('canvas');                      // the frost as it is now: the blades clear arcs out of it, which stay clear until the frost is gone
@@ -272,7 +272,7 @@ function createOverlay(doc, win) {
     }
     ctx.drawImage(trails, 0, 0);
     if (st.p.spray > 0.02) {
-      ctx.globalAlpha = Math.min(0.7, st.p.spray * 0.9);
+      ctx.globalAlpha = Math.min(0.9, st.p.spray * 1.2);
       ctx.drawImage(mistTex, bx, by, bw, bh);
       ctx.globalAlpha = 1;
     }

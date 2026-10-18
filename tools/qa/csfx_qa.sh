@@ -62,7 +62,7 @@ fi
 if want wipers; then
   dbg "'rain', 1"; dbg "'wiper', 1"; cam driver; nap 20
   for i in 1 2 3 4; do shot "wiper_$i"; nap 0.3; done
-  expect "wipers forced reach the overlay" 'wiper=1' "$(status)"
+  expect "wipers forced reach the overlay" 'wiperNow=1' "$(status)"
   dbg "'wiper', 0"; nap 5; shot wiper_after
   dbg ""
 fi
@@ -109,7 +109,7 @@ fi
 if want lead; then
   # a real car ahead: a pickup spawned 15 m in front of the player on a wet road (rain forced, spray NOT forced); both drive on; the spray value must rise; the pickup is removed again
   dbg ""; dbg "'rain', 1"; cam driver
-  LEAD="$(R "local v=be:getPlayerVehicle(0) local f=v:getDirectionVector() f.z=0 f:normalize() local o=core_vehicles.spawnNewVehicle('pickup', {pos=v:getPosition()+f*15, rot=quatFromDir(f, vec3(0,0,1)), autoEnterVehicle=false}) if not o then return -1 end csfxQaLead=o:getID() o:queueLuaCommand('input.event(\"throttle\",0.8)') v:queueLuaCommand('input.event(\"throttle\",0.8)') return csfxQaLead" | tr -d '')"
+  LEAD="$(R "local v=be:getPlayerVehicle(0) local f=v:getDirectionVector() f.z=0 f:normalize() local o=core_vehicles.spawnNewVehicle('pickup', {pos=v:getPosition()+f*15, rot=quatFromDir(f, vec3(0,0,1)), autoEnterVehicle=false}) if not o then return -1 end csfxQaLead=o:getID() o:queueLuaCommand('ai.setMode(\"random\")') v:queueLuaCommand('ai.setMode(\"follow\") ai.setTargetObjectID(' .. o:getID() .. ')') return csfxQaLead" | tr -d '')"
   BEST=0
   for i in $(seq 1 14); do
     nap 1
@@ -117,7 +117,7 @@ if want lead; then
     BEST="$(awk -v a="$BEST" -v b="${V:-0}" 'BEGIN{print (b > a) ? b : a}')"
     [ "$i" = 8 ] && shot spray_lead
   done
-  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') local o=be:getObjectByID(csfxQaLead or -1) if o then o:delete() end csfxQaLead=nil return 1" > /dev/null
+  R "be:getPlayerVehicle(0):queueLuaCommand('ai.setMode(\"disabled\") input.event(\"throttle\",0) input.event(\"brake\",1)') local o=be:getObjectByID(csfxQaLead or -1) if o then o:delete() end csfxQaLead=nil return 1" > /dev/null
   if awk -v b="$BEST" 'BEGIN{exit !(b > 0.05)}'; then rec "spray from a real car ahead (no forcing)" PASS "best spray $BEST, lead id $LEAD"; else rec "spray from a real car ahead (no forcing)" FAIL "best spray $BEST, lead id $LEAD (spawn failed, too far apart, or too slow)"; fi
   dbg ""
 fi
@@ -126,10 +126,10 @@ if want splash; then
   # own wheels in a puddle at speed: puddle() is what Street Legal's puddle effect calls; the sheet of water must show up in the spray value
   dbg ""; dbg "'rain', 0"; cam driver
   R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",1)') return 1" > /dev/null
-  nap 5
+  for i in $(seq 1 20); do nap 1; SPD="$(R "return be:getPlayerVehicle(0):getVelocity():length()" | tr -d '\r')"; awk -v s="${SPD:-0}" 'BEGIN{exit !(s > 17)}' && break; done
   R "return carSurfaceFx.puddle(nil, 0.2)" > /dev/null
   nap 0.6
-  expect "a puddle at speed throws a sheet over the windscreen" 'spray 0\.[1-9]|spray 1' "$(status)"
+  expect "a puddle at speed (${SPD:-?} m/s) throws a sheet over the windscreen" 'spray 0\.[1-9]|spray 1' "$(status)"
   shot splash_cockpit
   R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
   nap 3
@@ -138,16 +138,16 @@ if want splash; then
 fi
 
 if want scrape; then
-  # the car looks for the nearest wall, is put 20 m back from it at about 12 degrees toward it and driven into it; the scratch count must go up
+  # the car looks for the nearest wall, is put 4 m from it heading 15 degrees toward it (about 15 m of run-up along the wall) and driven into it at full throttle; the scratch count must go up
   dbg ""
   N0="$(R "return carSurfaceFx_scratch and carSurfaceFx_scratch.count(be:getPlayerVehicleID(0)) or -1" | tr -d '\r')"
   R "local v=be:getPlayerVehicle(0) local p=v:getPosition() local bd,ba=99,0
 for a=0,355,5 do local r=math.rad(a) local h=castRayStatic(p+vec3(0,0,0.5),vec3(math.cos(r),math.sin(r),0),60) if h<bd then bd=h ba=a end end
 local r=math.rad(ba) local n=vec3(math.cos(r),math.sin(r),0) local t=vec3(-n.y,n.x,0)
-local c,s=math.cos(math.rad(12)),math.sin(math.rad(12))
-spawn.safeTeleport(v, p+n*bd-n*20+vec3(0,0,0.4), quatFromDir(t*c+n*s, vec3(0,0,1)), true, nil, nil, nil, false)
+local c,s=math.cos(math.rad(15)),math.sin(math.rad(15))
+spawn.safeTeleport(v, p+n*bd-n*4+vec3(0,0,0.4), quatFromDir(t*c+n*s, vec3(0,0,1)), true, nil, nil, nil, false)
 v:queueLuaCommand('input.event(\"throttle\",1)') return bd" > /dev/null
-  nap 7
+  nap 5
   R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
   nap 4
   N1="$(R "return carSurfaceFx_scratch and carSurfaceFx_scratch.count(be:getPlayerVehicleID(0)) or -1" | tr -d '\r')"
