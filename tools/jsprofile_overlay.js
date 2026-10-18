@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const file = process.argv[2] || path.join(__dirname, '..', 'mod', 'ui', 'modModules', 'csfxRain', 'csfxRain.js');
-const W = 3440, H = 1440;
+const W = Number(process.env.W) || 3440, H = Number(process.env.H) || 1440;
 const t = { draws: 0, fills: 0, clears: 0, strokes: 0, px: 0 };
 function ctxFor() {
   return new Proxy({}, {

@@ -176,7 +176,7 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
-  var minMs = 0;                                                    // 0: work on every frame the browser gives; csfxThrottle(80) works at most every 80 ms (the texture is only taken at FPS)
+  var minMs = 90;                                                   // the texture is only taken 10 times a second (FPS in scratch.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
     requestAnimationFrame(frame);                                  // first: whatever goes wrong below, the next frame still comes
@@ -222,17 +222,20 @@
       ctx.globalCompositeOperation = 'source-over';
     } catch (e) { window.csfxError = 'trail ' + String(e); }
     try {
+      var rings = 0;
+      ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 0.7; ctx.beginPath();
       for (var i = 0; i < water.n; i++) {
         if (!water.alive[i]) continue;
         var R = Math.max(0.7, water.r[i] * W) * 1.15;                        // a 3 mm bead is about one texel across: drawn at its real size, not rounded up
-        if (R < 1.8) {                                                      // too small for the sprite: a thin dark ring of that size
-          ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 0.7;
-          ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R, 0, Math.PI * 2); ctx.stroke();
+        if (R < 1.8 && !wdebug) {                                           // too small for the sprite: a thin dark ring of that size (all the rings in one path, one stroke)
+          var rx = water.x[i] * W, ry = water.y[i] * W;
+          ctx.moveTo(rx + R, ry); ctx.arc(rx, ry, R, 0, Math.PI * 2); rings++;
         } else {
           ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
         }
         if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 0.5, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }
+      if (rings > 0) ctx.stroke();
     } catch (e) { window.csfxError = 'drops ' + String(e); }
     if (!wdebug || !water.nodes) return;
     try {

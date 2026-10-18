@@ -81,7 +81,7 @@
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(); };
 
-  var minMs = 0;                                                    // 0: work on every frame the browser gives; csfxThrottle(80) works at most every 80 ms (the texture is only taken at 12 fps)
+  var minMs = 70;                                                   // the texture is only taken 12 times a second (GLASS_FPS in carSurfaceFx.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
     if (minMs && now - last < minMs) { requestAnimationFrame(frame); return; }
