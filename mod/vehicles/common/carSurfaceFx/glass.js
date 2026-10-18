@@ -55,8 +55,8 @@
       var glint = Math.exp(-(gx * gx + gy * gy) / 0.014);
       var r, g, b, a;
       if (emissive) {
-        var lit = ring * Math.max(0, Math.min(1, -(u + v) * 0.7)) * 0.45;          // a narrow lit edge on the upper left
-        a = Math.min(1, lit + glint * 0.95); r = g = b = 255;
+        var lit = ring * Math.max(0, Math.min(1, -(u + v) * 0.7)) * 0.2;           // a narrow lit edge on the upper left, faint: the body of a drop on the glass is clear
+        a = Math.min(1, lit + glint * 0.8); r = g = b = 255;
       } else {
         var spot = d < 0.8 ? 0.14 * Math.exp(-((u - 0.25) * (u - 0.25) + (v - 0.3) * (v - 0.3)) / 0.12) : 0;      // light focused low right
         var dark = ring * (0.32 + 0.40 * low);
@@ -127,14 +127,14 @@
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     // a drop of a few pixels: a thin ring and a one-pixel glint, all the rings in one path and all the glints in another (one stroke, one fill); bigger ones the sprite
     var tiny = false;
-    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1.3 : 0.9;       // the emissive map adds light: a light ring there
+    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1 : 0.9;       // the emissive map adds light: a light ring there
     ctx.beginPath();
     var glints = [];
     for (var i = 0; i < sim.n; i++) {
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H, px = sim.x[i] * W, py = sim.y[i] * H;
       if (R < 2.2) {
-        var rr = Math.max(1.6, R);                                    // a bead is about one texel of this canvas: drawn at least 3 px across so it can be seen at all
+        var rr = Math.max(1.2, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
         ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true;
         glints.push(px - 0.35 * rr - 1, py - 0.4 * rr - 1);
       } else {
@@ -144,7 +144,7 @@
     if (tiny) ctx.stroke();
     if (glints.length) {
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], emissive ? 3 : 2, emissive ? 3 : 2);
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
       if (!filmBuilt) buildFilm(p.flow);
