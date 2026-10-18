@@ -61,4 +61,13 @@ assert(got.car_glass.g[(16 * G.N + 8) * 2 + 2] > 0.5, 'and the windshield\'s dow
 local again
 G.request(5, { car_glass = true }, function(f) again = f end)
 assert(again == got, 'a second request of the same car is the cached one')
+-- the rear glass: a pane that faces along the car in the back of its length is marked 2 in the mask, a front one 1
+do
+  local front = { pos = { 0, 0, 0, 1, 0, 0, 0, 0, 1 }, uv = dv({ 0.1, 0.1, 0.3, 0.1, 0.1, 0.3 }) }          -- in the plane y = 0 (faces along y), at the front
+  local back = { pos = { 0, 1, 0, 1, 1, 0, 0, 1, 1 }, uv = dv({ 0.6, 0.6, 0.9, 0.6, 0.6, 0.9 }) }              -- in the plane y = 1: the back
+  local f2 = G.field({ front, back })
+  assert(f2.m[(math.floor(0.85 * G.N) - 0) * G.N + math.floor(0.62 * G.N) + 1] == 2 or f2.m[math.floor((1 - 0.65) * G.N) * G.N + math.floor(0.65 * G.N) + 1] == 2, 'the pane at the back is rear glass')
+  local rear, plain = 0, 0 for c = 1, G.N * G.N do if f2.m[c] == 2 then rear = rear + 1 elseif f2.m[c] == 1 then plain = plain + 1 end end
+  assert(rear > 0 and plain > 0, 'one pane is rear glass and the other not: ' .. rear .. ' ' .. plain)
+end
 print('carSurfaceFx glass flow: ok')

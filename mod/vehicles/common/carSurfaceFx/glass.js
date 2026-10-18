@@ -91,8 +91,26 @@
       var cells = [];
       for (var c = 0; c < fl.m.length; c++) if (fl.m[c] > 0.5) cells.push(c);
       fl.cells = cells.length ? cells : null;
+      fl.rear = [];                                                   // the rear glass (2 in the mask): the dust film of a dirt road settles there
+      for (var rc = 0; rc < fl.m.length; rc++) if (fl.m[rc] > 1.5) fl.rear.push(rc);
+      filmBuilt = false;
     }
   };
+
+  // the film on the rear glass: soft overlapping patches over the rear cells, drawn once and laid on with the amount
+  var filmLayer = document.createElement('canvas'), filmBuilt = false;
+  function buildFilm(fl) {
+    filmLayer.width = W; filmLayer.height = H;
+    var fc = filmLayer.getContext('2d'), cw = W / fl.n, ch = H / fl.n, i;
+    fc.clearRect(0, 0, W, H);
+    for (i = 0; i < fl.rear.length; i++) {
+      var cx = (fl.rear[i] % fl.n + 0.5) * cw, cy = (Math.floor(fl.rear[i] / fl.n) + 0.5) * ch, k = 0.65 + 0.35 * Math.abs(Math.sin(fl.rear[i] * 12.9898));
+      var g = fc.createRadialGradient(cx, cy, 0, cx, cy, cw * 1.3);
+      g.addColorStop(0, 'rgba(255,255,255,' + (0.9 * k).toFixed(2) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      fc.fillStyle = g; fc.fillRect(cx - cw * 1.3, cy - ch * 1.3, cw * 2.6, ch * 2.6);
+    }
+    filmBuilt = true;
+  }
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(900); };
@@ -128,6 +146,10 @@
     if (glints.length) {
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], emissive ? 3 : 2, emissive ? 3 : 2);
+    }
+    if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
+      if (!filmBuilt) buildFilm(p.flow);
+      ctx.globalAlpha = Math.min(1, p.film) * (emissive ? 0.2 : 0.45); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
     }
     if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
       ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';

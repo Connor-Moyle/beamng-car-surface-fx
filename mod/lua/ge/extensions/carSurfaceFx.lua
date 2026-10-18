@@ -30,12 +30,19 @@ local flood = 0                           -- debug: the window canvases solid (c
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
 local wiperHold, wiperNone = {}, {}         -- vehicle id -> os.clock() until which its wipers count as running (the reported value may be the blade's angle, which crosses zero); car has no wiper value at all
 -- the wipers of a car 0..1: forced, else running when the car says so, else (no wiper value on the car) by the rain falling
+-- the film of a dirt road or a wet road on the rear glass of a car: dust, road film and mud as one amount 0..1 (the page lays it on the rear panes only)
+local dirtBy
+local function filmOf(id)
+  local d = dirtBy and dirtBy[id]
+  return d and rules.clamp((d.dust or 0) * 0.7 + (d.grime or 0) * 1.3 + (d.mud or 0) * 0.5, 0, 1) or 0
+end
+
 local function wipersOf(id, rain)
   if wiperForced then return wiperForced end
   if wiperNone[id] then return rain > 0.7 and 1 or (rain > 0.3 and 0.6 or 0) end
   return (wiperHold[id] or 0) > os.clock() and 1 or 0
 end
-local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime, snow, bugs } 0..1 built up by driving and weather (settings.mud.buildup)
+dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime, snow, bugs } 0..1 built up by driving and weather (settings.mud.buildup)
 local glassOff                         -- debug: the window canvases are told there is no rain (carSurfaceFx.debug('glassoff', 1))
 local forcedSpeed                      -- debug: the speed (m/s) the window water and the driver's view see, to test the airflow while parked
 local forcedDirt                          -- the debug amounts { kind = value }
@@ -49,7 +56,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 21                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 22                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -475,7 +482,7 @@ function M.pushGlass(car, mo)
     if info.glass and info.rung > 0 then
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
       js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
+        wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -629,7 +636,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostP > 0.03 or sprayP > 0.03) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostP > 0.03 or sprayP > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then

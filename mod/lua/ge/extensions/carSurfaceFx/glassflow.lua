@@ -51,6 +51,9 @@ function M.field(tris)
   local cv = require('carSurfaceFx/daeread').canvasV
   for i, t in ipairs(tris) do local u = t.uv flipped[i] = { pos = t.pos, mesh = t.mesh, uv = { u[1], cv(u[2]), u[3], cv(u[4]), u[5], cv(u[6]) } } end
   tris = flipped
+  local ymin, ymax = 1e9, -1e9                                        -- the rear glass: faces mostly along the car (not a side window) and lies in the back of the glass's length
+  for _, t in ipairs(tris) do for i = 2, 8, 3 do ymin, ymax = math.min(ymin, t.pos[i]), math.max(ymax, t.pos[i]) end end
+  local rearC = {}
   local sSum, sN = 0, 0
   local sum, cnt = { {}, {}, {} }, {}
   for i = 1, N * N do cnt[i] = 0 for d = 1, 3 do sum[d][i * 2 - 1], sum[d][i * 2] = 0, 0 end end
@@ -61,6 +64,11 @@ function M.field(tris)
       local ou, ov = floor((uv[1] + uv[3] + uv[5]) / 3), floor((uv[2] + uv[4] + uv[6]) / 3)
       uv[1], uv[3], uv[5], uv[2], uv[4], uv[6] = uv[1] - ou, uv[3] - ou, uv[5] - ou, uv[2] - ov, uv[4] - ov, uv[6] - ov
       if flow.s > 1e-6 and flow.s < 50 then sSum, sN = sSum + flow.s, sN + 1 end
+      local p = t.pos
+      local e1x, e1y, e1z, e2x, e2y, e2z = p[4] - p[1], p[5] - p[2], p[6] - p[3], p[7] - p[1], p[8] - p[2], p[9] - p[3]
+      local nx, ny, nz = e1y * e2z - e1z * e2y, e1z * e2x - e1x * e2z, e1x * e2y - e1y * e2x
+      local nl = sqrt(nx * nx + ny * ny + nz * nz)
+      local isRear = nl > 1e-12 and math.abs(ny) / nl > 0.5 and (p[2] + p[5] + p[8]) / 3 > ymin + 0.6 * (ymax - ymin)
       local x0, x1 = math.min(uv[1], uv[3], uv[5]), math.max(uv[1], uv[3], uv[5])
       local y0, y1 = math.min(uv[2], uv[4], uv[6]), math.max(uv[2], uv[4], uv[6])
       local cx0, cx1 = floor(x0 * N), floor(x1 * N)
@@ -78,6 +86,7 @@ function M.field(tris)
           if inside or (cx0 == cx1 and cy0 == cy1) then               -- a triangle smaller than a cell still marks the cell it is in
             local c = cy * N + cx + 1
             cnt[c] = cnt[c] + 1
+            if isRear then rearC[c] = true end
             for d = 1, 3 do sum[d][c * 2 - 1], sum[d][c * 2] = sum[d][c * 2 - 1] + flow[d][1], sum[d][c * 2] + flow[d][2] end
           end
         end
@@ -121,7 +130,7 @@ function M.field(tris)
   end
   out.filled = filled
   out.m = {}
-  for c = 1, N * N do out.m[c] = cnt[c] > 0 and 1 or 0 end                        -- the cells that are glass: drops are only made there
+  for c = 1, N * N do out.m[c] = cnt[c] > 0 and (rearC[c] and 2 or 1) or 0 end        -- the cells that are glass (1) and the rear glass (2): drops are only made there
   out.uvPerM = sN > 0 and sSum / sN or 0.5                                       -- the mean of the pane triangles: a drop of a given size in millimetres is this many texture units per metre
   return out
 end
