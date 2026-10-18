@@ -169,7 +169,7 @@ function M.build(S, owner)
   add({
     F('rain', 'rain', 'Wet paint', 'bool', 'Wet paint and water beads', 'In the rain the paint gets darker and glossier and fine water beads form on it. Off: the paint stays dry in the rain.', 'rain.enabled'),
     F('rain_strength', 'rain', 'Wet paint', 'slider', 'Rain effect strength', 'How strongly the rain shows on the paint. 0 is no effect, 100% is full.', 'rain.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
-    F('paint_water', 'rain', 'Wet paint', 'bool', 'Drops running over the paint', 'Drops run down the doors and fenders and stream back along the body while you drive. It uses the same paint canvas as the scratches, so it needs the scratch effect switched on.', 'scratch.water'),
+    F('paint_water', 'rain', 'Wet paint', 'bool', 'Drops running over the paint', 'Drops run down the doors and fenders and stream back along the body while you drive. It needs "Scratches and wheel-arch dirt splats" switched on in Dirt & wear.', 'scratch.water'),
     F('glass', 'rain', 'Windows', 'bool', 'Water drops on the windows', 'Drops land on the glass, merge and run down; speed and braking push them around and the wipers sweep them off. Off: the glass stays clear.', 'windscreen.enabled'),
     F('glass_strength', 'rain', 'Windows', 'slider', 'Window drops amount', 'How much rain lands on the windows. 0 is none, 100% is full.', 'windscreen.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('body_drop_mm', 'rain', 'Water drops', 'slider', 'Body drop size', 'How big the water drops on the paint are, in real millimetres across, the same on every car. It is a look choice, not a cost one.', 'rain.bodyDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
@@ -177,6 +177,7 @@ function M.build(S, owner)
     F('drop_amount', 'rain', 'Water drops', 'slider', 'Drop amount', 'How many drops there are on the paint and the windows (1 is the normal amount).', 'rain.dropAmount', { min = 0.2, max = 3, step = 0.1, unit = 'x' }),
     F('drop_impacts', 'rain', 'Water drops', 'slider', 'Raindrop impacts', 'The small ring where a raindrop lands on the paint and the glass. 0 is none.', 'rain.impacts', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('overlay', 'rain', 'Driver\'s view', 'bool', 'Drops on the windscreen from the driver\'s seat', 'In the driver and onboard cameras the drops are drawn over the windscreen as small lenses, with streaks behind the running ones and clean arcs where the wipers sweep. Off: you see no drops from inside.', 'windscreen.overlay'),
+    F('overlay_amount', 'rain', 'Driver\'s view', 'slider', 'Driver\'s view: amount of rain drops', 'How many drops cover the windscreen when you look through it. Turn it down to see the road more clearly in the rain; 0 shows none (the rain still shows on the paint and outside).', 'windscreen.overlayStrength', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlaySize', { min = 1.5, max = 8, step = 0.25, unit = 'x' }),
   })
 
@@ -207,7 +208,9 @@ function M.build(S, owner)
     F('snow', 'weather', 'Snow and frost', 'bool', 'Snow on the car', 'When it snows, snow settles on the roof and hood of a car that stands, is blown off at speed and melts when it is warm.', 'weather.snow'),
     F('frost', 'weather', 'Snow and frost', 'bool', 'Frost on the windows', 'On a cold night the windows frost over; it clears as the engine warms up and in the rain.', 'weather.frost'),
     F('bugs', 'weather', 'Bugs and spray', 'bool', 'Bugs on the nose', 'Fast driving in the dry leaves small dark splats on the nose. Rain and a car wash take them off.', 'weather.bugs'),
+    F('frost_amount', 'weather', 'Snow and frost', 'slider', 'Frost: how thick it looks', 'How thick the frost looks on the windows and on the windscreen in the driver\'s view. Turn it down if frost hides the road; 0 shows none (it still forms and clears in the background).', 'weather.frostStrength', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('spray', 'weather', 'Bugs and spray', 'bool', 'Road spray from the car ahead', 'On a wet road a car ahead of you throws spray on your windscreen, more from trucks.', 'weather.spray'),
+    F('spray_amount', 'weather', 'Bugs and spray', 'slider', 'Road spray: how strong it looks', 'How strong the mist and spray look on the windscreen. Turn it down if the mist hides the road; 0 shows none.', 'weather.sprayStrength', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
   })
 
   -- ---- Skid marks & terrain
@@ -221,28 +224,46 @@ function M.build(S, owner)
     F('marks', 'marks', 'Skid marks', 'bool', 'Marks on the ground', 'Skid marks and tyre tracks on the ground, different on every surface. Off: your tyres leave no marks.', 'marks.enabled'),
     mk('takeover', 'Skid marks', 'bool', 'Replace the game\'s own skid marks', 'Hides the game\'s black skid marks and draws these on every surface, tarmac too. Off: the game\'s marks come back.', 'takeover'),
     mk('shade', 'Skid marks', 'slider', 'Darkness in shade and at night', 'How dark marks made under cover or at night get. 100% means not darker at all.', 'shade', { min = 0.1, max = 1, step = 0.05, unit = '%', scale = 100 }),
-    mk('cull', 'Skid marks', 'slider', 'Draw distance', 'Marks further than this from the camera are not drawn. A shorter distance is easier on the frame rate.', 'cullRadius', { min = 40, max = 300, step = 10, unit = 'm' }),
+    mk('cull', 'Skid marks', 'slider', 'Skid mark draw distance', 'Marks further than this from the camera are not drawn. A shorter distance is easier on the frame rate.', 'cullRadius', { min = 40, max = 300, step = 10, unit = 'm' }),
     mk('max_drawn', 'Skid marks', 'int', 'Most marks drawn at once', 'A limit on the marks drawn in one frame, for the frame rate.', 'maxDrawn', { min = 100, max = 3000, advanced = true }),
     mk('skid_count', 'Skid marks', 'int', 'How many skid marks stay', 'The number of skid marks kept before the oldest are recycled. More marks last longer.', 'skidCount', { min = 100, max = 8000, advanced = true }),
     mk('track_count', 'Skid marks', 'int', 'How many tracks stay', 'The number of faint tyre tracks kept before the oldest are recycled.', 'trackCount', { min = 100, max = 10000, advanced = true }),
-    mk('gap', 'Skid marks', 'slider', 'Reach toward the tyre', 'How far in front of the wheel the mark starts, in metres. It grows with speed by itself.', 'wheelGap', { min = 0, max = 0.5, step = 0.01, unit = 'm', advanced = true }),
+    mk('gap', 'Skid marks', 'slider', 'Where a mark starts, ahead of the tyre', 'How far in front of the wheel a mark starts, in metres. It grows with speed by itself.', 'wheelGap', { min = 0, max = 0.5, step = 0.01, unit = 'm', advanced = true }),
     mk('others', 'Other cars', 'bool', 'Traffic and AI cars leave marks too', 'Off: only the car you drive marks the ground.', 'others.enabled'),
     mk('others_cars', 'Other cars', 'int', 'Most other cars that mark', 'The nearest cars up to this number leave marks, for the frame rate.', 'others.maxCars', { min = 0, max = 20 }),
     mk('others_range', 'Other cars', 'slider', 'How near a car must be', 'Cars further away than this leave no marks.', 'others.range', { min = 20, max = 300, step = 10, unit = 'm' }),
   })
-  add(S.each(marks.TYPES, function(t)
+  -- one surface at a time: eight surfaces of eight settings each would be sixty-four rows; a selector shows the one chosen, the most used surface first
+  local SURFACES = {}
+  for _, t in ipairs({ 'tarmac', 'dirt', 'gravel', 'grass', 'sand', 'mud', 'snow', 'ice' }) do
+    for _, x in ipairs(marks.TYPES) do if x == t then SURFACES[#SURFACES + 1] = t end end
+  end
+  for _, x in ipairs(marks.TYPES) do
+    local known
+    for _, t in ipairs(SURFACES) do if t == x then known = true end end
+    if not known then SURFACES[#SURFACES + 1] = x end
+  end
+  local selected = SURFACES[1]
+  local surfaceOptions = {}
+  for _, t in ipairs(SURFACES) do surfaceOptions[#surfaceOptions + 1] = { id = t, label = title(t) } end
+  add({ { id = 'marks_surface', tab = 'marks', group = 'Surfaces', type = 'enum', label = 'Show the settings of this surface', default = SURFACES[1], apply = 'live', options = surfaceOptions,
+    tooltip = 'Marks look different on every surface. Pick a surface and the settings below are the ones for it. This only changes what is shown here.',
+    store = { kind = 'custom', get = function() return selected end, set = function(v) selected = v end } } })
+  add(S.each(SURFACES, function(t)
     local g = 'Skid marks: ' .. title(t)
     local p = 'mats.' .. t .. '.'
-    return {
+    local list = {
       mk(t .. '_skid_w', g, 'slider', 'Skid width', 'Width of a skid mark in metres.', p .. 'skid.width', { min = 0.05, max = 0.8, step = 0.01, unit = 'm' }),
       mk(t .. '_skid_o', g, 'slider', 'Skid strength', 'How strongly a skid mark shows.', p .. 'skid.opacity', { min = 0.05, max = 1, step = 0.05, unit = '%', scale = 100 }),
-      mk(t .. '_skid_c', g, 'color', 'Skid colour', 'The colour of a skid mark. It is multiplied over the texture.', p .. 'skid.color'),
+      mk(t .. '_skid_c', g, 'color', 'Skid colour', 'The colour of a skid mark. It tints the texture picture.', p .. 'skid.color', { advanced = true }),
       mk(t .. '_skid_l', g, 'slider', 'Skid length', 'How much the mark is stretched along its length (1 is normal).', p .. 'skid.length', { min = 0.5, max = 2, step = 0.05, unit = 'x', advanced = true }),
-      mk(t .. '_track_w', g, 'slider', 'Track width', 'Width of the faint tyre track you get just from driving on this surface.', p .. 'track.width', { min = 0.05, max = 0.8, step = 0.01, unit = 'm' }),
+      mk(t .. '_track_w', g, 'slider', 'Track width', 'Width of the faint tyre track you get just from driving on this surface.', p .. 'track.width', { min = 0.05, max = 0.8, step = 0.01, unit = 'm', advanced = true }),
       mk(t .. '_track_o', g, 'slider', 'Track strength', 'How strongly the faint track shows. 0 is no track.', p .. 'track.opacity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
-      mk(t .. '_track_c', g, 'color', 'Track colour', 'The colour of the faint track.', p .. 'track.color'),
+      mk(t .. '_track_c', g, 'color', 'Track colour', 'The colour of the faint track.', p .. 'track.color', { advanced = true }),
       mk(t .. '_track_l', g, 'slider', 'Track length', 'How much the track is stretched along its length (1 is normal).', p .. 'track.length', { min = 0.5, max = 2, step = 0.05, unit = 'x', advanced = true }),
     }
+    for _, f in ipairs(list) do f.visibleIf = { field = 'marks_surface', equals = t } end
+    return list
   end))
 
   -- ---- Leaks & puddles
@@ -263,7 +284,7 @@ function M.build(S, owner)
     lk('leaks_others', 'Other cars', 'bool', 'Traffic and AI cars leak too', 'Off: only the car you drive leaks.', 'others.enabled'),
     lk('leaks_others_cars', 'Other cars', 'int', 'Most other cars that leak', 'The nearest cars up to this number leak, for the frame rate.', 'others.maxCars', { min = 0, max = 12, advanced = true }),
     lk('leaks_max', 'Leaks', 'int', 'How many puddles stay', 'The number of puddles and drip spots kept before the oldest are recycled.', 'maxPuddles', { min = 8, max = 300, advanced = true }),
-    lk('leaks_cull', 'Leaks', 'slider', 'Draw distance', 'Puddles further than this from the camera are not drawn.', 'cullRadius', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
+    lk('leaks_cull', 'Leaks', 'slider', 'Puddle draw distance', 'Puddles further than this from the camera are not drawn.', 'cullRadius', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
     lk('leaks_stain', 'Leaks', 'slider', 'Speed above which drips make spots', 'Driving faster than this, a leak leaves a trail of drip spots on the road instead of building a puddle.', 'stainSpeed', { min = 0.5, max = 10, step = 0.5, unit = 'm/s', advanced = true }),
   })
   add(S.each(rules_fluid_kinds, function(k)

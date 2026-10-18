@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, overlayStrength = 1 }, weather = { snow = true, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -515,6 +515,10 @@ end
 -- the water canvas of the player's car gets the weather and the car's motion; every second, cars spawned since get their canvas too
 local ensureT = 0
 local rainT = 0                              -- seconds since the rain last washed the splats off
+-- what the windows and the driver view show of frost and road spray: the real amount times the amount the player chose (0 shows none; the weather itself goes on, so turning it
+-- back up shows the true state). The driver-view amounts are an accessibility setting: drops, frost and mist can each be turned down or off on their own.
+local function frostShown() return frostP * (settings.weather.frostStrength or 1) end
+local function sprayShown() return sprayP * (settings.weather.sprayStrength or 1) end
 function M.pushGlass(car, mo)
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
   local js
@@ -522,7 +526,7 @@ function M.pushGlass(car, mo)
     if info.glass and info.rung > 0 then
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
       js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
+        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostShown(), spray = sprayShown() }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -576,7 +580,8 @@ local function pushScreen(dt)
   screenT = 0
   local pv = be:getPlayerVehicle(0)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
-  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03 or sprayP > 0.03)
+  local drops = settings.windscreen.overlayStrength or 1
+  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and ((wet > 0.03 and drops > 0.01) or frostShown() > 0.03 or sprayShown() > 0.03)
   if cam ~= screenCam then screenCam = cam if pv then screen.resetEye(pv:getID()) end end              -- another camera has another eye position
   local hull = want and screen.windscreen(pv) or nil
   screenWhy.cam, screenWhy.wet, screenWhy.overlay, screenWhy.want, screenWhy.hull, screenWhy.on = cam, wet, settings.windscreen.overlay, want and true or false, hull and #hull / 2 or nil, screenOn
@@ -595,8 +600,8 @@ local function pushScreen(dt)
   end
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
-  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-    wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostP, spray = sprayP })
+  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity * drops, wet = wet * drops, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+    wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostShown(), spray = sprayShown() })
   screenOn = true
 end
 
@@ -687,7 +692,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostP > 0.03 or sprayP > 0.03) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
