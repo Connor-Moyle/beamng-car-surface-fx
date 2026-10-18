@@ -54,4 +54,14 @@ assert(injected == 2, 'a changed setting goes in at once')
 M.onVehicleSpawned(7)
 M.onUpdate(1.1)
 assert(injected == 3, 'a car spawned again gets it at once')
+-- the level ends and the extension unloads while the engine is tearing cars down: no throw, and a level end touches no material or canvas
+local destroyed = 0
+function veh:destroyUITexture() destroyed = destroyed + 1 end
+function getAllVehicles() error('the cars are gone') end
+assert(pcall(M.onClientEndMission), 'a level end does not throw')
+assert(pcall(M.onExtensionUnloaded), 'an unload with the cars gone does not throw')
+function getAllVehicles() return { veh } end
+function veh:getActiveUITextureTagNames() error('dead car') end
+assert(pcall(M.onExtensionUnloaded), 'a car that errors does not stop the unload')
+assert(destroyed == 0, 'no canvas was destroyed by these')
 print('carSurfaceFx scratch memory: ok')

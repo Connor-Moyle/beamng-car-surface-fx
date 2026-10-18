@@ -176,22 +176,28 @@ local function ensureCanvases()
   end
 end
 
--- put every material back exactly as it was and drop the canvases
+-- put every material back exactly as it was and drop the canvases (each item on its own: one that throws, or a car that is already gone, does not stop the rest)
 local function restoreAll()
   for name, layers in pairs(bound) do
-    local mat = scenetree.findObject(name)
-    if mat then
-      for layer, orig in pairs(layers) do
-        if type(orig) == 'table' then for _, f in ipairs(FIELDS) do mat:setField(f, layer, orig[f]) end end
+    pcall(function()
+      local mat = scenetree.findObject(name)
+      if mat then
+        for layer, orig in pairs(layers) do
+          if type(orig) == 'table' then for _, f in ipairs(FIELDS) do mat:setField(f, layer, orig[f]) end end
+        end
+        mat:reload()
       end
-      mat:reload()
-    end
+    end)
   end
   bound = {}; cars = {}
-  for _, veh in ipairs(getAllVehicles()) do
-    if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P) end
+  local okV, vehs = pcall(getAllVehicles)
+  for _, veh in ipairs(okV and vehs or {}) do
+    pcall(function() if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P) end end)
   end
 end
+
+-- the level is ending: its materials and the cars' canvases go with it, so nothing is reloaded or destroyed in the same tick the engine takes the cars down; only our references are dropped
+local function dropAll() bound = {}; cars = {} end
 
 -- ---- per-car setup ----
 local bodydirt = require('carSurfaceFx/bodydirt')
@@ -610,7 +616,7 @@ function M.onVehicleSpawned(id)
   ensureCanvases()
 end
 function M.onVehicleDestroyed(id) injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
-function M.onClientEndMission()   restoreAll() end
+function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 
 return M
