@@ -67,6 +67,12 @@ end
 
 function M.forget(id) nodesBy[id] = nil end
 
+-- how many nodes the car's windscreen has (0: none found), for the screen trace
+function M.windscreenNodeCount(id)
+  local n = windscreenNodes(id)
+  return n and #n or 0
+end
+
 -- the camera as M.project wants it (a test can replace this function)
 function M.camera()
   if not (core_camera and core_camera.getPosition and core_camera.getQuat and core_camera.getFovRad) then return nil end

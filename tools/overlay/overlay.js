@@ -183,7 +183,7 @@ function createOverlay(doc, win) {
       for (var j = 0; j < st.hull.length; j += 2) { if (j === 0) ctx.moveTo(st.hull[j] * W, st.hull[j + 1] * H); else ctx.lineTo(st.hull[j] * W, st.hull[j + 1] * H); }
       ctx.closePath(); ctx.stroke();
       ctx.fillStyle = 'rgba(255,0,0,0.9)'; ctx.font = '16px sans-serif';
-      ctx.fillText('csfx overlay: ' + alive + ' drops, rain ' + st.p.rain.toFixed(2) + ', msgs ' + st.msgs, bx + 10, by + 24);
+      ctx.fillText('csfx overlay: ' + alive + ' drops, rain ' + st.p.rain.toFixed(2) + ', speed ' + st.p.speed.toFixed(1) + ', wiper ' + st.p.wiper.toFixed(1) + ', msgs ' + st.msgs + ', box ' + Math.round(bw) + 'x' + Math.round(bh), bx + 10, by + 24);
     }
   }
 
