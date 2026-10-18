@@ -71,4 +71,8 @@ assert(#ct >= 4 and select(3, box(ct)) == 1 and select(4, box(ct)) == 1, 'a tria
 assert(S.clipHull({ { x = 2, y = 2 }, { x = 3, y = 2 }, { x = 3, y = 3 } }, 0, 0, 1, 1) == nil, 'outside altogether: nothing')
 assert(S.clipHull({ { x = -1, y = 0.2 }, { x = 0, y = 0.2 }, { x = 0, y = 0.8 } }, 0, 0, 1, 1) == nil, 'touching the edge only: nothing')
 assert(S.clipHull(nil, 0, 0, 1, 1) == nil, 'no polygon, no result')
+-- the glass of a flexbody that covers more than the windscreen: only the nodes ahead of the eye
+local near = S.eyeNodes({ { r = 0, u = -0.1, d = 0.6 }, { r = 0.5, u = -0.1, d = 0.6 }, { r = 0, u = 0.2, d = 0.8 }, { r = -0.5, u = 0.2, d = 0.8 }, { r = 0, u = -0.9, d = 0.5 }, { r = 0, u = 0, d = -0.4 }, { r = 0, u = -0.3, d = 2.0 } })
+assert(near and #near == 4 and near[4] == 4, 'the hood, the nose and what is behind the eye are not the glass')
+assert(S.eyeNodes({ { r = 0, u = 0, d = 0.5 }, { r = 0, u = 0, d = 0.6 } }) == nil, 'fewer than four: the old nodes are used')
 print('carSurfaceFx screen: ok')
