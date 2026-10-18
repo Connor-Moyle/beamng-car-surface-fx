@@ -48,7 +48,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 15                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 21                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -305,7 +305,7 @@ local function splash(id, shareL, shareR, speed, depth)
 end
 
 local groundCalls, groundAt = 0, 0
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR)
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin)
   groundCalls, groundAt = groundCalls + 1, os.clock()
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
@@ -324,7 +324,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if not (settings and settings.mud.enabled) then return end
   local old = dirtBy[id] or rules.dirtNew()
   local air = airC()
-  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, spin = tonumber(spin), snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
     airC = air, tod = timeOfDay() }, speed, wet)
   if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
   if not settings.weather.snow then d.snow = old.snow end
@@ -523,8 +523,9 @@ local rainT = 0                              -- seconds since the rain last wash
 local function frostShown() return frostP * (settings.weather.frostStrength or 1) end
 local function sprayShown() return sprayP * (settings.weather.sprayStrength or 1) end
 -- carSurfaceFx.glassDebug(true): the window canvases show their glass cells and the page's numbers (drops, flow, cells, rain, size) written on the glass
+-- carSurfaceFx.glassDebug('drops'): no grid, only the live drops, drawn eight times their size in solid white (is it the look, or the place?)
 local glassDbg = false
-function M.glassDebug(on) glassDbg = on and true or false return 'glass debug ' .. tostring(glassDbg) end
+function M.glassDebug(on) glassDbg = on == 'drops' and 'drops' or (on and true or false) return 'glass debug ' .. tostring(glassDbg) end
 
 function M.pushGlass(car, mo)
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
@@ -532,8 +533,8 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
-      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg and 1 or 0, uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostShown(), spray = sprayShown() }) .. ')')
+      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+        wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -623,10 +624,19 @@ function M.screenInfo(dbg)
   return 'cam=' .. tostring(w.cam) .. ' wet=' .. string.format('%.2f', w.wet or 0) .. ' overlay=' .. tostring(w.overlay) .. ' want=' .. tostring(w.want or false) .. ' hull=' .. (w.hull or 'nil') .. ' on=' .. tostring(w.on or false) .. ' debug=' .. tostring(screenDebug) .. ' | ' .. M.screenDiag()
 end
 
+-- carSurfaceFx.windscreenDump(): the windscreen flexbodies and their nodes in the car's frame, written to /settings/csfx_windscreen_nodes.json
+function M.windscreenDump()
+  local veh = be:getPlayerVehicle(0)
+  if not veh then return 'no car' end
+  local out = screen.dump(veh)
+  jsonWriteFile('/settings/csfx_windscreen_nodes.json', out, true)
+  return string.format('%d windscreen flexbodies, %s nodes in the first: written to /settings/csfx_windscreen_nodes.json', #out.flexbodies, out.flexbodies[1] and #out.flexbodies[1].nodes or 0)
+end
+
 -- what the projection and the overlay see: speed, how far the camera position was corrected, the windscreen's box on the screen, the points projected, and the last report of the page
 function M.screenDiag()
   local l = screen.last
-  return string.format('speed %.1f eyeFix %.2f m box %s points %s clipped %s | page: %s', l.speed or 0, l.fix or 0, tostring(l.box), tostring(l.points), l.clipped and 'to the screen' or 'no', overlayReport)
+  return string.format('speed %.1f eyeFix %.2f m box %s points %s clipped %s | %s | page: %s', l.speed or 0, l.fix or 0, tostring(l.box), tostring(l.points), l.clipped and 'to the screen' or 'no', tostring(l.camera), overlayReport)
 end
 
 -- the overlay page reports (debug on): its drop count, frame rate and the box it draws in, once a second; also written to the log

@@ -118,4 +118,7 @@ function M.read(path, wanted, matSet, uvSet, tris, stats)
   end
 end
 
+-- The .dae's v runs up the picture, the web canvas's y runs down it (top row = v 1): every map made from .dae coordinates turns v over through this, the one place that does.
+function M.canvasV(v) return 1 - v end
+
 return M

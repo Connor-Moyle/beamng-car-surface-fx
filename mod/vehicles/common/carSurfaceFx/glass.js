@@ -8,7 +8,7 @@
   var canvas = document.getElementById('csfx');
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
-  var sim = CsfxSim.create();
+  var sim = CsfxSim.create(900);
   var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
@@ -95,7 +95,7 @@
   };
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
-  window.csfxClear = function () { sim = CsfxSim.create(); };
+  window.csfxClear = function () { sim = CsfxSim.create(900); };
 
   var imp = [], IMP_LIFE = 0.25;                                      // raindrop impacts: [x, y, age] rings that open and fade in a quarter second
   var minMs = 70;                                                   // the texture is only taken 12 times a second (GLASS_FPS in carSurfaceFx.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
@@ -110,7 +110,7 @@
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     // a drop of a few pixels: a thin ring and a one-pixel glint, all the rings in one path and all the glints in another (one stroke, one fill); bigger ones the sprite
     var tiny = false;
-    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.9;       // the emissive map adds light: a light ring there
+    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1.3 : 0.9;       // the emissive map adds light: a light ring there
     ctx.beginPath();
     var glints = [];
     for (var i = 0; i < sim.n; i++) {
@@ -126,14 +126,22 @@
     }
     if (tiny) ctx.stroke();
     if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.8 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], emissive ? 3 : 2, emissive ? 3 : 2);
     }
-    if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
+    if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
+      ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';
+      ctx.beginPath();
+      for (var bi = 0; bi < sim.n; bi++) if (sim.alive[bi]) { var BR = Math.max(6, sim.r[bi] * H * 8); ctx.moveTo(sim.x[bi] * W + BR, sim.y[bi] * H); ctx.arc(sim.x[bi] * W, sim.y[bi] * H, BR, 0, Math.PI * 2); }
+      ctx.fill();
+    } else if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
       try {
         var flx = p.flow, n = flx && flx.n ? flx.n : 0, alive = 0;
         for (var di = 0; di < sim.n; di++) alive += sim.alive[di];
         if (flx && flx.cells) { ctx.fillStyle = emissive ? 'rgba(255,255,255,0.18)' : 'rgba(255,0,0,0.25)'; for (var ci = 0; ci < flx.cells.length; ci++) { var cc2 = flx.cells[ci]; ctx.fillRect((cc2 % n) * W / n, Math.floor(cc2 / n) * H / n, W / n - 1, H / n - 1); } }
+        ctx.font = 'bold ' + Math.round(H / 12) + 'px sans-serif'; ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,0,0.5)'; ctx.lineWidth = 1;       // the texture in 8 x 8 labelled squares (A1 top left): which squares a window shows says which part of the map it samples
+        ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,255,0)';
+        for (var lx = 0; lx < 8; lx++) for (var ly = 0; ly < 8; ly++) { ctx.strokeRect(lx * W / 8, ly * H / 8, W / 8, H / 8); ctx.fillText(String.fromCharCode(65 + lx) + (ly + 1), (lx + 0.12) * W / 8, (ly + 0.62) * H / 8); }
         ctx.font = 'bold 26px sans-serif'; ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,255,0)';
         var txt = 'drops ' + alive + ' flow ' + (flx ? (flx.ready ? 'ready' : 'partial') : 'none') + ' cells ' + (flx && flx.cells ? flx.cells.length : 0) + ' rain ' + Number(p.rain).toFixed(2) + ' mm ' + p.glassMm + ' uv/m ' + Number(p.uvPerM || 0).toFixed(2) + ' ' + W + 'x' + H;
         for (var ty = 0.15; ty < 1; ty += 0.3) ctx.fillText(txt, 6, ty * H);

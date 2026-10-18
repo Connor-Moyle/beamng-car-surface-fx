@@ -20,14 +20,16 @@ assert(close(flat[1][1], 0) and close(flat[1][2], 0), 'water does not run on a f
 assert(G.triangleFlow({ 0, 0, 0, 1, 0, 0, 2, 0, 0 }, { 0, 0, 1, 0, 2, 0 }) == nil, 'a degenerate triangle has no flow')
 
 -- the grid
-local tris = { { pos = pos, uv = uv }, { pos = { 0, 1, 1, 1, 0, 0, 1, 1, 1 }, uv = { 0, 0, 1, 1, 1, 0 } } }
+-- the .dae's v runs up while the canvas runs down: the fixtures above are in canvas terms, so turn their v over for the field (it turns it back)
+local function dv(u) return { u[1], 1 - u[2], u[3], 1 - u[4], u[5], 1 - u[6] } end
+local tris = { { pos = pos, uv = dv(uv) }, { pos = { 0, 1, 1, 1, 0, 0, 1, 1, 1 }, uv = dv({ 0, 0, 1, 1, 1, 0 }) } }
 local field = G.field(tris)
 assert(field.filled > 100 and #field.g == G.N * G.N * 2, 'the cells under the triangles are filled: ' .. field.filled)
 local c = (16 * G.N + 8) * 2                                      -- a cell inside the first triangle
 assert(field.g[c + 2] > 0.5, 'the cell has the pane\'s down: ' .. tostring(field.g[c + 2]))
 
 -- texture coordinates outside 0..1 wrap: the same pane drawn at u + 1.2, v - 0.8 fills cells all the same
-local shifted = G.field({ { pos = pos, uv = { uv[1] + 1.2, uv[2] - 0.8, uv[3] + 1.2, uv[4] - 0.8, uv[5] + 1.2, uv[6] - 0.8 } } })
+local shifted = G.field({ { pos = pos, uv = dv({ uv[1] + 1.2, uv[2] - 0.8, uv[3] + 1.2, uv[4] - 0.8, uv[5] + 1.2, uv[6] - 0.8 }) } })
 assert(shifted.filled > 100, 'a triangle whose coordinates lie outside the first tile is wrapped into it: ' .. shifted.filled)
 
 -- the messages for the page: three kinds, in pieces of 256 numbers
@@ -41,7 +43,7 @@ local dae = [[<COLLADA><asset><unit meter="1"/><up_axis>Z_UP</up_axis></asset>
 <library_materials><material id="glassid" name="car_glass"/></library_materials>
 <library_geometries><geometry id="g1"><mesh>
 <source id="pos"><float_array count="9">0 0 0 1 0 0 0 1 1</float_array></source>
-<source id="uvs"><float_array count="6">0 1 1 1 0 0</float_array></source>
+<source id="uvs"><float_array count="6">0 0 1 0 0 1</float_array></source>
 <vertices id="v"><input semantic="POSITION" source="#pos"/></vertices>
 <triangles material="symG" count="1"><input semantic="VERTEX" source="#v" offset="0"/><input semantic="TEXCOORD" source="#uvs" offset="1" set="0"/><p>0 0 1 1 2 2</p></triangles>
 </mesh></geometry></library_geometries>
