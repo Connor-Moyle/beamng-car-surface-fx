@@ -81,8 +81,8 @@ end
 
 -- the glass mesh runs up under the headliner and the pillar trim, so the part you can see is smaller than the node hull: shrink the hull toward its bottom centre
 -- (kx across, ky up). On the covet the visible glass is about 0.93 as wide and 0.68 as tall as the hull; shortcut: one factor for every car, measure per car if one is off.
-M.INSET = { 0.93, 0.68, 0.03, 0.012 }
-function M.inset(hull, kx, ky, lift, taper)
+M.INSET = { 0.93, 0.68, 0.03, 0.012, 0.012 }
+function M.inset(hull, kx, ky, lift, taper, rightTrim)
   if not hull then return nil end
   local x0, x1, ymin, ymax = 1, 0, 1, 0
   for i = 1, #hull, 2 do x0, x1, ymin, ymax = math.min(x0, hull[i]), math.max(x1, hull[i]), math.min(ymin, hull[i + 1]), math.max(ymax, hull[i + 1]) end
@@ -93,6 +93,7 @@ function M.inset(hull, kx, ky, lift, taper)
     local up = (ymax - hull[i + 1]) / h                              -- 0 at the bottom, 1 at the top
     local x = cx + (hull[i] - cx) * kx
     out[i] = x + (hull[i] < cx and 1 or -1) * (taper or 0) * up      -- the pillars lean in: the top is narrower than the bottom
+    if hull[i] >= cx then out[i] = out[i] - (rightTrim or 0) end                      -- the right edge comes in a little more: drops showed on the right A-pillar (covet)
     out[i + 1] = ymax - lift - (ymax - hull[i + 1]) * k2
   end
   return out
@@ -335,7 +336,7 @@ function M.windscreen(veh)
     for _, q in ipairs(clipped) do if q.x > mx then mx = q.x end if q.y > my then my = q.y end end
     if mx > 0.97 then clipped[#clipped + 1] = { x = mx, y = my } clipped = M.convexHull(clipped) or clipped end
   end
-  local hull = M.inset(M.flat(clipped), M.INSET[1], M.INSET[2], M.INSET[3], M.INSET[4])
+  local hull = M.inset(M.flat(clipped), M.INSET[1], M.INSET[2], M.INSET[3], M.INSET[4], M.INSET[5])
   last.clipped = whole ~= nil and hull ~= nil and #hull ~= #whole * 2
   if hull then
     local x0, y0, x1, y1 = 1, 1, 0, 0
