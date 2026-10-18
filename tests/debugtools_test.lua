@@ -14,7 +14,7 @@ be = { getPlayerVehicleID = function() return 1 end }
 getAllVehicles = function() return { veh } end
 carSurfaceFx = { status = function() return 'main ok' end }
 
-local D = dofile('mod/lua/ge/extensions/carSurfaceFx_debug.lua')
+local D = dofile('mod/lua/ge/extensions/carSurfaceFx/debug.lua')
 assert(D.counts() == 'no effect module is running' and D.help():find('counts'), 'nothing running, nothing to count')
 
 local cleared = 0
