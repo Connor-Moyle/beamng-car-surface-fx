@@ -97,6 +97,19 @@ local function scale(rec, k)
   rec.k = k
 end
 
+-- the rainbow bands shift with the view in a real film: a cheap fake turns the sheen plane about its normal with the camera's bearing to the puddle (and a slow drift), only for puddles near
+-- the camera. If the engine takes no rotation for the object the call fails quietly and the sheen stays still.
+local NEAR = 15
+local function turnSheen(rec, p, camX, camY)
+  local dx, dy = p.x - camX, p.y - camY
+  if dx * dx + dy * dy > NEAR * NEAR then return end
+  local a = (math.atan2 or math.atan)(dy, dx) * 0.7 + os.clock() * 0.04
+  if rec.turn and math.abs(a - rec.turn) < 0.05 then return end
+  rec.turn = a
+  pcall(function() rec.sheen:setPosRot(p.x, p.y, p.z + SHEEN_LIFT, 0, 0, math.sin(a / 2), math.cos(a / 2)) end)
+  if rec.k then pcall(function() rec.sheen:setScale(vec3(rec.k, rec.k, 1)) end) end
+end
+
 function M.available() return failed == nil end
 function M.why() return failed end
 
@@ -129,6 +142,7 @@ function M.sync(store, cfg, camX, camY, fade)
             rec.x, rec.y = p.x, p.y
             pcall(function() rec.obj:setPosition(vec3(p.x, p.y, p.z + LIFT)) if rec.sheen then rec.sheen:setPosition(vec3(p.x, p.y, p.z + SHEEN_LIFT)) end end)
           end
+          if rec.sheen and camX then turnSheen(rec, p, camX, camY) end
           p.meshed = true
         end
       end

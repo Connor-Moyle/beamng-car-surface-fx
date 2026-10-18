@@ -13,6 +13,7 @@ function createObject(class)
   function o:createMesh(m) self.meshes = m created = created + 1 end
   function o:setPosition(v) self.pos = v end
   function o:setScale(v) self.scale = v end
+  function o:setPosRot(x, y, z, qx, qy, qz, qw) self.rot = { qz, qw } end
   function o:delete() self.dead = true deleted = deleted + 1 end
   objects[#objects + 1] = o
   return o
@@ -30,6 +31,7 @@ local mesh = oilPlane.meshes[1][1]
 assert(mesh.material == 'csfx_puddle_oil' and #mesh.verts == 25 and #mesh.faces == 96, 'a 5 x 5 grid in the oil material')
 assert(sheen and sheen.meshes[1][1].material == 'csfx_puddle_sheen', 'oil carries the rainbow plane')
 assert(oilPlane.pos.z == 0.03 and sheen.pos.z == 0.045 and oilPlane.pos.x == 10, 'the planes lie just above the ground at the puddle')
+assert(sheen.rot and math.abs(sheen.rot[1] ^ 2 + sheen.rot[2] ^ 2 - 1) < 1e-9, 'the sheen plane turns with the camera near the puddle')
 local k1 = oilPlane.scale.x
 p.r = 0.7
 M.sync(store, cfg, 10, 20)
