@@ -241,6 +241,13 @@ function M.pushGround(veh)
   veh:queueLuaCommand(string.format('if not carSurfaceFxWheels then extensions.load("carSurfaceFxWheels") end carSurfaceFxWheels.setClasses(%s, %s, %s)', t.loose, t.mud, t.road))
 end
 
+-- the game's time of day 0..1 (0 noon, 0.5 midnight), or nil
+local function timeOfDay()
+  local t = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+  return type(t) == 'table' and tonumber(t.time) or nil
+end
+local wetSecs = 0                          -- seconds of rain so far: grows while it rains, falls back when dry (rain loosens dried bugs, washes dust from the top down)
+
 -- air temperature in C (the level's), or nil when the game does not say
 local function airC()
   if forcedAir then return forcedAir end
@@ -261,6 +268,7 @@ local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, sno
 local function bodyDirt(id, kind, amount, wi)
   if amount <= 0 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
   local pl = PLACE[kind]
+  if kind == 'bugs' then pl = { pl[1], pl[2], pl[3] * rules.bugSize(dirtBy[id] and dirtBy[id].bugs) } end      -- the more bugs, the bigger the next ones
   local n = math.floor(amount * pl[1] + math.random())
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
@@ -320,7 +328,8 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if not (settings and settings.mud.enabled) then return end
   local old = dirtBy[id] or rules.dirtNew()
   local air = airC()
-  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() or 0, warm = air ~= nil and air > rules.SNOW_AIR }, speed, wet)
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() or 0, warm = air ~= nil and air > rules.SNOW_AIR,
+    airC = air, tod = timeOfDay() }, speed, wet)
   if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
   if not settings.weather.snow then d.snow = old.snow end
   if not settings.weather.bugs then d.bugs = old.bugs end
@@ -581,9 +590,10 @@ local function update(dtReal)
   local dt = timer
   timer = 0
   wet = forced and forced or rules.wetStep(wet, targetWet(), dt)
+  wetSecs = wet > 0.1 and wetSecs + dt or math.max(0, wetSecs - dt * 0.5)
   local want = rules.level(wet, rung)
   if wet > 0 then
-    for id, d in pairs(dirtBy) do dirtBy[id] = rules.dirtWash(d, dt, wet, 0) end        -- rain
+    for id, d in pairs(dirtBy) do dirtBy[id] = rules.dirtWash(d, dt, wet, 0, wetSecs) end        -- rain
   end
   rainT = rainT + dt
   if rainT >= 5 then

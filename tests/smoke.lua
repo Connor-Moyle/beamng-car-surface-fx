@@ -183,7 +183,7 @@ assert(M.status():find('snow 1%.00'), 'a standing car under snow gets a coat: ' 
 assert((bodySplats.top or 0) > 0, 'snow splats went on the roof')
 for _ = 1, 40 do M.onGround(7, 0, 0, 1, 0, 0, 30, 0.5, 0, -4) end
 assert(M.status():find('snow 0%.00'), 'driving blew it off: ' .. M.status())
-M.debug('snowing', 0)
+M.debug('snowing', 0) M.debug('air', 22)           -- insects fly in warm air only
 for _ = 1, 400 do M.onGround(7, 0, 0, 1, 0, 0, 38, 0.5, 0, -4) end
 assert((bodySplats.front or 0) > 0 and M.status():find('bugs 0%.[1-9]'), 'bugs gathered on the nose: ' .. M.status())
 M.debug('air', -6)

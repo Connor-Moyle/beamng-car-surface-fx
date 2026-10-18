@@ -160,20 +160,49 @@ function M.dirtBuild(d, dt, r, speed, wet)
   local sf = 0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
-  out.dust = d.dust + (r.loose or 0) * (1 - wetK) * sf * dt / 60
+  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * sf * dt / 60) + ((r.road or 0) * (1 - wetK) * sf * dt / M.DUST_ROAD)      -- loose ground: fast; dry tarmac: a thin film, slowly
   out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90
   out.rubber = d.rubber + (r.slip or 0) * dt / 25
   out.grime = d.grime + (r.road or 0) * sf * (1 + (wet or 0)) * dt / 1200
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
   local snowing, v = r.snowing or 0, speed or 0
   out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 90 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
-  -- bugs hit the nose in fast driving (not in the wet), a few per minute
-  out.bugs = (d.bugs or 0) + ((wet or 0) < 0.3 and v > M.BUG_SPEED and (v - M.BUG_SPEED) / 20 * dt / 300 or 0)
+  -- bugs hit the nose in fast driving, by the air temperature and the time of day (r.airC, r.tod are optional)
+  out.bugs = (d.bugs or 0) + M.bugRate(v, r.airC, r.tod, wet) * dt
   for _, k in ipairs(M.KINDS) do out[k] = clamp(out[k], 0, M.CAP[k]) end
   return out
 end
 
-M.SNOW_BLOW, M.BUG_SPEED = 8, 18
+M.SNOW_BLOW, M.BUG_SPEED, M.DUST_ROAD = 8, 18, 400
+
+-- ---- bugs. Insects fly in warm air and at dusk and dawn, few below BUG_COLD C, none in rain; the nose collects them above BUG_SPEED m/s.
+M.BUG_COLD, M.BUG_WARM = 8, 18
+-- 0..1.4: how many insects are about. airC nil = unknown (treated as mild); tod = the game's time of day 0..1 (0 noon, 0.245 sunset, 0.775 sunrise), nil = day
+function M.bugActivity(airC, tod, wet)
+  if (wet or 0) >= 0.3 then return 0 end
+  local a = airC == nil and 0.7 or clamp((airC - M.BUG_COLD) / (M.BUG_WARM - M.BUG_COLD), 0, 1)
+  if airC and airC > 38 then a = a * 0.6 end                                -- too hot for them too
+  local dusk = 0
+  if tod then
+    local d = math.min(math.abs(tod - 0.245), math.abs(tod - 0.775))
+    dusk = clamp(1 - d / 0.06, 0, 1)
+  end
+  return a * (1 + 0.4 * dusk) * (1 - (wet or 0) / 0.3 * 0.5)
+end
+-- amount per second on a nose at speed (m/s): about 1/300 at 38 m/s in warm air
+function M.bugRate(speed, airC, tod, wet)
+  if (speed or 0) <= M.BUG_SPEED then return 0 end
+  return (speed - M.BUG_SPEED) / 20 / 300 * M.bugActivity(airC, tod, wet)
+end
+-- the radius multiplier of a splat on a nose with this amount of bugs: later ones are bigger and overlap
+function M.bugSize(amount) return 1 + 1.5 * clamp(amount or 0, 0, 1) end
+-- rain loosens dried bugs slowly: wetSeconds of rain so far (0 = just started) scales the wash from a quarter to full over 90 s
+function M.bugSoak(wetSeconds) return 0.25 + 0.75 * clamp((wetSeconds or 0) / 90, 0, 1) end
+
+-- ---- dust. A film that climbs the body as it grows: the height (0..1 of the body) it reaches, and after rain how high the wash has cleared from the top down.
+function M.dustHeight(amount) return clamp((amount or 0) ^ 0.7, 0, 1) end
+-- the film above this height (0..1) is already gone after wetSeconds of rain; 1 = none washed
+function M.dustWashHeight(wetSeconds) return clamp(1 - (wetSeconds or 0) / 60, 0, 1) end
 
 -- Frost on glass, 0..1 per car. Builds in the cold (air below FROST_AIR C) while the engine is cold and it is not raining, faster the colder it is; clears with the
 -- engine's warm-up (coolant above FROST_ENGINE C), by rain and by the wipers (the caller handles the arc). Returns the new frost and, for the rising clear-up edge, nothing else.
@@ -230,10 +259,12 @@ end
 -- washing: rain (wet 0..1, per second) and water (the share of the time a wheel was in water). Dust goes fast, mud and film slowly, rubber hardly at all.
 local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000, snow = 400, bugs = 500 }                -- seconds of full rain to wash a full amount off
 local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200, snow = 15, bugs = 30 }                   -- seconds in water
-function M.dirtWash(d, dt, wet, water)
+function M.dirtWash(d, dt, wet, water, wetSeconds)
   local out = {}
   for _, k in ipairs(M.KINDS) do
-    out[k] = clamp((d[k] or 0) - (wet or 0) * dt / RAIN[k] - (water or 0) * dt / WATER[k], 0, 1)
+    local rain = (wet or 0) * dt / RAIN[k]
+    if k == 'bugs' and wetSeconds then rain = rain * M.bugSoak(wetSeconds) end
+    out[k] = clamp((d[k] or 0) - rain - (water or 0) * dt / WATER[k], 0, 1)
   end
   return out
 end
