@@ -45,7 +45,7 @@ local bodymap = require('carSurfaceFx/bodymap')
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 19                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 20                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -497,7 +497,7 @@ function M.water(id, p)
   local function ok(v) return (v == v and v > -1e6 and v < 1e6) and v or 0 end
   local fx, fy, fz = ok(f.x), ok(f.y), ok(f.z)
   if fx == 0 and fy == 0 and fz == 0 then fz = -9.8 end
-  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f,imp:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1), ok(p.imp or 0))
+  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f,imp:%.2f,anim:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1), ok(p.imp or 0), ok(p.anim or 1))
   waterSent = waterSent + 1
   veh:queueJSUITexture(TAG_B, lastWaterJs)
 end

@@ -71,4 +71,13 @@ assert.strictEqual(w.alive[d], 0, 'drops dry up');
   assert(small.n > 20 && small.mean < mid.mean && mid.mean < big.mean, 'the size setting scales the drops: ' + [small.mean, mid.mean, big.mean].map((x) => (x * 1000).toFixed(2)).join(' < ') + ' mm radius');
   assert(many.n > mid.n * 1.3, 'the amount setting makes more drops: ' + many.n + ' against ' + mid.n);
 }
+// the animation rate: 0 keeps every drop where it is, 2 runs them faster; in rain a drop grows
+{
+  const rows = []; for (let i = 0; i < 20; i++) for (let j = 0; j < 20; j++) rows.push(0.4 + i * 0.01, 0.4 + j * 0.01, 0, 0.2, 0, 0, 0, -0.2, 0.2);
+  const run = (anim) => { const ws = W.create(); W.setNodes(ws, rows); const d = W.add(ws, 0.5, 0.45, 0.006, 0.2, 1); for (let i = 0; i < 40; i++) W.step(ws, 1 / 30, { rain: 0, wet: 1, fx: 0, fy: 0, fz: -9.8, anim }); return ws.y[d]; };
+  assert(Math.abs(run(0) - 0.45) < 1e-6 && run(1) > 0.46 && run(2) > run(1), 'the animation rate scales how fast the drops run: ' + run(0) + ' ' + run(1) + ' ' + run(2));
+  const grow = W.create(); W.setNodes(grow, rows); const g = W.add(grow, 0.5, 0.5, 0.0004, 0.2, 1); const r0 = grow.r[g];
+  for (let i = 0; i < 300; i++) W.step(grow, 1 / 30, { rain: 0.5, wet: 1, fx: 0, fy: 0, fz: 0 });
+  assert(!grow.alive[g] || grow.r[g] > r0, 'in the rain a drop grows');
+}
 console.log('carSurfaceFx paint water: ok');
