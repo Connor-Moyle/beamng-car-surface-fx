@@ -23,7 +23,7 @@ st.marks[1][1] = 99
 assert(M.getState(7).marks[1][1] == 0.1, 'getState hands out copies')
 
 M.washSplats(7, 0, 1)                                      -- the dust is washed off, the mud stays; the scratches are not touched
-M.onUpdate(0)                                               -- (the calls to the canvas go out a few a frame)
+M.onUpdate(0.2)                                             -- (the calls to the canvas go out one per page frame)
 st = M.getState(7)
 assert(#st.splats == 1 and st.splats[1][5] == 2 and #st.marks == 2, 'washing keeps scratches and mud')
 assert(sent[#sent]:find('csfxWash', 1, true), 'the canvas is told too')
@@ -85,8 +85,8 @@ do
   M.useMap(7, bm)
   local before = #sent
   assert(M.dirtAt(7, 'mud', 300, nil, { 0.25, 0.17, 0.1 }, 0.85, 0.035) == true, 'mud is placed on the car')
-  for _ = 1, 40 do M.onUpdate(0) end                                                 -- the pages get them a few calls a frame
-  assert(#sent > before + 6, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
+  for _ = 1, 40 do M.onUpdate(0.2) end                                               -- the pages get them one call per page frame
+  assert(#sent > before + 4, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
   assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
 end
 print('carSurfaceFx scratch memory: ok')

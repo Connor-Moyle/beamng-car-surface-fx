@@ -143,7 +143,9 @@
   };
 
   // o = { l: [x,y,radius, ...], c: [r,g,b], a, k: 'dust' | 'mud' }
+  var callCount = 0;
   window.csfxBlobs = function (o) {
+    callCount++;
     for (var i = 0; i < o.l.length; i += 3) {
       var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
       if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
@@ -172,7 +174,13 @@
   window.csfxClear = function () { lines = []; blobs = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
-  window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
+  window.csfxProbe = function () {
+    lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw();
+    // and what this page holds, written large over the map in several places: blobs kept, calls received so far
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over'; sctx.fillStyle = palette ? '#000' : '#f00'; sctx.font = 'bold 110px sans-serif';
+    for (var ty = 1; ty <= 9; ty += 2) sctx.fillText('blobs ' + blobs.length + ' calls ' + callCount, 20, ty * 100);
+    dirty = true;
+  };
 
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work

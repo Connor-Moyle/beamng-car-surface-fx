@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 23                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 24                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -234,18 +234,22 @@ local function start(veh)
   end)
 end
 
--- Everything for the two paint pages goes through one queue, a few calls a frame: 880 or so calls in one frame (a full mud amount) were all dropped by the engine, a few dozen were not.
-local PER_FRAME = 6
+-- Everything for the two paint pages goes through one queue, ONE call per page frame. A web texture runs one queued script per frame of its own (FPS, 10 a second) and the
+-- others of that frame are lost: what showed in the game was always about one piece of 40 splats however many were sent (35 in a frame: 30 marks; 120 in a frame: none;
+-- 6 a frame: 30 marks).
+local SEND_EVERY = 1.3 / FPS
+local sendT = 0
 local function send(veh, js) outq[#outq + 1] = { veh:getId(), js } end
-local function flush()
-  local n = 0
-  while outHead <= #outq and n < PER_FRAME do
+local function flush(dt)
+  sendT = sendT + (dt or 0)
+  if sendT < SEND_EVERY then return end
+  while outHead <= #outq do
     local e = outq[outHead]
     outq[outHead] = false
     outHead = outHead + 1
     local veh = getObjectByID(e[1])
     local ok, has = pcall(function() return veh and hasCanvas(veh) end)
-    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]) n = n + 1 end
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]) sendT = 0 break end
   end
   if outHead > #outq then outq, outHead = {}, 1 end
 end
@@ -385,11 +389,11 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
--- splats to the pages in pieces of 40, with short numbers: one call of 550 splats with 17-digit floats was a 50 kB piece of script, more than a web texture may take
+-- splats to the pages in pieces of 100, with short numbers: one call of 550 splats with 17-digit floats was a 50 kB piece of script, more than a web texture may take
 local function drawSplats(veh, list, dirs, props)
-  for first = 1, #list, 120 do
+  for first = 1, #list, 300 do
     local l, d = {}, {}
-    for i = first, math.min(#list, first + 119), 3 do
+    for i = first, math.min(#list, first + 299), 3 do
       l[#l + 1], l[#l + 2], l[#l + 3] = q(list[i], 10000), q(list[i + 1], 10000), q(list[i + 2], 100000)
       if dirs then local j = (i - 1) / 3 * 2 + 1 d[#d + 1], d[#d + 2] = q(dirs[j], 1000), q(dirs[j + 1], 1000) end
     end
@@ -639,7 +643,7 @@ end
 function M.onExtensionLoaded() end
 local pollTimer = 0
 function M.onUpdate(dt)
-  flush()
+  flush(dt)
   carSurfaceFx_meshuv.tick()
   bodydirt.tick()
   pollTimer = pollTimer + (dt or 0)
