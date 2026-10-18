@@ -139,17 +139,17 @@
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H, px = sim.x[i] * W, py = sim.y[i] * H;
       if (R < 2.2) {
-        var rr = Math.max(1.2, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
+        var rr = Math.max(0.9, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
         ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true;
-        glints.push(px - 0.35 * rr - 1, py - 0.4 * rr - 1);
+        glints.push(px - 0.35 * rr - 0.5, py - 0.4 * rr - 0.5);
       } else {
         ctx.drawImage(sprite, px - R, py - R, R * 2, R * 2);
       }
     }
     if (tiny) { if (emissive) { ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill(); } ctx.stroke(); }      // a lit disc under the ring: a drop is a lens, not a dot
     if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.45 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1.2, 1.2);
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
       if (!filmBuilt) buildFilm(p.flow);
