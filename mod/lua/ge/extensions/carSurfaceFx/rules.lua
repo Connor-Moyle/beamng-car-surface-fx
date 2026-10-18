@@ -51,6 +51,7 @@ M.beadScale, M.beadStrength = '12 12', 0.35               -- tunable (carSurface
 local function set(v) return v ~= nil and v ~= '' end
 
 -- stage = { field = string } read from the Material. A stage is paint when it takes the car's colour.
+function M.isClearCoated(st) return type(st) == 'table' and (tonumber(st.clearCoatFactor) or 0) >= 0.3 end
 function M.isPaintStage(st) return type(st) == 'table' and set(st.colorPaletteMap) end
 
 local function anyStage(stages, f)
@@ -61,6 +62,29 @@ end
 -- Which of a car's materials are body paint. mats = { { name, stages, meshes (count), version, translucent } }. Paint = a v1.5, opaque material with a palette
 -- stage and a mesh count of at least 40% of the biggest such material (the body, not the wheels or the interior); if none has a palette, the biggest one.
 function M.paintNames(mats)
+  local out = M.mainPaint(mats)
+  for _, m in ipairs(mats) do                                         -- and the other clear-coated exterior panels: a carbon roof, a contrast roof, mirrors (often translucent or small materials)
+    if not out[m.name] and tonumber(m.version) == 1.5 and (m.meshes or 0) > 0 and anyStage(m.stages, M.isClearCoated) and not M.isLampName(m.name) and not M.isEmissive(m.stages) then out[m.name] = true end
+  end
+  return out
+end
+
+-- The rest of the outside of the car (bumpers, trim, mirrors, wheels, grilles, seals): every opaque material that is not paint, not glass and not the inside, the engine or a screen.
+local NOT_OUTSIDE = { 'interior', 'seat', 'gauge', 'screen', 'navi', 'stitch', 'engine', 'mechanical', 'dash', 'steer', 'carpet', 'headliner', 'debug', 'stripped', 'dmg', 'damage', 'broken', 'invisible', 'glow' }
+function M.trimNames(mats, paint)
+  local out = {}
+  for _, m in ipairs(mats) do
+    local n = tostring(m.name):lower()
+    local bad = false
+    for _, w in ipairs(NOT_OUTSIDE) do if n:find(w, 1, true) then bad = true break end end
+    if not bad and not M.isLampName(n) and not M.isEmissive(m.stages) and not paint[m.name] and tonumber(m.version) == 1.5 and not (m.translucent == '1' or m.translucent == 'true') and (m.meshes or 0) > 0 and not M.isGlassName(m.name) then
+      out[m.name] = true
+    end
+  end
+  return out
+end
+
+function M.mainPaint(mats)
   local cand, top = {}, 0
   for _, m in ipairs(mats) do
     if tonumber(m.version) == 1.5 and not (m.translucent == '1' or m.translucent == 'true') and m.meshes > 0 then
@@ -160,20 +184,49 @@ function M.dirtBuild(d, dt, r, speed, wet)
   local sf = 0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
-  out.dust = d.dust + (r.loose or 0) * (1 - wetK) * sf * dt / 60
+  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * sf * dt / 60) + ((r.road or 0) * (1 - wetK) * sf * dt / M.DUST_ROAD)      -- loose ground: fast; dry tarmac: a thin film, slowly
   out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90
   out.rubber = d.rubber + (r.slip or 0) * dt / 25
   out.grime = d.grime + (r.road or 0) * sf * (1 + (wet or 0)) * dt / 1200
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
   local snowing, v = r.snowing or 0, speed or 0
   out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 90 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
-  -- bugs hit the nose in fast driving (not in the wet), a few per minute
-  out.bugs = (d.bugs or 0) + ((wet or 0) < 0.3 and v > M.BUG_SPEED and (v - M.BUG_SPEED) / 20 * dt / 300 or 0)
+  -- bugs hit the nose in fast driving, by the air temperature and the time of day (r.airC, r.tod are optional)
+  out.bugs = (d.bugs or 0) + M.bugRate(v, r.airC, r.tod, wet) * dt
   for _, k in ipairs(M.KINDS) do out[k] = clamp(out[k], 0, M.CAP[k]) end
   return out
 end
 
-M.SNOW_BLOW, M.BUG_SPEED = 8, 18
+M.SNOW_BLOW, M.BUG_SPEED, M.DUST_ROAD = 8, 18, 400
+
+-- ---- bugs. Insects fly in warm air and at dusk and dawn, few below BUG_COLD C, none in rain; the nose collects them above BUG_SPEED m/s.
+M.BUG_COLD, M.BUG_WARM = 8, 18
+-- 0..1.4: how many insects are about. airC nil = unknown (treated as mild); tod = the game's time of day 0..1 (0 noon, 0.245 sunset, 0.775 sunrise), nil = day
+function M.bugActivity(airC, tod, wet)
+  if (wet or 0) >= 0.3 then return 0 end
+  local a = airC == nil and 0.7 or clamp((airC - M.BUG_COLD) / (M.BUG_WARM - M.BUG_COLD), 0, 1)
+  if airC and airC > 38 then a = a * 0.6 end                                -- too hot for them too
+  local dusk = 0
+  if tod then
+    local d = math.min(math.abs(tod - 0.245), math.abs(tod - 0.775))
+    dusk = clamp(1 - d / 0.06, 0, 1)
+  end
+  return a * (1 + 0.4 * dusk) * (1 - (wet or 0) / 0.3 * 0.5)
+end
+-- amount per second on a nose at speed (m/s): about 1/300 at 38 m/s in warm air
+function M.bugRate(speed, airC, tod, wet)
+  if (speed or 0) <= M.BUG_SPEED then return 0 end
+  return (speed - M.BUG_SPEED) / 20 / 300 * M.bugActivity(airC, tod, wet)
+end
+-- the radius multiplier of a splat on a nose with this amount of bugs: later ones are bigger and overlap
+function M.bugSize(amount) return 1 + 1.5 * clamp(amount or 0, 0, 1) end
+-- rain loosens dried bugs slowly: wetSeconds of rain so far (0 = just started) scales the wash from a quarter to full over 90 s
+function M.bugSoak(wetSeconds) return 0.25 + 0.75 * clamp((wetSeconds or 0) / 90, 0, 1) end
+
+-- ---- dust. A film that climbs the body as it grows: the height (0..1 of the body) it reaches, and after rain how high the wash has cleared from the top down.
+function M.dustHeight(amount) return clamp((amount or 0) ^ 0.7, 0, 1) end
+-- the film above this height (0..1) is already gone after wetSeconds of rain; 1 = none washed
+function M.dustWashHeight(wetSeconds) return clamp(1 - (wetSeconds or 0) / 60, 0, 1) end
 
 -- Frost on glass, 0..1 per car. Builds in the cold (air below FROST_AIR C) while the engine is cold and it is not raining, faster the colder it is; clears with the
 -- engine's warm-up (coolant above FROST_ENGINE C), by rain and by the wipers (the caller handles the arc). Returns the new frost and, for the rising clear-up edge, nothing else.
@@ -230,10 +283,12 @@ end
 -- washing: rain (wet 0..1, per second) and water (the share of the time a wheel was in water). Dust goes fast, mud and film slowly, rubber hardly at all.
 local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000, snow = 400, bugs = 500 }                -- seconds of full rain to wash a full amount off
 local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200, snow = 15, bugs = 30 }                   -- seconds in water
-function M.dirtWash(d, dt, wet, water)
+function M.dirtWash(d, dt, wet, water, wetSeconds)
   local out = {}
   for _, k in ipairs(M.KINDS) do
-    out[k] = clamp((d[k] or 0) - (wet or 0) * dt / RAIN[k] - (water or 0) * dt / WATER[k], 0, 1)
+    local rain = (wet or 0) * dt / RAIN[k]
+    if k == 'bugs' and wetSeconds then rain = rain * M.bugSoak(wetSeconds) end
+    out[k] = clamp((d[k] or 0) - rain - (water or 0) * dt / WATER[k], 0, 1)
   end
   return out
 end
@@ -252,9 +307,26 @@ function M.dirtTotal(d)
 end
 
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
+-- Lamps and their lenses are never touched: not by name, and not by an emissive or glow setting on the material.
+local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led' }
+function M.isLampName(name)
+  local n = tostring(name):lower()
+  for _, w in ipairs(LAMP) do if n:find(w, 1, true) then return true end end
+  return false
+end
+function M.isEmissive(stages)
+  for _, st in pairs(stages or {}) do
+    if type(st) == 'table' then
+      if set(st.emissiveMap) or tonumber(st.glow) and tonumber(st.glow) > 0 or tonumber(st.emissiveIntensityNits) and tonumber(st.emissiveIntensityNits) > 0 then return true end
+      local ef = tostring(st.emissiveFactor or '')
+      for x in ef:gmatch('%S+') do if (tonumber(x) or 0) > 0.001 then return true end end
+    end
+  end
+  return false
+end
 function M.isGlassName(name)
   local n = tostring(name):lower()
-  return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
+  return M.isLampName(n) == false and n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
 end
 
 -- The glass takes its water from a per-car, per-material web canvas (vehicles/common/carSurfaceFx/glass.html) named '@csfx_<material>': the engine resolves a '@tag'
@@ -265,7 +337,7 @@ function M.glassTag(name) return '@csfx_' .. tostring(name):gsub('[^%w_]', '_') 
 -- The inside glass (name ends in 'int') is clear, so a colour change on it is invisible, and the engine does not resolve a '@tag' in its opacity map (tried): its EMISSIVE map
 -- becomes the canvas instead (light adds to the picture whatever the glass opacity is; the page draws only the glints and bright rims).
 M.insideMode = 'emissive'                                         -- or 'color' (carSurfaceFx.insideMode): which slot the inside glass's canvas goes in
-M.outsideMode = 'color'                                           -- the outside glass: 'color' (the canvas replaces the tint map; the game's tint image cannot be read by the page, a flat dark tint stands in) or 'emissive' (glints and rims only, the glass keeps its own look)
+M.outsideMode = 'emissive'                                           -- the outside glass: 'color' (the canvas replaces the tint map; the game's tint image cannot be read by the page, a flat dark tint stands in) or 'emissive' (glints and rims only, the glass keeps its own look)
 function M.glassMode(name) return tostring(name):lower():find('int$') and M.insideMode or M.outsideMode end
 
 -- the map the canvas replaces and the original image under the drops: field, path (nil when the canvas has no image under it, as with light only)

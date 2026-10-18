@@ -9,7 +9,7 @@
   // Every size here is in metres and meets the texture through s, the texture units per metre at the drop's place (the node map gives it), so a drop is the same real size on every car.
 
   function create() {
-    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
+    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), fresh: [], moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
   }
   function rnd(w) { w.seed = (w.seed * 16807) % 2147483647; return w.seed / 2147483647; }
 
@@ -37,13 +37,13 @@
     return best;
   }
 
-  function add(w, x, y, r, s) {
+  function add(w, x, y, r, s, kd) {
     for (var i = 0; i < w.n; i++) {
       if (!w.alive[i]) continue;
       var dx = w.x[i] - x, dy = w.y[i] - y, rr = w.r[i] + r;
       if (dx * dx + dy * dy < rr * rr * 0.6) {
         var nr = Math.sqrt(w.r[i] * w.r[i] + r * r), t = w.r[i] / (w.r[i] + r);
-        if (nr > RMAX_M * (s || 0.2)) return -1;                                                    // too big to merge: the new one is simply not added
+        if (nr > RMAX_M * (kd || 1) * (s || 0.2)) return -1;                                                    // too big to merge: the new one is simply not added
         w.x[i] = w.x[i] * t + x * (1 - t); w.y[i] = w.y[i] * t + y * (1 - t); w.r[i] = nr;
         return i;
       }
@@ -57,12 +57,14 @@
   // p: { rain 0..1 (falling now), wet 0..1, fx, fy, fz: the force on the water in the car's coordinates (m/s^2) }
   function step(w, dt, p) {
     if (!w.nodes || w.count === 0) return;
-    var spawns = p.rain * 220 * dt;                                                          // many small drops
+    var kd = (p.mm > 0 ? p.mm : 4.5) / 4.5, amount = p.amount > 0 ? p.amount : 1;           // the drop size in millimetres (diameter, 4.5 mm is the default look) and how much of it
+    var spawns = p.rain * 220 * amount * dt;                                                          // many small drops
     while (spawns > 0) {
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
         var sk = w.nodes[k * 9 + 8];
-        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (0.0015 + 0.0015 * q * q * q) * sk, sk);     // 1.5 to 3 mm radius: 3 to 6 mm drops
+        var j = add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (0.0015 + 0.0015 * q * q * q) * kd * sk, sk, kd);     // 1.5 to 3 mm radius at the default size: 3 to 6 mm drops
+        if (j >= 0 && w.fresh.length < 64) w.fresh.push(j);                                            // the page rings where a raindrop landed
       }
       spawns -= 1;
     }
@@ -85,7 +87,7 @@
         w.moved[i] = 1;                                                                      // the page leaves a wet trail where a drop has run
       }
       w.r[i] -= evapM * s;
-      if (w.r[i] < 0.0008 * s || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;
+      if (w.r[i] < 0.0008 * kd * s || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;
     }
   }
 

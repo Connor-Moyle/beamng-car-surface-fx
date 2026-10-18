@@ -41,10 +41,11 @@
 ------------------------------------------------------------------------- --]]
 
 local M = {}
+local bodymap = require('carSurfaceFx/bodymap')
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 18                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 19                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -193,6 +194,7 @@ local function restoreAll()
 end
 
 -- ---- per-car setup ----
+local bodydirt = require('carSurfaceFx/bodydirt')
 local function start(veh)
   local id = veh:getId()
   local layers = paintLayers(veh)
@@ -214,7 +216,9 @@ local function start(veh)
     if r and pos[r.ref] and pos[r.left] and pos[r.back] and pos[r.up] then
       axes = { (pos[r.left] - pos[r.ref]):normalized(), (pos[r.back] - pos[r.ref]):normalized(), (pos[r.up] - pos[r.ref]):normalized() }
     end
-    cars[id] = { lut = lut.nodes, count = lut.count, pos = pos, axes = axes, wheels = d.wheels, wheelPts = {} }
+    local car = { lut = lut.nodes, count = lut.count, pos = pos, axes = axes, wheels = d.wheels, wheelPts = {} }
+    cars[id] = car
+    bodydirt.request(id, paintMat, function(map) car.map = map end)       -- where each kind of dirt lands on this car (carSurfaceFx/bodymap.lua)
     for _, l in ipairs(layers) do if lut.mats[l.mapTo] then bind(l) end end
     ensureCanvases()
     nodesAt[id] = os.clock() + 2                              -- the page gets the car's body-node map for the running drops once it is up
@@ -271,6 +275,7 @@ end
 -- reports while the wheels run on loose ground, more of it the dirtier the ground.
 function M.splat(id, c, a, n, kind)
   local car = cars[id]
+  if car and car.map and M.dirtAt(id, kind == 'dust' and 'dust' or 'mud', n * 2, nil, c, a, settings.dirtSize * 0.4) then return end       -- the spray of the wheels lands where it really lands
   if not car or not car.lut or not settings.dirtEnabled or not car.wheels then return end
   local keys = {}
   for wi in pairs(car.wheels) do keys[#keys + 1] = wi end
@@ -351,6 +356,31 @@ function M.bodySplat(id, region, colour, opacity, n, kind, size)
     draw(veh, 'csfxBlobs', { l = blobs, c = colour, a = opacity, k = kind or 'mud' })
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(opacity), kind == 'dust' and 1 or 2 }) end
   end
+end
+
+-- Dirt of a kind put where it really lands on this car's body (carSurfaceFx/bodymap.lua): n splats of the colour c (rgb 0..1) and opacity a. kind: 'mud' | 'grime' | 'dust' | 'rubber' |
+-- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
+-- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
+local SOFT = { dust = true, snow = true, grime = true }
+function M.dirtAt(id, kind, n, wi, c, a, size, opts)
+  local car = cars[id]
+  local map = car and car.map
+  local veh = getObjectByID(id)
+  if not (map and veh and settings.dirtEnabled) then return false end
+  if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
+  local list = bodymap.sample(map, kind, n, random, wi, opts)
+  if #list == 0 then return true end
+  local blobs, dirs = {}, {}
+  for i, s in ipairs(list) do
+    local k = #blobs
+    blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, 1 - s.v, size * (0.6 + random() * 0.8) * s.s
+    if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
+  end
+  local soft = SOFT[kind] and 'dust' or 'mud'
+  draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
+  local m = mem(id)
+  for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
+  return true
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
@@ -465,7 +495,7 @@ function M.water(id, p)
   local function ok(v) return (v == v and v > -1e6 and v < 1e6) and v or 0 end
   local fx, fy, fz = ok(f.x), ok(f.y), ok(f.z)
   if fx == 0 and fy == 0 and fz == 0 then fz = -9.8 end
-  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz)
+  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f,imp:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1), ok(p.imp or 0))
   waterSent = waterSent + 1
   veh:queueJSUITexture(TAG_B, lastWaterJs)
 end

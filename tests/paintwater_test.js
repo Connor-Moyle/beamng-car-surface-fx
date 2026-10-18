@@ -63,4 +63,12 @@ for (const dens of [0.1, 0.4]) {
 w = W.create(); W.setNodes(w, panel(true)); d = W.add(w, 0.5, 0.45, 0.003);
 for (let i = 0; i < 30 * 40; i++) W.step(w, 1 / 30, { rain: 0, wet: 0, fx: 0, fy: 0, fz: 0 });
 assert.strictEqual(w.alive[d], 0, 'drops dry up');
+// the size in millimetres and the amount are settings: bigger drops at 9 mm, none lost at 1 mm, more drops at a higher amount
+{
+  const rows = []; for (let i = 0; i < 20; i++) for (let j = 0; j < 20; j++) rows.push(0.4 + i * 0.01, 0.4 + j * 0.01, 0, 0.2, 0, 0, 0, -0.2, 0.2);
+  const run = (mm, amount) => { const ws = W.create(); W.setNodes(ws, rows); for (let i = 0; i < 20; i++) W.step(ws, 1 / 30, { rain: 1, wet: 1, fx: 0, fy: 0, fz: 0, mm, amount }); let n = 0, r = 0; for (let i = 0; i < ws.n; i++) if (ws.alive[i]) { n++; r += ws.r[i] / 0.2; } return { n, mean: r / Math.max(1, n) }; };
+  const small = run(1, 1), mid = run(4.5, 1), big = run(9, 1), many = run(4.5, 2);
+  assert(small.n > 20 && small.mean < mid.mean && mid.mean < big.mean, 'the size setting scales the drops: ' + [small.mean, mid.mean, big.mean].map((x) => (x * 1000).toFixed(2)).join(' < ') + ' mm radius');
+  assert(many.n > mid.n * 1.3, 'the amount setting makes more drops: ' + many.n + ' against ' + mid.n);
+}
 console.log('carSurfaceFx paint water: ok');

@@ -4,7 +4,7 @@
   var MAX = 260;
 
   function create() {
-    return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
+    return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), fresh: [], t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
   }
   function rnd(d) { d.seed = (d.seed * 16807) % 2147483647; return d.seed / 2147483647; }
 
@@ -41,17 +41,20 @@
     d.t += dt;
     var gx = p.gx, gy = p.gy, px = -gy, py = gx;                      // px,py: across the glass
     var z = p.size || 1, slide = SLIDE * z, maxR = MAXR * z;
-    var cap = Math.floor((60 + 240 * p.rain) / z);                      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
+    var mm = p.glassMm > 0, sg = p.uvPerM || 0.5, amount = p.amount > 0 ? p.amount : 1;    // millimetre mode (the window pages): sizes in real millimetres through the texture units per metre of the pane
+    if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
+    var cap = mm ? Math.floor((120 + 460 * p.rain) * amount) : Math.floor((60 + 240 * p.rain) / z);      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
-    var spawns = n0 < cap ? p.rain * 80 * z * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
+    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
+    var spawns = n0 < cap ? p.rain * (mm ? 170 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), (0.006 + 0.012 * q * q) * z, maxR); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d), sx, sy; if (pc) { var cc = pc[Math.floor(rnd(d) * pc.length)]; sx = (cc % fl0.n + rnd(d)) / fl0.n; sy = (Math.floor(cc / fl0.n) + rnd(d)) / fl0.n; } else { sx = rnd(d); sy = rnd(d); } var j = add(d, sx, sy, mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); if (j >= 0 && d.fresh.length < 64) d.fresh.push(j); }
       spawns -= 1;
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
       var sp = p.spray * 140 * z * dt;
       while (sp > 0) {
-        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), (0.002 + 0.004 * rnd(d)) * z, maxR);
+        if (sp >= 1 || rnd(d) < sp) add(d, rnd(d), rnd(d), mm ? (0.0008 + 0.0012 * rnd(d)) * sg : (0.002 + 0.004 * rnd(d)) * z, maxR);
         sp -= 1;
       }
     }
@@ -59,7 +62,7 @@
     var down = 0.02 - Math.pow(p.speed / 30, 2) * 0.35 - p.aLong * 0.012;
     var across = p.aLat * 0.012;
     var fl = p.flow && p.flow.ready ? p.flow : null;                  // the per-pane directions, when the game side has sent them
-    var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0015 + 0.004 * (1 - p.wet));
+    var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0015 + 0.004 * (1 - p.wet)) * (mm ? sg / 0.5 : 1);
     for (var i = 0; i < d.n; i++) {
       if (!d.alive[i]) continue;
       var r = d.r[i];
@@ -81,11 +84,11 @@
       }
       if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - dirx * r * 1.6, d.y[i] - diry * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z, maxR);
+        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - dirx * r * 1.6, d.y[i] - diry * r * 1.6, mm ? (0.0012 + 0.001 * rnd(d)) * sg : (0.0025 + 0.002 * rnd(d)) * z, maxR);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;
-      if (d.r[i] < 0.0022 * z || d.x[i] < -0.05 || d.x[i] > 1.05 || d.y[i] < -0.05 || d.y[i] > 1.05) d.alive[i] = 0;
+      if (d.r[i] < (mm ? 0.0007 * sg : 0.0022 * z) || d.x[i] < -0.05 || d.x[i] > 1.05 || d.y[i] < -0.05 || d.y[i] > 1.05) d.alive[i] = 0;
     }
     if (p.wiper > 0.05) {                                             // the blade sweeps across the glass (along px,py) and wipes what it crosses
       var prev = d.wipe;

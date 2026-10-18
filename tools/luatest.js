@@ -11,7 +11,7 @@ lualib.luaL_openlibs(L);
 const lp = (p) => JSON.stringify(path.join(root, p).replace(/\\/g, '/'));
 const setup = `package.path = ${lp('mod/lua/ge/extensions/?.lua')} .. ';' .. ${lp('mod/lua/common/?.lua')} .. ';' .. package.path`;
 if (lauxlib.luaL_dostring(L, to_luastring(setup)) !== lua.LUA_OK) throw new Error('setup failed');
-for (const t of ['luatest.lua', 'smoke.lua', 'scratchmem.lua', 'screen_test.lua', 'wheels_test.lua', 'decalprobe_test.lua', 'markswatches_test.lua', 'marks_test.lua', 'fluids_test.lua', 'impacts_test.lua', 'surfaces_test.lua', 'texlist_test.lua', 'ruts_test.lua', 'grass_test.lua', 'grassprobe_test.lua', 'wear_test.lua', 'glassflow_test.lua']) {
+for (const t of ['luatest.lua', 'smoke.lua', 'scratchmem.lua', 'screen_test.lua', 'wheels_test.lua', 'decalprobe_test.lua', 'markswatches_test.lua', 'marks_test.lua', 'fluids_test.lua', 'impacts_test.lua', 'surfaces_test.lua', 'texlist_test.lua', 'ruts_test.lua', 'grass_test.lua', 'grassprobe_test.lua', 'wear_test.lua', 'glassflow_test.lua', 'bench_test.lua', 'bodymap_test.lua', 'roughprobe_test.lua', 'daeread_test.lua', 'spraytrace_test.lua']) {
   process.chdir(root);
   const status = lauxlib.luaL_dofile(L, to_luastring(path.join('tests', t)));
   if (status !== lua.LUA_OK) {

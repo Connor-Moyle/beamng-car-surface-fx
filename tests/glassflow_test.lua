@@ -28,7 +28,8 @@ assert(field.g[c + 2] > 0.5, 'the cell has the pane\'s down: ' .. tostring(field
 
 -- the messages for the page: three kinds, in pieces of 256 numbers
 local msgs = G.messages(field)
-assert(#msgs == 3 * (G.N * G.N * 2 / 256), 'a message per 256 numbers and kind: ' .. #msgs)
+assert(#msgs == 3 * (G.N * G.N * 2 / 256) + G.N * G.N / 256, 'a message per 256 numbers and kind (three directions and the mask of glass cells): ' .. #msgs)
+assert(field.m[16 * G.N + 8 + 1] == 1 and #field.m == G.N * G.N and field.uvPerM > 0, 'the mask marks the glass cells, and the texture density is known')
 assert(msgs[1]:find('^csfxFlow%("g",0,%['), 'the first piece starts at 0')
 
 -- from a .dae text: a car with one windshield flexbody whose triangle carries the glass material

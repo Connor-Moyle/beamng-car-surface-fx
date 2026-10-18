@@ -16,7 +16,7 @@ local splats, started, repaired, washes, repairedId, restoredId, restored = 0, {
 extensions = {
   load = function(n) started[#started + 1] = n _G[n] = { configure = function() end, noteGround = function() end, splat = function(_, _, _, k) splats = splats + k end, buffOut = function() end, water = function(id, p) waterCalls = waterCalls + 1 lastWater = p end, repair = function(id) repaired = repaired + 1 repairedId = id end, count = function() return 12 end,
     getState = function() return { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, splats = {} } end, restore = function(id, st) restoredId, restored = id, st end,
-    washSplats = function() washes = washes + 1 end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
+    washSplats = function() washes = washes + 1 end, dirtAt = function() return false end, bodySplat = function(_, region, _, _, k) bodySplats[region] = (bodySplats[region] or 0) + k end } end,
   unload = function(n) _G[n] = nil end,
 }
 function setExtensionUnloadMode() end
@@ -82,6 +82,7 @@ local gh = {}
 guihooks = { trigger = function(n, d) gh[#gh + 1] = { n, d } end }
 require('carSurfaceFx/screen').camera = function() return { x = 0, y = 0, z = 0.25, r = { x = 1, y = 0, z = 0 }, f = { x = 0, y = 1, z = 0 }, u = { x = 0, y = 0, z = 1 }, halfTan = 0.8, aspect = 1.7 } end
 
+require('carSurfaceFx/rules').outsideMode = 'color'                -- these checks look at the colour slot (the default is the emissive slot: the glass keeps its own colour)
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx.lua')
 local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
 
@@ -99,7 +100,7 @@ assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass 
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
 assert(mats.vivace_glass_int.fields[0].emissiveMap == '@csfx_vivace_glass_int' and mats.vivace_glass_int.fields[0].baseColorMap == '/b.png', 'inside glass: emissive map is the canvas, tint kept')
 assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
-assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
+assert(tostring(mats.vivace_wheel.fields[0].detailNormalMap):find('droplets', 1, true), 'the wheel is part of the outside and gets wet too')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
 v.vx = 20 tick(8) v.vx = 0 tick(8)                        -- accelerate, brake hard
 M.debug('wiper', 1) tick(10)
@@ -192,7 +193,7 @@ assert(M.status():find('snow 1%.00'), 'a standing car under snow gets a coat: ' 
 assert((bodySplats.top or 0) > 0, 'snow splats went on the roof')
 for _ = 1, 40 do M.onGround(7, 0, 0, 1, 0, 0, 30, 0.5, 0, -4) end
 assert(M.status():find('snow 0%.00'), 'driving blew it off: ' .. M.status())
-M.debug('snowing', 0)
+M.debug('snowing', 0) M.debug('air', 22)           -- insects fly in warm air only
 for _ = 1, 400 do M.onGround(7, 0, 0, 1, 0, 0, 38, 0.5, 0, -4) end
 assert((bodySplats.front or 0) > 0 and M.status():find('bugs 0%.[1-9]'), 'bugs gathered on the nose: ' .. M.status())
 M.debug('air', -6)

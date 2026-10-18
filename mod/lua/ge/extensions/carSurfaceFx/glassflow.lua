@@ -13,12 +13,6 @@ local jobs = {}
 
 local floor, sqrt = math.floor, math.sqrt
 
-local function nums(s)
-  local t, n = {}, 0
-  for tok in s:gmatch('[^%s]+') do n = n + 1 t[n] = tonumber(tok) end
-  return t
-end
-
 -- the flow of one triangle: pos = { x1,y1,z1, x2,.. , x3,.. }, uv = { u1,v1, u2,v2, u3,v3 }; returns for each of the three directions (down, back, right) { du, dv } or nil for a
 -- degenerate triangle. du, dv is a UV direction (unit) multiplied by the slope: 1 when the direction lies in the pane, 0 when it is the pane's normal.
 local DIRS = { { 0, 0, -1 }, { 0, 1, 0 }, { -1, 0, 0 } }
@@ -47,16 +41,19 @@ function M.triangleFlow(pos, uv)
     local l = sqrt(u * u + v * v)
     out[i] = l > 1e-9 and { u / l * slope, v / l * slope } or { 0, 0 }
   end
+  out.s = sqrt((gux * gux + guy * guy + guz * guz + gvx * gvx + gvy * gvy + gvz * gvz) / 2)           -- texture units per metre of this triangle
   return out
 end
 
 -- tris = list of { pos = {9 numbers}, uv = {6 numbers} } -> { g = { N*N*2 numbers }, b = ..., r = ..., filled = cells with data }
 function M.field(tris)
+  local sSum, sN = 0, 0
   local sum, cnt = { {}, {}, {} }, {}
   for i = 1, N * N do cnt[i] = 0 for d = 1, 3 do sum[d][i * 2 - 1], sum[d][i * 2] = 0, 0 end end
   for _, t in ipairs(tris) do
     local flow = M.triangleFlow(t.pos, t.uv)
     if flow then
+      if flow.s > 1e-6 and flow.s < 50 then sSum, sN = sSum + flow.s, sN + 1 end
       local uv = t.uv
       local x0, x1 = math.min(uv[1], uv[3], uv[5]), math.max(uv[1], uv[3], uv[5])
       local y0, y1 = math.min(uv[2], uv[4], uv[6]), math.max(uv[2], uv[4], uv[6])
@@ -117,78 +114,13 @@ function M.field(tris)
     cnt = fill
   end
   out.filled = filled
+  out.m = {}
+  for c = 1, N * N do out.m[c] = cnt[c] > 0 and 1 or 0 end                        -- the cells that are glass: drops are only made there
+  out.uvPerM = sN > 0 and sSum / sN or 0.5                                       -- the mean of the pane triangles: a drop of a given size in millimetres is this many texture units per metre
   return out
 end
 
--- ---- reading the triangles of the glass out of the car's .dae files ----
-local function parseDae(path, wanted, glassMat, tris)
-  local s = readFile(path)
-  if not s then return end
-  local yup = s:find('<up_axis>Y_UP', 1, true) ~= nil
-  local unit = tonumber(s:match('<unit[^>]-meter="([^"]+)"')) or 1
-  local matName, geomPos = {}, {}
-  for id, nm in s:gmatch('<material id="([^"]+)" name="([^"]+)"') do matName[id] = nm end
-  for p, id in s:gmatch('()<geometry id="([^"]+)"') do geomPos[id] = p end
-  coroutine.yield()
-  local pos = s:find('<library_visual_scenes', 1, true) or 1
-  while true do
-    local _, b, nm = s:find('<node [^>]-name="([^"]+)"', pos)
-    if not b then break end
-    pos = b + 1
-    local fb = wanted[nm]
-    if fb then
-      local chunk = s:sub(b, s:find('</node>', b, true) or (b + 4000))
-      local gid = chunk:match('<instance_geometry url="#([^"]+)"')
-      local symGlass = {}
-      for sym, tgt in chunk:gmatch('<instance_material symbol="([^"]+)" target="#([^"]+)"') do
-        local mn = matName[tgt] or tgt
-        if glassMat[mn] then symGlass[sym] = mn end
-      end
-      if gid and geomPos[gid] and next(symGlass) then
-        local gp = geomPos[gid]
-        local body = s:sub(gp, s:find('</geometry>', gp, true))
-        local src = {}
-        for id, txt in body:gmatch('<source id="([^"]+)"[^>]*>%s*<float_array[^>]*>([^<]*)<') do src[id] = txt end
-        local psrc = body:match('<vertices[^>]*>%s*<input semantic="POSITION" source="#([^"]+)"')
-        local P = psrc and src[psrc] and nums(src[psrc])
-        local m = nums(chunk:match('<matrix[^>]*>([^<]+)<') or '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1')
-        local ox, oy, oz = 0, 0, 0
-        if type(fb) == 'table' and fb.pos then ox, oy, oz = fb.pos.x or 0, fb.pos.y or 0, fb.pos.z or 0 end
-        for attrs, inner in body:gmatch('<triangles([^>]*)>(.-)</triangles>') do
-          local mn = symGlass[attrs:match('material="([^"]+)"') or '']
-          if mn and P then
-            local stride, vo, to, tsrc = 0, nil, nil, nil
-            for inp in inner:gmatch('<input([^>]*)/>') do
-              local sem, sc = inp:match('semantic="([^"]+)"'), inp:match('source="#([^"]+)"')
-              local off = tonumber(inp:match('offset="(%d+)"')) or 0
-              if off + 1 > stride then stride = off + 1 end
-              if sem == 'VERTEX' then vo = off elseif sem == 'TEXCOORD' and not to then to, tsrc = off, sc end      -- the first texture coordinate set: the one a base colour map reads
-            end
-            local idx = nums(inner:match('<p>([^<]*)</p>') or '')
-            if vo and to and src[tsrc] and #idx >= stride * 3 then
-              local T = nums(src[tsrc])
-              for k = 0, #idx / stride - 1, 3 do
-                local t = { pos = {}, uv = {}, mat = mn }
-                for c = 0, 2 do
-                  local vi, ti = idx[(k + c) * stride + vo + 1] * 3, idx[(k + c) * stride + to + 1] * 2
-                  local x, y, z = P[vi + 1], P[vi + 2], P[vi + 3]
-                  local wx = (m[1] * x + m[2] * y + m[3] * z + m[4]) * unit
-                  local wy = (m[5] * x + m[6] * y + m[7] * z + m[8]) * unit
-                  local wz = (m[9] * x + m[10] * y + m[11] * z + m[12]) * unit
-                  if yup then wy, wz = -wz, wy end
-                  t.pos[c * 3 + 1], t.pos[c * 3 + 2], t.pos[c * 3 + 3] = wx + ox, wy + oy, wz + oz
-                  t.uv[c * 2 + 1], t.uv[c * 2 + 2] = T[ti + 1], T[ti + 2]
-                end
-                tris[#tris + 1] = t
-              end
-            end
-          end
-        end
-        coroutine.yield()
-      end
-    end
-  end
-end
+local read = require('carSurfaceFx/daeread').read
 
 -- the field of every glass material of a car, built a few ms a frame: cb({ [dae material name] = field }) or cb(nil). glassMat = { [dae material name] = true }
 function M.request(vehId, glassMat, cb)
@@ -203,11 +135,11 @@ function M.request(vehId, glassMat, cb)
   local key = tostring(vd.vehicleDirectory) .. '|' .. table.concat(mats, ',') .. '|' .. table.concat(names, ',')
   if cache[key] then return cb(cache[key]) end
   local co = coroutine.create(function()
-    local tris = {}
+    local tris, stats = {}, { daeMats = {}, nodes = {}, nodeCount = 0 }
     local files = {}
     pcall(function() files = FS:findFiles(vd.vehicleDirectory, '*.dae', -1, false, false) or {} end)
     for _, path in ipairs(files) do
-      local ok, err = pcall(parseDae, path, wanted, glassMat, tris)
+      local ok, err = pcall(read, path, wanted, glassMat, nil, tris, stats)
       if not ok then log('W', TAG, 'could not read ' .. path .. ': ' .. tostring(err)) end
       coroutine.yield()
     end
@@ -216,7 +148,19 @@ function M.request(vehId, glassMat, cb)
     local out = {}
     for mn, list in pairs(byMat) do out[mn] = M.field(list) end
     cache[key] = out
-    log('I', TAG, tostring(vd.vehicleDirectory) .. ': ' .. #tris .. ' glass triangles in ' .. #mats .. ' material(s)')
+    local info = { tris = #tris, files = #files, nodeCount = stats.nodeCount, matched = 0, wantedMats = table.concat(mats, ','), fields = {} }
+    for _ in pairs(stats.nodes) do info.matched = info.matched + 1 end
+    for mn, f in pairs(out) do info.fields[#info.fields + 1] = string.format('%s: %d cells, %.2f/m', mn, f.filled, f.uvPerM) end
+    out._info = info
+    local line = string.format('%s: %d glass triangles, %d .dae file(s), %d fitted meshes found of %d nodes; materials asked for [%s]; cells [%s]', tostring(vd.vehicleDirectory), #tris, #files, info.matched, stats.nodeCount, info.wantedMats, table.concat(info.fields, '; '))
+    if #tris == 0 then
+      local glassy = {}
+      for nm in pairs(stats.daeMats) do if nm:lower():find('glass', 1, true) then glassy[#glassy + 1] = nm end end
+      table.sort(glassy)
+      log('W', TAG, line .. ' - NOTHING FOUND. glass-like materials in the .dae: [' .. table.concat(glassy, ', ') .. ']')
+    else
+      log('I', TAG, line)
+    end
     return out
   end)
   jobs[#jobs + 1] = { co = co, cb = cb }
@@ -240,7 +184,7 @@ end
 -- one field as the lines the page takes: csfxFlow(kind, firstIndex, { integers }) in pieces of 256 numbers, directions times 100 as whole numbers
 function M.messages(field)
   local out = {}
-  for _, kind in ipairs({ 'g', 'b', 'r' }) do
+  for _, kind in ipairs({ 'g', 'b', 'r', 'm' }) do
     local list = field[kind]
     for start = 1, #list, 256 do
       local part = {}

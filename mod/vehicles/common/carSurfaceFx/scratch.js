@@ -17,7 +17,7 @@
   var palette = /[?&]m=p/.test(location.search);
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
-  var MAX_LINES = 300, MAX_BLOBS = 900;
+  var MAX_LINES = 300, MAX_BLOBS = 2500;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
 
@@ -76,6 +76,20 @@
       g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
       sctx.fillStyle = g;
       sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    } else if (b.dx || b.dy) {                                        // sprayed mud: an elongated splat along the spray, a tail of droplets behind it and a few ahead
+      var ang = Math.atan2(b.dy, b.dx), j;
+      sctx.fillStyle = rgba(b.c, b.a * 0.8);
+      sctx.beginPath(); sctx.ellipse(x, y, r * 1.7, r * 0.7, ang, 0, Math.PI * 2); sctx.fill();
+      sctx.fillStyle = rgba(b.c, b.a * 0.65);
+      for (j = 1; j <= 4; j++) {                                      // the streak: smaller and smaller drops back along the line the spray came from
+        var t = j * (0.9 + 0.5 * hash(b.x, b.y, j)), jr = Math.max(1, r * (0.55 - 0.1 * j));
+        sctx.beginPath(); sctx.arc(x - Math.cos(ang) * r * t, y - Math.sin(ang) * r * t + (hash(b.x, b.y, j + 9) - 0.5) * r * 0.6, jr, 0, Math.PI * 2); sctx.fill();
+      }
+      sctx.fillStyle = rgba(b.c, b.a * 0.9);
+      for (j = 0; j < 2 + Math.floor(hash(b.x, b.y, 3) * 3); j++) {
+        var f = 1.5 + 1.6 * hash(b.x, b.y, j + 20);
+        sctx.beginPath(); sctx.arc(x + Math.cos(ang) * r * f + (hash(b.x, b.y, j + 30) - 0.5) * r, y + Math.sin(ang) * r * f + (hash(b.x, b.y, j + 40) - 0.5) * r, Math.max(1, r * 0.18), 0, Math.PI * 2); sctx.fill();
+      }
     } else {                                                          // mud and bugs: a splat with a broken edge and droplets thrown around it
       var i, n = 4 + Math.floor(hash(b.x, b.y, 0) * 3);
       sctx.fillStyle = rgba(b.c, b.a * 0.55);
@@ -109,6 +123,7 @@
   window.csfxBlobs = function (o) {
     for (var i = 0; i < o.l.length; i += 3) {
       var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
+      if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
       blobs.push(b);
       drawBlob(b);
     }
@@ -176,7 +191,8 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
-  var minMs = 0;                                                    // 0: work on every frame the browser gives; csfxThrottle(80) works at most every 80 ms (the texture is only taken at FPS)
+  var imp = [], IMP_LIFE = 0.3;                                       // raindrop impacts: [x, y, age] rings that open and fade in about 0.3 s (3 frames at 10 a second)
+  var minMs = 90;                                                   // the texture is only taken 10 times a second (FPS in scratch.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
     requestAnimationFrame(frame);                                  // first: whatever goes wrong below, the next frame still comes
@@ -222,18 +238,36 @@
       ctx.globalCompositeOperation = 'source-over';
     } catch (e) { window.csfxError = 'trail ' + String(e); }
     try {
+      var rings = 0;
+      ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 0.7; ctx.beginPath();
       for (var i = 0; i < water.n; i++) {
         if (!water.alive[i]) continue;
         var R = Math.max(0.7, water.r[i] * W) * 1.15;                        // a 3 mm bead is about one texel across: drawn at its real size, not rounded up
-        if (R < 1.8) {                                                      // too small for the sprite: a thin dark ring of that size
-          ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 0.7;
-          ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R, 0, Math.PI * 2); ctx.stroke();
+        if (R < 1.8 && !wdebug) {                                           // too small for the sprite: a thin dark ring of that size (all the rings in one path, one stroke)
+          var rx = water.x[i] * W, ry = water.y[i] * W;
+          ctx.moveTo(rx + R, ry); ctx.arc(rx, ry, R, 0, Math.PI * 2); rings++;
         } else {
           ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
         }
         if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 0.5, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }
+      if (rings > 0) ctx.stroke();
     } catch (e) { window.csfxError = 'drops ' + String(e); }
+    try {                                                           // impacts: a small ring opening where a raindrop landed (wp.imp: how many of the landings get one, 0 = none)
+      var fr = water.fresh;
+      for (var f = 0; f < fr.length && wp.imp > 0; f++) if (imp.length < 80 && Math.random() < wp.imp) imp.push([water.x[fr[f]] * W, water.y[fr[f]] * W, 0]);
+      fr.length = 0;
+      var kept = 0;
+      for (var m = 0; m < imp.length; m++) {
+        var im = imp[m]; im[2] += dt;
+        if (im[2] >= IMP_LIFE) continue;
+        var ph = im[2] / IMP_LIFE;
+        ctx.strokeStyle = 'rgba(0,0,0,' + (0.30 * (1 - ph) + 0.04).toFixed(2) + ')'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.arc(im[0], im[1], 0.7 + 1.9 * ph, 0, Math.PI * 2); ctx.stroke();
+        imp[kept++] = im;
+      }
+      imp.length = kept;
+    } catch (e) { window.csfxError = 'impacts ' + String(e); }
     if (!wdebug || !water.nodes) return;
     try {
       ctx.fillStyle = 'rgb(0,0,0)';

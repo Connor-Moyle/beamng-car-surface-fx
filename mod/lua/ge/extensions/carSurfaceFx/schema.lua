@@ -172,7 +172,10 @@ function M.build(S, owner)
     F('paint_water', 'rain', 'Wet paint', 'bool', 'Drops running over the paint', 'Drops run down the doors and fenders and stream back along the body while you drive. It uses the same paint canvas as the scratches, so it needs the scratch effect switched on.', 'scratch.water'),
     F('glass', 'rain', 'Windows', 'bool', 'Water drops on the windows', 'Drops land on the glass, merge and run down; speed and braking push them around and the wipers sweep them off. Off: the glass stays clear.', 'windscreen.enabled'),
     F('glass_strength', 'rain', 'Windows', 'slider', 'Window drops amount', 'How much rain lands on the windows. 0 is none, 100% is full.', 'windscreen.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
-    F('glass_size', 'rain', 'Windows', 'slider', 'Window drop size', 'How big the drops on the outside of the glass are.', 'windscreen.dropSize', { min = 1, max = 6, step = 0.25, unit = 'x', advanced = true }),
+    F('body_drop_mm', 'rain', 'Water drops', 'slider', 'Body drop size', 'How big the water drops on the paint are, in real millimetres across, the same on every car. It is a look choice, not a cost one.', 'rain.bodyDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
+    F('glass_drop_mm', 'rain', 'Water drops', 'slider', 'Glass drop size', 'How big the water drops on the windows are, in real millimetres across.', 'rain.glassDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
+    F('drop_amount', 'rain', 'Water drops', 'slider', 'Drop amount', 'How many drops there are on the paint and the windows (1 is the normal amount).', 'rain.dropAmount', { min = 0.2, max = 3, step = 0.1, unit = 'x' }),
+    F('drop_impacts', 'rain', 'Water drops', 'slider', 'Raindrop impacts', 'The small ring where a raindrop lands on the paint and the glass. 0 is none.', 'rain.impacts', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     F('overlay', 'rain', 'Driver\'s view', 'bool', 'Drops on the windscreen from the driver\'s seat', 'In the driver and onboard cameras the drops are drawn over the windscreen as small lenses, with streaks behind the running ones and clean arcs where the wipers sweep. Off: you see no drops from inside.', 'windscreen.overlay'),
     F('overlay_size', 'rain', 'Driver\'s view', 'slider', 'Drop size in the driver\'s view', 'How big the drops are when you look through the windscreen.', 'windscreen.overlaySize', { min = 1.5, max = 8, step = 0.25, unit = 'x' }),
   })
@@ -353,7 +356,7 @@ function M.build(S, owner)
 
   -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
   local PRESETS = {
-    all_cars = { false, false, false, true }, overlay_size = { 6, 4.5, 3.5, 3 }, glass_size = { 4.5, 3, 2.5, 2 },
+    all_cars = { false, false, false, true }, overlay_size = { 6, 4.5, 3.5, 3 },
     cull = { 60, 100, 140, 200 }, max_drawn = { 300, 800, 1200, 2000 }, skid_count = { 800, 2000, 3000, 5000 }, track_count = { 1000, 3000, 5000, 8000 },
     others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 120, 180, 300 }, leaks_cull = { 40, 80, 120, 160 },
     leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
