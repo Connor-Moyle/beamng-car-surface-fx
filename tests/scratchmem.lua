@@ -64,4 +64,26 @@ function getAllVehicles() return { veh } end
 function veh:getActiveUITextureTagNames() error('dead car') end
 assert(pcall(M.onExtensionUnloaded), 'a car that errors does not stop the unload')
 assert(destroyed == 0, 'no canvas was destroyed by these')
+-- dirt put where it lands: mud thrown off the tyres reaches the canvas as splats and, low on the body, clods (a once-wrong bounds read made every mud hit fail)
+do
+  local B, ST = require('carSurfaceFx/bodymap'), require('carSurfaceFx/spraytrace')
+  local X0, X1, Y0, Y1, Z0, Z1 = -0.9, 0.9, -2, 2, 0.2, 1.4
+  local function quad(p1, p2, p3, p4, u0, v0, u1, v1, out)
+    out[#out + 1] = { pos = { p1[1], p1[2], p1[3], p2[1], p2[2], p2[3], p3[1], p3[2], p3[3] }, uv = { u0, v0, u1, v0, u1, v1 } }
+    out[#out + 1] = { pos = { p1[1], p1[2], p1[3], p3[1], p3[2], p3[3], p4[1], p4[2], p4[3] }, uv = { u0, v0, u1, v1, u0, v1 } }
+  end
+  local tr = {}
+  quad({ X0, Y0, Z1 }, { X1, Y0, Z1 }, { X1, Y1, Z1 }, { X0, Y1, Z1 }, 0, 0, 0.5, 0.5, tr)
+  quad({ X1, Y0, Z0 }, { X1, Y1, Z0 }, { X1, Y1, Z1 }, { X1, Y0, Z1 }, 0.5, 0, 1, 0.5, tr)
+  quad({ X0, Y0, Z0 }, { X0, Y1, Z0 }, { X0, Y1, Z1 }, { X0, Y0, Z1 }, 0, 0.5, 0.5, 1, tr)
+  local wh = { { x = 0.8, y = -1.3, z = 0.35, r = 0.35 }, { x = -0.8, y = -1.3, z = 0.35, r = 0.35 }, { x = 0.8, y = 1.3, z = 0.35, r = 0.35 }, { x = -0.8, y = 1.3, z = 0.35, r = 0.35 } }
+  local bm = B.build(tr, wh)
+  bm.spray = ST.bake(tr, wh, {})
+  M.configure({ enabled = true, dirtEnabled = true })
+  M.useMap(7, bm)
+  local before = #sent
+  assert(M.dirtAt(7, 'mud', 300, nil, { 0.25, 0.17, 0.1 }, 0.85, 0.035) == true, 'mud is placed on the car')
+  assert(#sent > before, 'the splats reach the canvas')
+  assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
+end
 print('carSurfaceFx scratch memory: ok')

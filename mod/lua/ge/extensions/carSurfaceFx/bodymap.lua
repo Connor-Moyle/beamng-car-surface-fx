@@ -205,6 +205,12 @@ function M.sample(map, kind, n, rnd, wi, opts)
   return out
 end
 
+-- how high a point of the car frame is on the body: 0 at the lowest point, 1 at the roof (map.bounds is { x0, x1, y0, y1, z0, z1 })
+function M.heightOf(map, z)
+  local b = map.bounds
+  return max(0, min(1, (z - b[5]) / max(0.01, b[6] - b[5])))
+end
+
 -- how much of the body a kind could land on (0..1 of the cell count): for the tests and the status line
 function M.coverage(map, kind, wi)
   local t = table_for(map, kind, wi)

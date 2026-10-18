@@ -105,4 +105,18 @@ for _ = 1, 3000 do D.tick() if built then break end end                -- the sp
 assert(built and #built.list > 100, 'the body map is built from the mesh on texture coordinate set 1')
 local c = built.list[1]
 assert(c.gx < 33 and c.gy < 33, 'its cells are in the first quarter of the texture, where set 1 puts them, not the whole square of set 0')
+-- mud thrown from the tyres (the traced spray) reports a z in the car frame: its height on the body is known, and it is low
+do
+  local ST = require('carSurfaceFx/spraytrace')
+  map.spray = ST.bake(tris, wheels, {})
+  local hits = B.sample(map, 'mud', 60, math.random, 1)
+  local low, n = 0, 0
+  for _, h in ipairs(hits) do if h.z then n = n + 1 local hh = B.heightOf(map, h.z) assert(hh >= 0 and hh <= 1, 'a height 0..1') if hh < 0.5 then low = low + 1 end end end
+  assert(n == 0 or low >= n * 0.5, 'thrown mud lands low on the body: ' .. low .. ' of ' .. n)
+  map.spray = nil
+end
+-- the height of a point on the body, from the map's bounds (an array of six: the cake rule in scratch.lua once read them by name and failed on every mud hit)
+do local B = require('carSurfaceFx/bodymap') local m = { bounds = { -1, 1, -2, 2, 0.2, 1.4 } }
+  assert(B.heightOf(m, 0.2) == 0 and B.heightOf(m, 1.4) == 1 and math.abs(B.heightOf(m, 0.5) - 0.25) < 1e-9, 'heightOf: sill 0, roof 1')
+end
 print('carSurfaceFx body map: ok')

@@ -369,6 +369,7 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
+function M.useMap(id, map) cars[id] = cars[id] or {} cars[id].map = map end                    -- (for the tests: a car's body map without the mesh reading)
 local dd = { calls = 0, refused = 0, sent = 0, clods = 0, last = 'never' }              -- what dirtAt did, for diagnose()
 function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local car = cars[id]
@@ -380,9 +381,8 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local list = bodymap.sample(map, kind, n, random, wi, opts)
   if #list == 0 then return true end
   local blobs, dirs, cakes = {}, {}, {}
-  local b = map.bounds
   for i, s in ipairs(list) do
-    local h = s.h or (s.z and b and (s.z - b.z0) / math.max(0.01, b.z1 - b.z0))      -- how high on the car (0 sill .. 1 roof)
+    local h = s.h or (s.z and bodymap.heightOf(map, s.z))                            -- how high on the car (0 sill .. 1 roof)
     if kind == 'mud' and h and h < 0.3 and random() < 0.4 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
       cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.6 + random() * 1.4) * s.s
     else
