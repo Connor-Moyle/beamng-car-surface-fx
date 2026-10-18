@@ -26,6 +26,10 @@ assert(field.filled > 100 and #field.g == G.N * G.N * 2, 'the cells under the tr
 local c = (16 * G.N + 8) * 2                                      -- a cell inside the first triangle
 assert(field.g[c + 2] > 0.5, 'the cell has the pane\'s down: ' .. tostring(field.g[c + 2]))
 
+-- texture coordinates outside 0..1 wrap: the same pane drawn at u + 1.2, v - 0.8 fills cells all the same
+local shifted = G.field({ { pos = pos, uv = { uv[1] + 1.2, uv[2] - 0.8, uv[3] + 1.2, uv[4] - 0.8, uv[5] + 1.2, uv[6] - 0.8 } } })
+assert(shifted.filled > 100, 'a triangle whose coordinates lie outside the first tile is wrapped into it: ' .. shifted.filled)
+
 -- the messages for the page: three kinds, in pieces of 256 numbers
 local msgs = G.messages(field)
 assert(#msgs == 3 * (G.N * G.N * 2 / 256) + G.N * G.N / 256, 'a message per 256 numbers and kind (three directions and the mask of glass cells): ' .. #msgs)

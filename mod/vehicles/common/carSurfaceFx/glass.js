@@ -110,16 +110,16 @@
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     // a drop of a few pixels: a thin ring and a one-pixel glint, all the rings in one path and all the glints in another (one stroke, one fill); bigger ones the sprite
     var tiny = false;
-    ctx.strokeStyle = 'rgba(0,0,0,0.38)'; ctx.lineWidth = 0.7;
-    if (!emissive) ctx.beginPath();
+    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.9;       // the emissive map adds light: a light ring there
+    ctx.beginPath();
     var glints = [];
     for (var i = 0; i < sim.n; i++) {
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H, px = sim.x[i] * W, py = sim.y[i] * H;
       if (R < 2.2) {
-        var rr = Math.max(0.6, R);
-        if (!emissive) { ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true; }
-        glints.push(px - 0.35 * rr - 0.5, py - 0.4 * rr - 0.5);
+        var rr = Math.max(1.6, R);                                    // a bead is about one texel of this canvas: drawn at least 3 px across so it can be seen at all
+        ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true;
+        glints.push(px - 0.35 * rr - 1, py - 0.4 * rr - 1);
       } else {
         ctx.drawImage(sprite, px - R, py - R, R * 2, R * 2);
       }
@@ -127,7 +127,7 @@
     if (tiny) ctx.stroke();
     if (glints.length) {
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.8 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1, 1);
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
     }
     var fr = sim.fresh;                                               // impacts: a quick small ring where a raindrop landed (p.imp: how many of the landings get one, 0 = none)
     for (var f = 0; f < fr.length && p.imp > 0; f++) if (imp.length < 60 && Math.random() < p.imp) imp.push([sim.x[fr[f]] * W, sim.y[fr[f]] * H, 0]);

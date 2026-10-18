@@ -308,7 +308,7 @@ end
 
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
 -- Lamps and their lenses are never touched: not by name, and not by an emissive or glow setting on the material.
-local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led' }
+local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led', 'beam', 'reflector' }
 function M.isLampName(name)
   local n = tostring(name):lower()
   for _, w in ipairs(LAMP) do if n:find(w, 1, true) then return true end end
