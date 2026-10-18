@@ -97,6 +97,7 @@
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(); };
 
+  var imp = [], IMP_LIFE = 0.25;                                      // raindrop impacts: [x, y, age] rings that open and fade in a quarter second
   var minMs = 70;                                                   // the texture is only taken 12 times a second (GLASS_FPS in carSurfaceFx.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
@@ -128,6 +129,19 @@
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.8 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1, 1);
     }
+    var fr = sim.fresh;                                               // impacts: a quick small ring where a raindrop landed (p.imp: how many of the landings get one, 0 = none)
+    for (var f = 0; f < fr.length && p.imp > 0; f++) if (imp.length < 60 && Math.random() < p.imp) imp.push([sim.x[fr[f]] * W, sim.y[fr[f]] * H, 0]);
+    fr.length = 0;
+    var kept = 0;
+    for (var m = 0; m < imp.length; m++) {
+      var im = imp[m]; im[2] += dt;
+      if (im[2] >= IMP_LIFE) continue;
+      var ph = im[2] / IMP_LIFE;
+      ctx.strokeStyle = (emissive ? 'rgba(255,255,255,' : 'rgba(255,255,255,') + ((emissive ? 0.22 : 0.4) * (1 - ph)).toFixed(2) + ')'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.arc(im[0], im[1], 1 + 3 * ph, 0, Math.PI * 2); ctx.stroke();
+      imp[kept++] = im;
+    }
+    imp.length = kept;
     if (p.frost < 0.05) frostFresh = false;
     else if (!frostFresh) { fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
     if (p.frost > 0.01 && p.wiper > 0.05 && sim.wipe !== wipePrev) {     // the blade's band, along the glass's axis (as in sim.js), is clear

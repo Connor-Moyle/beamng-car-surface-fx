@@ -497,7 +497,7 @@ function M.water(id, p)
   local function ok(v) return (v == v and v > -1e6 and v < 1e6) and v or 0 end
   local fx, fy, fz = ok(f.x), ok(f.y), ok(f.z)
   if fx == 0 and fy == 0 and fz == 0 then fz = -9.8 end
-  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1))
+  lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f,imp:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1), ok(p.imp or 0))
   waterSent = waterSent + 1
   veh:queueJSUITexture(TAG_B, lastWaterJs)
 end

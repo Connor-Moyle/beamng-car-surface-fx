@@ -9,7 +9,7 @@
   // Every size here is in metres and meets the texture through s, the texture units per metre at the drop's place (the node map gives it), so a drop is the same real size on every car.
 
   function create() {
-    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
+    return { n: MAXD, x: new Float32Array(MAXD), y: new Float32Array(MAXD), r: new Float32Array(MAXD), alive: new Uint8Array(MAXD), fresh: [], moved: new Uint8Array(MAXD), age: new Float32Array(MAXD), life: new Float32Array(MAXD), nodes: null, grid: null, seed: 4321, count: 0 };
   }
   function rnd(w) { w.seed = (w.seed * 16807) % 2147483647; return w.seed / 2147483647; }
 
@@ -63,7 +63,8 @@
       if (spawns >= 1 || rnd(w) < spawns) {
         var k = Math.floor(rnd(w) * w.count), q = rnd(w);
         var sk = w.nodes[k * 9 + 8];
-        add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (0.0015 + 0.0015 * q * q * q) * kd * sk, sk, kd);     // 1.5 to 3 mm radius at the default size: 3 to 6 mm drops
+        var j = add(w, w.nodes[k * 9] + (rnd(w) - 0.5) * 0.03, w.nodes[k * 9 + 1] + (rnd(w) - 0.5) * 0.03, (0.0015 + 0.0015 * q * q * q) * kd * sk, sk, kd);     // 1.5 to 3 mm radius at the default size: 3 to 6 mm drops
+        if (j >= 0 && w.fresh.length < 64) w.fresh.push(j);                                            // the page rings where a raindrop landed
       }
       spawns -= 1;
     }
