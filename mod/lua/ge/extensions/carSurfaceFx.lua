@@ -749,7 +749,13 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() stopRuts() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() stopRuts() if rawget(_G, 'carSurfaceFx_debug') then extensions.unload('carSurfaceFx_debug') end end
+
+-- carSurfaceFx.debugTools(): loads the console debug set (counts, status, wheel contact markers, ground kind labels, clear all, test all); see carSurfaceFx_debug.lua
+function M.debugTools()
+  if not rawget(_G, 'carSurfaceFx_debug') then extensions.load('carSurfaceFx_debug') end
+  return carSurfaceFx_debug.help()
+end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
