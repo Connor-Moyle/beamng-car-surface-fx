@@ -1,0 +1,90 @@
+{
+ "film": {
+  "file": "film.png",
+  "size": [
+   256,
+   256
+  ],
+  "tile": "both",
+  "use": "mask: tint grey-brown; draw tiled over the lower band and rear faces, alpha by the grime amount and the height fall-off"
+ },
+ "dust": {
+  "file": "dust.png",
+  "size": [
+   256,
+   256
+  ],
+  "tile": "both",
+  "use": "mask: pale; on the PALETTE canvas (destination-out lightens) or tint very light; the base canvas can only darken"
+ },
+ "speckle": {
+  "file": "speckle.png",
+  "size": [
+   512,
+   512
+  ],
+  "cells": [
+   [
+    0,
+    0,
+    256,
+    256
+   ],
+   [
+    256,
+    0,
+    256,
+    256
+   ],
+   [
+    0,
+    256,
+    256,
+    256
+   ],
+   [
+    256,
+    256,
+    256,
+    256
+   ]
+  ],
+  "origin": [
+   128,
+   250
+  ],
+  "axis": "up",
+  "use": "mask: tint the dirt colour; origin is the wheel, the fan opens up; rotate so up points along the spray; scale 60 to 100 texels"
+ },
+ "cakes": {
+  "file": "cakes.png",
+  "size": [
+   512,
+   256
+  ],
+  "cell": 128,
+  "wet": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "dry": [
+   4,
+   5,
+   6,
+   7
+  ],
+  "use": "rgb = shade (multiply with the mud colour), alpha = outline; index i: x = (i%4)*128, y = floor(i/4)*128; draw wet when the mud is fresh, cross-fade to the dry cell as it dries; 8 to 14 texels"
+ },
+ "streaks": {
+  "file": "streaks.png",
+  "size": [
+   128,
+   512
+  ],
+  "tile": "v",
+  "use": "mask: tint the dirt colour; down is +y; on vertical panels, alpha by the rain-streaked share; 80 to 200 texels long"
+ },
+ "mmPerTexel": 5
+}
