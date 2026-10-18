@@ -224,6 +224,18 @@ local function frameOf(veh)
   return M.makeFrame(P(r.ref), P(r.left), P(r.back), P(r.up))
 end
 
+-- The nodes of a car's windscreen flexbody are not always the glass: the covet's lists 138 nodes over the whole car (nose to tailgate, a plane fit picks the hood and dash).
+-- In the driver's view the glass is the part of them in front of the eye: a little way ahead (not the roof or the pillars beside the head, not the far hood) and not far
+-- below or above the line of sight. list = { { r, u, d } ... } each node in the camera's frame (right, up, depth in m). Returns the indices, or nil when fewer than 4 qualify.
+M.EYE_DEPTH, M.EYE_UP = { 0.15, 1.15 }, { -0.5, 0.7 }
+function M.eyeNodes(list)
+  local keep = {}
+  for i, n in ipairs(list) do
+    if n.d >= M.EYE_DEPTH[1] and n.d <= M.EYE_DEPTH[2] and n.u >= M.EYE_UP[1] and n.u <= M.EYE_UP[2] and math.abs(n.r) <= 1.0 then keep[#keep + 1] = i end
+  end
+  return #keep >= 4 and keep or nil
+end
+
 -- carSurfaceFx.windscreenDump(): for each flexbody the screen takes for the windscreen, its name and the node positions in the car's own frame (x left, y back, z up, from the
 -- reference nodes), so the glass can be told from the rest of its node group offline. Returns a table.
 function M.dump(veh)
@@ -268,6 +280,17 @@ function M.windscreen(veh)
       glassBy[id] = list
     end
     nodes = glassBy[id]
+    local raw = windscreenNodes(id)
+    if #raw > #nodes then                                             -- a flexbody for more than the windscreen: the part of it in front of the eye
+      local cl = {}
+      for i, cid in ipairs(raw) do
+        local w = veh:getNodePosition(cid)
+        local dx, dy, dz = w.x + base.x - cam.x, w.y + base.y - cam.y, w.z + base.z - cam.z
+        cl[i] = { r = dx * cam.r.x + dy * cam.r.y + dz * cam.r.z, u = dx * cam.u.x + dy * cam.u.y + dz * cam.u.z, d = dx * cam.f.x + dy * cam.f.y + dz * cam.f.z }
+      end
+      local ix = M.eyeNodes(cl)
+      if ix then nodes = {} for _, i in ipairs(ix) do nodes[#nodes + 1] = raw[i] end end
+    end
     local v = veh:getVelocity()
     local speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
     eyeBy[id] = eyeBy[id] or {}
