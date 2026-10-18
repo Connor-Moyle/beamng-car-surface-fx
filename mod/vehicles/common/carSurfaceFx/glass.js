@@ -8,7 +8,7 @@
   var canvas = document.getElementById('csfx');
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
-  var sim = CsfxSim.create(900);
+  var sim = CsfxSim.create(1800);
   var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
@@ -117,7 +117,7 @@
   }
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
-  window.csfxClear = function () { sim = CsfxSim.create(900); };
+  window.csfxClear = function () { sim = CsfxSim.create(1800); };
 
   var imp = [], IMP_LIFE = 0.25;                                      // raindrop impacts: [x, y, age] rings that open and fade in a quarter second
   var minMs = 70;                                                   // the texture is only taken 12 times a second (GLASS_FPS in carSurfaceFx.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
