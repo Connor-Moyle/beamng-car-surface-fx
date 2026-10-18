@@ -5,6 +5,7 @@
 --     wanted  = { [flexbody mesh name] = flexbody } the meshes that are fitted on the car (their node names in the .dae)
 --     matSet  = { [dae material name] = true }       which materials to keep
 --     uvSet   = nil: the first texture coordinate set of each primitive; a number: the set with that index (the paint is on set 1)
+--     stats   = optional { daeMats = {}, nodes = {}, nodeCount = 0 }: every material name in the file, the fitted meshes found, the nodes seen (to say why nothing was found)
 --     tris    = list that gets { pos = { 9 numbers }, uv = { 6 numbers }, mat = material name, mesh = mesh name }
 local M = {}
 
@@ -43,13 +44,13 @@ local function prims(body, uvSet)
   return out
 end
 
-function M.read(path, wanted, matSet, uvSet, tris)
+function M.read(path, wanted, matSet, uvSet, tris, stats)
   local s = readFile(path)
   if not s then return end
   local yup = s:find('<up_axis>Y_UP', 1, true) ~= nil
   local unit = tonumber(s:match('<unit[^>]-meter="([^"]+)"')) or 1
   local matName, geomPos = {}, {}
-  for id, nm in s:gmatch('<material id="([^"]+)" name="([^"]+)"') do matName[id] = nm end
+  for id, nm in s:gmatch('<material id="([^"]+)" name="([^"]+)"') do matName[id] = nm if stats then stats.daeMats[nm] = true end end
   for p, id in s:gmatch('()<geometry id="([^"]+)"') do geomPos[id] = p end
   coroutine.yield()
   local pos = s:find('<library_visual_scenes', 1, true) or 1
@@ -58,7 +59,9 @@ function M.read(path, wanted, matSet, uvSet, tris)
     if not b then break end
     pos = b + 1
     local fb = wanted[nm]
+    if stats then stats.nodeCount = stats.nodeCount + 1 end
     if fb then
+      if stats then stats.nodes[nm] = true end
       local chunk = s:sub(b, s:find('</node>', b, true) or (b + 4000))
       local gid = chunk:match('<instance_geometry url="#([^"]+)"')
       local symMat = {}

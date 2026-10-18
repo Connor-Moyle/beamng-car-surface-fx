@@ -81,12 +81,17 @@
   var FN = 32;
   window.csfxFlow = function (kind, start, arr) {
     var fl = p.flow;
-    if (!fl) fl = p.flow = { n: FN, g: new Float32Array(FN * FN * 2), b: new Float32Array(FN * FN * 2), r: new Float32Array(FN * FN * 2), got: {}, ready: false };
+    if (!fl) fl = p.flow = { n: FN, g: new Float32Array(FN * FN * 2), b: new Float32Array(FN * FN * 2), r: new Float32Array(FN * FN * 2), m: new Float32Array(FN * FN), cells: null, got: {}, ready: false };
     var dst = fl[kind];
     if (!dst) return;
     for (var i = 0; i < arr.length; i++) dst[start + i] = arr[i] / 100;
     if (start + arr.length >= dst.length) fl.got[kind] = true;
     fl.ready = !!(fl.got.g && fl.got.b && fl.got.r);
+    if (kind === 'm' && fl.got.m) {                                   // the cells that are glass: drops are only made there
+      var cells = [];
+      for (var c = 0; c < fl.m.length; c++) if (fl.m[c] > 0.5) cells.push(c);
+      fl.cells = cells.length ? cells : null;
+    }
   };
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };

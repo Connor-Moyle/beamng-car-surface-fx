@@ -48,9 +48,10 @@
     if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
     var cap = mm ? Math.floor((120 + 460 * p.rain) * amount) : Math.floor((60 + 240 * p.rain) / z);      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
+    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
     var spawns = n0 < cap ? p.rain * (mm ? 170 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d), sx, sy; if (pc) { var cc = pc[Math.floor(rnd(d) * pc.length)]; sx = (cc % fl0.n + rnd(d)) / fl0.n; sy = (Math.floor(cc / fl0.n) + rnd(d)) / fl0.n; } else { sx = rnd(d); sy = rnd(d); } add(d, sx, sy, mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); }
       spawns -= 1;
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops

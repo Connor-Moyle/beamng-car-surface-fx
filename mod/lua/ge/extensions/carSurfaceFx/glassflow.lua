@@ -114,6 +114,8 @@ function M.field(tris)
     cnt = fill
   end
   out.filled = filled
+  out.m = {}
+  for c = 1, N * N do out.m[c] = cnt[c] > 0 and 1 or 0 end                        -- the cells that are glass: drops are only made there
   out.uvPerM = sN > 0 and sSum / sN or 0.5                                       -- the mean of the pane triangles: a drop of a given size in millimetres is this many texture units per metre
   return out
 end
@@ -133,11 +135,11 @@ function M.request(vehId, glassMat, cb)
   local key = tostring(vd.vehicleDirectory) .. '|' .. table.concat(mats, ',') .. '|' .. table.concat(names, ',')
   if cache[key] then return cb(cache[key]) end
   local co = coroutine.create(function()
-    local tris = {}
+    local tris, stats = {}, { daeMats = {}, nodes = {}, nodeCount = 0 }
     local files = {}
     pcall(function() files = FS:findFiles(vd.vehicleDirectory, '*.dae', -1, false, false) or {} end)
     for _, path in ipairs(files) do
-      local ok, err = pcall(read, path, wanted, glassMat, nil, tris)
+      local ok, err = pcall(read, path, wanted, glassMat, nil, tris, stats)
       if not ok then log('W', TAG, 'could not read ' .. path .. ': ' .. tostring(err)) end
       coroutine.yield()
     end
@@ -146,7 +148,19 @@ function M.request(vehId, glassMat, cb)
     local out = {}
     for mn, list in pairs(byMat) do out[mn] = M.field(list) end
     cache[key] = out
-    log('I', TAG, tostring(vd.vehicleDirectory) .. ': ' .. #tris .. ' glass triangles in ' .. #mats .. ' material(s)')
+    local info = { tris = #tris, files = #files, nodeCount = stats.nodeCount, matched = 0, wantedMats = table.concat(mats, ','), fields = {} }
+    for _ in pairs(stats.nodes) do info.matched = info.matched + 1 end
+    for mn, f in pairs(out) do info.fields[#info.fields + 1] = string.format('%s: %d cells, %.2f/m', mn, f.filled, f.uvPerM) end
+    out._info = info
+    local line = string.format('%s: %d glass triangles, %d .dae file(s), %d fitted meshes found of %d nodes; materials asked for [%s]; cells [%s]', tostring(vd.vehicleDirectory), #tris, #files, info.matched, stats.nodeCount, info.wantedMats, table.concat(info.fields, '; '))
+    if #tris == 0 then
+      local glassy = {}
+      for nm in pairs(stats.daeMats) do if nm:lower():find('glass', 1, true) then glassy[#glassy + 1] = nm end end
+      table.sort(glassy)
+      log('W', TAG, line .. ' - NOTHING FOUND. glass-like materials in the .dae: [' .. table.concat(glassy, ', ') .. ']')
+    else
+      log('I', TAG, line)
+    end
     return out
   end)
   jobs[#jobs + 1] = { co = co, cb = cb }
@@ -170,7 +184,7 @@ end
 -- one field as the lines the page takes: csfxFlow(kind, firstIndex, { integers }) in pieces of 256 numbers, directions times 100 as whole numbers
 function M.messages(field)
   local out = {}
-  for _, kind in ipairs({ 'g', 'b', 'r' }) do
+  for _, kind in ipairs({ 'g', 'b', 'r', 'm' }) do
     local list = field[kind]
     for start = 1, #list, 256 do
       local part = {}
