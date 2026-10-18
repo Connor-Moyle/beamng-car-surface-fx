@@ -23,7 +23,7 @@ function createOverlay(doc, win) {
   // ever been drawn on since it was last empty (the fade has to reach all of it). Rectangles are { x0, y0, x1, y1 } in pixels.
   var drawn = null, trailBox = null, PAD = 24;
   function join(a, b) { return a ? { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) } : b; }
-  var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
+  var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n), born = new Float64Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
   var mistTex = (function () {                                       // road spray: a haze and a fine grey-white speckle, made once
@@ -66,7 +66,9 @@ function createOverlay(doc, win) {
       var rim = ring * Math.max(0, -dir);
       over(px, 255, 255, 255, Math.min(1, rim * 0.95));                                           // the bright rim up-left
       var gx = u + 0.4, gy = v + 0.45;
-      over(px, 255, 255, 255, Math.min(1, 1.0 * Math.exp(-(gx * gx + gy * gy) / 0.012)));       // the glint
+      over(px, 255, 255, 255, Math.min(1, 1.6 * Math.exp(-(gx * gx + gy * gy) / 0.022)));       // the glint: big and hard, a wet drop is shiny
+      var g2x = u - 0.38, g2y = v - 0.42;
+      over(px, 255, 255, 255, Math.min(1, 0.7 * Math.exp(-(g2x * g2x + g2y * g2y) / 0.015)));   // and a smaller second one low right, the light that comes through
       var a = px[3];
       data.data[o] = a > 0 ? Math.round(px[0] / a) : 0; data.data[o + 1] = a > 0 ? Math.round(px[1] / a) : 0; data.data[o + 2] = a > 0 ? Math.round(px[2] / a) : 0;
       data.data[o + 3] = Math.min(255, a * fade * 255);
@@ -104,6 +106,8 @@ function createOverlay(doc, win) {
     CsfxSim.step(sim, dt, st.p);
     st.p.wiper = wp;
     var b = st.bbox, bw = b.w * W, bh = b.h * H, bx = b.x0 * W, by = b.y0 * H;
+    for (var fi = 0; fi < sim.fresh.length; fi++) born[sim.fresh[fi]] = now;       // drops that just landed get a ring (below)
+    sim.fresh.length = 0;
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
@@ -176,6 +180,13 @@ function createOverlay(doc, win) {
       alive++;
       var R = Math.max(1.5, sim.r[n] * bh);
       ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
+      var age = now - born[n];
+      if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
+        var k2 = age / 320, rr2 = R * (1.2 + 2.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = 'rgba(15,25,40,' + (0.55 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2 + 1.5, 0, 6.2832); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
+      }
     }
     ctx.restore();
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)

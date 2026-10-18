@@ -28,7 +28,7 @@ end
 -- soaks in over ~25 s, dries over ~5 min
 function M.wetStep(w, target, dt)
   if target > w then return math.min(target, w + dt / 25) end
-  return math.max(target, w - dt / 300)
+  return math.max(target, w - dt / 100)
 end
 
 -- The v1.5 fields copied from the live Material object, per stage (0..3) and for the whole material. Read with getField, so the clone matches
@@ -120,7 +120,7 @@ function M.wetFields(st, rung)
   local c = color4(st.baseColorFactor)
   local k = 1 - 0.25 * f
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
-  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.5 * f))
+  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.65 * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
   local own = false
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
