@@ -103,7 +103,7 @@ scenetree = { MissionGroup = { add = function() end }, findObjectById = function
 local U = dofile('mod/lua/ge/extensions/carSurfaceFx/ruts.lua')
 U.onExtensionLoaded()
 assert(U.get('widthScale') == 1 and U.get('nothing') == nil and U.set('widthScale', 1.5) and not U.set('widthScale', 'wide'), 'settings by path')
-U.set('widthScale', 1)
+U.set('widthScale', 1) U.set('enabled', true)
 assert(sent[#sent] and sent[#sent]:find('setConfig%(true'), 'the car is told to report')
 
 -- a heavy car driving through mud: samples every 0.6 m

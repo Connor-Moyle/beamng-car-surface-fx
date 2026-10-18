@@ -9,7 +9,7 @@ M.KINDS = { 'mud', 'snow', 'sand', 'dirt', 'gravel' }                 -- the gro
 
 function M.defaults()
   return {
-    enabled = true,
+    enabled = false,
     routing = 'road',                                                  -- 'road': small DecalRoads with the lit mark materials; 'decal': the decal manager (the fallback)
     maxRoads = 200,                                                    -- chunks kept (a ring: the oldest are removed)
     maxPerSecond = 6,                                                  -- chunks made per second at most (a DecalRoad rebuilds its mesh when made)
