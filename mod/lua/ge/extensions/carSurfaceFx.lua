@@ -37,6 +37,7 @@ local function wipersOf(id, rain)
   return (wiperHold[id] or 0) > os.clock() and 1 or 0
 end
 local dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime, snow, bugs } 0..1 built up by driving and weather (settings.mud.buildup)
+local forcedSpeed                      -- debug: the speed (m/s) the window water and the driver's view see, to test the airflow while parked
 local forcedDirt                          -- the debug amounts { kind = value }
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
 local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
@@ -533,7 +534,7 @@ function M.pushGlass(car, mo)
   for _, info in ipairs(car.mats) do
     if info.glass and info.rung > 0 then
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
-      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wet, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
         wiper = wipersOf(car.veh:getID(), rain), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
@@ -611,7 +612,7 @@ local function pushScreen(dt)
   end
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
-  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity * drops, wet = wet * drops, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity * drops, wet = wet * drops, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
     wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostShown(), spray = sprayShown() })
   screenOn = true
 end
@@ -841,6 +842,7 @@ function M.debug(kind, value)
   if kind == 'frost' then forcedFrost = value return 'frost forced to ' .. value end
   if kind == 'snowing' then forcedSnowing = value return 'snowfall forced to ' .. value end
   if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
+  if kind == 'speed' then forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
