@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 22                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 23                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -394,8 +394,8 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local blobs, dirs, cakes = {}, {}, {}
   for i, s in ipairs(list) do
     local h = s.h or (s.z and bodymap.heightOf(map, s.z))                            -- how high on the car (0 sill .. 1 roof)
-    if kind == 'mud' and h and h < 0.3 and random() < 0.4 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
-      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.6 + random() * 1.4) * s.s
+    if kind == 'mud' and h and h < 0.35 and random() < 0.5 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
+      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.8 + random() * 1.8) * s.s
     else
       local k = #blobs
       blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.6 + random() * 0.8) * s.s

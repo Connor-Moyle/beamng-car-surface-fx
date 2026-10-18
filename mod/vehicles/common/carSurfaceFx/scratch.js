@@ -17,7 +17,7 @@
   var palette = /[?&]m=p/.test(location.search);
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
-  var MAX_LINES = 300, MAX_BLOBS = 2500;
+  var MAX_LINES = 300, MAX_BLOBS = 6000;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
 
