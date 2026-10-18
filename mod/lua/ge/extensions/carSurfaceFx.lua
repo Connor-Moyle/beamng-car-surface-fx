@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true , canvasSize = 512 }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -147,6 +147,9 @@ local function wears(veh, name)
   return false
 end
 
+-- the player's windows get the finer canvas when the setting says so (windscreen.canvasSize 1024: a bead is then about 2 mm of glass per texel); other cars always 512
+local function glassSizeFor(veh) return (veh:getID() == be:getPlayerVehicleID(0) and (settings.windscreen.canvasSize or 512) >= 1024) and 1024 or GLASS_SIZE end
+
 local function canvases(info, on)
   for i = 0, be:getObjectCount() - 1 do
     local veh = be:getObject(i)
@@ -154,7 +157,7 @@ local function canvases(info, on)
       if on and not hasCanvas(veh, info.tag) then
         log_('I', 'water canvas ' .. info.tag .. ' for car ' .. veh:getID())
         local _, src = rules.glassMap(info.stages[0], info.mode)
-        veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&v=' .. GLASS_PAGE_V .. '&base=' .. urlEncode(src or ''), GLASS_SIZE, GLASS_SIZE, UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
+        veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&v=' .. GLASS_PAGE_V .. '&base=' .. urlEncode(src or ''), glassSizeFor(veh), glassSizeFor(veh), UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
       elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) end
     end
   end
