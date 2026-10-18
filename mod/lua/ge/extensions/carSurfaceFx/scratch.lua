@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 21                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 22                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -369,6 +369,17 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
+-- splats to the pages in pieces of 40, with short numbers: one call of 550 splats with 17-digit floats was a 50 kB piece of script, more than a web texture may take
+local function drawSplats(veh, list, dirs, props)
+  for first = 1, #list, 120 do
+    local l, d = {}, {}
+    for i = first, math.min(#list, first + 119), 3 do
+      l[#l + 1], l[#l + 2], l[#l + 3] = q(list[i], 10000), q(list[i + 1], 10000), q(list[i + 2], 100000)
+      if dirs then local j = (i - 1) / 3 * 2 + 1 d[#d + 1], d[#d + 2] = q(dirs[j], 1000), q(dirs[j + 1], 1000) end
+    end
+    draw(veh, 'csfxBlobs', { l = l, d = dirs and d or nil, c = props.c, a = props.a, k = props.k })
+  end
+end
 function M.useMap(id, map) cars[id] = cars[id] or {} cars[id].map = map end                    -- (for the tests: a car's body map without the mesh reading)
 local dd = { calls = 0, refused = 0, sent = 0, clods = 0, last = 'never' }              -- what dirtAt did, for diagnose()
 function M.dirtAt(id, kind, n, wi, c, a, size, opts)
@@ -395,11 +406,11 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local m = mem(id)
   dd.sent, dd.clods, dd.last = dd.sent + #blobs / 3, dd.clods + #cakes / 3, string.format('%s: %d splats, %d clods, wheel %s', kind, #blobs / 3, #cakes / 3, tostring(wi))
   if #blobs > 0 then
-    draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
+    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft })
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
   end
   if #cakes > 0 then
-    draw(veh, 'csfxBlobs', { l = cakes, c = c, a = math.min(1, a + 0.1), k = 'cake' })
+    drawSplats(veh, cakes, nil, { c = c, a = math.min(1, a + 0.1), k = 'cake' })
     for i = 1, #cakes, 3 do remember(m.splats, { q(cakes[i]), q(cakes[i + 1]), q(cakes[i + 2], 10000), q(a), 2 }) end
   end
   return true
