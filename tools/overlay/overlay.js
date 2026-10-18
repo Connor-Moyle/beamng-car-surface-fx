@@ -15,8 +15,8 @@ function createOverlay(doc, win) {
   var ctx = canvas.getContext('2d');
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
-  var sim = CsfxSim.create(900);
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 3.5 }, bbox: null, msgs: 0, debug: false };
+  var sim = CsfxSim.create(1100);
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
@@ -86,7 +86,7 @@ function createOverlay(doc, win) {
       var u = (x + 0.5) / BS * 2 - 1, v = (y + 0.5) / BS * 2 - 1, d = Math.sqrt(u * u + v * v), o = (y * BS + x) * 4;
       if (d >= 1) { data.data[o + 3] = 0; continue; }
       var rim = Math.max(0, 1 - Math.abs(d - 0.88) / 0.2) * Math.max(0, (u + v) * 0.7071 + 0.15);   // a thin dark lower rim only (the upper side lets the sky through)
-      var spot = d < 0.85 ? 0.2 * (1 - (u + v) * 0.35) : 0;           // the body is lighter than the glass: it takes the bright sky
+      var spot = d < 0.85 ? 0.3 * (1 - (u + v) * 0.35) : 0;           // the body is lighter than the glass: it takes the bright sky
       var gx = u + 0.4, gy = v + 0.45, glint = Math.min(1, 1.2 * Math.exp(-(gx * gx + gy * gy) / 0.01));
       var dark = Math.min(0.9, 0.05 + rim * 0.62), lightA = Math.min(1, spot + glint);
       var a = dark + lightA * (1 - dark);                       // the colour is the share of light in the two
@@ -142,7 +142,7 @@ function createOverlay(doc, win) {
       var X = bx + sim.x[k] * bw, Y = by + sim.y[k] * bh;
       if (seen[k] && sim.r[k] > 0.012 * st.p.size * 0.6) {
         var dx = X - px[k], dy = Y - py[k];
-        if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
+        if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 900) {
           var w = 1.6, wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
           tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y);
         }
@@ -239,7 +239,7 @@ function createOverlay(doc, win) {
 
   function handle(name, data) {
     if (!data) return;
-    if (!data.on) { st.on = false; sim = CsfxSim.create(900); seen.fill(0); return; }
+    if (!data.on) { st.on = false; sim = CsfxSim.create(1100); seen.fill(0); return; }
     st.msgs++; st.debug = !!data.debug;
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;
