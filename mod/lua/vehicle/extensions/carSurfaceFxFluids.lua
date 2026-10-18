@@ -10,6 +10,8 @@ local APPLY_EPS = 0.01                     -- not worth calling the setter for a
 local RISE, FALL = 6.0, 1.2                -- 1/s: grip drops fast in a puddle, comes back slower
 
 local emit = false                         -- the GE side switches it on for the cars that leak
+local drops, dropWidth, dropCount = true, 0.06, 2   -- the falling drops: the game's own fluid-drop particles from the leak point
+local DROP_PARTICLE = { oil = 36, coolant = 48, fuel = 50, exhaust = 50 }   -- BNGP_<n>, kept equal to the GE side's fluidrules.DROP_PARTICLE by the test
 local exhaustOn = false
 local gripOn = false
 local puddles = {}                         -- { {x, y, r, grip, radius}, ... } near the car (from GE)
@@ -153,6 +155,18 @@ local function report()
   local oilRate = d and d.oilLeakRateOverall or 'nil'
   local coolRate = d and d.coolantLeakRateOverall or 'nil'
   if forced.oil or forced.coolant then oilRate = forced.oil and 'nil' or oilRate coolRate = forced.coolant and 'nil' or coolRate end
+  if drops then
+    -- the falling drops are the game's own: one burst from the leak point per fluid that is leaking now
+    local function dripOf(kind, node)
+      pcall(function() obj:addParticleVelWidthTypeCount(node, vec3(0, 0, -1), vec3(0, 0, 0), 0.2, dropWidth, DROP_PARTICLE[kind], dropCount) end)
+    end
+    local en = engine and engine.engineNodeID
+    if en then
+      if oilPan or oilCooler or (type(oilRate) == 'number' and oilRate > 0.0005) then dripOf('oil', en) end
+      if radiator or overheat or (type(coolRate) == 'number' and coolRate > 0.0005) then dripOf('coolant', en) end
+      if rate > 0 and stored > 0 then dripOf('fuel', en) end
+    end
+  end
   local rpm = electrics and electrics.values and electrics.values.rpm or 0
   local temp = electrics and electrics.values and (electrics.values.watertemp or electrics.values.oiltemp) or 90
   local cold = temp < 60
@@ -171,7 +185,10 @@ local function frame(dt)
   gripFrame(dt)
 end
 
-function M.setConfig(on, exhaust, grip)
+function M.setConfig(on, exhaust, grip, fall, width, count)
+  if fall ~= nil then drops = fall and true or false end
+  if width then dropWidth = width end
+  if count then dropCount = count end
   emit = on and true or false
   exhaustOn = exhaust and true or false
   gripOn = grip and true or false

@@ -17,7 +17,6 @@ local DROP_TEX = 'art/decals/fluids/drop.png'
 local settings = rules.defaults()
 local store = rules.newStore(settings.maxPuddles)
 local colors = {}                                                 -- kind -> ColorF (rebuilt when a colour changes)
-local dropCol = {}                                                -- kind -> ColorF for the falling drops
 local reports = {}                                                -- vehicle id -> what the car last said { oil, coolant, fuel, exhaust, grip, at }
 local pools = {}                                                  -- 'kind:variant' -> decal slots
 local dirty, lastSave = false, 0
@@ -41,7 +40,6 @@ local function rebuildColors()
   for _, kind in ipairs(rules.KINDS) do
     local c = settings.kinds[kind].color
     colors[kind] = c
-    if ColorF then dropCol[kind] = ColorF(c[1], c[2], c[3], 0.9) end
   end
 end
 
@@ -94,8 +92,8 @@ end
 
 local function pushConfig(veh, emit)
   local ex = settings.kinds.exhaust.enabled
-  veh:queueLuaCommand(string.format('if not carSurfaceFxFluids then extensions.load("carSurfaceFxFluids") end carSurfaceFxFluids.setConfig(%s, %s, %s)',
-    emit and 'true' or 'false', ex and 'true' or 'false', settings.gripEnabled and 'true' or 'false'))
+  veh:queueLuaCommand(string.format('if not carSurfaceFxFluids then extensions.load("carSurfaceFxFluids") end carSurfaceFxFluids.setConfig(%s, %s, %s, %s, %.3f, %d)',
+    emit and 'true' or 'false', ex and 'true' or 'false', settings.gripEnabled and 'true' or 'false', settings.fallingDrops and 'true' or 'false', settings.dropSize, math.floor(settings.dropCount)))
 end
 
 local function injectAll()
@@ -159,18 +157,6 @@ local function fallDrops(dt)
   end
 end
 
-local function drawDrops()
-  if dropN == 0 or not debugDrawer then return end
-  for i = 1, dropN do
-    local d = drops[i]
-    local c = dropCol[d.kind]
-    if c then
-      d.pos:set(d.x, d.y, d.z)
-      pcall(debugDrawer.drawSphere, debugDrawer, d.pos, settings.dropSize, c)
-    end
-  end
-end
-
 -- what a car says about itself, twice a second: its leak intensities and the grip multiplier its tyres are on
 function M.report(vid, oil, coolant, fuel, exhaust, grip)
   local r = reports[vid] or {}
@@ -224,7 +210,6 @@ end
 
 function M.onPreRender(dt)
   if not settings.enabled then return end
-  drawDrops()
   if store.count == 0 then return end
   if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
