@@ -79,6 +79,18 @@ function M.flat(hull)
   return out
 end
 
+-- the glass mesh runs up under the headliner and the pillar trim, so the part you can see is smaller than the node hull: shrink the hull toward its bottom centre
+-- (kx across, ky up). On the covet the visible glass is about 0.93 as wide and 0.68 as tall as the hull; shortcut: one factor for every car, measure per car if one is off.
+M.INSET = { 0.93, 0.68 }
+function M.inset(hull, kx, ky)
+  if not hull then return nil end
+  local x0, x1, ymax = 1, 0, 0
+  for i = 1, #hull, 2 do x0, x1, ymax = math.min(x0, hull[i]), math.max(x1, hull[i]), math.max(ymax, hull[i + 1]) end
+  local cx, out = (x0 + x1) / 2, {}
+  for i = 1, #hull, 2 do out[i] = cx + (hull[i] - cx) * kx out[i + 1] = ymax - (ymax - hull[i + 1]) * ky end
+  return out
+end
+
 -- is this flexbody mesh a windscreen (the outer pane)?
 function M.isWindscreenMesh(name)
   local n = tostring(name):lower()
@@ -308,7 +320,7 @@ function M.windscreen(veh)
   end
   last.camera = sn > 0 and string.format('nodes %d mean in camera frame right %.2f up %.2f depth %.2f m | fov %.1f deg aspect %.2f | camera forward %.2f,%.2f,%.2f up %.2f,%.2f,%.2f', sn, sr / sn, su / sn, sd / sn, math.deg(2 * math.atan(cam.halfTan)), cam.aspect, cam.f.x, cam.f.y, cam.f.z, cam.u.x, cam.u.y, cam.u.z) or 'no nodes'
   local whole = M.convexHull(pts)
-  local hull = M.flat(M.clipHull(whole, 0, 0, 1, 1))
+  local hull = M.inset(M.flat(M.clipHull(whole, 0, 0, 1, 1)), M.INSET[1], M.INSET[2])
   last.clipped = whole ~= nil and hull ~= nil and #hull ~= #whole * 2
   if hull then
     local x0, y0, x1, y1 = 1, 1, 0, 0
