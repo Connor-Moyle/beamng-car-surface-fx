@@ -95,7 +95,7 @@
       }
       if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - dirx * r * 1.6, d.y[i] - diry * r * 1.6, mm ? (0.0012 + 0.001 * rnd(d)) * sg : (0.0025 + 0.002 * rnd(d)) * z, maxR);
+        if (n0 < cap && moved > 0 && rnd(d) < moved * (mm ? 60 : 15)) add(d, d.x[i] - dirx * r * 1.6, d.y[i] - diry * r * 1.6, mm ? (0.0012 + 0.001 * rnd(d)) * sg : (0.0025 + 0.002 * rnd(d)) * z, maxR);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;
