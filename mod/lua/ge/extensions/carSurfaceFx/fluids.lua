@@ -326,6 +326,16 @@ function M.look(height)
   return string.format('camera %.1f m above the %s puddle at %.1f, %.1f (r %.2f)', height or 3, best.kind, best.x, best.y, best.r)
 end
 
+-- where the puddles are and whether each has a plane: one line per puddle of a size (largest first), for aiming a camera: carSurfaceFx_fluids.where()
+function M.where(minR)
+  local list = {}
+  for i = 1, store.count do local p = store.list[i] if p and p.r >= (minR or 0.1) then list[#list + 1] = p end end
+  table.sort(list, function(a, b) return a.r > b.r end)
+  local out = {}
+  for i = 1, math.min(#list, 8) do local p = list[i] out[i] = string.format('%s at %.2f, %.2f, %.2f r %.2f %s%s', p.kind, p.x, p.y, p.z, p.r, p.meshed and 'plane' or 'decal', p.stain and ' (drip spot)' or '') end
+  return #out > 0 and table.concat(out, ' | ') or 'no puddle'
+end
+
 function M.status()
   local per, biggest = {}, {}
   for i = 1, store.count do

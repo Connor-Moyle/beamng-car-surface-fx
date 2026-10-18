@@ -50,7 +50,7 @@ def main():
     mask, dd, th = oval()
     save_grey(mask, os.path.join(out, 'puddle_o.data.png'))
     save_grey(mask * 0.6, os.path.join(out, 'puddle_o_thin.data.png'))
-    Image.fromarray(np.full((8, 8, 3), 255, np.uint8), 'RGB').save(os.path.join(out, 'white.color.png'))
+    Image.fromarray(np.full((16, 16, 3), 255, np.uint8), 'RGB').save(os.path.join(out, 'white.color.png'))
     # the sheen: hue bands round the puddle that wander with the angle (a thin film is a ramp of colours with its thickness), strongest in the outer half
     rng = np.random.default_rng(7)
     ph = rng.uniform(0, 6.283, 4)
