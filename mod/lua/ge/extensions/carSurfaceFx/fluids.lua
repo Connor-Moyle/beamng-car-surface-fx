@@ -313,6 +313,18 @@ function M.puddleAhead(kind, metres, radius)
   return string.format('%s puddle at %.1f, %.1f r %.2f', kind or 'oil', x, y, puddle and puddle.r or 0)
 end
 
+-- a test: the free camera straight above the biggest puddle (height in metres), so a puddle under or beside a car can be shot from the top
+function M.look(height)
+  local best
+  for i = 1, store.count do local p = store.list[i] if p and p.r > 0.02 and (not best or p.r > best.r) then best = p end end
+  if not best then return 'no puddle' end
+  local cmd = rawget(_G, 'commands')
+  if cmd and cmd.setFreeCamera and not (cmd.isFreeCamera and cmd.isFreeCamera()) then cmd.setFreeCamera() end
+  core_camera.setPosition(0, vec3(best.x, best.y, best.z + (height or 3)))
+  core_camera.setFreeCameraYawPitchRollDeg(0, 89, 0)
+  return string.format('camera %.1f m above the %s puddle at %.1f, %.1f (r %.2f)', height or 3, best.kind, best.x, best.y, best.r)
+end
+
 function M.status()
   local per, biggest = {}, {}
   for i = 1, store.count do

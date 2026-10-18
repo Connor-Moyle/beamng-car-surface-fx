@@ -256,7 +256,7 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- yet) the plain regions of the old placement are used.
 local COL = { mud = { 0.33, 0.23, 0.14 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 260, 0.8, 0.018 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 700, 0.85, 0.035 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
