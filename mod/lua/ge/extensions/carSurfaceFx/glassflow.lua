@@ -53,8 +53,10 @@ function M.field(tris)
   for _, t in ipairs(tris) do
     local flow = M.triangleFlow(t.pos, t.uv)
     if flow then
+      local uv = { t.uv[1], t.uv[2], t.uv[3], t.uv[4], t.uv[5], t.uv[6] }                -- texture coordinates outside 0..1 wrap around (the engine tiles the map): bring the triangle into the first tile
+      local ou, ov = floor((uv[1] + uv[3] + uv[5]) / 3), floor((uv[2] + uv[4] + uv[6]) / 3)
+      uv[1], uv[3], uv[5], uv[2], uv[4], uv[6] = uv[1] - ou, uv[3] - ou, uv[5] - ou, uv[2] - ov, uv[4] - ov, uv[6] - ov
       if flow.s > 1e-6 and flow.s < 50 then sSum, sN = sSum + flow.s, sN + 1 end
-      local uv = t.uv
       local x0, x1 = math.min(uv[1], uv[3], uv[5]), math.max(uv[1], uv[3], uv[5])
       local y0, y1 = math.min(uv[2], uv[4], uv[6]), math.max(uv[2], uv[4], uv[6])
       local cx0, cx1 = floor(x0 * N), floor(x1 * N)
