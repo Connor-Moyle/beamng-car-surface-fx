@@ -46,7 +46,7 @@
     if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
     var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
     if (mm && pc) amount *= Math.min(4, Math.max(1, pc.length / 180));      // the drops are per window area: a texture with several panes (730 cells) carries about four windscreens' worth
-    var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.floor((60 + 240 * p.rain) / z);      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
+    var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.min(DEFAULT_MAX, Math.floor((60 + 240 * p.rain) / Math.sqrt(z)));      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
     var spawns = n0 < cap ? p.rain * (mm ? 100 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
