@@ -31,13 +31,7 @@ local flood = 0                           -- debug: the window canvases solid (c
 local wiperBy, wiperForced = {}, nil      -- vehicle id -> wipers 0..1 reported by the car, the debug value (the wipers clear the windscreen beads)
 local wiperHold, wiperNone = {}, {}         -- vehicle id -> os.clock() until which its wipers count as running (the reported value may be the blade's angle, which crosses zero); car has no wiper value at all
 -- the wipers of a car 0..1: forced, else running when the car says so, else (no wiper value on the car) by the rain falling
--- the film of a dirt road or a wet road on the rear glass of a car: dust, road film and mud as one amount 0..1 (the page lays it on the rear panes only)
 local dirtBy
-local function filmOf(id)
-  local d = dirtBy and dirtBy[id]
-  return d and rules.clamp((d.dust or 0) * 0.7 + (d.grime or 0) * 1.3 + (d.mud or 0) * 0.5, 0, 1) or 0
-end
-
 local function wipersOf(id, rain)
   if wiperForced then return wiperForced end
   if wiperNone[id] then return rain > 0.7 and 1 or (rain > 0.3 and 0.6 or 0) end
@@ -47,6 +41,11 @@ dirtBy = {}                          -- vehicle id -> { dust, mud, rubber, grime
 local glassOff                         -- debug: the window canvases are told there is no rain (carSurfaceFx.debug('glassoff', 1))
 local forcedSpeed                      -- debug: the speed (m/s) the window water and the driver's view see, to test the airflow while parked
 local forcedDirt                          -- the debug amounts { kind = value }
+-- the film of a dirt road or a wet road on the rear glass of a car: dust, road film and mud as one amount 0..1 (the page lays it on the rear panes only); the debug amounts count for the player's car
+local function filmOf(id)
+  local d = (forcedDirt and id == be:getPlayerVehicleID(0)) and forcedDirt or (dirtBy and dirtBy[id])
+  return d and rules.clamp((d.dust or 0) * 0.7 + (d.grime or 0) * 1.3 + (d.mud or 0) * 0.5, 0, 1) or 0
+end
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
 local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
 local sheetP = 0                           -- a sheet of water thrown over the windscreen by a puddle: decays in about a second

@@ -422,10 +422,10 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   for i, s in ipairs(list) do
     local h = s.h or (s.z and bodymap.heightOf(map, s.z))                            -- how high on the car (0 sill .. 1 roof)
     if kind == 'mud' and h and h < 0.35 and random() < 0.5 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
-      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.8 + random() * 1.8) * s.s
+      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.0 + 2.6 * random() ^ 1.5) * s.s
     else
       local k = #blobs
-      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.6 + random() * 0.8) * s.s
+      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.3 + 1.4 * random() ^ 2) * s.s              -- many small, a few big
       if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
     end
   end
