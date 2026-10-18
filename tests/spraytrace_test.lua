@@ -131,4 +131,11 @@ assert(#S.sample(b, nil, 50, rnd) == 50 and #S.sample({ wheels = {} }, nil, 5, r
 local yields = 0
 S.bake(tris, { wheels[1] }, { rays = 100, yield = function() yields = yields + 1 end, yieldEvery = 10 })
 assert(yields == 10, 'a yield every few rays: ' .. yields)
+local hiW, loW, nhi, nlo = 0, 0, 0, 0
+for _, h in ipairs(b.wheels[3].hits) do
+  if h.z > 1.0 then hiW, nhi = hiW + h.weight, nhi + 1 elseif h.z < 0.7 and h.dist > 0.5 and h.dist < 1.2 then loW, nlo = loW + h.weight, nlo + 1 end
+end
+assert(nhi == 0 or nlo == 0 or hiW / nhi < loW / nlo, 'a hit well above the tyre weighs less than a low one')
+local hsample = S.sample(b, 1, 5, rnd)[1]
+assert(hsample.x and hsample.y and hsample.z and hsample.z >= Z0 - 1e-6 and hsample.z <= Z1 + 1e-6, 'a hit knows its place on the car')
 print('carSurfaceFx spraytrace: ok')

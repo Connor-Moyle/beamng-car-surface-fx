@@ -6,7 +6,7 @@
 --   * the speed of the throw is the car's (the tyre's rim speed) plus what wheelspin adds; the air pulls the lump back toward the ground's rest frame (backward in the car's
 --     frame) and gravity down: a path that bends back with speed. The cone widens with speed and slip.
 --   * nothing is carried further than `reach` (2.5 m of path), and a hit near the wheel weighs more than a far one.
--- bake(tris, wheels, opts) returns { wheels = { [i] = { hits = { { u, v, weight, dx, dy, s, dist } ... }, rays, count } }, reach }. The spatial grid keeps it O(rays x a few
+-- bake(tris, wheels, opts) returns { wheels = { [i] = { hits = { { u, v, weight, dx, dy, s, dist, x, y, z } ... }, rays, count } }, reach }. The spatial grid keeps it O(rays x a few
 -- triangles); bake is a plain function, and `opts.yield` (a function called every few rays) lets the caller spread it over frames (a coroutine yield). Pure, tested outside the game.
 local M = {}
 
@@ -117,7 +117,8 @@ function M.segment(g, ox, oy, oz, sx, sy, sz)
   if bestI then return bestT, bestI, bestA, bestB end
 end
 
--- the first hit along a path (a list of points, the path is the polyline); returns the triangle index, a, b, the path length to the hit and the direction of the segment there
+-- the first hit along a path (a list of points, the path is the polyline); returns the triangle index, a, b, the path length to the hit, the direction of the segment there and
+-- the point (x, y, z in the car's frame)
 function M.trace(g, pts)
   local len = 0
   for k = 1, #pts - 1 do
@@ -125,7 +126,7 @@ function M.trace(g, pts)
     local sx, sy, sz = b[1] - a[1], b[2] - a[2], b[3] - a[3]
     local t, i, ba, bb = M.segment(g, a[1], a[2], a[3], sx, sy, sz)
     local sl = sqrt(sx * sx + sy * sy + sz * sz)
-    if t then return i, ba, bb, len + t * sl, sx / sl, sy / sl, sz / sl end
+    if t then return i, ba, bb, len + t * sl, sx / sl, sy / sl, sz / sl, a[1] + t * sx, a[2] + t * sy, a[3] + t * sz end
     len = len + sl
   end
 end
@@ -174,7 +175,7 @@ local function bakeWheel(g, wheel, p, yield)
     local phi = ((k - 1 + rnd()) / p.rays) * pi
     local lat = rnd() * 2 - 1
     local pts = M.path(wheel, phi, lat, spread, p, rnd)
-    local i, a, b, dist, dx, dy, dz = M.trace(g, pts)
+    local i, a, b, dist, dx, dy, dz, hx, hy, hz = M.trace(g, pts)
     if i and dist > 0.02 and dist <= reach then
       local t = g.tris[i]
       local uv = t.uv
@@ -188,7 +189,8 @@ local function bakeWheel(g, wheel, p, yield)
         local s = sqrt((jux * jux + juy * juy + juz * juz + jvx * jvx + jvy * jvy + jvz * jvz) / 2)
         local rel = 0.3 + 0.7 * sin(phi * 0.9 + 0.2) ^ 2                                      -- the rear of the tyre throws most
         n = n + 1
-        hits[n] = { u = u, v = v, weight = exp(-dist / 0.9) * rel, dx = du, dy = dv, s = s, dist = dist }
+        local high = exp(-max(0, hz - (wheel.z + wheel.r)) / 0.6)                            -- a lump is heavy: it rarely gets above the top of the tyre by much
+        hits[n] = { u = u, v = v, weight = exp(-dist / 0.9) * rel * high, dx = du, dy = dv, s = s, dist = dist, x = hx, y = hy, z = hz }
       end
     end
     if yield and k % p.yieldEvery == 0 then yield() end
@@ -227,7 +229,7 @@ function M.sample(bake, wi, n, rnd)
     local lo, hi = 1, #cum
     while lo < hi do local mid = floor((lo + hi) / 2) if cum[mid] >= r then hi = mid else lo = mid + 1 end end
     local h = list[lo]
-    out[#out + 1] = { u = h.u, v = h.v, dx = h.dx, dy = h.dy, s = h.s, dist = h.dist }
+    out[#out + 1] = { u = h.u, v = h.v, dx = h.dx, dy = h.dy, s = h.s, dist = h.dist, x = h.x, y = h.y, z = h.z }
   end
   return out
 end

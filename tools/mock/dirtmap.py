@@ -72,6 +72,13 @@ def traced(n):
     return pairs_of(lua.eval("(function() local r = S.sample(BAKE, nil, NN, RND) local o = {} for i, s in ipairs(r) do o[i] = { s.u, s.v } end return o end)()"))
 
 
+def traced3(n, wi=None):
+    """the traced spray as 3D points (the hit's own place on the car), optionally for one wheel"""
+    lua.globals().NN, lua.globals().WI = n, wi
+    res = lua.eval("(function() local r = S.sample(BAKE, WI, NN, RND) local o = {} for i, s in ipairs(r) do o[i] = { s.x, s.y, s.z } end return o end)()")
+    return [(res[i][1], res[i][2], res[i][3]) for i in range(1, len(res) + 1)]
+
+
 cells = {}
 for i in range(1, int(lua.eval('#MAP.list')) + 1):
     c = lua.eval('MAP.list[%d]' % i)
@@ -145,7 +152,7 @@ for kind, color in COLORS.items():
 old = samples('mud', N)
 new = traced(N)
 a = views_image([p for p in (place(u, v) for u, v in old) if p], (160, 100, 50), 'mud: the wheel-distance rule (old)')
-b = views_image([p for p in (place(u, v) for u, v in new) if p], (255, 190, 60), 'mud: traced from the tread (new)')
+b = views_image(traced3(N), (255, 190, 60), 'mud: traced from the tread (new)')
 sheet = Image.new('RGB', (a.width, a.height * 2 + 10), (20, 20, 20))
 sheet.paste(a, (0, 0))
 sheet.paste(b, (0, a.height + 10))
