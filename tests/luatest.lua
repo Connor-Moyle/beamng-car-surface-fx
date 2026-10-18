@@ -147,6 +147,10 @@ eq(R.dirtBuild(R.dirtNew(), 100, { mud = 1 }, 0, 0).mud, 0, 'a standing car thro
 assert(R.dirtBuild(R.dirtNew(), 100, { mud = 1 }, 20, 0).mud >= 0.9, 'mud ground at 20 m/s for 100 s: caked')
 assert(R.dirtBuild(R.dirtNew(), 100, { road = 1 }, 20, 1).grime > 2 * R.dirtBuild(R.dirtNew(), 100, { road = 1 }, 20, 0).grime, 'wet tarmac throws the road film faster')
 assert(R.dirtWash({ dust = 1, grime = 0, mud = 0, rubber = 0, snow = 0, bugs = 0 }, 60, 1, 0).grime > 0.25, 'washed dust leaves a film')
+do local d, m = R.dirtNew(), R.dirtNew() for _ = 1, 120 do d = R.dirtBuild(d, 1, { loose = 1 }, 16.7, 0) m = R.dirtBuild(m, 1, { loose = 1 }, 16.7, 0.6) end
+  assert(d.dust > 0.5 and m.mud > 0.5, '60 km/h on a dirt road for 2 min: the car cakes, dry or damp (dust ' .. d.dust .. ', mud ' .. m.mud .. ')') end
+do local d = R.dirtBuild(R.dirtNew(), 120, { loose = 1 }, 0, 0) assert(d.dust > 0 and d.dust < 0.3, 'a parked car on dirt still gets a little settling dust') end
+assert(R.dirtBuild(R.dirtNew(), 60, { snowing = 1 }, 0, 0).snow > 0.5, 'snow settles on a parked car')
 assert(R.bugRate(38, 22, 0.245, 0) > 1.3 * R.bugRate(38, 22, 0.0, 0), 'more at dusk')
 assert(R.bugRate(38, 22, 0.775, 0) > R.bugRate(38, 22, 0.5, 0), 'and at dawn, not at night')
 eq(R.bugRate(38, 22, nil, 0.4), 0, 'none in the rain')

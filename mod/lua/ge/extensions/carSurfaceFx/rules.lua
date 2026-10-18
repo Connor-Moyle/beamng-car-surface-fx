@@ -184,8 +184,8 @@ function M.dirtBuild(d, dt, r, speed, wet)
   local sf = 1.85 * clamp(((speed or 0) / 30) ^ 1.5, 0, 1.5)                  -- spray grows with speed (1 at 20 m/s, 2.8 at 45) and a standing car throws none
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
-  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * sf * dt / 60) + ((r.road or 0) * (1 - wetK) * sf * dt / M.DUST_ROAD) - math.max(0, (speed or 0) - 25) * dt / 1500      -- loose ground: fast; dry tarmac: a thin film, slowly
-  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90 - (((speed or 0) > 12 and (wet or 0) < 0.1) and dt / 1800 or 0)   -- dry mud flakes off at speed
+  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / 60) + ((r.road or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / M.DUST_ROAD) - ((r.loose or 0) == 0 and math.max(0, (speed or 0) - 25) * dt / 1500 or 0)   -- dust settles slowly on a parked car; only highway wind off the dirt sheds it      -- loose ground: fast; dry tarmac: a thin film, slowly
+  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90 - (((speed or 0) > 12 and (wet or 0) < 0.1 and (r.mud or 0) + (r.loose or 0) == 0) and dt / 1800 or 0)   -- dry mud flakes off at speed, but never while it is being thrown on
   out.rubber = d.rubber + (r.slip or 0) * dt / 25
   out.grime = d.grime + (r.road or 0) * sf * dt * ((1 - wetK) / 1200 + wetK / 400)              -- wet tarmac throws a road film three times faster
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
