@@ -16,7 +16,7 @@ const files = [];
 let bad = 0;
 for (const file of files) {
   const allowed = new Set([...STD, ...(file.includes(path.sep + 'vehicle' + path.sep) ? GAME.vehicle : GAME.ge)]);
-  const ast = luaparse.parse(fs.readFileSync(file, 'utf8'), { luaVersion: '5.3', locations: true });
+  const ast = luaparse.parse(fs.readFileSync(file, 'utf8'), { luaVersion: 'LuaJIT', locations: true });
   const scopes = [new Set()];
   const declared = (n) => scopes.some((s) => s.has(n));
   function walk(node) {

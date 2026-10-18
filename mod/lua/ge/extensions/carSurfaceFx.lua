@@ -277,7 +277,7 @@ local function bodyDirt(id, kind, amount, wi)
   local sc = carSurfaceFx_scratch
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
   if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
-    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, n // 3), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, math.floor(n / 3)), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
     return
   end
   local f = FALL[kind]
