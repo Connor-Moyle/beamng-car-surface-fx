@@ -75,6 +75,7 @@ local gh = {}
 guihooks = { trigger = function(n, d) gh[#gh + 1] = { n, d } end }
 require('carSurfaceFx/screen').camera = function() return { x = 0, y = 0, z = 0.25, r = { x = 1, y = 0, z = 0 }, f = { x = 0, y = 1, z = 0 }, u = { x = 0, y = 0, z = 1 }, halfTan = 0.8, aspect = 1.7 } end
 
+require('carSurfaceFx/rules').outsideMode = 'color'                -- these checks look at the colour slot (the default is the emissive slot: the glass keeps its own colour)
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx.lua')
 local function tick(n, dt) for _ = 1, n do M.onUpdate(dt or 0.25) end end
 
@@ -93,7 +94,7 @@ assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass 
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
 assert(mats.vivace_glass_int.fields[0].emissiveMap == '@csfx_vivace_glass_int' and mats.vivace_glass_int.fields[0].baseColorMap == '/b.png', 'inside glass: emissive map is the canvas, tint kept')
 assert(#js > 0 and js[#js]:find('csfxSet', 1, true), 'the canvas gets the weather: ' .. tostring(js[#js]))
-assert(mats.vivace_wheel.fields[0].detailNormalMap == nil, 'wheel left alone')
+assert(tostring(mats.vivace_wheel.fields[0].detailNormalMap):find('droplets', 1, true), 'the wheel is part of the outside and gets wet too')
 assert(mats.licenseplate.fields[0].detailNormalMap == nil, 'plate left alone')
 v.vx = 20 tick(8) v.vx = 0 tick(8)                        -- accelerate, brake hard
 M.debug('wiper', 1) tick(10)

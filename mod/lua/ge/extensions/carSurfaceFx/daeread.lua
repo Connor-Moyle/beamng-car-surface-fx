@@ -27,7 +27,7 @@ local function prims(body, uvSet)
         if off + 1 > pr.stride then pr.stride = off + 1 end
         if sem == 'VERTEX' then pr.vo = off
         elseif sem == 'TEXCOORD' and not pr.to then
-          local set = tonumber(inp:match('set="(%d+)"'))
+          local set = tonumber(inp:match('%sset="(%d+)"'))     -- (not 'offset="2"': it contains set="2")
           if uvSet == nil or set == uvSet then pr.to, pr.tsrc = off, src end
         end
       end

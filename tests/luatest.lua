@@ -38,6 +38,19 @@ local roof = { name = 'car_cf', version = '1.5', translucent = 'true', meshes = 
 local plain = { name = 'car_plastic', version = '1.5', translucent = '0', meshes = 5, stages = { [0] = {} } }
 local with = R.paintNames({ body, wheel, glass, old, roof, plain })
 assert(with.car_cf and not with.car_plastic, 'a clear-coated translucent roof panel is body paint too, a plain material is not')
+-- the rest of the outside: trim, bumpers and wheels yes; interior, seats, screens, glass, translucent no
+local trim = R.trimNames({ body, { name = 'car_bumper', version = '1.5', translucent = '0', meshes = 4, stages = { [0] = {} } }, { name = 'car_wheel', version = '1.5', translucent = '0', meshes = 4, stages = { [0] = {} } },
+  { name = 'car_interior', version = '1.5', translucent = '0', meshes = 40, stages = { [0] = {} } }, { name = 'car_seats', version = '1.5', translucent = '0', meshes = 8, stages = { [0] = {} } },
+  { name = 'car_logo', version = '1.5', translucent = 'true', meshes = 1, stages = { [0] = {} } }, { name = 'car_glass', version = '1.5', translucent = 'true', meshes = 5, stages = { [0] = {} } } }, R.paintNames({ body, wheel, glass, old }))
+assert(trim.car_bumper and trim.car_wheel and not trim.car_interior and not trim.car_seats and not trim.car_logo and not trim.car_glass and not trim.car_body, 'trim: the outside without paint, glass and the inside')
+-- lamps are never touched: by name, and by an emissive setting; and a lamp is not glass
+assert(R.isLampName('etk800_taillight_lens') and R.isLampName('x_indicator') and R.isLampName('pickup_reverse') and not R.isLampName('vivace_glass'), 'lamp names')
+assert(not R.isGlassName('car_glass_headlight') and R.isGlassName('car_glass'), 'a glass-named lamp is not glass')
+assert(R.isEmissive({ [0] = { emissiveFactor = '0.5 0.5 0.5' } }) and R.isEmissive({ [0] = { glow = '1' } }) and not R.isEmissive({ [0] = { emissiveFactor = '0 0 0' } }), 'emissive materials')
+local lampRoof = { name = 'car_trimlamp', version = '1.5', translucent = 'true', meshes = 2, stages = { [0] = { clearCoatFactor = '0.5' } } }
+local glowing = { name = 'car_plasticx', version = '1.5', translucent = '0', meshes = 5, stages = { [0] = { emissiveFactor = '1 1 1' } } }
+assert(not R.paintNames({ body, lampRoof }).car_trimlamp and not R.trimNames({ body, glowing }, R.paintNames({ body })).car_plasticx, 'a lamp or a glowing material never counts as body or trim')
+assert(R.outsideMode == 'emissive', 'the outside glass never replaces the tint map by default: the glass keeps its own colour')
 local nopal = R.paintNames({ { name = 'a', version = '1.5', translucent = '0', meshes = 3, stages = { [0] = {} } }, { name = 'b', version = '1.5', translucent = '0', meshes = 9, stages = { [0] = {} } } })
 eq(nopal.b, true, 'no palette: the biggest')
 
@@ -59,10 +72,10 @@ eq(R.glassTag('vivace_glass'), '@csfx_vivace_glass', 'one canvas name per window
 eq(R.glassFields({ baseColorMap = 'vehicles/vivace/vivace_glass_b.color.png' }, '@csfx_x').baseColorMap, '@csfx_x', 'the canvas replaces the tint map')
 eq(R.glassFields({}, '@csfx_x').baseColorMap, nil, 'glass without a tint map is left alone')
 eq(R.glassMode('vivace_glass_int'), 'emissive', 'inside glass uses its emissive map')
-eq(R.glassMode('vivace_glass'), 'color', 'outside glass uses its colour map')
-R.outsideMode = 'emissive'
-eq(R.glassMode('vivace_glass'), 'emissive', 'the outside mode can be switched')
+eq(R.glassMode('vivace_glass'), 'emissive', 'outside glass keeps its own colour and takes only glints (never a darker tint)')
 R.outsideMode = 'color'
+eq(R.glassMode('vivace_glass'), 'color', 'the outside mode can be switched')
+R.outsideMode = 'emissive'
 local inside = R.glassFields({ baseColorMap = '/b.png' }, '@csfx_x', 'emissive')
 eq(inside.emissiveMap, '@csfx_x', 'the canvas lights the inside glass')
 eq(inside.baseColorMap, nil, 'and leaves the tint')

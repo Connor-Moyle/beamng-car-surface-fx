@@ -64,7 +64,22 @@ end
 function M.paintNames(mats)
   local out = M.mainPaint(mats)
   for _, m in ipairs(mats) do                                         -- and the other clear-coated exterior panels: a carbon roof, a contrast roof, mirrors (often translucent or small materials)
-    if not out[m.name] and tonumber(m.version) == 1.5 and (m.meshes or 0) > 0 and anyStage(m.stages, M.isClearCoated) then out[m.name] = true end
+    if not out[m.name] and tonumber(m.version) == 1.5 and (m.meshes or 0) > 0 and anyStage(m.stages, M.isClearCoated) and not M.isLampName(m.name) and not M.isEmissive(m.stages) then out[m.name] = true end
+  end
+  return out
+end
+
+-- The rest of the outside of the car (bumpers, trim, mirrors, wheels, grilles, seals): every opaque material that is not paint, not glass and not the inside, the engine or a screen.
+local NOT_OUTSIDE = { 'interior', 'seat', 'gauge', 'screen', 'navi', 'stitch', 'engine', 'mechanical', 'dash', 'steer', 'carpet', 'headliner', 'debug', 'stripped', 'dmg', 'damage', 'broken', 'invisible', 'glow' }
+function M.trimNames(mats, paint)
+  local out = {}
+  for _, m in ipairs(mats) do
+    local n = tostring(m.name):lower()
+    local bad = false
+    for _, w in ipairs(NOT_OUTSIDE) do if n:find(w, 1, true) then bad = true break end end
+    if not bad and not M.isLampName(n) and not M.isEmissive(m.stages) and not paint[m.name] and tonumber(m.version) == 1.5 and not (m.translucent == '1' or m.translucent == 'true') and (m.meshes or 0) > 0 and not M.isGlassName(m.name) then
+      out[m.name] = true
+    end
   end
   return out
 end
@@ -292,9 +307,26 @@ function M.dirtTotal(d)
 end
 
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
+-- Lamps and their lenses are never touched: not by name, and not by an emissive or glow setting on the material.
+local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led' }
+function M.isLampName(name)
+  local n = tostring(name):lower()
+  for _, w in ipairs(LAMP) do if n:find(w, 1, true) then return true end end
+  return false
+end
+function M.isEmissive(stages)
+  for _, st in pairs(stages or {}) do
+    if type(st) == 'table' then
+      if set(st.emissiveMap) or tonumber(st.glow) and tonumber(st.glow) > 0 or tonumber(st.emissiveIntensityNits) and tonumber(st.emissiveIntensityNits) > 0 then return true end
+      local ef = tostring(st.emissiveFactor or '')
+      for x in ef:gmatch('%S+') do if (tonumber(x) or 0) > 0.001 then return true end end
+    end
+  end
+  return false
+end
 function M.isGlassName(name)
   local n = tostring(name):lower()
-  return n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
+  return M.isLampName(n) == false and n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
 end
 
 -- The glass takes its water from a per-car, per-material web canvas (vehicles/common/carSurfaceFx/glass.html) named '@csfx_<material>': the engine resolves a '@tag'
@@ -305,7 +337,7 @@ function M.glassTag(name) return '@csfx_' .. tostring(name):gsub('[^%w_]', '_') 
 -- The inside glass (name ends in 'int') is clear, so a colour change on it is invisible, and the engine does not resolve a '@tag' in its opacity map (tried): its EMISSIVE map
 -- becomes the canvas instead (light adds to the picture whatever the glass opacity is; the page draws only the glints and bright rims).
 M.insideMode = 'emissive'                                         -- or 'color' (carSurfaceFx.insideMode): which slot the inside glass's canvas goes in
-M.outsideMode = 'color'                                           -- the outside glass: 'color' (the canvas replaces the tint map; the game's tint image cannot be read by the page, a flat dark tint stands in) or 'emissive' (glints and rims only, the glass keeps its own look)
+M.outsideMode = 'emissive'                                           -- the outside glass: 'color' (the canvas replaces the tint map; the game's tint image cannot be read by the page, a flat dark tint stands in) or 'emissive' (glints and rims only, the glass keeps its own look)
 function M.glassMode(name) return tostring(name):lower():find('int$') and M.insideMode or M.outsideMode end
 
 -- the map the canvas replaces and the original image under the drops: field, path (nil when the canvas has no image under it, as with light only)
