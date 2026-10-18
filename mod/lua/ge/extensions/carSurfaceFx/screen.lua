@@ -224,6 +224,29 @@ local function frameOf(veh)
   return M.makeFrame(P(r.ref), P(r.left), P(r.back), P(r.up))
 end
 
+-- carSurfaceFx.windscreenDump(): for each flexbody the screen takes for the windscreen, its name and the node positions in the car's own frame (x left, y back, z up, from the
+-- reference nodes), so the glass can be told from the rest of its node group offline. Returns a table.
+function M.dump(veh)
+  local id = veh:getID()
+  local data = core_vehicle_manager and core_vehicle_manager.getVehicleData(id)
+  local fr = frameOf(veh)
+  local base = veh:getPosition()
+  local out = { frame = fr and 'yes' or 'no', flexbodies = {} }
+  for _, fb in pairs(data and data.vdata and data.vdata.flexbodies or {}) do
+    if fb.mesh and M.isWindscreenMesh(fb.mesh) then
+      local list = {}
+      for _, cid in ipairs(fb['_group_nodes'] or {}) do
+        local w = veh:getNodePosition(cid)
+        local p = { x = w.x + base.x, y = w.y + base.y, z = w.z + base.z }
+        local l = fr and M.toFrame(fr, p) or p
+        list[#list + 1] = string.format('%d %.3f %.3f %.3f', cid, l.x, l.y, l.z)
+      end
+      out.flexbodies[#out.flexbodies + 1] = { mesh = fb.mesh, group = fb.group, nodes = list }
+    end
+  end
+  return out
+end
+
 function M.windscreen(veh)
   local nodes = windscreenNodes(veh:getID())
   local cam = M.camera()
