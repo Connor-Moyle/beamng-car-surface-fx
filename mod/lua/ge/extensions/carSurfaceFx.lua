@@ -249,33 +249,40 @@ local function airC()
 end
 local function snowfall() return forcedSnowing or rules.snowing(core_environment and core_environment.getPrecipitation and core_environment.getPrecipitation() or 0, airC()) end
 
--- snow and bugs on the body where they gather: soft splats on the upper / front panels as the amount grows (snow also goes when it is blown off)
+-- Dirt where it really lands on the body (carSurfaceFx/bodymap.lua, through carSurfaceFx_scratch.dirtAt): as an amount grows, splats of that kind are put on the places its rule
+-- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
+-- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
+-- yet) the plain regions of the old placement are used.
+local COL = { mud = { 0.33, 0.23, 0.14 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
+  mud = { 260, 0.8, 0.018 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
+}
+local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
+local function bodyDirt(id, kind, amount, wi)
+  if amount <= 0 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
+  local pl = PLACE[kind]
+  local n = math.floor(amount * pl[1] + math.random())
+  if n <= 0 then return end
+  local sc = carSurfaceFx_scratch
+  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3]) then return end
+  local f = FALL[kind]
+  if not f then return end                                          -- the road film and rubber need the body map
+  sc.bodySplat(id, f[1], COL[kind], pl[2], n, f[2], f[3])
+  if f[1] == 'lowL' then sc.bodySplat(id, 'lowR', COL[kind], pl[2], n, f[2], f[3]) end
+end
+
 local function weatherSplats(id, old, new)
   if not scratchOn() then return end
   local ds, db = new.snow - old.snow, new.bugs - old.bugs
-  if ds > 0 then carSurfaceFx_scratch.bodySplat(id, 'top', { 0.95, 0.96, 0.98 }, 0.85, math.floor(ds * 60 + math.random()), 'dust', 2.2)
+  if ds > 0 then bodyDirt(id, 'snow', ds)
   elseif ds < 0 and old.snow > 0 then carSurfaceFx_scratch.washSplats(id, rules.clamp(new.snow / old.snow, 0, 1), 1) end
-  if db > 0 then carSurfaceFx_scratch.bodySplat(id, 'front', { 0.10, 0.08, 0.05 }, 0.8, math.floor(db * 160 + math.random()), 'mud', 0.35) end
+  if db > 0 then bodyDirt(id, 'bugs', db) end
 end
 
--- mud and dust on the body where they really gather: splatter low on both sides and around the wheels as the amount grows (the paint tint alone looks like a repaint)
-local MUDC, DUSTC = { 0.20, 0.14, 0.09 }, { 0.55, 0.46, 0.33 }
 local function dirtSplats(id, old, new)
-  if not (scratchOn() and settings.scratch.dirtEnabled) then return end
-  local dm, dd = new.mud - old.mud, new.dust - old.dust
-  if dm > 0 then
-    local n = math.floor(dm * 260 + math.random())
-    local a = math.floor(n * 0.35)
-    carSurfaceFx_scratch.bodySplat(id, 'lowL', MUDC, 0.8, a, 'mud', 1.5)
-    carSurfaceFx_scratch.bodySplat(id, 'lowR', MUDC, 0.8, a, 'mud', 1.5)
-    if n - 2 * a > 0 then carSurfaceFx_scratch.splat(id, MUDC, 0.8, n - 2 * a, 'mud') end
-  end
-  if dd > 0 then
-    local n = math.floor(dd * 180 + math.random())
-    local a = math.floor(n * 0.4)
-    carSurfaceFx_scratch.bodySplat(id, 'lowL', DUSTC, 0.5, a, 'dust', 1.8)
-    carSurfaceFx_scratch.bodySplat(id, 'lowR', DUSTC, 0.5, a, 'dust', 1.8)
-    if n - 2 * a > 0 then carSurfaceFx_scratch.splat(id, DUSTC, 0.5, n - 2 * a, 'dust') end
+  for _, kind in ipairs({ 'mud', 'dust', 'grime', 'rubber' }) do
+    local d = (new[kind] or 0) - (old[kind] or 0)
+    if d > 0 then bodyDirt(id, kind, d) end
   end
 end
 

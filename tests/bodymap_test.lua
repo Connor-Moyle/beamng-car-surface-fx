@@ -71,4 +71,30 @@ assert(gh < 0.4 and grear > 0.1 and gflat < 0.1, 'road film: low, on the rear fa
 
 assert(B.coverage(map, 'snow') < B.coverage(map, 'grime'), 'snow covers less of the body than road film')
 assert(#B.sample(B.build({}, {}) or { list = {}, cache = {} }, 'snow', 5, rnd) == 0, 'an empty map gives no splats')
+-- the build from a .dae text and the vehicle data: a roof quad on the second texture coordinate set, two wheels
+local dae = [[<COLLADA><asset><unit meter="1"/><up_axis>Z_UP</up_axis></asset>
+<library_materials><material id="paintid" name="car_paint"/></library_materials>
+<library_geometries><geometry id="g1"><mesh>
+<source id="pos"><float_array count="12">-1 -2 1.4 1 -2 1.4 1 2 1.4 -1 2 1.4</float_array></source>
+<source id="uv0"><float_array count="8">0 0 1 0 1 1 0 1</float_array></source>
+<source id="uv1"><float_array count="8">0 0 0.5 0 0.5 0.5 0 0.5</float_array></source>
+<vertices id="v"><input semantic="POSITION" source="#pos"/></vertices>
+<triangles material="symP" count="2"><input semantic="VERTEX" source="#v" offset="0"/><input semantic="TEXCOORD" source="#uv0" offset="1" set="0"/><input semantic="TEXCOORD" source="#uv1" offset="1" set="1"/><p>0 0 1 1 2 2 0 0 2 2 3 3</p></triangles>
+</mesh></geometry></library_geometries>
+<library_visual_scenes><visual_scene><node id="n" name="car_body"><matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix><instance_geometry url="#g1"><bind_material><technique_common><instance_material symbol="symP" target="#paintid"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes></COLLADA>]]
+function readFile() return dae end
+FS = { findFiles = function() return { '/vehicles/car/car.dae' } end }
+function log() end
+core_vehicle_manager = { getVehicleData = function() return { vehicleDirectory = '/vehicles/car/', vdata = {
+  flexbodies = { { mesh = 'car_body' } }, nodes = { { cid = 1, pos = { x = 0.8, y = 1.3, z = 0.3 } }, { cid = 2, pos = { x = 1.0, y = 1.3, z = 0.3 } }, { cid = 3, pos = { x = -0.8, y = -1.3, z = 0.3 } }, { cid = 4, pos = { x = -1.0, y = -1.3, z = 0.3 } } },
+  wheels = { { node1 = 1, node2 = 2, radius = 0.35 }, { node1 = 3, node2 = 4, radius = 0.35 } } } } end }
+local D = require('carSurfaceFx/bodydirt')
+local wl = D.wheelList(core_vehicle_manager.getVehicleData().vdata)
+assert(#wl == 2 and wl[1].y < wl[2].y and math.abs(wl[1].x + 0.9) < 1e-9, 'the wheels, front first: ' .. #wl)
+local built
+D.request(7, { car_paint = true }, function(m) built = m end)
+for _ = 1, 20 do D.tick() if built then break end end
+assert(built and #built.list > 100, 'the body map is built from the mesh on texture coordinate set 1')
+local c = built.list[1]
+assert(c.gx < 33 and c.gy < 33, 'its cells are in the first quarter of the texture, where set 1 puts them, not the whole square of set 0')
 print('carSurfaceFx body map: ok')

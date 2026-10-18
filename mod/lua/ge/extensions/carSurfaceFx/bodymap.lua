@@ -5,6 +5,7 @@
 --   grime  the road film: the lower band of the whole body and the rear faces up to the height of the car's back (the vortex behind a hatch or an SUV)
 --   dust   like grime, lighter, higher
 --   rubber only around the wheels: the arch lips and the panel behind the wheel
+--   bugs   forward-facing surfaces: the nose, the front of the bonnet, the base of the windscreen
 --   snow   only on flat surfaces that face the sky and sit high: roof, bonnet, boot lid, the base of the windscreen; none on doors or other steep faces
 -- The map is a grid over the paint texture (N x N cells), so a cell gives the splat's texture coordinates directly. Pure functions, tested outside the game.
 local M = {}
@@ -136,6 +137,10 @@ function RULES.rubber(map, c, wi)
   if d > 0.95 then return 0 end
   local dy = behind(map, c, wi or select(2, nearWheel(map, c)))
   return exp(-d / 0.4) * (dy > -0.15 and 1 or 0.25)                       -- the arch lip and the panel behind the spinning wheel
+end
+function RULES.bugs(map, c)
+  if c.ny > -0.4 then return 0 end                                        -- forward-facing: the nose, the front of the bonnet, the base of the windscreen
+  return exp(-abs(c.h - 0.5) / 0.3) + (c.nz > 0.3 and c.h > 0.5 and 0.4 or 0)
 end
 function RULES.snow(map, c)
   if c.nz < 0.78 or c.h < 0.4 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off

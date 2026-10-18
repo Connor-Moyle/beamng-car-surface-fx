@@ -48,6 +48,11 @@ p.reset();
 p.w.csfxWash({ mud: 1 });
 assert.strictEqual(p.ops.arcs + p.ops.strokes, 0, 'clear removes everything');
 
+// sprayed mud: a blob with a direction is drawn as an elongated splat with a streak and droplets
+p.reset();
+p.w.csfxBlobs({ l: [0.3, 0.3, 0.02], d: [0.8, 0.6], c: [0.3, 0.2, 0.1], a: 0.7, k: 'mud' });
+assert(p.ops.arcs >= 7, 'a sprayed splat has a streak: ' + p.ops.arcs + ' arcs');
+
 const pal = page('?m=p');                                // the palette page never draws splats
 pal.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
 assert.strictEqual(pal.ops.arcs, 0, 'splats are base page only');
