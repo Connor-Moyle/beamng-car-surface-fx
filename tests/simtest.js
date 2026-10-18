@@ -61,4 +61,23 @@ d = S.create(); d.seed = 12345;
 let biggest = 0;
 for (let i = 0; i < 60 * 90; i++) { S.step(d, 1 / 60, P({ rain: 1, speed: 8, size: 4.5 })); if (i % 30 === 0) for (let k = 0; k < d.n; k++) if (d.alive[k]) biggest = Math.max(biggest, d.r[k]); }
 assert(biggest <= 0.07 * 4.5 + 1e-6 && biggest < 0.5, 'a drop never grows past the limit: ' + biggest);
+// per-pane directions: with a field whose gravity runs along +u (and back along -u), a big drop runs sideways in canvas space, not down it
+{
+  const N = 32, mk = () => new Float32Array(N * N * 2);
+  const flow = { n: N, g: mk(), b: mk(), r: mk(), ready: true };
+  for (let c = 0; c < N * N; c++) { flow.g[c * 2] = 1; flow.b[c * 2] = -1; flow.r[c * 2 + 1] = 1; }
+  const d = S.create();
+  const i = S.add(d, 0.5, 0.5, 0.03);
+  const p = { rain: 0, wet: 1, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 1, flow };
+  for (let k = 0; k < 20; k++) S.step(d, 0.05, p);
+  assert(d.x[i] > 0.52 && Math.abs(d.y[i] - 0.5) < 1e-6, 'gravity runs along the own u of the pane: ' + d.x[i] + ', ' + d.y[i]);
+  const d2 = S.create(), j = S.add(d2, 0.5, 0.5, 0.03);
+  const p2 = { rain: 0, wet: 1, speed: 30, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 1, flow };
+  for (let k = 0; k < 20; k++) S.step(d2, 0.05, p2);
+  assert(d2.x[j] < 0.5, 'the air of speed pushes along the back direction of the pane: ' + d2.x[j]);
+  p.flow = null;
+  const d3 = S.create(), q = S.add(d3, 0.5, 0.5, 0.03);
+  for (let k = 0; k < 20; k++) S.step(d3, 0.05, p);
+  assert(d3.y[q] > 0.52, 'without a field the old single axis is used');
+}
 console.log('carSurfaceFx sim: ok');

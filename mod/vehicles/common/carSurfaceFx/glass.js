@@ -9,7 +9,7 @@
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
   var sim = CsfxSim.create();
-  var p = { frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
+  var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
   var emissive = q('mode') === 'emissive', basePath = q('base');
@@ -65,6 +65,18 @@
   var frostLayer = document.createElement('canvas');                // the frost as it is now: the blade's band is cleared out of it and stays clear until the frost is gone
   frostLayer.width = frostLayer.height = 256;
   var fctx = frostLayer.getContext('2d'), frostFresh = false, wipePrev = 0;
+
+  // the directions of this glass material's panes (carSurfaceFx/glassflow.lua), in pieces: csfxFlow('g' | 'b' | 'r', firstIndex, [numbers x 100])
+  var FN = 32;
+  window.csfxFlow = function (kind, start, arr) {
+    var fl = p.flow;
+    if (!fl) fl = p.flow = { n: FN, g: new Float32Array(FN * FN * 2), b: new Float32Array(FN * FN * 2), r: new Float32Array(FN * FN * 2), got: {}, ready: false };
+    var dst = fl[kind];
+    if (!dst) return;
+    for (var i = 0; i < arr.length; i++) dst[start + i] = arr[i] / 100;
+    if (start + arr.length >= dst.length) fl.got[kind] = true;
+    fl.ready = !!(fl.got.g && fl.got.b && fl.got.r);
+  };
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
   window.csfxClear = function () { sim = CsfxSim.create(); };
