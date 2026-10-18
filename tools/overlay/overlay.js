@@ -134,21 +134,20 @@ function createOverlay(doc, win) {
     tctx.fillStyle = 'rgba(0,0,0,0.035)';
     tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
-    tctx.lineCap = 'round';
+    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(30,40,55,0.20)'; tctx.lineWidth = 1.6; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
     for (var k = 0; k < sim.n; k++) {
       if (!sim.alive[k]) { seen[k] = 0; continue; }
       var X = bx + sim.x[k] * bw, Y = by + sim.y[k] * bh;
       if (seen[k] && sim.r[k] > 0.012 * st.p.size * 0.6) {
         var dx = X - px[k], dy = Y - py[k];
         if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
-          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
-          tctx.strokeStyle = 'rgba(30,40,55,0.20)';
-          tctx.lineWidth = w;
-          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
+          var w = 1.6, wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
+          tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y);
         }
       }
       px[k] = X; py[k] = Y; seen[k] = 1;
     }
+    tctx.stroke();
     if (st.p.frost < 0.05) frostFresh = false;
     else if (!frostFresh) { fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
     aPrev = aNow;
@@ -211,7 +210,7 @@ function createOverlay(doc, win) {
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
       lastReport = now;
       var fps = Math.round(1000 / Math.max(1, now - lastDrawT)), text = 'drops ' + alive + ' fps~' + fps + ' box ' + Math.round(bx) + ',' + Math.round(by) + ' ' + Math.round(bw) + 'x' + Math.round(bh) + ' of ' + W + 'x' + H +
-        ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' msgs ' + st.msgs;
+        ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' wiper ' + st.p.wiper.toFixed(1) + ' msgs ' + st.msgs;
       try {                                                          // what the layer really is: pixels lit on its canvas, its style, and what lies on top at the middle of the box
         var gd = ctx.getImageData(Math.max(0, Math.round(bx)), Math.max(0, Math.round(by)), Math.max(1, Math.min(W - Math.round(bx), Math.round(bw))), Math.max(1, Math.min(H - Math.round(by), Math.round(bh)))), lit = 0, dd = gd.data;
         for (var li = 3; li < dd.length; li += 32) if (dd[li] > 8) lit++;
