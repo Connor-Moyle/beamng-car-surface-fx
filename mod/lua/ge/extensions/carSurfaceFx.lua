@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, snowRate = 1, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -324,7 +324,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if not (settings and settings.mud.enabled) then return end
   local old = dirtBy[id] or rules.dirtNew()
   local air = airC()
-  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() or 0, warm = air ~= nil and air > rules.SNOW_AIR,
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
     airC = air, tod = timeOfDay() }, speed, wet)
   if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
   if not settings.weather.snow then d.snow = old.snow end

@@ -107,6 +107,12 @@ local function behind(map, c, wi)
   return c.py - wh.y, abs(c.px - wh.x)
 end
 
+-- the wake: a rear face is wetted by the low-pressure air behind the car, thickest low and fading up; a steep sloping one (a fastback's glass) gets less
+local function wake(c)
+  if c.ny > 0.5 then return (c.h < 1.0 and 0.4 + 0.6 * (1 - c.h) or 0.4 * exp(-(c.h - 1.0) / 0.5)) * (c.nz > 0.5 and 0.4 or 1) end      -- 1 m is where it starts to fade, not a cutoff: a hatch's glass gets some up to the roofline
+  return 0
+end
+
 local RULES = {}
 function RULES.mud(map, c, wi)
   local base = exp(-c.h / 0.22)                                           -- mostly low
@@ -122,7 +128,7 @@ function RULES.mud(map, c, wi)
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w
+  return w + 1.3 * wake(c)
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -131,7 +137,7 @@ function RULES.grime(map, c)
 end
 function RULES.dust(map, c, wi, opts)
   if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
-  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + (c.ny > 0.5 and c.h < 0.9 and 0.6 or 0)
+  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 1.2 * wake(c)
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)

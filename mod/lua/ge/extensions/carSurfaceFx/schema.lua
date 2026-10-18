@@ -188,6 +188,7 @@ function M.build(S, owner)
   add({
     F('dirt', 'dirt', 'Dirt', 'bool', 'Dirt on the paint', 'Dust, mud, tyre rubber and road grime tint the paint and take its gloss. Rain, water and a car wash take it off. Off: the paint stays clean.', 'mud.enabled'),
     F('dirt_build', 'dirt', 'Dirt', 'bool', 'Dirt builds up while you drive', 'Dust on dirt roads, mud when it is wet, rubber from skids, grime on tarmac. Off: dirt only appears when another mod or a command sets it.', 'mud.buildup'),
+    F('snow_speed', 'dirt', 'Dirt', 'slider', 'Snow build-up speed', 'How fast snow settles on a car that stands (1 is the normal speed: a full coat in about 3 minutes of heavy snow).', 'weather.snowRate', { min = 0.25, max = 4, step = 0.25, unit = 'x' }),
     F('dirt_speed', 'dirt', 'Dirt', 'slider', 'Dirt build-up speed', 'How fast dirt builds up (1 is the normal speed).', 'mud.rate', { min = 0.1, max = 3, step = 0.1, unit = 'x' }),
     F('dirt_strength', 'dirt', 'Dirt', 'slider', 'Dirt strength', 'How strongly the dirt shows on the paint.', 'mud.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     B('wash', 'dirt', 'Dirt', 'Wash the car', 'Takes all the dirt off your car, as a car wash does.', function() return tostring(owner.wash()) end),
