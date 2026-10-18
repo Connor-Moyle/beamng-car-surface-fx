@@ -4,9 +4,10 @@
 // Car Surface FX: the water on a window, as pure functions (no DOM), so node can test them (tests/simtest.js). The page (glass.html) draws the result.
 // Units: x, y and r are fractions of the canvas; the canvas is the window material's UV space. (gx, gy) is the unit vector that points DOWN the glass in that space.
 (function (root) {
-  var MAX = 260;
+  var DEFAULT_MAX = 260;
 
-  function create() {
+  function create(max) {
+    var MAX = max > 0 ? max : DEFAULT_MAX;                          // a window page asks for more: its texture holds several panes and each needs its own drops
     return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), fresh: [], t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
   }
   function rnd(d) { d.seed = (d.seed * 16807) % 2147483647; return d.seed / 2147483647; }
@@ -46,9 +47,10 @@
     var z = p.size || 1, slide = SLIDE * z, maxR = MAXR * z;
     var mm = p.glassMm > 0, sg = p.uvPerM || 0.5, amount = p.amount > 0 ? p.amount : 1;    // millimetre mode (the window pages): sizes in real millimetres through the texture units per metre of the pane
     if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
+    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
+    if (mm && pc) amount *= Math.min(4, Math.max(1, pc.length / 180));      // the drops are per window area: a texture with several panes (730 cells) carries about four windscreens' worth
     var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.floor((60 + 240 * p.rain) / z);      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
-    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
     var spawns = n0 < cap ? p.rain * (mm ? 100 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
       if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d), sx, sy; if (pc) { var cc = pc[Math.floor(rnd(d) * pc.length)]; sx = (cc % fl0.n + rnd(d)) / fl0.n; sy = (Math.floor(cc / fl0.n) + rnd(d)) / fl0.n; } else { sx = rnd(d); sy = rnd(d); } var j = add(d, sx, sy, mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); if (j >= 0 && d.fresh.length < 64) d.fresh.push(j); }
@@ -144,7 +146,7 @@
     return cv;
   }
 
-  var api = { create: create, step: step, add: add, count: count, MAX: MAX, SLIDE: SLIDE, frostTexture: frostTexture };
+  var api = { create: create, step: step, add: add, count: count, MAX: DEFAULT_MAX, SLIDE: SLIDE, frostTexture: frostTexture };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CsfxSim = api;
 })(window);
 
