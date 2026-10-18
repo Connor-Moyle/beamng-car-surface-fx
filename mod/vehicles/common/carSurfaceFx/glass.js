@@ -129,6 +129,16 @@
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.8 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
     }
+    if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
+      try {
+        var flx = p.flow, n = flx && flx.n ? flx.n : 0, alive = 0;
+        for (var di = 0; di < sim.n; di++) alive += sim.alive[di];
+        if (flx && flx.cells) { ctx.fillStyle = emissive ? 'rgba(255,255,255,0.18)' : 'rgba(255,0,0,0.25)'; for (var ci = 0; ci < flx.cells.length; ci++) { var cc2 = flx.cells[ci]; ctx.fillRect((cc2 % n) * W / n, Math.floor(cc2 / n) * H / n, W / n - 1, H / n - 1); } }
+        ctx.font = 'bold 26px sans-serif'; ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,255,0)';
+        var txt = 'drops ' + alive + ' flow ' + (flx ? (flx.ready ? 'ready' : 'partial') : 'none') + ' cells ' + (flx && flx.cells ? flx.cells.length : 0) + ' rain ' + Number(p.rain).toFixed(2) + ' mm ' + p.glassMm + ' uv/m ' + Number(p.uvPerM || 0).toFixed(2) + ' ' + W + 'x' + H;
+        for (var ty = 0.15; ty < 1; ty += 0.3) ctx.fillText(txt, 6, ty * H);
+      } catch (e) {}
+    }
     var fr = sim.fresh;                                               // impacts: a quick small ring where a raindrop landed (p.imp: how many of the landings get one, 0 = none)
     for (var f = 0; f < fr.length && p.imp > 0; f++) if (imp.length < 60 && Math.random() < p.imp) imp.push([sim.x[fr[f]] * W, sim.y[fr[f]] * H, 0]);
     fr.length = 0;
