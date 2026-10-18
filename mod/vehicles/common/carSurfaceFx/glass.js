@@ -110,7 +110,7 @@
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     // a drop of a few pixels: a thin ring and a one-pixel glint, all the rings in one path and all the glints in another (one stroke, one fill); bigger ones the sprite
     var tiny = false;
-    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.9;       // the emissive map adds light: a light ring there
+    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1.3 : 0.9;       // the emissive map adds light: a light ring there
     ctx.beginPath();
     var glints = [];
     for (var i = 0; i < sim.n; i++) {
@@ -126,8 +126,8 @@
     }
     if (tiny) ctx.stroke();
     if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.8 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], emissive ? 3 : 2, emissive ? 3 : 2);
     }
     if (p.dbg) {                                                      // debug (carSurfaceFx.glassDebug(true)): the glass cells as light squares and what the page knows, written on the glass
       try {
