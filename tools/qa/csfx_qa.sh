@@ -167,6 +167,7 @@ if want fluids; then
   expect "a punctured oil pan leaks (the engine's own rate)" 'leak oil 0\.[2-9]|leak oil 1' "$(FL 'status()')"
   nap 30
   expect "a parked leaking car builds an oil puddle" 'oil=[1-9][0-9]*\(r0\.[1-9]|oil=[1-9][0-9]*\(r[1-9]' "$(FL 'status()')"
+  expect "the puddle decals are sent to the engine (draw counter, no error)" 'decals [1-9][0-9]*, err nil' "$(FL 'status()')"
   cam external; nap 2; shot oil_puddle
   FL "puncture('coolant')" > /dev/null
   nap 25

@@ -213,16 +213,27 @@ local function slot(pool, i)
   return e
 end
 
+local diag = { frames = 0, sent = 0, calls = 0, err = nil, first = nil }          -- what the draw did: shown by status(), so a puddle that is not seen can be told from one never drawn
 local function draw(pool, n)
   local marks = rawget(_G, 'carSurfaceFx_marks')
-  if marks and marks.drawBatch then marks.drawBatch(pool, n)
-  elseif Engine and Engine.Render and Engine.Render.DynamicDecalMgr then Engine.Render.DynamicDecalMgr.addDecals(pool, n) end
+  local ok, err = pcall(function()
+    if marks and marks.drawBatch then marks.drawBatch(pool, n)
+    elseif Engine and Engine.Render and Engine.Render.DynamicDecalMgr then Engine.Render.DynamicDecalMgr.addDecals(pool, n) end
+  end)
+  diag.calls, diag.sent = diag.calls + 1, diag.sent + n
+  if not ok and not diag.err then diag.err = tostring(err) log('E', TAG, 'decal draw failed: ' .. diag.err) end
+  if ok and not diag.first then
+    local e = pool[1]
+    diag.first = string.format('%s at %.1f, %.1f, %.2f scale %.2f x %.2f x %.2f alpha %.2f', tostring(e.texture), e.position.x, e.position.y, e.position.z, e.scale.x, e.scale.y, e.scale.z, e.color.a)
+    log('I', TAG, 'first puddle decal batch (' .. n .. '): ' .. diag.first)
+  end
 end
 
 function M.onPreRender(dt)
   if not settings.enabled then return end
   if store.count == 0 then return end
-  if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
+  if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then diag.err = diag.err or 'no DynamicDecalMgr' return end
+  diag.frames = diag.frames + 1
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
   local camX, camY = cam and cam.x, cam and cam.y
   local cr2 = settings.cullRadius * settings.cullRadius
@@ -315,8 +326,9 @@ function M.status()
   for _, k in ipairs(rules.KINDS) do out[#out + 1] = string.format('%s=%d(r%.2f)', k, per[k] or 0, biggest[k] or 0) end
   local pv = be:getPlayerVehicleID(0)
   local r = reports[pv] or {}
-  return string.format('puddles %d [%s] leak oil %.2f coolant %.2f fuel %.2f exhaust %.2f grip %.2f gripOn %s', store.count, table.concat(out, ' '),
-    r.oil or 0, r.coolant or 0, r.fuel or 0, r.exhaust or 0, r.grip or 1, tostring(settings.gripEnabled))
+  return string.format('puddles %d [%s] leak oil %.2f coolant %.2f fuel %.2f exhaust %.2f grip %.2f gripOn %s | draw: frames %d, batches %d, decals %d, err %s, first %s',
+    store.count, table.concat(out, ' '), r.oil or 0, r.coolant or 0, r.fuel or 0, r.exhaust or 0, r.grip or 1, tostring(settings.gripEnabled),
+    diag.frames, diag.calls, diag.sent, tostring(diag.err), tostring(diag.first))
 end
 
 -- the grip multiplier the rules give at a point (a test reads this against what the tyres report)
