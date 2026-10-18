@@ -25,7 +25,7 @@ function M.defaults()
     stainSpeed = 3.0,                                            -- m/s: faster than this a leak leaves drip spots along the road instead of a puddle
     others = { enabled = false, maxCars = 4, range = 60 },       -- AI and traffic cars leak too (the nearest ones)
     kinds = {
-      oil = { enabled = true, color = { 0.04, 0.035, 0.03 }, opacity = 0.80, size = 0.9, growth = 0.010, dripSize = 0.07, life = 0, grip = 0.85, gripRadius = 0.40 },
+      oil = { enabled = true, color = { 0.04, 0.035, 0.03 }, opacity = 0.80, size = 0.9, growth = 0.010, dripSize = 0.09, life = 0, grip = 0.85, gripRadius = 0.40 },
       coolant = { enabled = true, color = { 0.30, 0.78, 0.35 }, opacity = 0.55, size = 0.8, growth = 0.014, dripSize = 0.07, life = 900, grip = 0.65, gripRadius = 0.30 },
       fuel = { enabled = true, color = { 0.55, 0.45, 0.12 }, opacity = 0.40, size = 0.7, growth = 0.012, dripSize = 0.06, life = 420, grip = 0.70, gripRadius = 0.30 },
       exhaust = { enabled = false, color = { 0.10, 0.10, 0.10 }, opacity = 0.35, size = 0.25, growth = 0.002, dripSize = 0.04, life = 240, grip = 0.0, gripRadius = 0 },
