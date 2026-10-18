@@ -86,7 +86,8 @@ function M.setDebug(v) DEBUG = v and true or false end   -- console: carSurfaceF
 -- ---- lifecycle ----
 function M.onExtensionLoaded() wheelNodes = nil; nodeCooldown = {}; wrapNodeCollision() end
 function M.updateGFX(dt)
-  pcall(function() if not wheelNodes then local s = buildWheelNodes(); if next(s) then wheelNodes = s end end end)
+  if wheelNodes then return end      -- (found: nothing more to do, and no closure made every frame)
+  pcall(function() local s = buildWheelNodes(); if next(s) then wheelNodes = s end end)
 end
 function M.onReset() nodeCooldown = {}; nextHitT = 0 end
 

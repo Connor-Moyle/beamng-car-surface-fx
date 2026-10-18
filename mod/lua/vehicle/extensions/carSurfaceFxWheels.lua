@@ -38,10 +38,14 @@ local function engineTemp()
   return t and string.format('%.1f', t) or 'nil'
 end
 
+local waterT = 0      -- time since the wheels were last asked about water
+
 function M.updateGFX(dt)
   local n, l, m, r, skid, water, wl, wr = 0, 0, 0, 0, false, false, false, false
+  waterT = waterT + dt
+  local askWater = waterT >= 0.1 or timer + dt >= INTERVAL       -- (obj:inWater is a call into the engine for every wheel: ten times a second is plenty for a puddle or a ford; also on the frame a report goes out, so that no time is carried over into the next one)
   for _, wd in pairs(wheels.wheels) do
-    if wd.node1 and obj:inWater(wd.node1) then
+    if askWater and wd.node1 and obj:inWater(wd.node1) then
       water = true
       local side = tostring(wd.name or ''):upper()                 -- FL FR RL RR: which side of the car the wheel is on
       if side:find('L', 1, true) then wl = true elseif side:find('R', 1, true) then wr = true else wl, wr = true, true end
@@ -58,9 +62,12 @@ function M.updateGFX(dt)
     sLoose, sMud, sRoad = sLoose + l / n * dt, sMud + m / n * dt, sRoad + r / n * dt
     if skid then tSlip = tSlip + dt end
   end
-  if water then tWater = tWater + dt end
-  if wl then tWaterL = tWaterL + dt end
-  if wr then tWaterR = tWaterR + dt end
+  if askWater then       -- (what was found stands for the time since the last look)
+    if water then tWater = tWater + waterT end
+    if wl then tWaterL = tWaterL + waterT end
+    if wr then tWaterR = tWaterR + waterT end
+    waterT = 0
+  end
   timer = timer + dt
   if timer < INTERVAL then return end
   local v = obj:getVelocity()

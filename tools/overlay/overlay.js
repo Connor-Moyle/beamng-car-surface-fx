@@ -18,6 +18,11 @@ function createOverlay(doc, win) {
   var sim = CsfxSim.create();
   var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false;
+  // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
+  // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
+  // ever been drawn on since it was last empty (the fade has to reach all of it). Rectangles are { x0, y0, x1, y1 } in pixels.
+  var drawn = null, trailBox = null, PAD = 24;
+  function join(a, b) { return a ? { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) } : b; }
   var px = new Float32Array(sim.n), py = new Float32Array(sim.n), seen = new Uint8Array(sim.n);     // where each drop was a frame ago
   var STEP = 1000 / 30;
   var frostTex = CsfxSim.frostTexture(doc, 256);
@@ -41,25 +46,29 @@ function createOverlay(doc, win) {
     c2d.beginPath(); c2d.moveTo(cx, cy); c2d.arc(cx, cy, L, -hi, -lo, false); c2d.closePath(); c2d.fill();
   }
 
-  // one drop as a lens: a faint light film, darker toward the centre, a lighter rim up-left, a dark crescent down-right, one glint
+  // one drop as a lens, for a bright scene: a dark film (darker in the top half: the drop shows the darker ground there), a soft light spot low right, a dark edge all
+  // round (heavier low right), a bright rim up-left and one glint. (A light film vanishes against a bright sky or concrete: only dark reads there.)
   var S = 64, sprite = doc.createElement('canvas');
   sprite.width = sprite.height = S;
   (function () {
     var c = sprite.getContext('2d'), data = c.createImageData(S, S);
+    function over(dst, r, g, b, a) { if (a <= 0) return; var k = 1 - a; dst[0] = r * a + dst[0] * k; dst[1] = g * a + dst[1] * k; dst[2] = b * a + dst[2] * k; dst[3] = a + dst[3] * k; }      // (premultiplied)
     for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
       var u = (x + 0.5) / S * 2 - 1, v = (y + 0.5) / S * 2 - 1, d2 = u * u + v * v, o = (y * S + x) * 4;
       if (d2 >= 1) { data.data[o + 3] = 0; continue; }
-      var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8);
-      var ring = Math.max(0, 1 - Math.abs(d - 0.84) / 0.16), dir = (u + v) * 0.7071;
-      var s = ring * (dir > 0 ? -0.9 * dir : 0.7 * -dir);
+      var d = Math.sqrt(d2), fade = Math.min(1, (1 - d) * 8), dir = (u + v) * 0.7071, px = [0, 0, 0, 0];
+      var top = Math.max(0, -v), body = 0.1 + (true ? 0.20 * Math.pow(top, 1.3) : 0);
+      over(px, 12, 18, 30, body * (d < 0.9 ? 1 : 0.5));                                          // the body: a dark film, darker toward the top
+      var cx = u - 0.22, cy = v - 0.4;
+      over(px, 255, 255, 255, 0.30 * Math.exp(-(cx * cx + cy * cy) / 0.10) * (d < 0.9 ? 1 : 0));   // light that the drop focuses, low right
+      var ring = Math.max(0, 1 - Math.abs(d - 0.86) / 0.14);
+      over(px, 10, 14, 24, Math.min(0.9, ring * 0.85 * (0.75 + 0.25 * Math.max(0, dir))));      // the dark edge all round, heavier low right
+      var rim = ring * Math.max(0, -dir);
+      over(px, 255, 255, 255, Math.min(1, rim * 0.95));                                           // the bright rim up-left
       var gx = u + 0.4, gy = v + 0.45;
-      s += 0.95 * Math.exp(-(gx * gx + gy * gy) / 0.012);
-      var r = 205, g = 222, b = 240, a = 0.18 + 0.10 * d;                              // the film: a little lighter toward the edge (the middle looks through)
-      a += 0.14 * (1 - d) * (dir > 0 ? 1 : 0.4);                                       // and a darker core down-right: the lens turns the picture
-      if (s > 0.15) { r = g = b = 255; a = Math.min(1, s); }                          // glint and bright rim
-      else if (s < -0.05) { r = g = b = 0; a = Math.min(0.85, -s * 1.3); }            // the dark crescent
-      else if (d < 0.6) { r = g = b = 20; a = 0.14 * (1 - d); }                        // dark core
-      data.data[o] = r; data.data[o + 1] = g; data.data[o + 2] = b;
+      over(px, 255, 255, 255, Math.min(1, 1.0 * Math.exp(-(gx * gx + gy * gy) / 0.012)));       // the glint
+      var a = px[3];
+      data.data[o] = a > 0 ? Math.round(px[0] / a) : 0; data.data[o + 1] = a > 0 ? Math.round(px[1] / a) : 0; data.data[o + 2] = a > 0 ? Math.round(px[2] / a) : 0;
       data.data[o + 3] = Math.min(255, a * fade * 255);
     }
     c.putImageData(data, 0, 0);
@@ -78,9 +87,18 @@ function createOverlay(doc, win) {
     var dt = last === null ? 0.033 : Math.min((now - last) / 1000, 0.1);
     last = now; lastDraw = now;
     var W = win.innerWidth || 1280, H = win.innerHeight || 720;
-    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; trails.width = W; trails.height = H; }
-    ctx.clearRect(0, 0, W, H);
-    if (!st.hull || !st.bbox) return;
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; trails.width = W; trails.height = H; drawn = trailBox = null; }
+    var cur = null;
+    if (st.hull && st.bbox) {
+      var bb = st.bbox;
+      cur = { x0: Math.max(0, Math.floor(bb.x0 * W - PAD)), y0: Math.max(0, Math.floor(bb.y0 * H - PAD)), x1: Math.min(W, Math.ceil((bb.x0 + bb.w) * W + PAD)), y1: Math.min(H, Math.ceil((bb.y0 + bb.h) * H + PAD)) };
+      if (st.debug) cur.x1 = Math.min(W, Math.max(cur.x1, Math.ceil(bb.x0 * W + 460)));          // (the debug text may run past the box)
+    }
+    var wipe = join(drawn, cur || drawn || { x0: 0, y0: 0, x1: 0, y1: 0 });
+    ctx.clearRect(wipe.x0, wipe.y0, wipe.x1 - wipe.x0, wipe.y1 - wipe.y0);
+    drawn = cur;
+    if (!cur) return;
+    trailBox = join(trailBox, cur);
     var wp = st.p.wiper;
     st.p.wiper = 0;                                                   // the blades are the overlay's own (arcs), not the simulation's column
     CsfxSim.step(sim, dt, st.p);
@@ -90,7 +108,7 @@ function createOverlay(doc, win) {
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
     tctx.fillStyle = 'rgba(0,0,0,0.035)';
-    tctx.fillRect(0, 0, W, H);
+    tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
     tctx.lineCap = 'round';
     for (var k = 0; k < sim.n; k++) {
@@ -99,10 +117,10 @@ function createOverlay(doc, win) {
       if (seen[k] && sim.r[k] > 0.012 * st.p.size * 0.6) {
         var dx = X - px[k], dy = Y - py[k];
         if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
-          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.9;
-          tctx.strokeStyle = 'rgba(215,230,245,0.34)';
+          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
+          tctx.strokeStyle = 'rgba(30,40,55,0.20)';
           tctx.lineWidth = w;
-          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.9, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
+          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
         }
       }
       px[k] = X; py[k] = Y; seen[k] = 1;
@@ -146,7 +164,7 @@ function createOverlay(doc, win) {
       ctx.drawImage(frostLayer, bx, by, bw, bh);
       ctx.globalAlpha = 1;
     }
-    ctx.drawImage(trails, 0, 0);
+    ctx.drawImage(trails, cur.x0, cur.y0, cur.x1 - cur.x0, cur.y1 - cur.y0, cur.x0, cur.y0, cur.x1 - cur.x0, cur.y1 - cur.y0);      // (the clip is inside the box: nothing else shows)
     if (st.p.spray > 0.02) {
       ctx.globalAlpha = Math.min(0.9, st.p.spray * 1.2);
       ctx.drawImage(mistTex, bx, by, bw, bh);
