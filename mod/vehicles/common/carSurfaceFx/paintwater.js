@@ -68,11 +68,12 @@
       }
       spawns -= 1;
     }
-    var evapM = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0003 + 0.0008 * (1 - p.wet));       // metres of radius per second a dry drop shrinks by
+    var dtm = dt * (p.anim >= 0 ? p.anim : 1);                                                       // the animation rate: 0 leaves the drops where they are, 1 is normal, 2 twice as lively
+    var evapM = (1 - Math.min(p.rain * 3, 1)) * dtm * (0.0003 + 0.0008 * (1 - p.wet));       // metres of radius per second a dry drop shrinks by
     for (var i = 0; i < w.n; i++) {
       if (!w.alive[i]) continue;
       var k2 = nearest(w, w.x[i], w.y[i]);
-      w.age[i] += dt;
+      w.age[i] += dtm;
       if (w.age[i] > w.life[i]) { w.alive[i] = 0; continue; }                                // every drop is gone after a while (blown off, run off, dried)
       if (k2 < 0) continue;                                                                  // no body node near: it stays where it is until its time is up
       var b = k2 * 9, du = w.nodes[b + 2] * p.fx + w.nodes[b + 3] * p.fy + w.nodes[b + 4] * p.fz, dv = w.nodes[b + 5] * p.fx + w.nodes[b + 6] * p.fy + w.nodes[b + 7] * p.fz;
@@ -82,11 +83,12 @@
       w.moved[i] = 0;                                          // what holds a drop: small ones stay, big ones go
       if (along > hold) {
         var v = Math.min(0.5, 0.02 * (along - hold) * (rm * 1000 / 2.5));                      // m/s
-        w.x[i] += du / len * v * s * dt;
-        w.y[i] += dv / len * v * s * dt;
+        w.x[i] += du / len * v * s * dtm;
+        w.y[i] += dv / len * v * s * dtm;
         w.moved[i] = 1;                                                                      // the page leaves a wet trail where a drop has run
       }
       w.r[i] -= evapM * s;
+      if (p.rain > 0.1) w.r[i] = Math.min(w.r[i] + 0.00003 * s * p.rain * dtm, 0.8 * RMAX_M * kd * s);       // in the rain a drop slowly takes on water and grows (and meets its neighbours)
       if (w.r[i] < 0.0008 * kd * s || w.x[i] < 0 || w.x[i] > 1 || w.y[i] < 0 || w.y[i] > 1) w.alive[i] = 0;
     }
   }

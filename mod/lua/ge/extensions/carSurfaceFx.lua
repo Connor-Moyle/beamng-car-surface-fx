@@ -18,7 +18,7 @@ local grassRules = require('carSurfaceFx/grassRules')
 local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
@@ -709,7 +709,7 @@ local function update(dtReal)
         M.pushGlass(car, mo)
         if scratchOn() then
           local rain = forced or rules.target(nil, core_environment.getPrecipitation())
-          carSurfaceFx_scratch.water(id, { rain = rain * settings.rain.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat, mm = settings.rain.bodyDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts })
+          carSurfaceFx_scratch.water(id, { rain = rain * settings.rain.intensity, wet = wet, speed = mo.speed, aLong = mo.aLong, aLat = mo.aLat, mm = settings.rain.bodyDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, anim = settings.rain.anim })
         end
       end
       local src = settings.mud.enabled and (forcedDirt or dirtBy[id]) or nil
