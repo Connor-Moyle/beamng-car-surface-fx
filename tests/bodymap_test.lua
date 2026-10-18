@@ -101,7 +101,7 @@ local wl = D.wheelList(core_vehicle_manager.getVehicleData().vdata)
 assert(#wl == 2 and wl[1].y < wl[2].y and math.abs(wl[1].x + 0.9) < 1e-9, 'the wheels, front first: ' .. #wl)
 local built
 D.request(7, { car_paint = true }, function(m) built = m end)
-for _ = 1, 20 do D.tick() if built then break end end
+for _ = 1, 3000 do D.tick() if built then break end end                -- the spray bake takes a while in the test interpreter
 assert(built and #built.list > 100, 'the body map is built from the mesh on texture coordinate set 1')
 local c = built.list[1]
 assert(c.gx < 33 and c.gy < 33, 'its cells are in the first quarter of the texture, where set 1 puts them, not the whole square of set 0')

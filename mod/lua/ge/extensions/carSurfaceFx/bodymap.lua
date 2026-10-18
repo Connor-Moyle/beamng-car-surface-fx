@@ -171,6 +171,13 @@ end
 -- rnd() is a function that returns 0..1. wi: the wheel that throws it (mud, rubber). opts (dust): { maxH, washH } the height 0..1 the film reaches and the height above which rain has washed it.
 function M.sample(map, kind, n, rnd, wi, opts)
   local out = {}
+  if map.spray and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then                 -- thrown from the tyres: where the traced spray really hits
+    local tries = kind == 'rubber' and n * 3 or n
+    for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
+      if #out < n and (kind == 'mud' or (h.dist or 9) < 1.1) then out[#out + 1] = h end                   -- rubber only where it is close to the wheel
+    end
+    if #out > 0 then return out end
+  end
   local t = table_for(map, kind, wi, opts)
   if t.total <= 0 or #t.cum == 0 then return out end
   for _ = 1, n do

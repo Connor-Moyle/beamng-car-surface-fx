@@ -5,6 +5,7 @@ local M = {}
 local TAG = 'carSurfaceFx_bodydirt'
 local read = require('carSurfaceFx/daeread').read
 local bodymap = require('carSurfaceFx/bodymap')
+local spraytrace = require('carSurfaceFx/spraytrace')
 local cache, jobs = {}, {}
 
 -- the wheels' centres and radii in the car's frame: { { x, y, z, r }, ... } from the vehicle data (nodes at rest)
@@ -40,8 +41,10 @@ function M.request(vehId, paintMat, cb)
       if not ok then log('W', TAG, 'could not read ' .. path .. ': ' .. tostring(err)) end
       coroutine.yield()
     end
-    local map = bodymap.build(tris, M.wheelList(vd.vdata))
+    local wheels = M.wheelList(vd.vdata)
+    local map = bodymap.build(tris, wheels)
     if map then
+      if #wheels > 0 then map.spray = spraytrace.bake(tris, wheels, { speed = 20, rays = 500, yield = coroutine.yield }) end        -- where the mud thrown by each tyre really lands (rays from the tread, traced against the body)
       cache[key] = map
       log('I', TAG, string.format('%s: body map from %d paint triangles, %d texture cells, %d wheels', tostring(vd.vehicleDirectory), #tris, #map.list, #map.wheels))
     else
