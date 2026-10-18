@@ -197,7 +197,7 @@ def put(cov, rgb, spr, x, y, col=None):
     a = sub[..., 3]
     if rgb is not None:
         m = (a > cov[cy0:cy1, cx0:cx1])[..., None]
-        rgb[cy0:cy1, cx0:cx1] = np.where(m, np.clip(np.array(col, np.float32) * sub[..., :1] * 2.0, 0, 1), rgb[cy0:cy1, cx0:cx1])
+        rgb[cy0:cy1, cx0:cx1] = np.where(m, np.clip(np.array(col, np.float32) * sub[..., :1] * 1.6, 0, 1), rgb[cy0:cy1, cx0:cx1])
     cov[cy0:cy1, cx0:cx1] = 1 - (1 - cov[cy0:cy1, cx0:cx1]) * (1 - a)
 
 
@@ -207,7 +207,8 @@ LOOK = {
     'mud':      dict(crust=1.0, dryshare=0.08, wake=(0.20, 0.15, 0.11), wake_k=1.0, film=0.0, streak=1.0, splash=1.0, dust=0.0, cakes=1.0),
     'snow':     dict(crust=0, dryshare=0, wake=(0, 0, 0), wake_k=0, film=0, streak=0, splash=0, dust=0, cakes=0),
 }
-WET, DRY = np.array([0.19, 0.14, 0.10], np.float32), np.array([0.47, 0.41, 0.34], np.float32)
+WET, DRY = np.array([0.19, 0.14, 0.10], np.float32), np.array([0.40, 0.34, 0.27], np.float32)
+CAKE_DRY = np.array([0.36, 0.30, 0.24], np.float32)
 
 
 def canvas(name):
@@ -269,7 +270,7 @@ def canvas(name):
                 cell = cakes_t[(128 if dry else 0):(256 if dry else 128), vi * 128:(vi + 1) * 128]
                 size = s * CV * float(np.clip(np.exp(rng.normal(np.log(0.045), 0.55)), 0.015, 0.15))     # 1.5 to 15 cm, mostly small
                 st = rng.uniform(0.7, 1.45)
-                col = (DRY if dry else WET) * rng.uniform(0.85, 1.15)
+                col = (CAKE_DRY if dry else WET * 1.25) * rng.uniform(0.85, 1.15)
                 put(cov['cake'], cake_rgb, sprite(cell, rng.uniform(0, 360), size / 128 * st, size / 128 / st), u * CV + ox, v * CV + oy, col)
         # fans thrown back from each tyre (the traced spray)
         for wi in (1, 2, 3, 4):
