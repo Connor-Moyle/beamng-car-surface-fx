@@ -357,6 +357,7 @@ end
 -- a car wash (or anything else that cleans): carSurfaceFx.wash() cleans the player car, wash(id, 0.5) takes off half of one car's dirt
 function M.wash(id, amount)
   id = id or be:getPlayerVehicleID(0)
+  if forcedDirt and id == be:getPlayerVehicleID(0) then forcedDirt = nil end      -- a debug amount would show the dirt through the wash
   dirtBy[id] = rules.dirtClean(dirtBy[id] or rules.dirtNew(), amount)
   if scratchOn() then local f = rules.clamp(1 - (amount or 1), 0, 1) carSurfaceFx_scratch.washSplats(id, f, f) end
   return 'dirt ' .. rules.dirtTotal(dirtBy[id])

@@ -371,9 +371,9 @@ function M.build(S, owner)
   add(S.each(marks.TYPES, function(t)
     local dir = 'art/decals/' .. t .. '/'
     return {
-      { id = t .. '_skid_tex', tab = 'textures', group = title(t), type = 'texture', label = 'Skid texture', tooltip = 'The picture of a skid mark on ' .. t .. '. White on transparent works best: the colour is multiplied over it.',
+      { id = t .. '_skid_tex', tab = 'textures', group = title(t), type = 'texture', label = 'Skid texture: ' .. t, tooltip = 'The picture of a skid mark on ' .. t .. '. White on transparent works best: the colour is multiplied over it.',
         folder = '/' .. dir, exts = { 'png' }, thumbs = true, default = '/' .. dir .. (defaultAt('mats.' .. t .. '.variant') or ''), store = marksStore('mats.' .. t .. '.variant', 'texture', dir), apply = 'live' },
-      { id = t .. '_track_tex', tab = 'textures', group = title(t), type = 'texture', label = 'Track texture', tooltip = 'The picture of the faint tyre track on ' .. t .. '.',
+      { id = t .. '_track_tex', tab = 'textures', group = title(t), type = 'texture', label = 'Track texture: ' .. t, tooltip = 'The picture of the faint tyre track on ' .. t .. '.',
         folder = '/' .. dir, exts = { 'png' }, thumbs = true, default = '/' .. dir .. (defaultAt('mats.' .. t .. '.trackVariant') or ''), store = marksStore('mats.' .. t .. '.trackVariant', 'texture', dir), apply = 'live' },
     }
   end))
