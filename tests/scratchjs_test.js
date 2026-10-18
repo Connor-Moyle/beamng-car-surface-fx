@@ -29,7 +29,7 @@ p.w.csfxBlobs({ l: [0.7, 0.7, 0.03], c: [0.5, 0.4, 0.3], a: 0.5, k: 'dust' });
 
 p.reset();
 p.w.csfxWash({ dust: 0, mud: 1 });                       // washes the dust off, leaves the mud
-assert.strictEqual(p.ops.arcs, 2, 'the dust is gone, two mud splats are redrawn');
+assert(p.ops.arcs >= 14 && p.ops.arcs <= 26, 'the dust is gone, two mud splatters (a body and droplets each) are redrawn: ' + p.ops.arcs);
 assert.strictEqual(p.ops.strokes, 4, 'both scratches are redrawn (2 passes x 2 lines): washing keeps them');
 
 p.reset();
@@ -41,7 +41,7 @@ p.w.csfxBlobs({ l: [0.2, 0.8, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
 p.reset();
 p.w.csfxRepair();
 assert.strictEqual(p.ops.strokes, 0, 'repair removes the scratches');
-assert.strictEqual(p.ops.arcs, 1, 'and leaves the dirt');
+assert(p.ops.arcs >= 7, 'and leaves the dirt: ' + p.ops.arcs);
 
 p.w.csfxClear();
 p.reset();

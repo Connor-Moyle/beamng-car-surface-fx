@@ -142,4 +142,13 @@ eq(sh2 > 0.8, true, 'both sides, deep, fast: a sheet over the windscreen')
 local a1, b1, c1 = R.splash(8, 1, 1, 1)
 eq(a1 + b1 + c1, 0, 'slow: nothing')
 eq(R.splash(20, 0, 0, 1), 0, 'no wheel in water: nothing')
+-- settings migration
+do
+  local on, speed, moved = R.migrate({ mud = { buildup = false } }, 0)
+  eq(on and speed == 1 and moved, true, 'an old build-up off is turned on once, and the Options value 0 becomes 1')
+  local on2, speed2, moved2 = R.migrate({ settingsVersion = 2, mud = { buildup = false } }, 0)
+  eq(on2 or speed2 or moved2, false, 'a deliberate off after the migration stays off')
+  local on3, speed3, moved3 = R.migrate({ mud = { buildup = true } }, 1.5)
+  eq(on3 == false and speed3 == nil and moved3, true, 'an on stays as it is, the version moves up')
+end
 print('carSurfaceFx rules: ' .. n .. ' checks passed')

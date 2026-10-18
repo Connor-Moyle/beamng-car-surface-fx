@@ -38,4 +38,20 @@ for i = 1, 100 do M.restore(7, { marks = { { i / 1000, 0, 0, 0, 0.001 } } }) end
 assert(M.count(7) == 1, 'restore replaces what was there')
 M.onVehicleDestroyed(7)
 assert(M.count(7) == 0, 'a destroyed car is forgotten')
+-- the car-side reporter is put into a car when it is new, when the setting changes and every 5 s, not every second
+local injected = 0
+function veh:getMaterialNames() return {} end
+function veh:queueLuaCommand(c) if c:find('carSurfaceFxScratch', 1, true) then injected = injected + 1 end end
+M.configure({ enabled = true })
+M.onUpdate(1.1)
+assert(injected == 1, 'a new car gets it at once')
+M.onUpdate(1.1)
+M.onUpdate(1.1)
+assert(injected == 1, 'not again within 5 s')
+M.configure({ enabled = false })
+M.onUpdate(1.1)
+assert(injected == 2, 'a changed setting goes in at once')
+M.onVehicleSpawned(7)
+M.onUpdate(1.1)
+assert(injected == 3, 'a car spawned again gets it at once')
 print('carSurfaceFx scratch memory: ok')

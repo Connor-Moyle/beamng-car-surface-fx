@@ -65,14 +65,30 @@
 
   // soft-edged dirt splats. base page ONLY: dirt just darkens/tints the paint. punching the palette too exposes the bare layer, which is as shiny as metal -
   // right for a scratch, but it made dirt look like chrome with a dark rim.
+  // a number 0..1 from a place and an index, the same every time (a redraw must give the same splatter)
+  function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
   function drawBlob(b) {
     if (palette) return;
     sctx.globalCompositeOperation = 'source-over';
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
-    var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
-    g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
-    sctx.fillStyle = g;
-    sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    if (b.k === 'dust') {                                             // dust and snow: soft patches
+      var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+      g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
+      sctx.fillStyle = g;
+      sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    } else {                                                          // mud and bugs: a splat with a broken edge and droplets thrown around it
+      var i, n = 4 + Math.floor(hash(b.x, b.y, 0) * 3);
+      sctx.fillStyle = rgba(b.c, b.a * 0.55);
+      for (i = 0; i < n; i++) {
+        var ang = hash(b.x, b.y, i + 1) * 6.2832, d = r * 0.5 * hash(b.x, b.y, i + 9), rr = r * (0.35 + 0.45 * hash(b.x, b.y, i + 17));
+        sctx.beginPath(); sctx.arc(x + Math.cos(ang) * d, y + Math.sin(ang) * d, rr, 0, Math.PI * 2); sctx.fill();
+      }
+      sctx.fillStyle = rgba(b.c, b.a * 0.9);
+      for (i = 0; i < 3 + Math.floor(hash(b.x, b.y, 30) * 4); i++) {
+        var a2 = hash(b.x, b.y, i + 40) * 6.2832, d2 = r * (1 + 1.3 * hash(b.x, b.y, i + 50)), r2 = Math.max(1, r * (0.07 + 0.16 * hash(b.x, b.y, i + 60)));
+        sctx.beginPath(); sctx.arc(x + Math.cos(a2) * d2, y + Math.sin(a2) * d2, r2, 0, Math.PI * 2); sctx.fill();
+      }
+    }
     dirty = true;
   }
 
@@ -123,7 +139,7 @@
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
-  var live = 0, last = performance.now();
+  var live = 0, last = performance.now(), rate = 0;
   var DR = 24, drop = document.createElement('canvas');            // one drop: a faint dark body, a darker rim, lower right darker still (what multiplies the paint colour)
   drop.width = drop.height = DR;
   (function () {
@@ -147,6 +163,7 @@
   var tctx = tc.getContext('2d');
   tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, W, W);
   var trailLive = 0;
+  var tpx = new Float32Array(water ? water.n : 0), tpy = new Float32Array(water ? water.n : 0), tseen = new Uint8Array(water ? water.n : 0);      // where each moving drop was at the last frame
   window.csfxNodes = function (rows, more) {                                      // the node map comes in pieces (a long script string may not get through): the first piece starts it over
     if (!more) acc = [];
     for (var i = 0; i < rows.length; i++) acc.push(rows[i]);
@@ -157,9 +174,13 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
+  var minMs = 0;                                                    // 0: work on every frame the browser gives; csfxThrottle(80) works at most every 80 ms (the texture is only taken at FPS)
+  window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
     requestAnimationFrame(frame);                                  // first: whatever goes wrong below, the next frame still comes
+    if (minMs && now - last < minMs) return;
     var dt = Math.min((now - last) / 1000, 0.2); last = now;
+    if (dt > 0) rate += (1 / dt - rate) * 0.1;                      // how often the browser really calls this page (shown in the debug text)
     try {
       if (!palette && water && water.nodes) {
         if (wdebug) { wp.rain = 1; wp.wet = 1; }                                         // debug: rain on, whatever the game side says
@@ -175,15 +196,25 @@
     if (palette || !water) return;
     try {                                                           // trails: fade, add a dark dot where a drop moved, lay them over the paint (multiply: dark darkens, white changes nothing)
       tctx.globalCompositeOperation = 'source-over';
-      tctx.fillStyle = 'rgba(255,255,255,0.03)'; tctx.fillRect(0, 0, W, W);
+      // (written for 60 frames a second: at any other rate the fade is for the time that has passed, and a moving drop leaves a dot for every 1/60 s along its way,
+      // so the trails look the same however often the browser calls this page)
+      var steps = Math.max(1, Math.min(12, Math.round(dt * 60)));
+      tctx.fillStyle = 'rgba(255,255,255,' + (1 - Math.pow(0.97, steps)) + ')'; tctx.fillRect(0, 0, W, W);
       var moving = 0;
+      tctx.fillStyle = 'rgba(0,0,0,0.22)';
       for (var t = 0; t < water.n; t++) {
-        if (!water.alive[t] || !water.moved[t]) continue;
+        if (!water.alive[t] || !water.moved[t]) { tseen[t] = 0; continue; }
         moving++;
-        tctx.fillStyle = 'rgba(0,0,0,0.22)';
-        tctx.beginPath(); tctx.arc(water.x[t] * W, water.y[t] * W, Math.max(1.5, water.r[t] * W * 0.7), 0, Math.PI * 2); tctx.fill();
+        var rr = Math.max(1.5, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
+        for (var s = 1; s <= steps; s++) {
+          var u = tseen[t] ? s / steps : 1;                         // from where it was, if it was moving a frame ago
+          var dx = tseen[t] ? tpx[t] + (cx - tpx[t]) * u : cx, dy = tseen[t] ? tpy[t] + (cy - tpy[t]) * u : cy;
+          tctx.beginPath(); tctx.arc(dx, dy, rr, 0, Math.PI * 2); tctx.fill();
+          if (!tseen[t]) break;
+        }
+        tpx[t] = cx; tpy[t] = cy; tseen[t] = 1;
       }
-      trailLive = moving > 0 ? 40 : Math.max(0, trailLive - 1);
+      trailLive = moving > 0 ? 40 : Math.max(0, trailLive - steps);
       ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(tc, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
@@ -203,7 +234,7 @@
     } catch (e) { window.csfxError = 'dots ' + String(e); }
     try {                                                           // what the page knows, written at body nodes (which are on visible paint)
       ctx.font = 'bold 30px sans-serif'; ctx.fillStyle = 'rgb(0,0,0)';
-      var txt = 'v15 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + (window.csfxError ? ' ERR ' + window.csfxError : '');
+      var txt = 'v15 n' + water.count + ' d' + live + ' r' + String(wp.rain) + ' f' + String(wp.fz) + ' g' + gotWater + ' fps' + Math.round(rate) + (window.csfxError ? ' ERR ' + window.csfxError : '');
       for (var tk = 0; tk < water.count; tk += Math.max(1, Math.floor(water.count / 14))) ctx.fillText(txt, water.nodes[tk * 9] * W, water.nodes[tk * 9 + 1] * W);
     } catch (e) { window.csfxError = 'text ' + String(e); }
   }

@@ -49,8 +49,38 @@ function M.isWindscreenMesh(name)
   return not (n:find('_int', 1, true) or n:find('dmg', 1, true) or n:find('broken', 1, true) or n:find('crack', 1, true))
 end
 
+-- Rotating a vector by a unit quaternion { x, y, z, w }.
+function M.qrot(q, v)
+  local tx, ty, tz = 2 * (q.y * v.z - q.z * v.y), 2 * (q.z * v.x - q.x * v.z), 2 * (q.x * v.y - q.y * v.x)
+  return { x = v.x + q.w * tx + (q.y * tz - q.z * ty), y = v.y + q.w * ty + (q.z * tx - q.x * tz), z = v.z + q.w * tz + (q.x * ty - q.y * tx) }
+end
+
+-- The camera's position as read from the camera is a frame behind the car's, which is invisible at rest and puts the windscreen many centimetres off at speed (the car moves
+-- 0.3 m in a frame at 20 m/s, the windscreen is about one metre from the eye). In the driver's view the eye sits still in the car's own frame, so: while the car is nearly
+-- still the eye's offset in the car's frame is learned, and at speed the camera position is rebuilt from the car's position and rotation of THIS frame and that offset.
+-- state = { off = { x, y, z } or nil } per car; cam = { x, y, z, ... } is changed in place; returns the correction in metres.
+-- When the car was never seen standing (an AI start, a spawn while rolling) the offset is first taken from a camera pushed forward by one frame of travel (vel, the car's velocity,
+-- times M.LAG seconds), which is the lag it is assumed to have; it is learned exactly the first time the car is nearly still.
+M.LAG = 1 / 60
+function M.stabilise(state, cam, vpos, vq, speed, vel)
+  local inv = { x = -vq.x, y = -vq.y, z = -vq.z, w = vq.w }
+  if speed < 1 then
+    state.off = M.qrot(inv, { x = cam.x - vpos.x, y = cam.y - vpos.y, z = cam.z - vpos.z })
+  elseif not state.off then
+    local l = vel and M.LAG or 0
+    state.off = M.qrot(inv, { x = cam.x + (vel and vel.x or 0) * l - vpos.x, y = cam.y + (vel and vel.y or 0) * l - vpos.y, z = cam.z + (vel and vel.z or 0) * l - vpos.z })
+  end
+  local w = M.qrot(vq, state.off)
+  local nx, ny, nz = vpos.x + w.x, vpos.y + w.y, vpos.z + w.z
+  local d = math.sqrt((nx - cam.x) ^ 2 + (ny - cam.y) ^ 2 + (nz - cam.z) ^ 2)
+  cam.x, cam.y, cam.z = nx, ny, nz
+  return d
+end
+
 -- ---- the game side ----
-local nodesBy = {}                                    -- vehicle id -> { cid, ... } (the windscreen's nodes), false when the car has none
+local nodesBy = {}
+local eyeBy = {}                                    -- vehicle id -> the eye's offset in the car's frame (see stabilise)
+M.last = {}                                          -- what the last projection saw, for the diagnostics                                    -- vehicle id -> { cid, ... } (the windscreen's nodes), false when the car has none
 
 local function windscreenNodes(id)
   if nodesBy[id] ~= nil then return nodesBy[id] end
@@ -65,7 +95,14 @@ local function windscreenNodes(id)
   return nodesBy[id]
 end
 
-function M.forget(id) nodesBy[id] = nil end
+function M.forget(id) nodesBy[id] = nil eyeBy[id] = nil end
+function M.resetEye(id) eyeBy[id] = nil end
+
+-- how many nodes the car's windscreen has (0: none found), for the screen trace
+function M.windscreenNodeCount(id)
+  local n = windscreenNodes(id)
+  return n and #n or 0
+end
 
 -- the camera as M.project wants it (a test can replace this function)
 function M.camera()
@@ -86,13 +123,31 @@ function M.windscreen(veh)
   local cam = M.camera()
   if not (nodes and cam) then return nil end
   local base = veh:getPosition()
+  local last = M.last
+  last.speed, last.fix = 0, 0
+  local okQ, vq = pcall(function() return veh:getRotation() end)
+  if okQ and vq and vq.w then
+    local v = veh:getVelocity()
+    local speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+    eyeBy[veh:getID()] = eyeBy[veh:getID()] or {}
+    last.speed, last.fix = speed, M.stabilise(eyeBy[veh:getID()], cam, base, vq, speed, v)
+  end
   local pts = {}
   for _, cid in ipairs(nodes) do
     local w = veh:getNodePosition(cid)
     local s = M.project({ x = w.x + base.x, y = w.y + base.y, z = w.z + base.z }, cam)
     if s then pts[#pts + 1] = s end
   end
-  return M.flat(M.convexHull(pts))
+  local hull = M.flat(M.convexHull(pts))
+  if hull then
+    local x0, y0, x1, y1 = 1, 1, 0, 0
+    for i = 1, #hull, 2 do x0, x1, y0, y1 = math.min(x0, hull[i]), math.max(x1, hull[i]), math.min(y0, hull[i + 1]), math.max(y1, hull[i + 1]) end
+    last.box = string.format('%.2f,%.2f..%.2f,%.2f', x0, y0, x1, y1)
+  else
+    last.box = 'none'
+  end
+  last.points = #pts
+  return hull
 end
 
 return M

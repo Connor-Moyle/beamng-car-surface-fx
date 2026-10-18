@@ -113,7 +113,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 M.KINDS = { 'dust', 'mud', 'rubber', 'grime', 'snow', 'bugs' }
 local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 }, snow = { 0.93, 0.95, 0.98 }, bugs = { 0.14, 0.11, 0.07 } }
-local SHOW = { dust = 0.55, mud = 0.85, rubber = 0.45, grime = 0.5, snow = 0.55, bugs = 0.2 }              -- how much of the paint a full amount of that kind covers
+local SHOW = { dust = 0.35, mud = 0.5, rubber = 0.45, grime = 0.5, snow = 0.95, bugs = 0.35 }              -- how much of the paint a full amount of that kind covers
 local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6, snow = 0.5, bugs = 0.1 }                  -- how much of the gloss and metal it takes off
 M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6, snow = 1, bugs = 0.5 }                             -- a road film never gets as thick as mud
 
@@ -209,6 +209,15 @@ function M.splash(speed, shareL, shareR, depth)
   local sheet = 0
   if (shareL or 0) + (shareR or 0) > 1.2 and (speed or 0) > 14 then sheet = clamp((speed - 14) / 12, 0, 1) * d end
   return (shareL or 0) * over / 3 * (0.5 + d), (shareR or 0) * over / 3 * (0.5 + d), sheet
+end
+
+-- One-time settings migration to version 2: the first start saved dirt build-up as off, a value the player never chose, and the default is on now. s is the settings file's
+-- table, dirtSpeed the game setting csfxDirtSpeed (or nil). Returns: turn the build-up on, the dirtSpeed to write (or nil), whether the version moves up.
+M.SETTINGS_VERSION = 2
+function M.migrate(s, dirtSpeed)
+  if (tonumber(s.settingsVersion) or 1) >= M.SETTINGS_VERSION then return false, nil, false end
+  local on = type(s.mud) == 'table' and s.mud.buildup == false
+  return on, (tonumber(dirtSpeed) == 0) and 1 or nil, true
 end
 
 -- snow weather: precipitation with the air below SNOW_AIR C (snowing 0..1), and whether it is warm enough to melt it

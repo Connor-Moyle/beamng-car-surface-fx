@@ -44,7 +44,7 @@ local M = {}
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 15                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 17                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -97,7 +97,13 @@ local function active() return settings.enabled or settings.dirtEnabled end
 local function pushCmd()
   return ('if carSurfaceFxScratch then carSurfaceFxScratch.setConfig(%s) end'):format(tostring(settings.enabled))
 end
+-- (a command into every car's Lua once a second was a lot of traffic for nothing: now when the setting changed or every 5 s, and at once for a new car)
+local injectedAt = {}      -- vehId -> { at = os.clock(), enabled = }
 local function injectVehicle(veh)
+  local id, now = veh:getId(), os.clock()
+  local i = injectedAt[id]
+  if i and i.enabled == settings.enabled and now - i.at < 5 then return end
+  if i then i.at, i.enabled = now, settings.enabled else injectedAt[id] = { at = now, enabled = settings.enabled } end
   veh:queueLuaCommand("if not carSurfaceFxScratch then extensions.load('carSurfaceFxScratch') end " .. pushCmd())
 end
 
@@ -570,10 +576,11 @@ function M.onUpdate(dt)
   end
 end
 function M.onVehicleSpawned(id)
+  injectedAt[id] = nil
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
-function M.onVehicleDestroyed(id) cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
+function M.onVehicleDestroyed(id) injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
 function M.onClientEndMission()   restoreAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 
