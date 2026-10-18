@@ -203,9 +203,9 @@ def put(cov, rgb, spr, x, y, col=None):
 
 # what each drive looks like (the amounts come from the rules; these are how the look is set for it)
 LOOK = {
-    'dirtroad': dict(crust=0.55, dryshare=0.65, wake=(0.40, 0.35, 0.29), wake_k=0.95, film=1.0, streak=0.25, splash=0.5, dust=1.0, cakes=0.7),
-    'mud':      dict(crust=1.0, dryshare=0.08, wake=(0.20, 0.15, 0.11), wake_k=1.0, film=0.0, streak=1.0, splash=1.0, dust=0.0, cakes=1.0),
-    'snow':     dict(crust=0, dryshare=0, wake=(0, 0, 0), wake_k=0, film=0, streak=0, splash=0, dust=0, cakes=0),
+    'dirtroad': dict(crust=0.55, dryshare=0.65, wake=(0.40, 0.35, 0.29), wake_k=0.95, film=1.0, streak=0.25, splash=0.5, dust=1.0, cakes=0.7, haze=1.0),
+    'mud':      dict(crust=1.0, dryshare=0.08, wake=(0.20, 0.15, 0.11), wake_k=1.0, film=0.0, streak=1.0, splash=1.0, dust=0.0, cakes=1.0, haze=0.0),
+    'snow':     dict(crust=0, dryshare=0, wake=(0, 0, 0), wake_k=0, film=0, streak=0, splash=0, dust=0, cakes=0, haze=0),
 }
 WET, DRY = np.array([0.19, 0.14, 0.10], np.float32), np.array([0.40, 0.34, 0.27], np.float32)
 CAKE_DRY = np.array([0.36, 0.30, 0.24], np.float32)
@@ -218,7 +218,7 @@ def canvas(name):
     print(name, {k: round(v, 3) for k, v in am.items()})
     m = maps()
     H_, NZ, NY = m['h'], m['nz'], m['ny']
-    cov = {k: np.zeros((CV, CV), np.float32) for k in ('film', 'dust', 'speck', 'cake', 'streak', 'snow', 'mudfilm', 'wake', 'crust')}
+    cov = {k: np.zeros((CV, CV), np.float32) for k in ('film', 'dust', 'speck', 'cake', 'streak', 'snow', 'mudfilm', 'wake', 'crust', 'haze', 'wet')}
     cake_rgb = np.zeros((CV, CV, 3), np.float32)
     crust_rgb = np.zeros((CV, CV, 3), np.float32)
     hh, nzu, nyu = up(H_), up(NZ), up(NY)
@@ -228,6 +228,9 @@ def canvas(name):
         w = np.clip((0.95 - hh) / 0.95, 0, 1) ** 0.75
         base = tile(film_t[..., 3], CV, CV, 31, 7)
         cov['film'] = np.clip(w * (0.55 + 0.7 * base) * (0.7 + 0.3 * n1) * lk['film'], 0, 1)
+    # --- an even light dust haze over the whole body (roof, doors above the swage line, pillars), a little heavier low: dulls the paint
+    if lk['haze'] > 0:
+        cov['haze'] = np.clip((0.42 + 0.35 * np.clip(1 - hh / 1.2, 0, 1)) * (0.8 + 0.2 * n1) * min(1, am['dust']) * lk['haze'], 0, 1)
     # --- the wake: the tailgate, the rear bumper and the rear glass, thickest at the bottom
     if lk['wake_k'] > 0:
         wk = smooth(nyu, 0.12, 0.55) * np.clip(1 - hh * 0.95, 0, 1) ** 0.6
@@ -250,6 +253,7 @@ def canvas(name):
         cov['crust'] = smooth(crustW * (0.55 + 0.9 * A) - 0.38 * (n1 - 0.5) - 0.20 * (n3 - 0.5) - 0.18, 0.0, 0.20)
         dry = smooth(n2 + (lk['dryshare'] - 0.5) * 0.9, 0.42, 0.62)       # patches that have dried lighter
         shade = (0.65 + 0.9 * (n3 - 0.5) + 0.35 * (fnoise(CV, 1.0, 6) - 0.5)).clip(0.35, 1.3)
+        cov['wet'] = cov['crust'] * (1 - dry)
         crust_rgb[:] = (WET[None, None, :] * (1 - dry[..., None]) + DRY[None, None, :] * dry[..., None]) * shade[..., None]
         # the splash haze under everything, heaviest low and behind the wheels
         cov['mudfilm'] = np.clip(tile(film_t[..., 3], CV, CV, 90, 40) * 0.5 + 0.55, 0, 1) * np.clip(crustW * 1.2 + np.exp(-hh / 0.35) * 0.35, 0, 1) * lk['splash']
@@ -288,7 +292,7 @@ def canvas(name):
     if am['snow'] > 0:
         w = up(weights('snow'))
         cov['snow'] = smooth(np.clip(w, 0, 1) * min(1, am['snow'] * 1.15) - 0.25 * (n3 - 0.5) - 0.12, 0.0, 0.18)
-    return (cov, cake_rgb, crust_rgb, lk)
+    return (cov, cake_rgb, crust_rgb, dict(lk, wet=cov['wet']))
 
 
 def compose(pack):
@@ -297,6 +301,8 @@ def compose(pack):
 
     def mult(img, c, col, k):
         return img * (1 - (c * k)[..., None] * (1 - np.array(col, np.float32)))
+    img = mult(img, cov['haze'], (0.62, 0.58, 0.52), 0.55)
+    img = img + (np.array([0.70, 0.64, 0.55]) - img) * (cov['haze'] * 0.38)[..., None]
     # film: dull, dusty paint (a multiply by grey-brown and a lift toward pale)
     img = mult(img, cov['film'], (0.50, 0.46, 0.40), 0.92)
     img = img + (np.array([0.66, 0.60, 0.52]) - img) * (cov['film'] * 0.30)[..., None]
@@ -312,7 +318,7 @@ def compose(pack):
     img = img + (np.array([0.80, 0.72, 0.58]) - img) * (cov['dust'] * 0.45)[..., None]
     sn = cov['snow'][..., None]
     img = img * (1 - sn) + np.array([0.93, 0.95, 0.98]) * sn
-    dirty = np.clip(cov['film'] * 0.7 + cov['wake'] + cov['mudfilm'] + cov['speck'] + cov['crust'] + cov['cake'] + cov['dust'] * 0.6 + cov['snow'] + cov['streak'], 0, 1)
+    dirty = np.clip(cov['haze'] * 0.5 + cov['film'] * 0.7 + cov['wake'] + cov['mudfilm'] + cov['speck'] + cov['crust'] + cov['cake'] + cov['dust'] * 0.6 + cov['snow'] + cov['streak'], 0, 1)
     return np.clip(img, 0, 1), dirty, lk
 
 
@@ -404,7 +410,8 @@ def render(view, albedo, dirty, lk=None, size=(1500, 820), ss=2):
     sky = (n[..., 2] * 0.5 + 0.5)
     shade = 0.28 + 0.30 * sky + 0.70 * nl
     hv = L + c; hv /= np.linalg.norm(hv)
-    spec = np.clip(n @ hv, 0, 1) ** 50 * 0.55 * np.where(cl == 0, 1 - drt, np.where(cl == 1, 1.2, 0.1))
+    wetv = lk['wet'][iy, ix] if lk is not None and 'wet' in lk else 0
+    spec = np.clip(n @ hv, 0, 1) ** 50 * 0.55 * np.where(cl == 0, np.maximum(1 - drt, wetv * 0.9), np.where(cl == 1, 1.2, 0.1))
     rgb = col * shade[..., None] + spec[..., None]
     # a ground plane under the car: grey, darker near the car (a soft contact shadow), light toward the horizon
     ys_ = (np.arange(H) / H)[:, None, None]
