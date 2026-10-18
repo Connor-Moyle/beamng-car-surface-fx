@@ -119,7 +119,7 @@ F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0
 t = t + 0.2
 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
 assert(F.dropCount() >= 1 and F.count() == 0, 'drips start as drops in the air: ' .. F.dropCount() .. ' ' .. F.count())
-for _ = 1, 8 do F.onUpdate(0.05) end
+for _ = 1, 12 do F.onUpdate(0.05) end
 assert(F.dropCount() == 0 and F.count() >= 1, 'and lands as a drip: ' .. F.dropCount() .. ' ' .. F.count())
 for i = 1, 200 do t = t + 0.05 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, true, true, true, 'nil', 'nil', 0.4, 1, true, true, 1) end
 assert(F.dropCount() <= F.settings().maxDrops, 'at most maxDrops in the air')

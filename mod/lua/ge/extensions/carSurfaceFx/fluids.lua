@@ -159,7 +159,7 @@ local function fallDrops(dt)
   local i = 1
   while i <= dropN do
     local d = drops[i]
-    if rules.fallStep(d, dt) then
+    if rules.fallStep(d, dt * 0.7) then                       -- a little slower than real: a drop that falls a metre in 0.45 s is hard to see on a frame
       rules.drip(store, d.x, d.y, d.gz, d.kind, d.amount, settings, d.speed > settings.stainSpeed, math.random())
       drops[i], drops[dropN] = drops[dropN], d
       dropN = dropN - 1
@@ -236,7 +236,7 @@ local function drawFalling()
   for i = 1, dropN do
     local d = drops[i]
     local c = colors[d.kind] or { 0.1, 0.1, 0.1 }
-    local r = math.max(0.012, settings.dropSize * 0.5)
+    local r = math.max(0.02, settings.dropSize * 0.6)
     d.pos:set(d.x, d.y, d.z)
     pcall(function()
       debugDrawer:drawSphere(d.pos, r, ColorF(c[1], c[2], c[3], 0.95))
@@ -349,7 +349,10 @@ function M.where(minR)
   table.sort(list, function(a, b) return a.r > b.r end)
   local out = {}
   for i = 1, math.min(#list, 8) do local p = list[i] out[i] = string.format('%s at %.2f, %.2f, %.2f r %.2f %s%s', p.kind, p.x, p.y, p.z, p.r, p.meshed and 'plane' or 'decal', p.stain and ' (drip spot)' or '') end
-  return #out > 0 and table.concat(out, ' | ') or 'no puddle'
+  local air = {}
+  for i = 1, math.min(dropN, 6) do air[i] = string.format('%s %.2f,%.2f,%.2f', drops[i].kind, drops[i].x, drops[i].y, drops[i].z) end
+  local text = #out > 0 and table.concat(out, ' | ') or 'no puddle'
+  return text .. ' || falling drops ' .. dropN .. (#air > 0 and (': ' .. table.concat(air, ' ; ')) or '')
 end
 
 function M.status()
