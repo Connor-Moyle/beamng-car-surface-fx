@@ -180,8 +180,9 @@ end
 
 -- One report from the car, covering dt seconds: fractions of that time on loose ground (weighted), mud, road, skidding, and with a wheel in water; speed in m/s.
 -- Dry loose ground gives dust, wet gives mud; mud ground and wet loose ground give mud; tarmac gives a slow film, faster in the wet; skids lay rubber.
+-- r.spin (optional): the fastest tyre surface speed in m/s. What is thrown follows the tyres, not the car: spinning in mud at 3 m/s throws as much as driving at the wheel speed.
 function M.dirtBuild(d, dt, r, speed, wet)
-  local sf = 1.85 * clamp(((speed or 0) / 30) ^ 1.5, 0, 1.5)                  -- spray grows with speed (1 at 20 m/s, 2.8 at 45) and a standing car throws none
+  local sf = 1.85 * clamp((math.max(speed or 0, r.spin or 0) / 30) ^ 1.5, 0, 1.5)    -- spray grows with the throw speed (1 at 20 m/s, 2.8 at 45) and a standing car throws none
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
   out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / 60) + ((r.road or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / M.DUST_ROAD) - ((r.loose or 0) == 0 and math.max(0, (speed or 0) - 25) * dt / 1500 or 0)   -- dust settles slowly on a parked car; only highway wind off the dirt sheds it      -- loose ground: fast; dry tarmac: a thin film, slowly
