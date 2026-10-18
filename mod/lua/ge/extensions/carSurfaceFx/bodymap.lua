@@ -109,7 +109,7 @@ end
 
 -- the wake: a rear face is wetted by the low-pressure air behind the car, thickest low and fading up; a steep sloping one (a fastback's glass) gets less
 local function wake(c)
-  if c.ny > 0.5 and c.h < 1.0 then return (0.4 + 0.6 * (1 - c.h)) * (c.nz > 0.5 and 0.4 or 1) end
+  if c.ny > 0.5 then return (c.h < 1.0 and 0.4 + 0.6 * (1 - c.h) or 0.4 * exp(-(c.h - 1.0) / 0.5)) * (c.nz > 0.5 and 0.4 or 1) end      -- 1 m is where it starts to fade, not a cutoff: a hatch's glass gets some up to the roofline
   return 0
 end
 
