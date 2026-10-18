@@ -101,13 +101,18 @@
   var filmLayer = document.createElement('canvas'), filmBuilt = false;
   function buildFilm(fl) {
     filmLayer.width = W; filmLayer.height = H;
-    var fc = filmLayer.getContext('2d'), cw = W / fl.n, ch = H / fl.n, i;
-    fc.clearRect(0, 0, W, H);
+    var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+    var fc = tmp.getContext('2d'), cw = W / fl.n, ch = H / fl.n, i;
     for (i = 0; i < fl.rear.length; i++) {
-      var cx = (fl.rear[i] % fl.n + 0.5) * cw, cy = (Math.floor(fl.rear[i] / fl.n) + 0.5) * ch, k = 0.65 + 0.35 * Math.abs(Math.sin(fl.rear[i] * 12.9898));
-      fc.fillStyle = 'rgba(255,255,255,' + (0.75 * k).toFixed(2) + ')';                         // every rear cell filled, a little different: an even film, not blobs
-      fc.fillRect(cx - cw * 0.5 - 0.5, cy - ch * 0.5 - 0.5, cw + 1, ch + 1);
+      var cx = (fl.rear[i] % fl.n + 0.5) * cw, cy = (Math.floor(fl.rear[i] / fl.n) + 0.5) * ch, k = 0.8 + 0.2 * Math.abs(Math.sin(fl.rear[i] * 12.9898));
+      fc.fillStyle = 'rgba(255,255,255,' + (0.8 * k).toFixed(2) + ')';                          // every rear cell filled, a little different: an even film, not blobs
+      fc.fillRect(Math.round(cx - cw * 0.5), Math.round(cy - ch * 0.5), Math.round(cw), Math.round(ch));     // (no overlap: it would double the light along the seams)
     }
+    var out = filmLayer.getContext('2d');
+    out.clearRect(0, 0, W, H);
+    try { out.filter = 'blur(' + Math.max(3, Math.round(cw * 0.6)) + 'px)'; } catch (e) {}                 // the seams between cells and the cell edges melt
+    out.drawImage(tmp, 0, 0);
+    out.filter = 'none';
     filmBuilt = true;
   }
 
@@ -148,7 +153,7 @@
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
       if (!filmBuilt) buildFilm(p.flow);
-      ctx.globalAlpha = Math.min(1, p.film) * (emissive ? 0.7 : 0.45); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
+      ctx.globalAlpha = Math.min(1, p.film * (emissive ? 1.1 : 0.45)); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
     }
     if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
       ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';
