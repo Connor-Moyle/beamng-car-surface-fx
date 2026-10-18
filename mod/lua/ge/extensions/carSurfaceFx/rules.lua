@@ -181,13 +181,13 @@ end
 -- One report from the car, covering dt seconds: fractions of that time on loose ground (weighted), mud, road, skidding, and with a wheel in water; speed in m/s.
 -- Dry loose ground gives dust, wet gives mud; mud ground and wet loose ground give mud; tarmac gives a slow film, faster in the wet; skids lay rubber.
 function M.dirtBuild(d, dt, r, speed, wet)
-  local sf = 0.4 + 0.6 * clamp((speed or 0) / 20, 0, 1)
+  local sf = 1.85 * clamp(((speed or 0) / 30) ^ 1.5, 0, 1.5)                  -- spray grows with speed (1 at 20 m/s, 2.8 at 45) and a standing car throws none
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
-  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * sf * dt / 60) + ((r.road or 0) * (1 - wetK) * sf * dt / M.DUST_ROAD)      -- loose ground: fast; dry tarmac: a thin film, slowly
-  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90
+  out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / 60) + ((r.road or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / M.DUST_ROAD) - ((r.loose or 0) == 0 and math.max(0, (speed or 0) - 25) * dt / 1500 or 0)   -- dust settles slowly on a parked car; only highway wind off the dirt sheds it      -- loose ground: fast; dry tarmac: a thin film, slowly
+  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK) * sf * (1 + (wet or 0) * 0.5) * dt / 90 - (((speed or 0) > 12 and (wet or 0) < 0.1 and (r.mud or 0) + (r.loose or 0) == 0) and dt / 1800 or 0)   -- dry mud flakes off at speed, but never while it is being thrown on
   out.rubber = d.rubber + (r.slip or 0) * dt / 25
-  out.grime = d.grime + (r.road or 0) * sf * (1 + (wet or 0)) * dt / 1200
+  out.grime = d.grime + (r.road or 0) * sf * dt * ((1 - wetK) / 1200 + wetK / 400)              -- wet tarmac throws a road film three times faster
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
   local snowing, v = r.snowing or 0, speed or 0
   out.snow = (d.snow or 0) + snowing * (v < M.SNOW_BLOW and 1 or 0.15) * dt / 90 - (v > M.SNOW_BLOW and (v - M.SNOW_BLOW) * dt / 40 or 0) - (r.warm and dt / 900 or 0)
@@ -200,7 +200,7 @@ end
 M.SNOW_BLOW, M.BUG_SPEED, M.DUST_ROAD = 8, 18, 400
 
 -- ---- bugs. Insects fly in warm air and at dusk and dawn, few below BUG_COLD C, none in rain; the nose collects them above BUG_SPEED m/s.
-M.BUG_COLD, M.BUG_WARM = 8, 18
+M.BUG_COLD, M.BUG_WARM = 12, 22
 -- 0..1.4: how many insects are about. airC nil = unknown (treated as mild); tod = the game's time of day 0..1 (0 noon, 0.245 sunset, 0.775 sunrise), nil = day
 function M.bugActivity(airC, tod, wet)
   if (wet or 0) >= 0.3 then return 0 end
@@ -281,7 +281,7 @@ function M.snowing(drops, airC)
 end
 
 -- washing: rain (wet 0..1, per second) and water (the share of the time a wheel was in water). Dust goes fast, mud and film slowly, rubber hardly at all.
-local RAIN = { dust = 60, mud = 420, grime = 900, rubber = 6000, snow = 400, bugs = 500 }                -- seconds of full rain to wash a full amount off
+local RAIN = { dust = 60, mud = 1200, grime = 3600, rubber = 6000, snow = 400, bugs = 500 }                -- seconds of full rain to wash a full amount off
 local WATER = { dust = 3, mud = 12, grime = 40, rubber = 200, snow = 15, bugs = 30 }                   -- seconds in water
 function M.dirtWash(d, dt, wet, water, wetSeconds)
   local out = {}
@@ -290,6 +290,7 @@ function M.dirtWash(d, dt, wet, water, wetSeconds)
     if k == 'bugs' and wetSeconds then rain = rain * M.bugSoak(wetSeconds) end
     out[k] = clamp((d[k] or 0) - rain - (water or 0) * dt / WATER[k], 0, 1)
   end
+  out.grime = clamp(out.grime + 0.3 * math.max(0, (d.dust or 0) - out.dust) * ((wet or 0) > 0 and 1 or 0), 0, M.CAP.grime)      -- washed dust leaves a streaky film
   return out
 end
 
