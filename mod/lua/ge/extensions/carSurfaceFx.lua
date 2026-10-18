@@ -22,7 +22,7 @@ local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, gla
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
-local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
+local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
 
 local settings
 local wet, forced, rung = 0, nil, 0          -- smoothed wetness, the debug value, the rung the materials are on
@@ -844,7 +844,7 @@ end
 
 -- carSurfaceFx.tuneGlass('0 1', 3.0, 0.5, 1, 0.4): (axis, drop size, colour glass tint 0..1 (lower = darker), image squaring passes 0..2, inside glint brightness) the direction that is DOWN the glass in the glass material's UV space (differs per car: '1 0', '0 -1', '-1 0' if the water runs
 -- sideways or up)
-function M.tuneGlass(axis, size, tint, passes, emissive)
+function M.tuneGlass(axis, size, tint, passes, emissive, nits)
   local x, y = tostring(axis or '0 1'):match('(%-?[%d%.]+)%s+(%-?[%d%.]+)')
   if x then
     local l = math.sqrt(tonumber(x) ^ 2 + tonumber(y) ^ 2)
@@ -854,8 +854,9 @@ function M.tuneGlass(axis, size, tint, passes, emissive)
   rules.glassTint = tonumber(tint) or rules.glassTint
   rules.glassPasses = tonumber(passes) or rules.glassPasses
   rules.glassEmissive = tonumber(emissive) or rules.glassEmissive
+  rules.glassNits = tonumber(nits) or rules.glassNits
   for _, info in pairs(mats) do if info.glass and info.mode == 'emissive' and info.rung > 0 then info.rung = -1 end end    -- the inside glass takes the new brightness at the next tick
-  return string.format('glass down = %.2f %.2f, drop size %.1f, tint %.2f, passes %d, inside glint %.2f', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize, rules.glassTint, rules.glassPasses, rules.glassEmissive)
+  return string.format('glass down = %.2f %.2f, drop size %.1f, tint %.2f, passes %d, glint %.2f at %.0f nits', rules.glassAxis.x, rules.glassAxis.y, rules.glassSize, rules.glassTint, rules.glassPasses, rules.glassEmissive, rules.glassNits)
 end
 
 -- carSurfaceFx.tune('6 6', 0.6): size of the water beads (detailScale on the paint's UVs) and their strength; applied now to the wet materials
