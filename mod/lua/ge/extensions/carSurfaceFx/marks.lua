@@ -14,10 +14,10 @@ local DEPTH = 1.5                                              -- how far the de
 
 M.TYPES = { 'dirt', 'sand', 'gravel', 'mud', 'grass', 'ice', 'snow', 'tarmac' }
 
-local function matEntry(skidColor, trackColor, skidTex, trackTex)
+local function matEntry(skidColor, trackColor, skidTex, trackTex, skidOpacity)
   return {
-    skid = { width = 0.26, length = 1.0, opacity = 0.55, color = skidColor },
-    track = { width = 0.15, length = 1.0, opacity = 0.28, color = trackColor },
+    skid = { width = 0.26, length = 1.0, opacity = skidOpacity or 0.55, color = skidColor },
+    track = { width = 0.15, length = 1.0, opacity = skidOpacity and 0.4 or 0.28, color = trackColor },
     variant = skidTex, trackVariant = trackTex,
   }
 end
@@ -28,11 +28,11 @@ function M.defaults()
     enabled = true,
     takeover = true,                                             -- hide the game's own skid marks and mark every surface ourselves
     mats = {
-      dirt = matEntry({ 0.34, 0.22, 0.12 }, { 0.46, 0.33, 0.20 }, 'skid_dirt_1.png', 'track_dirt_1.png'),
-      sand = matEntry({ 0.62, 0.52, 0.36 }, { 0.80, 0.71, 0.52 }, 'skid_sand_1.png', 'track_sand_1.png'),
-      gravel = matEntry({ 0.42, 0.40, 0.37 }, { 0.58, 0.56, 0.52 }, 'skid_gravel_1.png', 'track_gravel_1.png'),
+      dirt = matEntry({ 0.20, 0.12, 0.06 }, { 0.30, 0.20, 0.11 }, 'skid_dirt_1.png', 'track_dirt_1.png', 0.8),                -- (seen in the game: the old brown was too close to the dirt itself)
+      sand = matEntry({ 0.50, 0.40, 0.26 }, { 0.68, 0.58, 0.40 }, 'skid_sand_1.png', 'track_sand_1.png', 0.75),
+      gravel = matEntry({ 0.28, 0.26, 0.24 }, { 0.42, 0.40, 0.37 }, 'skid_gravel_1.png', 'track_gravel_1.png', 0.75),
       mud = matEntry({ 0.20, 0.14, 0.09 }, { 0.32, 0.23, 0.15 }, 'skid_mud_1.png', 'track_mud_1.png'),
-      grass = matEntry({ 0.30, 0.34, 0.18 }, { 0.42, 0.46, 0.26 }, 'skid_grass_1.png', 'track_grass_1.png'),
+      grass = matEntry({ 0.20, 0.22, 0.10 }, { 0.30, 0.34, 0.17 }, 'skid_grass_1.png', 'track_grass_1.png', 0.75),
       ice = matEntry({ 0.72, 0.80, 0.88 }, { 0.82, 0.88, 0.94 }, 'skid_ice_1.png', 'track_ice_1.png'),
       snow = matEntry({ 0.60, 0.64, 0.72 }, { 0.74, 0.78, 0.85 }, 'skid_tread.png', 'track_snow.png'),
       tarmac = matEntry({ 0.03, 0.03, 0.03 }, { 0.05, 0.05, 0.05 }, 'skid_tarmac_1.png', 'track_tarmac_1.png'),

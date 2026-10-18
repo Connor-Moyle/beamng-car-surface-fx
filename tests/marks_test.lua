@@ -87,7 +87,7 @@ files['settings/fatkiwi_skidMarkEnhancer.json'] = { skidCount = 1234, mats = { d
 files['settings/carSurfaceFx_marks.json'] = nil
 M.load()
 assert(M.settings().skidCount == 1234 and M.settings().mats.dirt.skid.width == 0.5 and M.settings().takeover == false, 'values carried over from the old mod')
-assert(M.settings().mats.dirt.skid.opacity == 0.55, 'the rest is the default')
+assert(M.settings().mats.dirt.skid.opacity == 0.8, 'the rest is the default')
 M.save()
 files['settings/fatkiwi_skidMarkEnhancer.json'] = nil
 M.load()
