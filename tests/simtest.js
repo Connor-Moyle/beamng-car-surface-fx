@@ -94,4 +94,10 @@ assert(biggest <= 0.07 * 4.5 + 1e-6 && biggest < 0.5, 'a drop never grows past t
   assert(c.n > e.n, 'the amount setting makes more window drops');
   assert(Math.abs(e.mean - f.mean) / e.mean < 0.35, 'the same real size at another texture density: ' + e.mean + ' vs ' + f.mean);
 }
+// a texture with many pane cells carries more drops than one with a windscreen's worth (the drops are per window area)
+{
+  const run = (ncells) => { const d = S.create(900), cells = []; for (let i = 0; i < ncells; i++) cells.push(i); const fl = { ready: true, n: 32, cells, g: new Array(2048).fill(0), b: new Array(2048).fill(0), r: new Array(2048).fill(0) }; for (let i = 0; i < 400; i++) S.step(d, 1 / 12, { rain: 1, wet: 1, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, glassMm: 5, amount: 1, uvPerM: 0.44, flow: fl }); return S.count(d); };
+  const few = run(180), many = run(720);
+  assert(many > 2 * few && many <= 900, 'more pane cells, more drops: ' + few + ' vs ' + many);
+}
 console.log('carSurfaceFx sim: ok');

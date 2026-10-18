@@ -1,9 +1,10 @@
 // Car Surface FX: the water on a window, as pure functions (no DOM), so node can test them (tests/simtest.js). The page (glass.html) draws the result.
 // Units: x, y and r are fractions of the canvas; the canvas is the window material's UV space. (gx, gy) is the unit vector that points DOWN the glass in that space.
 (function (root) {
-  var MAX = 260;
+  var DEFAULT_MAX = 260;
 
-  function create() {
+  function create(max) {
+    var MAX = max > 0 ? max : DEFAULT_MAX;                          // a window page asks for more: its texture holds several panes and each needs its own drops
     return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), fresh: [], t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
   }
   function rnd(d) { d.seed = (d.seed * 16807) % 2147483647; return d.seed / 2147483647; }
@@ -43,13 +44,21 @@
     var z = p.size || 1, slide = SLIDE * z, maxR = MAXR * z;
     var mm = p.glassMm > 0, sg = p.uvPerM || 0.5, amount = p.amount > 0 ? p.amount : 1;    // millimetre mode (the window pages): sizes in real millimetres through the texture units per metre of the pane
     if (mm) { slide = 0.0045 * sg; maxR = 0.012 * sg; z = 1; }
+    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
+    if (mm && pc) amount *= Math.min(4, Math.max(1, pc.length / 180));      // the drops are per window area: a texture with several panes (730 cells) carries about four windscreens' worth
     var cap = mm ? Math.floor((50 + 220 * p.rain) * amount) : Math.floor((60 + 240 * p.rain) / z);      // how many drops a window carries at most: more rain, more drops (bigger drops, fewer)
     var n0 = count(d);
-    var fl0 = p.flow && p.flow.ready ? p.flow : null, pc = fl0 && fl0.cells;      // where a drop may be made: in the panes (the cells of the glass), not on the empty texture between them
     var spawns = n0 < cap ? p.rain * (mm ? 100 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
       if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d), sx, sy; if (pc) { var cc = pc[Math.floor(rnd(d) * pc.length)]; sx = (cc % fl0.n + rnd(d)) / fl0.n; sy = (Math.floor(cc / fl0.n) + rnd(d)) / fl0.n; } else { sx = rnd(d); sy = rnd(d); } var j = add(d, sx, sy, mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); if (j >= 0 && d.fresh.length < 64) d.fresh.push(j); }
       spawns -= 1;
+    }
+    if (p.rain > 0.01 && n0 < cap * 0.8) {                            // a fine mist between the beads: tiny drops that fill in the glass and merge into the beads as they meet
+      var ms = p.rain * (mm ? 140 * amount : 110 * z) * dt;
+      while (ms > 0) {
+        if (ms >= 1 || rnd(d) < ms) { var mx0 = rnd(d), my0 = rnd(d); if (pc) { var mc = pc[Math.floor(rnd(d) * pc.length)]; mx0 = (mc % fl0.n + rnd(d)) / fl0.n; my0 = (Math.floor(mc / fl0.n) + rnd(d)) / fl0.n; } add(d, mx0, my0, mm ? (0.0009 + 0.0006 * rnd(d)) * sg : (0.0026 + 0.0012 * rnd(d)) * z, maxR); }
+        ms -= 1;
+      }
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
       var sp = p.spray * 140 * z * dt;
@@ -68,7 +77,8 @@
       var r = d.r[i];
       var big = r > slide ? (r / slide) : 0;                          // big drops move on their own, small ones only when the air pushes hard
       var air = p.speed > 6 ? Math.min((p.speed - 6) / 20, 1) : 0;
-      var f = Math.max(big, air);
+      var cling = Math.min(1, Math.max(0, (r / slide - 0.4) / 0.6));      // a small bead sticks to the glass: the air only moves it as it grows toward the size that runs
+      var f = Math.max(big, air * cling);
       var vd = down * f, va = across * f;
       if (r > slide && down > 0) vd += 0.03 * big * big;             // the weight of a big drop
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
@@ -133,6 +143,6 @@
     return cv;
   }
 
-  var api = { create: create, step: step, add: add, count: count, MAX: MAX, SLIDE: SLIDE, frostTexture: frostTexture };
+  var api = { create: create, step: step, add: add, count: count, MAX: DEFAULT_MAX, SLIDE: SLIDE, frostTexture: frostTexture };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CsfxSim = api;
 })(this);
