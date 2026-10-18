@@ -120,7 +120,7 @@ function M.wetFields(st, rung, trim)
   local c = color4(st.baseColorFactor)
   local k = 1 - (trim and 0.35 or 0.25) * f                          -- black plastic: darker and much smoother when wet, or it looks the same dry
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
-  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - (trim and 0.85 or 0.65) * f))
+  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - (trim and 0.6 or 0.65) * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
   local own = false
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
