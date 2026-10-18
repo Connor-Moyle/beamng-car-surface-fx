@@ -57,11 +57,11 @@ def main():
     hue = (dd * 2.3 + 0.12 * np.sin(2 * th + ph[0]) + 0.08 * np.sin(5 * th + ph[1]) + 0.1 * np.sin(dd * 9 + ph[2])) % 1.0
     rgb = np.zeros((N, N, 3), np.float32)
     flat = hue.reshape(-1)
-    cols = np.array([colorsys.hsv_to_rgb(h, 0.85, 1.0) for h in np.linspace(0, 1, 256)], np.float32)
+    cols = np.array([colorsys.hsv_to_rgb(h, 0.55, 1.0) for h in np.linspace(0, 1, 256)], np.float32)
     rgb = cols[(flat * 255).astype(int)].reshape(N, N, 3)
     Image.fromarray((rgb * 255 + 0.5).astype(np.uint8), 'RGB').save(os.path.join(out, 'rainbow.color.png'))
     band = 0.55 + 0.45 * np.sin(dd * 14 + ph[3]) ** 2
-    save_grey(mask * smoothstep(0.2, 0.9, dd) * band * 0.75, os.path.join(out, 'rainbow_o.data.png'))
+    save_grey(mask * smoothstep(0.2, 0.9, dd) * band * 0.45, os.path.join(out, 'rainbow_o.data.png'))
 
     D = '/art/surfacefx/fluids/'
 
