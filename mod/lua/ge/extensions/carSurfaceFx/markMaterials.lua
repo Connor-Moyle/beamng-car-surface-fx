@@ -6,13 +6,14 @@ local M = {}
 M.FILE = '/art/surfacefx/marks/main.materials.json'
 M.INDEX = '/art/surfacefx/marks/marks_index.json'
 
-local cache
+local cache = {}                                  -- material file -> its entries
 
-function M.entries()
-  if cache then return cache end
-  local ok, data = pcall(function() return jsonReadFile and jsonReadFile(M.FILE) end)
-  cache = ok and type(data) == 'table' and data or {}
-  return cache
+function M.entries(file)
+  file = file or M.FILE
+  if cache[file] then return cache[file] end
+  local ok, data = pcall(function() return jsonReadFile and jsonReadFile(file) end)
+  cache[file] = ok and type(data) == 'table' and data or {}
+  return cache[file]
 end
 
 function M.index()
@@ -31,10 +32,11 @@ local function text(v)
 end
 
 -- the material `name` exists afterwards (made from the file when the game did not load it); false and why when it cannot be
-function M.ensure(name)
+function M.ensure(name, file)
+  file = file or M.FILE
   if scenetree and scenetree.findObject(name) then return true end
-  local e = M.entries()[name]
-  if not e then return false, 'no entry for ' .. tostring(name) .. ' in ' .. M.FILE end
+  local e = M.entries(file)[name]
+  if not e then return false, 'no entry for ' .. tostring(name) .. ' in ' .. file end
   local ok, err = pcall(function()
     local m = createObject('Material')
     m:setField('mapTo', 0, name)
@@ -62,6 +64,6 @@ function M.ensureAll()
   return made, failed
 end
 
-function M.reset() cache = nil end
+function M.reset() cache = {} end
 
 return M

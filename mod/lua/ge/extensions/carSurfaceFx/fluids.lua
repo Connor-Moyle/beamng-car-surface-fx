@@ -8,6 +8,7 @@ local M = {}
 
 local rules = require('carSurfaceFx/fluidrules')
 local texlist = require('carSurfaceFx/texlist')
+local mesh = require('carSurfaceFx/fluidmesh')
 
 local TAG = 'carSurfaceFx_fluids'
 local SETTINGS_FILE = 'settings/carSurfaceFx_fluids.json'
@@ -22,7 +23,7 @@ local colors = {}                                                 -- kind -> Col
 local reports = {}                                                -- vehicle id -> what the car last said { oil, coolant, fuel, exhaust, grip, at }
 local pools = {}                                                  -- 'kind:variant' -> decal slots
 local dirty, lastSave = false, 0
-local injectT, ageT, gripT = 0, 0, 0
+local injectT, ageT, gripT, meshT = 0, 0, 0, 0
 local forced = {}                                                 -- debug: kinds forced to leak on the player's car
 local drops, dropN = {}, 0                                       -- the drops in the air (a small list, reused slots)
 
@@ -200,7 +201,7 @@ end
 
 function M.count() return store.count end
 function M.dropCount() return dropN end
-function M.clear() store = rules.newStore(settings.maxPuddles) reports = {} carry, lastAt = {}, {} dropN = 0 end
+function M.clear() pcall(mesh.clear) store = rules.newStore(settings.maxPuddles) reports = {} carry, lastAt = {}, {} dropN = 0 end
 
 -- ---- drawing: one batch per fluid and texture variant, through marks.drawBatch (the seam where the scene light goes)
 local function slot(pool, i)
@@ -245,7 +246,7 @@ function M.onPreRender(dt)
       if not pool then pool = {} pools[kind .. ':' .. v] = pool end
       for i = 1, store.count do
         local p = store.list[i]
-        if p and p.kind == kind and texlist.indexFor(#shown, p.seed) == v and p.r > 0.02 then
+        if p and p.kind == kind and not p.meshed and texlist.indexFor(#shown, p.seed) == v and p.r > 0.02 then
           local draw_ = true
           if camX then local dx, dy = p.x - camX, p.y - camY draw_ = dx * dx + dy * dy <= cr2 end
           if draw_ then
@@ -338,9 +339,9 @@ function M.status()
   for _, k in ipairs(rules.KINDS) do out[#out + 1] = string.format('%s=%d(r%.2f)', k, per[k] or 0, biggest[k] or 0) end
   local pv = be:getPlayerVehicleID(0)
   local r = reports[pv] or {}
-  return string.format('puddles %d [%s] leak oil %.2f coolant %.2f fuel %.2f exhaust %.2f grip %.2f gripOn %s | draw: frames %d, batches %d, decals %d, err %s, first %s',
+  return string.format('puddles %d [%s] leak oil %.2f coolant %.2f fuel %.2f exhaust %.2f grip %.2f gripOn %s | draw: frames %d, batches %d, decals %d, err %s, first %s | mesh: %s',
     store.count, table.concat(out, ' '), r.oil or 0, r.coolant or 0, r.fuel or 0, r.exhaust or 0, r.grip or 1, tostring(settings.gripEnabled),
-    diag.frames, diag.calls, diag.sent, tostring(diag.err), tostring(diag.first))
+    diag.frames, diag.calls, diag.sent, tostring(diag.err), tostring(diag.first), mesh.status())
 end
 
 -- the grip multiplier the rules give at a point (a test reads this against what the tyres report)
@@ -357,6 +358,14 @@ function M.onUpdate(dt)
   if ageT >= 1 then rules.age(store, ageT, settings) ageT = 0 end
   gripT = gripT + dt
   if gripT >= 0.25 then gripT = 0 pcall(pushGrip) end
+  meshT = meshT + dt
+  if meshT >= 0.25 then
+    meshT = 0
+    if settings.enabled and settings.meshes then
+      local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
+      pcall(mesh.sync, store, settings, cam and cam.x, cam and cam.y, function(i) return rules.ringFade(store, i) end)
+    else pcall(mesh.clear) end
+  end
   if dirty and os.clock() - lastSave > 1 then M.save() end
 end
 

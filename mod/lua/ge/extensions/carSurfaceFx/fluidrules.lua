@@ -16,6 +16,8 @@ function M.defaults()
   return {
     enabled = true,
     texture = '',                                                -- the puddle picture: a file in art/decals/fluids ('' = any of them)
+    meshes = true,                                               -- a puddle is a glossy plane like a rain puddle (fluidmesh.lua); off: flat decals only
+    sheen = true,                                                -- oil carries a rainbow film
     gripEnabled = true,                                          -- the real physics part: a tyre in a puddle slips (proven by yaw logs under braking); the setting turns it off
     maxPuddles = 60,                                             -- ring size: the oldest are recycled
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
@@ -98,6 +100,7 @@ function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
   end
   local i = (store.head % store.max) + 1
   local p = store.list[i] or {}
+  p.gen, p.meshed = (p.gen or 0) + 1, nil                              -- a new puddle in a recycled slot: its plane (fluidmesh) is not the old one's
   p.x, p.y, p.z, p.kind, p.r, p.age, p.stain = x, y, z, kind, k.dripSize * (stain and (0.7 + 0.6 * ((seed or 0.5))) or 1), 0, stain and true or false
   p.angle = (seed or 0.5) * 6.2832
   p.seed = seed or 0.5

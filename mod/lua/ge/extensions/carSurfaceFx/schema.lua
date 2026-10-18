@@ -280,6 +280,8 @@ function M.build(S, owner)
   end
   add({
     F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
+    lk('leaks_mesh', 'Leaks', 'bool', 'Glossy puddles', 'A puddle is a glossy, reflective surface like a rain puddle, tinted by the fluid (oil black, coolant green, fuel amber). Off: flat decals only.', 'meshes'),
+    lk('leaks_sheen', 'Leaks', 'bool', 'Rainbow sheen on oil', 'A thin rainbow film on oil puddles (needs glossy puddles).', 'sheen'),
     lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). It changes how the car drives: braking in an oil puddle spins the car.', 'gripEnabled'),
     { id = 'leaks_texture', tab = 'leaks', group = 'Pictures', type = 'texture', label = 'Puddle picture', tooltip = 'The picture of a puddle. Drop your own white-on-transparent png (name starting with puddle) into art/decals/fluids and it shows up here; none means any of them, at random.',
       folder = '/art/decals/fluids/', exts = { 'png' }, thumbs = true, none = true, default = '', store = fluidStore('texture', 'texture'), apply = 'live' },
