@@ -1,0 +1,1144 @@
+{
+ "csfx_skid_asphalt_dry": {
+  "name": "csfx_skid_asphalt_dry",
+  "mapTo": "csfx_skid_asphalt_dry",
+  "class": "Material",
+  "persistentId": "1640853d-6233-57c9-aa68-193d9638b5b8",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_skid_asphalt_wet": {
+  "name": "csfx_skid_asphalt_wet",
+  "mapTo": "csfx_skid_asphalt_wet",
+  "class": "Material",
+  "persistentId": "112a5bf4-f6b5-5756-9350-5fbac118fc97",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/skid_asphalt/t_skid_asphalt_r.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_dirt_dry": {
+  "name": "csfx_track_dirt_dry",
+  "mapTo": "csfx_track_dirt_dry",
+  "class": "Material",
+  "persistentId": "c975cddd-e0f2-51f5-b257-f7823c720ef5",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_dirt_wet": {
+  "name": "csfx_track_dirt_wet",
+  "mapTo": "csfx_track_dirt_wet",
+  "class": "Material",
+  "persistentId": "5bbd5fbc-793d-59ea-85fe-19f3b37c191a",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_dirt/t_track_dirt_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_dirt_dry": {
+  "name": "csfx_rut_dirt_dry",
+  "mapTo": "csfx_rut_dirt_dry",
+  "class": "Material",
+  "persistentId": "33756d02-6f73-5fc3-a263-3ed8dbf3d98e",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_dirt_wet": {
+  "name": "csfx_rut_dirt_wet",
+  "mapTo": "csfx_rut_dirt_wet",
+  "class": "Material",
+  "persistentId": "a6d2a6a1-d717-5f6b-a657-3876c0d49f0b",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_gravel_dry": {
+  "name": "csfx_track_gravel_dry",
+  "mapTo": "csfx_track_gravel_dry",
+  "class": "Material",
+  "persistentId": "20f31fb2-dfb4-5ba8-8bf7-dd0b6b752b00",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_gravel_wet": {
+  "name": "csfx_track_gravel_wet",
+  "mapTo": "csfx_track_gravel_wet",
+  "class": "Material",
+  "persistentId": "4b7ef1e5-daf5-5275-97b3-099d61a88f06",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_gravel/t_track_gravel_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_gravel_dry": {
+  "name": "csfx_rut_gravel_dry",
+  "mapTo": "csfx_rut_gravel_dry",
+  "class": "Material",
+  "persistentId": "406b94d0-3694-52e7-963a-c7495469a240",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_gravel_wet": {
+  "name": "csfx_rut_gravel_wet",
+  "mapTo": "csfx_rut_gravel_wet",
+  "class": "Material",
+  "persistentId": "b7eea3bb-afb0-55f7-9d44-15415b7ea687",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_sand_dry": {
+  "name": "csfx_track_sand_dry",
+  "mapTo": "csfx_track_sand_dry",
+  "class": "Material",
+  "persistentId": "8843aace-997c-5203-9a17-62957c8d7d80",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_sand/t_track_sand_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_sand/t_track_sand_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_sand/t_track_sand_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_sand/t_track_sand_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_sand/t_track_sand_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_sand_wet": {
+  "name": "csfx_track_sand_wet",
+  "mapTo": "csfx_track_sand_wet",
+  "class": "Material",
+  "persistentId": "39c05f9a-acfe-5a04-9fe6-1eb10a4910cb",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_sand/t_track_sand_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_sand/t_track_sand_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_sand/t_track_sand_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_sand/t_track_sand_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_sand/t_track_sand_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_sand_dry": {
+  "name": "csfx_rut_sand_dry",
+  "mapTo": "csfx_rut_sand_dry",
+  "class": "Material",
+  "persistentId": "71f9b00c-548c-5b8b-8b32-9ed5fb13357f",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_sand_wet": {
+  "name": "csfx_rut_sand_wet",
+  "mapTo": "csfx_rut_sand_wet",
+  "class": "Material",
+  "persistentId": "47364c2c-fb73-5dc4-bd61-0e9a7dc7e98b",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_mud_dry": {
+  "name": "csfx_track_mud_dry",
+  "mapTo": "csfx_track_mud_dry",
+  "class": "Material",
+  "persistentId": "5d218975-6d00-5fd3-baab-1ef619361b55",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_mud/t_track_mud_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_mud/t_track_mud_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_mud/t_track_mud_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_mud/t_track_mud_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_mud/t_track_mud_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_mud_wet": {
+  "name": "csfx_track_mud_wet",
+  "mapTo": "csfx_track_mud_wet",
+  "class": "Material",
+  "persistentId": "df0a5234-a4a9-531b-9ae7-e403a8ef045d",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_mud/t_track_mud_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_mud/t_track_mud_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_mud/t_track_mud_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_mud/t_track_mud_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_mud/t_track_mud_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_mud_dry": {
+  "name": "csfx_rut_mud_dry",
+  "mapTo": "csfx_rut_mud_dry",
+  "class": "Material",
+  "persistentId": "7393757a-61a2-5068-bbf5-beb816620496",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_mud_wet": {
+  "name": "csfx_rut_mud_wet",
+  "mapTo": "csfx_rut_mud_wet",
+  "class": "Material",
+  "persistentId": "c35ac047-cb68-5c06-b043-7473fff3f9ab",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_snow_dry": {
+  "name": "csfx_track_snow_dry",
+  "mapTo": "csfx_track_snow_dry",
+  "class": "Material",
+  "persistentId": "5acb1883-27b6-5726-8542-598ef7a350a9",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_snow/t_track_snow_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_snow/t_track_snow_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_snow/t_track_snow_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_snow/t_track_snow_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_snow/t_track_snow_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_track_snow_wet": {
+  "name": "csfx_track_snow_wet",
+  "mapTo": "csfx_track_snow_wet",
+  "class": "Material",
+  "persistentId": "b999752c-09a7-574a-9d95-0cd3198fd2a4",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/track_snow/t_track_snow_b.color.png",
+    "normalMap": "/art/surfacefx/marks/track_snow/t_track_snow_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/track_snow/t_track_snow_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/track_snow/t_track_snow_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/track_snow/t_track_snow_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_snow_dry": {
+  "name": "csfx_rut_snow_dry",
+  "mapTo": "csfx_rut_snow_dry",
+  "class": "Material",
+  "persistentId": "f378fb16-7aeb-5886-b0eb-3c6b898adfcd",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_rut_snow_wet": {
+  "name": "csfx_rut_snow_wet",
+  "mapTo": "csfx_rut_snow_wet",
+  "class": "Material",
+  "persistentId": "64f37c75-1cd1-55a0-be1c-264f9cf81004",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_b.color.png",
+    "normalMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_gouge_asphalt_dry": {
+  "name": "csfx_gouge_asphalt_dry",
+  "mapTo": "csfx_gouge_asphalt_dry",
+  "class": "Material",
+  "persistentId": "2fe30f55-53ed-5613-89eb-ab203f9bca7d",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_gouge_asphalt_wet": {
+  "name": "csfx_gouge_asphalt_wet",
+  "mapTo": "csfx_gouge_asphalt_wet",
+  "class": "Material",
+  "persistentId": "caa2f58b-b73d-5672-9bfc-25940264b051",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/gouge_asphalt/t_gouge_asphalt_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_gouge_dirt_dry": {
+  "name": "csfx_gouge_dirt_dry",
+  "mapTo": "csfx_gouge_dirt_dry",
+  "class": "Material",
+  "persistentId": "3f7cacff-b4f9-52a6-a02b-83477c17f829",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_ao.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_gouge_dirt_wet": {
+  "name": "csfx_gouge_dirt_wet",
+  "mapTo": "csfx_gouge_dirt_wet",
+  "class": "Material",
+  "persistentId": "d600505a-50fd-5a05-9505-20ad486bc091",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_b.color.png",
+    "normalMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_r.data.png",
+    "ambientOcclusionMap": "/art/surfacefx/marks/gouge_dirt/t_gouge_dirt_ao.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_wall_concrete_dry": {
+  "name": "csfx_wall_concrete_dry",
+  "mapTo": "csfx_wall_concrete_dry",
+  "class": "Material",
+  "persistentId": "5fcda197-98ac-5b2b-86bb-1c87337fa56d",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_b.color.png",
+    "normalMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_wall_concrete_wet": {
+  "name": "csfx_wall_concrete_wet",
+  "mapTo": "csfx_wall_concrete_wet",
+  "class": "Material",
+  "persistentId": "d8318db9-34d0-5b15-823d-a168f8190fa7",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_b.color.png",
+    "normalMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/wall_concrete/t_wall_concrete_r.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_wall_metal_dry": {
+  "name": "csfx_wall_metal_dry",
+  "mapTo": "csfx_wall_metal_dry",
+  "class": "Material",
+  "persistentId": "67bb491d-9e22-529b-ba58-06e6cf256bd5",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_b.color.png",
+    "normalMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_wall_metal_wet": {
+  "name": "csfx_wall_metal_wet",
+  "mapTo": "csfx_wall_metal_wet",
+  "class": "Material",
+  "persistentId": "8bbe2539-b905-55d3-8017-2ac960eaf223",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_b.color.png",
+    "normalMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/wall_metal/t_wall_metal_r.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_oil_dry": {
+  "name": "csfx_oil_dry",
+  "mapTo": "csfx_oil_dry",
+  "class": "Material",
+  "persistentId": "2500f53d-53b0-5a95-a8f7-ee8ca9cbb8c8",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/oil/t_oil_b.color.png",
+    "normalMap": "/art/surfacefx/marks/oil/t_oil_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/oil/t_oil_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/oil/t_oil_r_dry.data.png",
+    "baseColorFactor": [
+     1.15,
+     1.1,
+     1.0,
+     1
+    ],
+    "opacityFactor": 0.7
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_oil_wet": {
+  "name": "csfx_oil_wet",
+  "mapTo": "csfx_oil_wet",
+  "class": "Material",
+  "persistentId": "4f464fa8-8b34-5c4a-afa3-a57fa9bbdc92",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/oil/t_oil_b.color.png",
+    "normalMap": "/art/surfacefx/marks/oil/t_oil_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/oil/t_oil_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/oil/t_oil_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 1.0
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_coolant_dry": {
+  "name": "csfx_coolant_dry",
+  "mapTo": "csfx_coolant_dry",
+  "class": "Material",
+  "persistentId": "4f8f306b-57ff-596c-bb35-b2d4403faf98",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/coolant/t_coolant_b.color.png",
+    "normalMap": "/art/surfacefx/marks/coolant/t_coolant_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/coolant/t_coolant_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/coolant/t_coolant_r_dry.data.png",
+    "baseColorFactor": [
+     1.15,
+     1.1,
+     1.0,
+     1
+    ],
+    "opacityFactor": 0.7
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_coolant_wet": {
+  "name": "csfx_coolant_wet",
+  "mapTo": "csfx_coolant_wet",
+  "class": "Material",
+  "persistentId": "738e1dce-a68f-5cc4-9c52-e047b200fa3c",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/coolant/t_coolant_b.color.png",
+    "normalMap": "/art/surfacefx/marks/coolant/t_coolant_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/coolant/t_coolant_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/coolant/t_coolant_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 1.0
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_fuel_dry": {
+  "name": "csfx_fuel_dry",
+  "mapTo": "csfx_fuel_dry",
+  "class": "Material",
+  "persistentId": "cc2dd0a9-1c92-5319-bc9c-0d770de40233",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/fuel/t_fuel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/fuel/t_fuel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/fuel/t_fuel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/fuel/t_fuel_r_dry.data.png",
+    "baseColorFactor": [
+     1.15,
+     1.1,
+     1.0,
+     1
+    ],
+    "opacityFactor": 0.7
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_fuel_wet": {
+  "name": "csfx_fuel_wet",
+  "mapTo": "csfx_fuel_wet",
+  "class": "Material",
+  "persistentId": "8d74959f-5f94-5630-9fb9-992a0756350b",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/fuel/t_fuel_b.color.png",
+    "normalMap": "/art/surfacefx/marks/fuel/t_fuel_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/fuel/t_fuel_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/fuel/t_fuel_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 1.0
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_test_bump_dry": {
+  "name": "csfx_test_bump_dry",
+  "mapTo": "csfx_test_bump_dry",
+  "class": "Material",
+  "persistentId": "dfc12e6d-29bb-5437-9820-1d1c9ca67c08",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/test_bump/t_test_bump_b.color.png",
+    "normalMap": "/art/surfacefx/marks/test_bump/t_test_bump_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/test_bump/t_test_bump_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/test_bump/t_test_bump_r.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "opacityFactor": 0.95
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ },
+ "csfx_test_bump_wet": {
+  "name": "csfx_test_bump_wet",
+  "mapTo": "csfx_test_bump_wet",
+  "class": "Material",
+  "persistentId": "867f9f00-2a98-51ff-bcbc-732984dc4aa9",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/marks/test_bump/t_test_bump_b.color.png",
+    "normalMap": "/art/surfacefx/marks/test_bump/t_test_bump_nm.normal.png",
+    "opacityMap": "/art/surfacefx/marks/test_bump/t_test_bump_o.data.png",
+    "roughnessMap": "/art/surfacefx/marks/test_bump/t_test_bump_r.data.png",
+    "baseColorFactor": [
+     0.8,
+     0.8,
+     0.8,
+     1
+    ],
+    "opacityFactor": 1.0,
+    "roughnessFactor": 0.4
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "NATURE",
+  "materialTag0": "RoadAndPath",
+  "translucent": true,
+  "translucentZWrite": true,
+  "version": 1.5
+ }
+}
