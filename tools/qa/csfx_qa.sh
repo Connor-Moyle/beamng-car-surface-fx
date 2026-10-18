@@ -53,7 +53,7 @@ fi
 
 if want dirt; then
   dbg "'mud', 0.9"; dbg "'rain', 0"; cam external; nap 4
-  expect "mud forced" 'forced true' "$(status)"
+  expect "mud forced" 'mud 0\.9' "$(status)"
   shot mud
   dbg "'dust', 0.9"; nap 3; shot dust
   dbg ""

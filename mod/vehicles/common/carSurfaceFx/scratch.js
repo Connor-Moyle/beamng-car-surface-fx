@@ -65,14 +65,30 @@
 
   // soft-edged dirt splats. base page ONLY: dirt just darkens/tints the paint. punching the palette too exposes the bare layer, which is as shiny as metal -
   // right for a scratch, but it made dirt look like chrome with a dark rim.
+  // a number 0..1 from a place and an index, the same every time (a redraw must give the same splatter)
+  function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
   function drawBlob(b) {
     if (palette) return;
     sctx.globalCompositeOperation = 'source-over';
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
-    var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
-    g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
-    sctx.fillStyle = g;
-    sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    if (b.k === 'dust') {                                             // dust and snow: soft patches
+      var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+      g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
+      sctx.fillStyle = g;
+      sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    } else {                                                          // mud and bugs: a splat with a broken edge and droplets thrown around it
+      var i, n = 4 + Math.floor(hash(b.x, b.y, 0) * 3);
+      sctx.fillStyle = rgba(b.c, b.a * 0.55);
+      for (i = 0; i < n; i++) {
+        var ang = hash(b.x, b.y, i + 1) * 6.2832, d = r * 0.5 * hash(b.x, b.y, i + 9), rr = r * (0.35 + 0.45 * hash(b.x, b.y, i + 17));
+        sctx.beginPath(); sctx.arc(x + Math.cos(ang) * d, y + Math.sin(ang) * d, rr, 0, Math.PI * 2); sctx.fill();
+      }
+      sctx.fillStyle = rgba(b.c, b.a * 0.9);
+      for (i = 0; i < 3 + Math.floor(hash(b.x, b.y, 30) * 4); i++) {
+        var a2 = hash(b.x, b.y, i + 40) * 6.2832, d2 = r * (1 + 1.3 * hash(b.x, b.y, i + 50)), r2 = Math.max(1, r * (0.07 + 0.16 * hash(b.x, b.y, i + 60)));
+        sctx.beginPath(); sctx.arc(x + Math.cos(a2) * d2, y + Math.sin(a2) * d2, r2, 0, Math.PI * 2); sctx.fill();
+      }
+    }
     dirty = true;
   }
 

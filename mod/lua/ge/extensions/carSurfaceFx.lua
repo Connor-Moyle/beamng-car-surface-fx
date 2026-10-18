@@ -243,6 +243,27 @@ local function weatherSplats(id, old, new)
   if db > 0 then carSurfaceFx_scratch.bodySplat(id, 'front', { 0.10, 0.08, 0.05 }, 0.8, math.floor(db * 160 + math.random()), 'mud', 0.35) end
 end
 
+-- mud and dust on the body where they really gather: splatter low on both sides and around the wheels as the amount grows (the paint tint alone looks like a repaint)
+local MUDC, DUSTC = { 0.20, 0.14, 0.09 }, { 0.55, 0.46, 0.33 }
+local function dirtSplats(id, old, new)
+  if not (scratchOn() and settings.scratch.dirtEnabled) then return end
+  local dm, dd = new.mud - old.mud, new.dust - old.dust
+  if dm > 0 then
+    local n = math.floor(dm * 260 + math.random())
+    local a = math.floor(n * 0.35)
+    carSurfaceFx_scratch.bodySplat(id, 'lowL', MUDC, 0.8, a, 'mud', 1.5)
+    carSurfaceFx_scratch.bodySplat(id, 'lowR', MUDC, 0.8, a, 'mud', 1.5)
+    if n - 2 * a > 0 then carSurfaceFx_scratch.splat(id, MUDC, 0.8, n - 2 * a, 'mud') end
+  end
+  if dd > 0 then
+    local n = math.floor(dd * 180 + math.random())
+    local a = math.floor(n * 0.4)
+    carSurfaceFx_scratch.bodySplat(id, 'lowL', DUSTC, 0.5, a, 'dust', 1.8)
+    carSurfaceFx_scratch.bodySplat(id, 'lowR', DUSTC, 0.5, a, 'dust', 1.8)
+    if n - 2 * a > 0 then carSurfaceFx_scratch.splat(id, DUSTC, 0.5, n - 2 * a, 'dust') end
+  end
+end
+
 -- from the car's wheel watcher (lua/vehicle/extensions/carSurfaceFxWheels.lua), every 0.5 s: the shares of that time on loose ground (weighted), mud and road,
 -- skidding, and with a wheel in water; the speed; the wipers 0..1
 -- splash from your own wheels in a puddle: dirty water up the lower body on the sides whose wheels were in it, a sheet over the windscreen for a deep one at speed
@@ -284,6 +305,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if water > 0 then d = rules.dirtWash(d, dt, 0, water) end
   dirtBy[id] = d
   weatherSplats(id, old, d)
+  dirtSplats(id, old, d)
   if water > 0 and scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(1 - water * dt / 3, 0, 1), rules.clamp(1 - water * dt / 12, 0, 1)) end
 end
 
@@ -597,6 +619,7 @@ function M.debug(kind, value)
       local old = deepcopy(forcedDirt)
       forcedDirt[k] = value
       if k == 'snow' or k == 'bugs' then weatherSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
+      if k == 'mud' or k == 'dust' then dirtSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
       return k .. ' forced to ' .. value
     end
   end
