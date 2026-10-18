@@ -197,7 +197,12 @@ local function restore()
 end
 
 function M.onExtensionLoaded() looked = false end
-function M.updateGFX(dt) pcall(frame, dt or 0) end              -- our code never gets to disable the vehicle
+local failed
+function M.updateGFX(dt)                                      -- our code never gets to disable the vehicle: one error switches the fluids of this car off, logged once
+  if failed then return end
+  local ok, err = pcall(frame, dt or 0)
+  if not ok then failed = tostring(err) log('E', 'carSurfaceFxFluids', 'switched off after an error: ' .. failed) end
+end
 function M.onReset() restore() puddles = {} timer = 0 looked = false end      -- a reset gives every tyre its full grip at once
 function M.onExtensionUnloaded() pcall(restore) end
 

@@ -350,4 +350,5 @@ function M.onClientStartMission() initBuffers() M.scanVariants() applyTakeover(s
 function M.onClientEndMission() initBuffers() end
 
 M.TAG = TAG
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_marks', { 'onPreRender', 'onUpdate' })
 return M

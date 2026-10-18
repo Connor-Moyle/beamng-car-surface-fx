@@ -310,4 +310,5 @@ function M.onClientStartMission() M.clear() pcall(injectAll) end
 function M.onClientEndMission() M.clear() end
 
 M.TAG = TAG
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_fluids', { 'onPreRender', 'onUpdate' })
 return M

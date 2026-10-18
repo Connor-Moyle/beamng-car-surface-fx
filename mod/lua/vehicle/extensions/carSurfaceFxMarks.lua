@@ -118,7 +118,12 @@ end
 function M.setMaterials(idToType) customIdType = type(idToType) == 'table' and idToType or {} end
 
 function M.onExtensionLoaded() if not loaded then loaded = true lastPos = {} buildNameSurf() end end
-function M.updateGFX() pcall(frameUpdate) end              -- our code never gets to disable the vehicle
+local failed
+function M.updateGFX()                                         -- our code never gets to disable the vehicle: one error switches the marks of this car off, logged once
+  if failed then return end
+  local ok, err = pcall(frameUpdate)
+  if not ok then failed = tostring(err) log('E', 'carSurfaceFxMarks', 'switched off after an error: ' .. failed) end
+end
 function M.onReset() lastPos = {} end
 function M.onExtensionUnloaded() loaded = false lastPos = {} end
 

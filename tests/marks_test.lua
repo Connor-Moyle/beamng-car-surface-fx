@@ -98,4 +98,14 @@ assert(M.get('mats.dirt.skid.width') ~= nil and M.get('mats.lava.skid.width') ==
 assert(M.set('mats.dirt.skid.width', 0.4) and M.get('mats.dirt.skid.width') == 0.4, 'set by path')
 assert(M.set('mats.dirt.skid.width', 'wide') == false and M.set('nothing.here', 1) == false, 'a wrong type or path is refused')
 assert(M.set('mats.dirt.skid.color', { 1, 0, 0 }) and M.get('mats.dirt.skid.color')[1] == 1, 'colours are set as lists')
+-- a throwing hook switches the module off, logs once and is not called again
+local logs, calls = {}, 0
+function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
+M.configure({ enabled = true })
+M.clear()
+M.addSegment(0, 0, 0, 1, 0, 0, 'dirt', 1, 0.5)
+Engine.Render.DynamicDecalMgr.addDecals = function() calls = calls + 1 error('boom') end
+M.onPreRender(0.016) M.onPreRender(0.016) M.onPreRender(0.016)
+assert(calls == 1 and #logs == 1 and logs[1]:find('boom'), 'one error: off, one log line, no second call (' .. calls .. ' calls, ' .. #logs .. ' lines)')
+assert(M.failure() and M.resume() == 'resumed' and not M.failure(), 'resume() tries again')
 print('carSurfaceFx marks: ok')

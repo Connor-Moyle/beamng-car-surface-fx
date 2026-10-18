@@ -336,4 +336,5 @@ function M.fields(file)
   }
 end
 
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_grass', { 'onPreRender' })
 return M
