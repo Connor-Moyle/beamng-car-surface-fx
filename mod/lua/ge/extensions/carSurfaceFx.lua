@@ -479,7 +479,7 @@ function M.pushGlass(car, mo)
   if glassOff then rain, wetG = 0, 0 end                                                -- debug: the window canvases stay clear while the driver's view keeps drawing
   local js
   for _, info in ipairs(car.mats) do
-    if info.glass and info.rung > 0 then
+    if info.glass and info.rung > 0 and hasCanvas(car.veh, info.tag) then                    -- (a new car's canvases are made over the next ticks: nothing is sent before they exist)
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
       js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
         wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
