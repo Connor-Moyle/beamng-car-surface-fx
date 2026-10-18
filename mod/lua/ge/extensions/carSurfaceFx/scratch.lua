@@ -369,11 +369,13 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
+local dd = { calls = 0, refused = 0, sent = 0, clods = 0, last = 'never' }              -- what dirtAt did, for diagnose()
 function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local car = cars[id]
   local map = car and car.map
   local veh = getObjectByID(id)
-  if not (map and veh and settings.dirtEnabled) then return false end
+  dd.calls = dd.calls + 1
+  if not (map and veh and settings.dirtEnabled) then dd.refused = dd.refused + 1 dd.last = string.format('%s refused (car %s, map %s, veh %s, dirtEnabled %s)', kind, tostring(car ~= nil), tostring(map ~= nil), tostring(veh ~= nil), tostring(settings.dirtEnabled)) return false end
   if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
   local list = bodymap.sample(map, kind, n, random, wi, opts)
   if #list == 0 then return true end
@@ -391,6 +393,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   end
   local soft = SOFT[kind] and 'dust' or 'mud'
   local m = mem(id)
+  dd.sent, dd.clods, dd.last = dd.sent + #blobs / 3, dd.clods + #cakes / 3, string.format('%s: %d splats, %d clods, wheel %s', kind, #blobs / 3, #cakes / 3, tostring(wi))
   if #blobs > 0 then
     draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
@@ -566,6 +569,7 @@ function M.diagnose()
     end
   end
   out[#out + 1] = ('paint water: %d calls, %d sent, last [%s], blocked because [%s], map sent %s s ago'):format(waterCalls, waterSent, lastWaterJs, waterWhy, tostring(nodesSent[veh:getId()] and math.floor(os.clock() - nodesSent[veh:getId()]) or 'never'))
+  out[#out + 1] = string.format('dirtAt: %d calls, %d refused, %d splats and %d clods sent, last: %s', dd.calls, dd.refused, dd.sent, dd.clods, dd.last)
   out[#out + 1] = 'canvases on the car: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
   for nm, layers in pairs(bound) do
     local mat = scenetree.findObject(nm)
