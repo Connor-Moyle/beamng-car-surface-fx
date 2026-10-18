@@ -131,10 +131,10 @@ function createOverlay(doc, win) {
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
-    tctx.fillStyle = 'rgba(0,0,0,0.035)';
+    tctx.fillStyle = 'rgba(0,0,0,0.02)';
     tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
-    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(35,45,60,0.28)'; tctx.lineWidth = 1.3; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
+    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(35,45,60,0.34)'; tctx.lineWidth = 1.3; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
     for (var k = 0; k < sim.n; k++) {
       if (!sim.alive[k]) { seen[k] = 0; continue; }
       var X = bx + sim.x[k] * bw, Y = by + sim.y[k] * bh;
@@ -201,7 +201,7 @@ function createOverlay(doc, win) {
       ctx.drawImage(bead, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R * 0.85, R * 2, R * 1.7);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
-        var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
+        var k2 = age / 320, rr2 = Math.min(R, 4) * (1.2 + 1.2 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(255,255,255,' + (0.25 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
       }
