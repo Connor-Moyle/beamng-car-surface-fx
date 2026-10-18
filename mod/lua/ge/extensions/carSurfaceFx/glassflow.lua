@@ -47,6 +47,9 @@ end
 
 -- tris = list of { pos = {9 numbers}, uv = {6 numbers} } -> { g = { N*N*2 numbers }, b = ..., r = ..., filled = cells with data }
 function M.field(tris)
+  local flipped = {}                                                  -- the web canvas has its top row at v = 1 (the .dae's v runs up): a window sits in the rows the page draws in only when v is turned over (seen with the labelled debug grid)
+  for i, t in ipairs(tris) do local u = t.uv flipped[i] = { pos = t.pos, mesh = t.mesh, uv = { u[1], 1 - u[2], u[3], 1 - u[4], u[5], 1 - u[6] } } end
+  tris = flipped
   local sSum, sN = 0, 0
   local sum, cnt = { {}, {}, {} }, {}
   for i = 1, N * N do cnt[i] = 0 for d = 1, 3 do sum[d][i * 2 - 1], sum[d][i * 2] = 0, 0 end end
