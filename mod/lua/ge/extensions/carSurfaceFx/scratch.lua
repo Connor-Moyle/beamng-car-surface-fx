@@ -24,7 +24,7 @@
       a layer's OPACITY can't be driven by a canvas (the shader reads it only from a
       file texture's red channel - tried, renders solid), which is why this rides on
       the existing paint layer instead of adding one on top.
-    * WHEN: carSurfaceFxScratch.lua (car side) reports hard sliding body hits and
+    * WHEN: carSurfaceFxWear.lua (car side, through carSurfaceFx/bodywear.lua) reports hard sliding body hits and
       wheels rolling on loose ground; everything else happens here.
 
   limits, on purpose:
@@ -93,10 +93,7 @@ function M.configure(t)
 end
 local function active() return settings.enabled or settings.dirtEnabled end
 
--- ---- the car-side reporter ----
-local function pushCmd()
-  return ('if carSurfaceFxScratch then carSurfaceFxScratch.setConfig(%s) end'):format(tostring(settings.enabled))
-end
+-- ---- the car-side reporter (carSurfaceFx/bodywear.lua puts the contact sorting into the cars) ----
 -- (a command into every car's Lua once a second was a lot of traffic for nothing: now when the setting changed or every 5 s, and at once for a new car)
 local injectedAt = {}      -- vehId -> { at = os.clock(), enabled = }
 local function injectVehicle(veh)
@@ -104,7 +101,8 @@ local function injectVehicle(veh)
   local i = injectedAt[id]
   if i and i.enabled == settings.enabled and now - i.at < 5 then return end
   if i then i.at, i.enabled = now, settings.enabled else injectedAt[id] = { at = now, enabled = settings.enabled } end
-  veh:queueLuaCommand("if not carSurfaceFxScratch then extensions.load('carSurfaceFxScratch') end " .. pushCmd())
+  local bw = rawget(_G, 'carSurfaceFx_bodywear')
+  if bw then bw.inject(veh, settings.enabled) end                     -- the car-side body wear (contact sorting) replaces the old detector
 end
 
 -- ---- materials ----
@@ -229,7 +227,7 @@ local function draw(veh, fn, data)
   veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
 end
 
--- ---- called from the car (carSurfaceFxScratch.lua) ----
+-- ---- called by carSurfaceFx/bodywear.lua, from the car's contacts ----
 -- a body node slid hard against something. a,b,c = the slip direction along the car's left/back/up lines.
 function M.hit(id, cid, force, slip, a, b, c)
   local car = cars[id]

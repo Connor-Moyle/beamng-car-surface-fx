@@ -152,6 +152,7 @@ v:queueLuaCommand('input.event(\"throttle\",1)') return bd" > /dev/null
   nap 4
   N1="$(R "return carSurfaceFx_scratch and carSurfaceFx_scratch.count(be:getPlayerVehicleID(0)) or -1" | tr -d '\r')"
   if [ "${N1:-0}" -gt "${N0:-0}" ] 2>/dev/null; then rec "wall scrape leaves scratches" PASS "scratch marks $N0 -> $N1"; else rec "wall scrape leaves scratches" FAIL "scratch marks $N0 -> $N1 (no contact, or no hit report)"; fi
+  rec "body wear: what the car's contacts were" INFO "$(R "return carSurfaceFx_bodywear and carSurfaceFx_bodywear.status() or 'bodywear not loaded'" | tr -d '')"
   cam external; nap 2; shot scratch_real
 fi
 

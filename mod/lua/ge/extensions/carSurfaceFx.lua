@@ -338,7 +338,7 @@ end
 -- wheels on a per-car canvas. Not started while Enhanced Skid Marks' own copy runs (the two would fight over the paint layer).
 local function startScratch()
   if scratchOn() or rawget(_G, 'surfaceFXHiFiScratch') ~= nil or not settings.scratch.enabled then return end
-  for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch' }) do
+  for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch', 'carSurfaceFx_bodywear' }) do
     extensions.load(name)
     setExtensionUnloadMode(name, 'manual')
   end
@@ -392,7 +392,7 @@ local function stopGrass()
 end
 
 local function stopScratch()
-  for _, name in ipairs({ 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
+  for _, name in ipairs({ 'carSurfaceFx_bodywear', 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
     if rawget(_G, name) ~= nil then extensions.unload(name) end
   end
 end

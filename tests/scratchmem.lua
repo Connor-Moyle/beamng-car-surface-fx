@@ -41,7 +41,7 @@ assert(M.count(7) == 0, 'a destroyed car is forgotten')
 -- the car-side reporter is put into a car when it is new, when the setting changes and every 5 s, not every second
 local injected = 0
 function veh:getMaterialNames() return {} end
-function veh:queueLuaCommand(c) if c:find('carSurfaceFxScratch', 1, true) then injected = injected + 1 end end
+carSurfaceFx_bodywear = { inject = function() injected = injected + 1 end }       -- what injecting a car means now: the body wear puts its car-side extensions in
 M.configure({ enabled = true })
 M.onUpdate(1.1)
 assert(injected == 1, 'a new car gets it at once')
