@@ -28,7 +28,7 @@ end
 -- soaks in over ~25 s, dries over ~5 min
 function M.wetStep(w, target, dt)
   if target > w then return math.min(target, w + dt / 25) end
-  return math.max(target, w - dt / 300)
+  return math.max(target, w - dt / 100)
 end
 
 -- The v1.5 fields copied from the live Material object, per stage (0..3) and for the whole material. Read with getField, so the clone matches
@@ -120,7 +120,7 @@ function M.wetFields(st, rung)
   local c = color4(st.baseColorFactor)
   local k = 1 - 0.25 * f
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
-  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.5 * f))
+  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.65 * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
   local own = false
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
@@ -360,9 +360,9 @@ function M.glassMap(st, mode)
   return 'baseColorMap', st.baseColorMap
 end
 
-M.glassEmissive = 0.6                                             -- how bright the drops glint (emissiveFactor)
+M.glassEmissive = 1.0                                             -- how bright the drops glint (emissiveFactor)
 M.glassLight = 1                                                  -- 0..1: how bright the scene is (set from the time of day): the glints are bright by day and faint at night
-M.glassNits = 1500                                                -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze)
+M.glassNits = 40000                                               -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze at 1500; hazy at 6000, milky at 25000, solid white at 100000, measured on the covet's side windows by day, so the thin drops need about 40000)
 function M.glassFields(st, tag, mode)
   local field = M.glassMap(st, mode or 'color')
   if not field then return {} end

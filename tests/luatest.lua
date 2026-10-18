@@ -18,7 +18,7 @@ eq(R.target(nil, nil), 0, 'no rain object')
 eq(R.target(nil, 5000), 1, 'clamped')
 
 eq(R.wetStep(0, 1, 5), 0.2, 'soaks in at 1/25 per second')
-eq(R.wetStep(0.9, 0, 30), 0.8, 'dries at 1/300 per second')
+eq(R.wetStep(1, 0, 50), 0.5, 'dries at 1/100 per second (a minute or two)')
 eq(R.wetStep(0.99, 1, 60), 1, 'does not overshoot')
 
 eq(R.isPaintStage({ colorPaletteMap = '/a.png' }), true, 'palette is paint')
@@ -65,7 +65,7 @@ eq(nopal.b, true, 'no palette: the biggest')
 
 local w = R.wetFields({ baseColorFactor = '1 0.5 0 1', roughnessFactor = '0.8' }, 5)
 eq(w.baseColorFactor, '0.7500 0.3750 0.0000 1.0000', 'darker')
-eq(w.roughnessFactor, '0.4000', 'glossier')
+eq(w.roughnessFactor, '0.2800', 'glossier')
 eq(w.detailNormalMap, '/art/surfacefx/droplets5.normal.png', 'the rungs own bead map')
 eq(w.detailScale, R.beadScale, 'detail scale set')
 local keep = R.wetFields({ detailMap = '/x.png' }, 1)
