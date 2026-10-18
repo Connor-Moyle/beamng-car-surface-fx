@@ -114,19 +114,19 @@ end
 
 -- the fields (name -> string for setField) one paint stage gets at a rung: darker, glossier, with beads of water (they replace the paint's own
 -- orange-peel normal detail while wet: a water film hides it)
-function M.wetFields(st, rung)
+function M.wetFields(st, rung, trim)
   local f = FRACTION[rung]
   local out = {}
   local c = color4(st.baseColorFactor)
-  local k = 1 - 0.25 * f
+  local k = 1 - (trim and 0.35 or 0.25) * f                          -- black plastic: darker and much smoother when wet, or it looks the same dry
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
-  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.65 * f))
+  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - (trim and 0.85 or 0.65) * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
   local own = false
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
   if not own then
     out.detailNormalMap = string.format(M.DROPLETS, rung)
-    out.detailNormalMapStrength = string.format('%.3f', M.beadStrength * f)
+    out.detailNormalMapStrength = string.format('%.3f', M.beadStrength * f * (trim and 1.4 or 1))
     out.detailScale = M.beadScale
   end
   return out

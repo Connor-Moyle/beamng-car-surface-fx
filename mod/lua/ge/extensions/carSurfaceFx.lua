@@ -162,7 +162,7 @@ local function setRung(info, r)
     local palette = false
     for _, s2 in pairs(info.stages) do if rules.isPaintStage(s2) then palette = true end end
     if info.glass or rules.isPaintStage(st) or (not palette and L == 0 and st) then      -- a material without a palette (trim, a carbon roof) is wetted on its first stage
-      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r)) or {}
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r, info.trim)) or {}
       for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
         if v == nil and (k == 'detailNormalMap' or (info.glass and (k == 'baseColorMap' or k == 'emissiveMap'))) then v = ''
@@ -210,6 +210,7 @@ local function attach(id)
   for name in pairs(rules.trimNames(seen, paint)) do                  -- bumpers, trim, mirrors, wheels, seals: the rest of the outside gets wet too
     for _, info in ipairs(seen) do
       if info.name == name and not mats[name] then
+        info.trim = true
         mats[name] = info
         car.mats[#car.mats + 1] = info
       end
@@ -1012,6 +1013,15 @@ end
 
 -- how wet the ground is now, 0..1 (the ruts pick their wet or dry material by it)
 function M.wetness() return wet end
+
+-- carSurfaceFx.bound(): the materials of the player's car that the weather works on, and what each is (paint, trim, glass) and its wet rung
+function M.bound()
+  local car = cars[be:getPlayerVehicleID(0)]
+  if not car then return 'no car' end
+  local out = {}
+  for _, info in ipairs(car.mats) do out[#out + 1] = string.format('%s [%s] r%d', info.name, info.glass and 'glass' or (info.trim and 'trim' or 'paint'), info.rung or 0) end
+  return table.concat(out, ' | ')
+end
 
 function M.status()
   if failed then return 'SWITCHED OFF after: ' .. failed end
