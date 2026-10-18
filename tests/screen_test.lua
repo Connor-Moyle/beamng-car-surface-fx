@@ -26,4 +26,17 @@ assert(S.isWindscreenMesh('etk800_windscreen'), 'windscreen')
 assert(not S.isWindscreenMesh('vivace_windshield_int'), 'the inside pane is not it')
 assert(not S.isWindscreenMesh('vivace_windshield_dmg'), 'nor the broken one')
 assert(not S.isWindscreenMesh('vivace_sideglass_FL'), 'a side window')
+-- the eye stays where it is in the car's frame: learned at rest, rebuilt from the car's own position at speed
+local q0 = { x = 0, y = 0, z = 0, w = 1 }
+local st = {}
+local c1 = { x = 10.3, y = 5, z = 1.2 }
+assert(S.stabilise(st, c1, { x = 10, y = 5, z = 0.5 }, q0, 0) == 0, 'at rest nothing is corrected')
+assert(math.abs(st.off.x - 0.3) < 1e-9 and math.abs(st.off.z - 0.7) < 1e-9, 'the eye offset is learned')
+local c2 = { x = 25.0, y = 5, z = 1.2 }
+local fix = S.stabilise(st, c2, { x = 25.4, y = 5, z = 0.5 }, q0, 20)
+assert(math.abs(c2.x - 25.7) < 1e-9 and math.abs(fix - 0.7) < 1e-9, 'at speed the camera is rebuilt from the car: ' .. c2.x .. ' ' .. fix)
+local q90 = { x = 0, y = 0, z = math.sqrt(0.5), w = math.sqrt(0.5) }
+local c3 = { x = 0, y = 0, z = 0 }
+S.stabilise(st, c3, { x = 100, y = 100, z = 0.5 }, q90, 20)
+assert(math.abs(c3.x - 100) < 1e-6 and math.abs(c3.y - 100.3) < 1e-6 and math.abs(c3.z - 1.2) < 1e-9, 'the offset turns with the car: ' .. c3.x .. ' ' .. c3.y)
 print('carSurfaceFx screen: ok')

@@ -463,7 +463,7 @@ local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
 local DRIVER_CAMS = { driver = true, onboard = true }
-local screenT, screenOn, screenSize, screenDebug = 0, false, 4.5, false
+local screenT, screenOn, screenSize, screenDebug, screenCam, overlayReport = 0, false, 4.5, false, nil, ''
 local screenWhy = {}      -- (the reason is kept as values and made into text only when asked, not at 15 Hz)
 local function pushScreen(dt)
   screenT = screenT + dt
@@ -472,6 +472,7 @@ local function pushScreen(dt)
   local pv = be:getPlayerVehicle(0)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
   local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03 or sprayP > 0.03) and not conflict()
+  if cam ~= screenCam then screenCam = cam if pv then screen.resetEye(pv:getID()) end end              -- another camera has another eye position
   local hull = want and screen.windscreen(pv) or nil
   screenWhy.cam, screenWhy.wet, screenWhy.overlay, screenWhy.want, screenWhy.hull, screenWhy.on = cam, wet, settings.windscreen.overlay, want and true or false, hull and #hull / 2 or nil, screenOn
   if not hull then
@@ -490,7 +491,19 @@ end
 function M.screenInfo(dbg)
   if dbg ~= nil then screenDebug = dbg and true or false end
   local w = screenWhy
-  return 'cam=' .. tostring(w.cam) .. ' wet=' .. string.format('%.2f', w.wet or 0) .. ' overlay=' .. tostring(w.overlay) .. ' want=' .. tostring(w.want or false) .. ' hull=' .. (w.hull or 'nil') .. ' on=' .. tostring(w.on or false) .. ' debug=' .. tostring(screenDebug)
+  return 'cam=' .. tostring(w.cam) .. ' wet=' .. string.format('%.2f', w.wet or 0) .. ' overlay=' .. tostring(w.overlay) .. ' want=' .. tostring(w.want or false) .. ' hull=' .. (w.hull or 'nil') .. ' on=' .. tostring(w.on or false) .. ' debug=' .. tostring(screenDebug) .. ' | ' .. M.screenDiag()
+end
+
+-- what the projection and the overlay see: speed, how far the camera position was corrected, the windscreen's box on the screen, the points projected, and the last report of the page
+function M.screenDiag()
+  local l = screen.last
+  return string.format('speed %.1f eyeFix %.2f m box %s points %s | page: %s', l.speed or 0, l.fix or 0, tostring(l.box), tostring(l.points), overlayReport)
+end
+
+-- the overlay page reports (debug on): its drop count, frame rate and the box it draws in, once a second; also written to the log
+function M.overlayReport(text)
+  overlayReport = tostring(text)
+  if screenDebug then log_('I', 'overlay ' .. overlayReport .. ' | ' .. M.screenDiag()) end
 end
 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end

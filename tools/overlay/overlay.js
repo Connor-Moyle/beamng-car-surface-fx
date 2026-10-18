@@ -17,7 +17,7 @@ function createOverlay(doc, win) {
   var tctx = trails.getContext('2d');
   var sim = CsfxSim.create();
   var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3 }, bbox: null, msgs: 0, debug: false };
-  var last = null, lastDraw = 0, running = false;
+  var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
   // ever been drawn on since it was last empty (the fade has to reach all of it). Rectangles are { x0, y0, x1, y1 } in pixels.
@@ -178,6 +178,13 @@ function createOverlay(doc, win) {
       ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
     }
     ctx.restore();
+    if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
+      lastReport = now;
+      var fps = Math.round(1000 / Math.max(1, now - lastDrawT)), text = 'drops ' + alive + ' fps~' + fps + ' box ' + Math.round(bx) + ',' + Math.round(by) + ' ' + Math.round(bw) + 'x' + Math.round(bh) + ' of ' + W + 'x' + H +
+        ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' msgs ' + st.msgs;
+      if (win.bngApi && win.bngApi.engineLua) win.bngApi.engineLua('carSurfaceFx.overlayReport(' + JSON.stringify(text) + ')');
+    }
+    lastDrawT = now;
     if (st.debug) {                                                  // outline of the clip area and a counter: proves the module is loaded and the hull arrives
       ctx.strokeStyle = 'rgba(255,0,0,0.9)'; ctx.lineWidth = 3; ctx.beginPath();
       for (var j = 0; j < st.hull.length; j += 2) { if (j === 0) ctx.moveTo(st.hull[j] * W, st.hull[j + 1] * H); else ctx.lineTo(st.hull[j] * W, st.hull[j + 1] * H); }
