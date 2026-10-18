@@ -310,7 +310,7 @@ end
 
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
 -- Lamps and their lenses are never touched: not by name, and not by an emissive or glow setting on the material.
-local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led', 'beam', 'reflector' }
+local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led', 'beam', 'reflector', 'marker' }
 -- how bright the day is, 0.04 at night to 1 at noon, in six steps (a change of the glass light costs a material reload, so it moves in steps): t = time of day 0..1 (0 = midnight, 0.5 = noon)
 local LEVELS = { 0.04, 0.1, 0.25, 0.5, 0.75, 1 }
 function M.sceneLight(t, rainy)
@@ -339,7 +339,7 @@ function M.isEmissive(stages)
 end
 function M.isGlassName(name)
   local n = tostring(name):lower()
-  return M.isLampName(n) == false and n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
+  return M.isLampName(n) == false and not n:find('_on$') and not n:find('_on_', 1, true) and n:find('glass', 1, true) ~= nil and not n:find('dmg', 1, true) and not n:find('broken', 1, true) and not n:find('invisible', 1, true) and not n:find('crack', 1, true)
 end
 
 -- The glass takes its water from a per-car, per-material web canvas (vehicles/common/carSurfaceFx/glass.html) named '@csfx_<material>': the engine resolves a '@tag'

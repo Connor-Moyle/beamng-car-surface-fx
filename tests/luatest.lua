@@ -158,6 +158,7 @@ do local d, m = R.dirtNew(), R.dirtNew() for _ = 1, 120 do d = R.dirtBuild(d, 1,
 do local d = R.dirtBuild(R.dirtNew(), 120, { loose = 1 }, 0, 0) assert(d.dust > 0 and d.dust < 0.3, 'a parked car on dirt still gets a little settling dust') end
 assert(R.dirtBuild(R.dirtNew(), 120, { snowing = 1 }, 0, 0).snow > 0.5, 'snow settles on a parked car')
 assert(R.dirtBuild(R.dirtNew(), 30, { loose = 1 }, 20, 0.7).mud < 0.6 * R.dirtBuild(R.dirtNew(), 30, { mud = 1 }, 20, 0.7).mud, 'a damp dirt road muddies the car slower than mud ground')
+assert(R.isGlassName('covet_glass') and not R.isGlassName('covet_glass_on') and not R.isGlassName('covet_glass_on_intense') and not R.isGlassName('covet_sidemarkerglass'), 'the lamp-on glass states and the side markers are not windows')
 assert(R.bugRate(38, 22, 0.245, 0) > 1.3 * R.bugRate(38, 22, 0.0, 0), 'more at dusk')
 assert(R.bugRate(38, 22, 0.775, 0) > R.bugRate(38, 22, 0.5, 0), 'and at dawn, not at night')
 eq(R.bugRate(38, 22, nil, 0.4), 0, 'none in the rain')
