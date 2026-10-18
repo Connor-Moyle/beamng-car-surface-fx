@@ -26,7 +26,7 @@ Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to l
 
 ## Settings
 
-**Options page.** The game's Options page (Graphics) has a *Car Surface FX* group: wet paint and strength, window drops, drops running over the paint, dirt and its build-up speed, scratches and their length, and one switch to apply everything to all cars. Changes apply at once. The group appears after one restart of the game, the first time the mod runs.
+**Mods menu.** The pause menu has a Mods menu (part of Wrench Works) with a Car Surface FX page: tabs for Rain & glass, Dirt & wear and Weather extras, every setting with a plain description, a Reset for each tab, a Quick setup, and buttons to wash the car or buff out the scratches. Changes apply at once. Without Wrench Works installed there is no menu: the mod runs on its defaults and the settings file below.
 
 **Settings file.** The first start also writes `settings/carSurfaceFx.json` in your BeamNG user folder. It gives the start values (the Options page takes over once it has its own values) and has a few more keys than the page. Edit it with the game closed.
 
