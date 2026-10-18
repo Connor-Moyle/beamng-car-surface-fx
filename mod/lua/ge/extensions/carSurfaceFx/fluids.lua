@@ -190,7 +190,7 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
   carry[vid] = c
   for _, kind in ipairs(rules.KINDS) do
     local n
-    n, c[kind] = rules.drips(leak[kind], dt, c[kind])
+    n, c[kind] = rules.drips(leak[kind], dt * (speed > settings.stainSpeed and math.min(4, 1 + speed / 5) or 1), c[kind])      -- a moving car leaves a line of spots about a metre apart, not one every four
     for _ = 1, n do
       local jx, jy = (math.random() - 0.5) * 0.5, (math.random() - 0.5) * 0.5
       if kind == 'exhaust' then M.addDrip(tx + jx * 0.3, ty + jy * 0.3, tz, kind, 1, speed)
