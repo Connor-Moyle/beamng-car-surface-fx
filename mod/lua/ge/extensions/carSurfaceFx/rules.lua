@@ -211,6 +211,15 @@ function M.splash(speed, shareL, shareR, depth)
   return (shareL or 0) * over / 3 * (0.5 + d), (shareR or 0) * over / 3 * (0.5 + d), sheet
 end
 
+-- One-time settings migration to version 2: the first start saved dirt build-up as off, a value the player never chose, and the default is on now. s is the settings file's
+-- table, dirtSpeed the game setting csfxDirtSpeed (or nil). Returns: turn the build-up on, the dirtSpeed to write (or nil), whether the version moves up.
+M.SETTINGS_VERSION = 2
+function M.migrate(s, dirtSpeed)
+  if (tonumber(s.settingsVersion) or 1) >= M.SETTINGS_VERSION then return false, nil, false end
+  local on = type(s.mud) == 'table' and s.mud.buildup == false
+  return on, (tonumber(dirtSpeed) == 0) and 1 or nil, true
+end
+
 -- snow weather: precipitation with the air below SNOW_AIR C (snowing 0..1), and whether it is warm enough to melt it
 M.SNOW_AIR = 1.5
 function M.snowing(drops, airC)

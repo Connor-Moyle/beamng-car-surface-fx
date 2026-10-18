@@ -17,8 +17,8 @@ local options = require('carSurfaceFx/options')
 local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = false, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false }
+local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -89,6 +89,14 @@ local function loadSettings()
       end
       settings[k].intensity = rules.clamp(settings[k].intensity or 1, 0, 1)
     elseif type(d) == 'boolean' and s[k] ~= nil then settings[k] = s[k] and true or false end
+  end
+  local g = gameSettings()
+  local on, speed, moved = rules.migrate(s, g and g.getValue('csfxDirtSpeed'))
+  if moved then                                                      -- one time, see rules.migrate
+    if on then settings.mud.buildup = true end
+    if speed and g then g.setValue('csfxDirtSpeed', speed) end
+    settings.settingsVersion = rules.SETTINGS_VERSION
+    jsonWriteFile(SETTINGS_FILE, settings, true)
   end
   ensureOptionDefaults()
   overlayOptions()

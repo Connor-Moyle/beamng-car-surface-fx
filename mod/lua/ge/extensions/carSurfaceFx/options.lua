@@ -8,7 +8,7 @@ M.ANCHOR = 'GraphicAntialiasType'
 
 M.KEYS = { rain = 'csfxRain', rainStrength = 'csfxRainStrength', glass = 'csfxGlass', paintWater = 'csfxPaintWater', dirt = 'csfxDirt', dirtSpeed = 'csfxDirtSpeed',
            scratch = 'csfxScratch', markSize = 'csfxMarkSize', allCars = 'csfxAllCars', weather = 'csfxWeather' }
-M.DEFAULTS = { rain = true, rainStrength = 1, glass = true, paintWater = true, dirt = true, dirtSpeed = 0, scratch = true, markSize = 1, allCars = false, weather = true }
+M.DEFAULTS = { rain = true, rainStrength = 1, glass = true, paintWater = true, dirt = true, dirtSpeed = 1, scratch = true, markSize = 1, allCars = false, weather = true }
 
 -- the mod's settings table from the game's settings: get(key) -> value or nil (a setting that is not there yet leaves the mod's own value alone)
 function M.apply(s, get)

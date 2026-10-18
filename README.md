@@ -36,7 +36,7 @@ Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to l
 | `windscreen.enabled`, `windscreen.intensity` | drops on the windows | on, 1 |
 | `windscreen.overlay` | the drops drawn over the windscreen in the driver's view | on |
 | `mud.enabled`, `mud.intensity` | show dirt on the paint; 0..1 strength | on, 1 |
-| `mud.buildup` | dirt builds up while you drive (off: dirt only appears when another mod or a command sets it) | off |
+| `mud.buildup` | dirt builds up while you drive (off: dirt only appears when another mod or a command sets it) | on |
 | `scratch.enabled` | scratch marks and wheel-arch dirt splats | on |
 | `scratch.colour`, `scratch.opacity`, `scratch.markSize` | colour of bare metal in a scratch (rgb 0..1), how strongly it shows, length multiplier | grey, 0.9, 1 |
 | `scratch.dirtEnabled`, `scratch.dirtColour`, `scratch.dirtOpacity`, `scratch.dirtSize`, `scratch.dirtRate` | the splats around the wheels | on |
