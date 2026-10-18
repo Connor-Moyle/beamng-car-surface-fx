@@ -148,7 +148,7 @@
     }
     if (tiny) { if (emissive) { ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill(); } ctx.stroke(); }      // a lit disc under the ring: a drop is a lens, not a dot
     if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.6 : 0.85) + ')';
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.45 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy

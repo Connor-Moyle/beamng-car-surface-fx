@@ -238,10 +238,10 @@ function createOverlay(doc, win) {
     for (var y = 0; y < BS; y++) for (var x = 0; x < BS; x++) {
       var u = (x + 0.5) / BS * 2 - 1, v = (y + 0.5) / BS * 2 - 1, d = Math.sqrt(u * u + v * v), o = (y * BS + x) * 4;
       if (d >= 1) { data.data[o + 3] = 0; continue; }
-      var rim = Math.max(0, 1 - Math.abs(d - 0.8) / 0.22) * (0.7 + 0.3 * (u + v) * 0.7071 + 0.0);   // heavier low right
-      var cx = u - 0.25, cy = v - 0.3, spot = 0.55 * Math.exp(-(cx * cx + cy * cy) / 0.07);
-      var gx = u + 0.38, gy = v + 0.42, glint = Math.min(1, 1.3 * Math.exp(-(gx * gx + gy * gy) / 0.018));
-      var dark = Math.min(0.85, 0.16 + rim * 0.65), lightA = Math.min(1, spot + glint);
+      var rim = Math.max(0, 1 - Math.abs(d - 0.88) / 0.2) * (0.75 + 0.25 * (u + v) * 0.7071);   // a thin dark edge, heavier low right
+      var spot = 0;                                                  // no light spot: a drop on a windscreen is a darker lens with a tiny glint, not a ball
+      var gx = u + 0.4, gy = v + 0.45, glint = Math.min(1, 1.2 * Math.exp(-(gx * gx + gy * gy) / 0.01));
+      var dark = Math.min(0.85, 0.24 + rim * 0.5), lightA = Math.min(1, spot + glint);
       var a = dark + lightA * (1 - dark);                       // the colour is the share of light in the two
       var k = a > 0 ? lightA / (dark + lightA) : 0, col = Math.round(18 * (1 - k) + 255 * k);
       data.data[o] = data.data[o + 1] = data.data[o + 2] = col; data.data[o + 3] = Math.round(Math.min(1, a) * Math.min(1, (1 - d) * 6) * 255);
@@ -287,7 +287,7 @@ function createOverlay(doc, win) {
     tctx.fillStyle = 'rgba(0,0,0,0.035)';
     tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
-    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(30,40,55,0.20)'; tctx.lineWidth = 1.6; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
+    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(35,45,60,0.28)'; tctx.lineWidth = 1.3; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
     for (var k = 0; k < sim.n; k++) {
       if (!sim.alive[k]) { seen[k] = 0; continue; }
       var X = bx + sim.x[k] * bw, Y = by + sim.y[k] * bh;
@@ -350,13 +350,13 @@ function createOverlay(doc, win) {
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
       alive++;
-      var R = Math.max(2.8, sim.r[n] * bh);
-      ctx.drawImage(R < 8 ? bead : sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
+      var R = Math.min(6, Math.max(1.3, sim.r[n] * bh * 0.4));          // real drops seen from the seat: mostly 2 to 8 px across, a few up to 12, flattened
+      ctx.drawImage(bead, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R * 0.85, R * 2, R * 1.7);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
         var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
         ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.25 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
       }
     }
     ctx.restore();
