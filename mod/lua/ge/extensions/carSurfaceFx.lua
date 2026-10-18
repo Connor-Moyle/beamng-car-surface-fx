@@ -272,7 +272,7 @@ local function bodyDirt(id, kind, amount, wi)
   if amount <= 0 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
   local pl = PLACE[kind]
   if kind == 'bugs' then pl = { pl[1], pl[2], pl[3] * rules.bugSize(dirtBy[id] and dirtBy[id].bugs) } end      -- the more bugs, the bigger the next ones
-  local n = math.floor(amount * pl[1] + math.random())
+  local n = math.floor(amount * pl[1] * (settings.scratch.dirtRate or 1) + math.random())      -- (the Splat rate setting: fewer splats for a slower machine)
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it

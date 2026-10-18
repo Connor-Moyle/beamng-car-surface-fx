@@ -198,7 +198,8 @@ local function restoreAll()
 end
 
 -- the level is ending: its materials and the cars' canvases go with it, so nothing is reloaded or destroyed in the same tick the engine takes the cars down; only our references are dropped
-local function dropAll() bound = {}; cars = {} end
+local outq, outHead = {}, 1                                      -- the calls for the paint pages, sent a few a frame (see send)
+local function dropAll() bound = {}; cars = {}; outq, outHead = {}, 1 end
 
 -- ---- per-car setup ----
 local bodydirt = require('carSurfaceFx/bodydirt')
@@ -233,9 +234,24 @@ local function start(veh)
   end)
 end
 
+-- Everything for the two paint pages goes through one queue, a few calls a frame: 880 or so calls in one frame (a full mud amount) were all dropped by the engine, a few dozen were not.
+local PER_FRAME = 6
+local function send(veh, js) outq[#outq + 1] = { veh:getId(), js } end
+local function flush()
+  local n = 0
+  while outHead <= #outq and n < PER_FRAME do
+    local e = outq[outHead]
+    outq[outHead] = false
+    outHead = outHead + 1
+    local veh = getObjectByID(e[1])
+    local ok, has = pcall(function() return veh and hasCanvas(veh) end)
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]) n = n + 1 end
+  end
+  if outHead > #outq then outq, outHead = {}, 1 end
+end
+
 local function draw(veh, fn, data)
-  local js = fn .. '(' .. jsonEncode(data) .. ')'
-  veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
+  send(veh, fn .. '(' .. jsonEncode(data) .. ')')
 end
 
 -- ---- called by carSurfaceFx/bodywear.lua, from the car's contacts ----
@@ -420,8 +436,7 @@ end
 function M.washSplats(id, fDust, fMud)
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then
-      local js = ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud)
-      veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
+      send(veh, ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud))
     end
   end
   for vid, m in pairs(memory) do
@@ -439,7 +454,7 @@ end
 -- repair: the scratches of car id buffed out (every car's when id is nil); the dirt stays
 function M.repair(id)
   for _, veh in ipairs(getAllVehicles()) do
-    if (id == nil or veh:getId() == id) and hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxRepair()'); veh:queueJSUITexture(TAG_P, 'csfxRepair()') end
+    if (id == nil or veh:getId() == id) and hasCanvas(veh) then send(veh, 'csfxRepair()') end
   end
   for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} end end
 end
@@ -447,7 +462,7 @@ end
 function M.buffOut()
   memory = {}
   for _, veh in ipairs(getAllVehicles()) do
-    if hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxClear()'); veh:queueJSUITexture(TAG_P, 'csfxClear()') end
+    if hasCanvas(veh) then send(veh, 'csfxClear()') end
   end
 end
 
@@ -598,7 +613,7 @@ end
 function M.probe()
   local veh = getPlayerVehicle(0)
   if not veh then return 'no player vehicle' end
-  veh:queueJSUITexture(TAG_B, 'csfxProbe()'); veh:queueJSUITexture(TAG_P, 'csfxProbe()')
+  send(veh, 'csfxProbe()')
   return 'probe sent; canvases: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
 end
 
@@ -617,6 +632,7 @@ end
 function M.onExtensionLoaded() end
 local pollTimer = 0
 function M.onUpdate(dt)
+  flush()
   carSurfaceFx_meshuv.tick()
   bodydirt.tick()
   pollTimer = pollTimer + (dt or 0)

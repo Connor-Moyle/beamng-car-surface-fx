@@ -23,6 +23,7 @@ st.marks[1][1] = 99
 assert(M.getState(7).marks[1][1] == 0.1, 'getState hands out copies')
 
 M.washSplats(7, 0, 1)                                      -- the dust is washed off, the mud stays; the scratches are not touched
+M.onUpdate(0)                                               -- (the calls to the canvas go out a few a frame)
 st = M.getState(7)
 assert(#st.splats == 1 and st.splats[1][5] == 2 and #st.marks == 2, 'washing keeps scratches and mud')
 assert(sent[#sent]:find('csfxWash', 1, true), 'the canvas is told too')
@@ -64,6 +65,7 @@ function getAllVehicles() return { veh } end
 function veh:getActiveUITextureTagNames() error('dead car') end
 assert(pcall(M.onExtensionUnloaded), 'a car that errors does not stop the unload')
 assert(destroyed == 0, 'no canvas was destroyed by these')
+function veh:getActiveUITextureTagNames() return { '@csfx_base' } end
 -- dirt put where it lands: mud thrown off the tyres reaches the canvas as splats and, low on the body, clods (a once-wrong bounds read made every mud hit fail)
 do
   local B, ST = require('carSurfaceFx/bodymap'), require('carSurfaceFx/spraytrace')
@@ -83,7 +85,8 @@ do
   M.useMap(7, bm)
   local before = #sent
   assert(M.dirtAt(7, 'mud', 300, nil, { 0.25, 0.17, 0.1 }, 0.85, 0.035) == true, 'mud is placed on the car')
-  assert(#sent > before, 'the splats reach the canvas')
+  for _ = 1, 40 do M.onUpdate(0) end                                                 -- the pages get them a few calls a frame
+  assert(#sent > before + 6, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
   assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
 end
 print('carSurfaceFx scratch memory: ok')
