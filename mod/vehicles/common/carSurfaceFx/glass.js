@@ -148,7 +148,7 @@
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
       if (!filmBuilt) buildFilm(p.flow);
-      ctx.globalAlpha = Math.min(1, p.film) * (emissive ? 0.2 : 0.45); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
+      ctx.globalAlpha = Math.min(1, p.film) * (emissive ? 0.7 : 0.45); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
     }
     if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
       ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';
