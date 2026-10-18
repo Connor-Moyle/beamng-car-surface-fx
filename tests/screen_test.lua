@@ -26,22 +26,49 @@ assert(S.isWindscreenMesh('etk800_windscreen'), 'windscreen')
 assert(not S.isWindscreenMesh('vivace_windshield_int'), 'the inside pane is not it')
 assert(not S.isWindscreenMesh('vivace_windshield_dmg'), 'nor the broken one')
 assert(not S.isWindscreenMesh('vivace_sideglass_FL'), 'a side window')
--- the eye stays where it is in the car's frame: learned at rest, rebuilt from the car's own position at speed
-local q0 = { x = 0, y = 0, z = 0, w = 1 }
+-- a frame from the car's own nodes: the camera's offset in it is learned at rest and rebuilt from the car's nodes at speed, whatever way the car has turned
+local function frame(o, yaw)
+  local c, s_ = math.cos(yaw), math.sin(yaw)
+  return S.makeFrame(o, { x = o.x + c, y = o.y + s_, z = o.z }, { x = o.x - s_, y = o.y + c, z = o.z }, { x = o.x, y = o.y, z = o.z + 1 })
+end
 local st = {}
 local c1 = { x = 10.3, y = 5, z = 1.2 }
-assert(S.stabilise(st, c1, { x = 10, y = 5, z = 0.5 }, q0, 0) == 0, 'at rest nothing is corrected')
-assert(math.abs(st.off.x - 0.3) < 1e-9 and math.abs(st.off.z - 0.7) < 1e-9, 'the eye offset is learned')
-local c2 = { x = 25.0, y = 5, z = 1.2 }
-local fix = S.stabilise(st, c2, { x = 25.4, y = 5, z = 0.5 }, q0, 20)
+assert(S.stabilise(st, c1, frame({ x = 10, y = 5, z = 0.5 }, 0), 0) == 0, 'at rest nothing is corrected')
+assert(math.abs(st.off.x - 0.3) < 1e-9 and math.abs(st.off.y) < 1e-9 and math.abs(st.off.z - 0.7) < 1e-9, 'the eye offset is learned in the car frame')
+local c2 = { x = 25.0, y = 5, z = 1.2 }                      -- the camera is a frame behind: the car is already at x = 25.4
+local fix = S.stabilise(st, c2, frame({ x = 25.4, y = 5, z = 0.5 }, 0), 20)
 assert(math.abs(c2.x - 25.7) < 1e-9 and math.abs(fix - 0.7) < 1e-9, 'at speed the camera is rebuilt from the car: ' .. c2.x .. ' ' .. fix)
-local q90 = { x = 0, y = 0, z = math.sqrt(0.5), w = math.sqrt(0.5) }
-local c3 = { x = 0, y = 0, z = 0 }
-S.stabilise(st, c3, { x = 100, y = 100, z = 0.5 }, q90, 20)
-assert(math.abs(c3.x - 100) < 1e-6 and math.abs(c3.y - 100.3) < 1e-6 and math.abs(c3.z - 1.2) < 1e-9, 'the offset turns with the car: ' .. c3.x .. ' ' .. c3.y)
+local c3 = { x = 0, y = 0, z = 0 }                           -- the car turned 90 degrees: the offset turns with it
+S.stabilise(st, c3, frame({ x = 100, y = 100, z = 0.5 }, math.pi / 2), 20)
+assert(math.abs(c3.x - 100) < 1e-9 and math.abs(c3.y - 100.3) < 1e-9 and math.abs(c3.z - 1.2) < 1e-9, 'the offset turns with the car: ' .. c3.x .. ' ' .. c3.y)
 -- never seen standing: the first offset allows for one frame of lag
 local st2 = {}
 local c4 = { x = 25.0, y = 5, z = 1.2 }
-S.stabilise(st2, c4, { x = 25.4, y = 5, z = 0.5 }, q0, 24, { x = 24, y = 0, z = 0 })
+S.stabilise(st2, c4, frame({ x = 25.4, y = 5, z = 0.5 }, 0), 24, { x = 24, y = 0, z = 0 })
 assert(math.abs(st2.off.x - (25.0 + 24 / 60 - 25.4)) < 1e-9, 'the default offset allows for the lag: ' .. st2.off.x)
+
+-- the glass plane: nodes of the windscreen group that sit on a slanted plane are kept, the ones on the roof edge and the cowl are dropped
+local pts = {}
+for i = 0, 5 do for j = 0, 3 do pts[#pts + 1] = { x = -0.6 + i * 0.24, y = 0.2 + j * 0.15, z = 1.0 + (0.2 + j * 0.15) * 1.3 } end end   -- 24 nodes on the glass
+pts[#pts + 1] = { x = -0.7, y = 0.5, z = 1.9 }                                -- a roof edge node, off the plane
+pts[#pts + 1] = { x = 0.7, y = 0.1, z = 1.0 }                                 -- a cowl node
+local keep = S.planeInliers(pts)
+assert(#keep == 24, 'the 24 glass nodes are kept, the two others dropped: ' .. #keep)
+local flat = {}
+for i = 1, 5 do flat[i] = { x = i, y = i * i % 3, z = 0 } end
+assert(#S.planeInliers(flat) == 5, 'nodes that all lie on one plane are all kept')
+-- the outline clipped to the screen: inside stays, a part outside is cut at the edge, outside altogether is nothing
+local function box(poly) local x0, y0, x1, y1 = 9, 9, -9, -9 for _, p in ipairs(poly) do x0, x1, y0, y1 = math.min(x0, p.x), math.max(x1, p.x), math.min(y0, p.y), math.max(y1, p.y) end return x0, y0, x1, y1 end
+local inside = { { x = 0.2, y = 0.3 }, { x = 0.8, y = 0.3 }, { x = 0.8, y = 0.6 }, { x = 0.2, y = 0.6 } }
+local same = S.clipHull(inside, 0, 0, 1, 1)
+assert(#same == 4 and select(1, box(same)) == 0.2 and select(4, box(same)) == 0.6, 'a polygon inside the screen is left as it is')
+local wide = { { x = -0.5, y = 0.4 }, { x = 2.1, y = 0.4 }, { x = 2.1, y = 1.3 }, { x = -0.5, y = 1.3 } }       -- like the drive trace: past the right edge and below the middle
+local cx0, cy0, cx1, cy1 = box(S.clipHull(wide, 0, 0, 1, 1))
+assert(cx0 == 0 and cx1 == 1 and cy0 == 0.4 and cy1 == 1, 'a polygon running off the screen is cut at its edges')
+local tri = { { x = 0.5, y = 0.5 }, { x = 3, y = 0.5 }, { x = 0.5, y = 3 } }
+local ct = S.clipHull(tri, 0, 0, 1, 1)
+assert(#ct >= 4 and select(3, box(ct)) == 1 and select(4, box(ct)) == 1, 'a triangle clipped by two edges gains corners')
+assert(S.clipHull({ { x = 2, y = 2 }, { x = 3, y = 2 }, { x = 3, y = 3 } }, 0, 0, 1, 1) == nil, 'outside altogether: nothing')
+assert(S.clipHull({ { x = -1, y = 0.2 }, { x = 0, y = 0.2 }, { x = 0, y = 0.8 } }, 0, 0, 1, 1) == nil, 'touching the edge only: nothing')
+assert(S.clipHull(nil, 0, 0, 1, 1) == nil, 'no polygon, no result')
 print('carSurfaceFx screen: ok')
