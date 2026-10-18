@@ -621,6 +621,17 @@ function M.diagnose()
 end
 
 -- carSurfaceFx_scratch.probe(): a big red cross on the player car's canvases; if it never shows on the paint, the page or the binding does not reach the material
+-- carSurfaceFx_scratch.stamp(): 36 big red marks, ONE per call, one call per 0.13 s, on a 6 x 6 grid of the paint map: how many of them show on the car says how many calls arrive
+-- (each mark is a call of its own; count the red marks)
+function M.stamp()
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  for gx = 0, 5 do for gy = 0, 5 do
+    draw(veh, 'csfxBlobs', { l = { (gx + 0.5) / 6, (gy + 0.5) / 6, 0.03 }, c = { 1, 0.1, 0.1 }, a = 1, k = 'mud' })
+  end end
+  return '36 calls queued, one every 0.13 s'
+end
+
 function M.probe()
   local veh = getPlayerVehicle(0)
   if not veh then return 'no player vehicle' end
