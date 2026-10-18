@@ -365,6 +365,12 @@ function createOverlay(doc, win) {
       lastReport = now;
       var fps = Math.round(1000 / Math.max(1, now - lastDrawT)), text = 'drops ' + alive + ' fps~' + fps + ' box ' + Math.round(bx) + ',' + Math.round(by) + ' ' + Math.round(bw) + 'x' + Math.round(bh) + ' of ' + W + 'x' + H +
         ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' msgs ' + st.msgs;
+      try {                                                          // what the layer really is: pixels lit on its canvas, its style, and what lies on top at the middle of the box
+        var gd = ctx.getImageData(Math.max(0, Math.round(bx)), Math.max(0, Math.round(by)), Math.max(1, Math.min(W - Math.round(bx), Math.round(bw))), Math.max(1, Math.min(H - Math.round(by), Math.round(bh)))), lit = 0, dd = gd.data;
+        for (var li = 3; li < dd.length; li += 32) if (dd[li] > 8) lit++;
+        var cs = win.getComputedStyle(root), top = doc.elementFromPoint ? doc.elementFromPoint(bx + bw * 0.5, by + bh * 0.5) : null;
+        text += ' | lit ' + lit + ' display ' + cs.display + ' vis ' + cs.visibility + ' op ' + cs.opacity + ' z ' + cs.zIndex + ' inBody ' + (root.parentNode === doc.body) + ' top ' + (top ? top.tagName + '.' + (top.className || '') + '#' + (top.id || '') : 'none') + ' win ' + win.innerWidth + 'x' + win.innerHeight;
+      } catch (e) { text += ' | probe failed ' + e; }
       if (win.bngApi && win.bngApi.engineLua) win.bngApi.engineLua('carSurfaceFx.overlayReport(' + JSON.stringify(text) + ')');
     }
     lastDrawT = now;
