@@ -3,6 +3,8 @@
 local M = {}
 
 M.KINDS = { 'oil', 'coolant', 'fuel', 'exhaust' }
+-- the game's own fluid-drop particle emitters (BNGP_<number>); the colour is baked into the emitter
+M.DROP_PARTICLE = { oil = 36, coolant = 48, fuel = 50, exhaust = 50 }
 
 local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
 M.clamp = clamp
@@ -16,7 +18,7 @@ function M.defaults()
     gripEnabled = false,                                         -- the real physics part: off unless the player turns it on
     maxPuddles = 60,                                             -- ring size: the oldest are recycled
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
-    fallingDrops = true, dropSize = 0.025, maxDrops = 32,        -- drops seen falling from the leak to the ground (a small cap, a few spheres)
+    fallingDrops = true, dropSize = 0.06, dropCount = 2, maxDrops = 32,   -- the game's own drop particles from the leak (width m, drops per burst), and a cap on the drops followed to where they land
     stainSpeed = 3.0,                                            -- m/s: faster than this a leak leaves drip spots along the road instead of a puddle
     others = { enabled = false, maxCars = 4, range = 60 },       -- AI and traffic cars leak too (the nearest ones)
     kinds = {

@@ -31,13 +31,8 @@ assert(rest and p.z == 0 and p.x > 0.5 and steps < 600, 'a piece falls, bounces,
 assert(R.sparkOk(2, 2, 2000, 5, cfg.sparks), 'metal grinding on metal sparks')
 assert(not R.sparkOk(2, 14, 2000, 5, cfg.sparks) and not R.sparkOk(2, 4, 2000, 5, cfg.sparks) and not R.sparkOk(3, 3, 2000, 5, cfg.sparks), 'not on dirt, rubber or plastic')
 assert(not R.sparkOk(2, 2, 100, 5, cfg.sparks) and not R.sparkOk(2, 2, 2000, 0.5, cfg.sparks), 'a feather touch or a slow slide does not spark')
-local sp = { x = 0, y = 0, z = 0, vx = 4, vy = 0, vz = 3, life = 0.4, age = 0 }
-local dead = false
-local n = 0
-while not dead and n < 100 do dead = R.sparkStep(sp, 0.02) n = n + 1 end
-assert(dead and n >= 18 and n <= 22, 'a spark lives its life: ' .. n)
-assert(R.sparkGlow({ age = 0, life = 1 }, 1) > R.sparkGlow({ age = 0.8, life = 1 }, 1), 'and cools')
 assert(R.sparkCount(6000, cfg.sparks) > R.sparkCount(600, cfg.sparks), 'a harder scrape throws more sparks')
+assert(R.SPARK_PARTICLE == 1 and R.particleFor('plastic', 0) == 56 and R.particleFor('plastic', 0.99) == 58 and R.particleFor('glass', 0.7) == 69 and R.particleFor('wood', 0.3) == 12, 'the game\'s own particle emitters by kind')
 
 -- ---- the GE module against a mocked game
 local saved = { vec3 = vec3, ColorF = ColorF, Engine = Engine, be = be, core_camera = core_camera, castRayStatic = castRayStatic, getAllVehicles = getAllVehicles, jsonReadFile = jsonReadFile,
@@ -45,9 +40,8 @@ local saved = { vec3 = vec3, ColorF = ColorF, Engine = Engine, be = be, core_cam
 local function V(x, y, z) local v = { x = x, y = y, z = z } function v:set(a, b, c) self.x, self.y, self.z = a, b, c end return v end
 vec3 = V
 ColorF = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end
-local batches, spheres, lines = {}, 0, 0
+local batches = {}
 Engine = { Render = { DynamicDecalMgr = { addDecals = function(pool, n2) batches[#batches + 1] = { n = n2, tex = pool[1].texture } end } } }
-debugDrawer = { drawSphere = function() spheres = spheres + 1 end, drawLine = function() lines = lines + 1 end }
 local sent = {}
 local pv = { getID = function() return 1 end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getDirectionVector = function() return { x = 1, y = 0, z = 0 } end,
   queueLuaCommand = function(_, cmd) sent[#sent + 1] = cmd end }
@@ -82,8 +76,6 @@ assert(I.pileCount() == I.get('glass.maxPiles'), 'the piles are a ring')
 
 I.debris(1, 2, 2, 1, 3, 0, 1, 'plastic', true, 0.15)
 assert(I.flyingCount() >= 1, 'a hard hit throws pieces')
-I.onPreRender(0.016)
-assert(spheres >= 1, 'a flying piece is drawn')
 for _ = 1, 400 do I.onUpdate(0.02) end
 assert(I.flyingCount() == 0 and I.restingCount() >= 1, 'the pieces settle on the road: ' .. I.status())
 batches = {}
@@ -105,20 +97,8 @@ for _ = 1, 200 do I.debris(1, 2, 2, 1, 0, 0, 0, 'glass', true, 0.1) end
 assert(I.flyingCount() <= I.get('debris.maxFlying'), 'at most maxFlying pieces in the air')
 I.clear()
 
-I.sparks(0, 0, 1, 3, 0, 0, 4000)
-assert(I.sparkCount() >= 2, 'a hard scrape throws sparks')
-lines = 0
-I.onPreRender(0.016)
-assert(lines >= 2, 'sparks are drawn as streaks')
-for _ = 1, 60 do I.onUpdate(0.02) end
-assert(I.sparkCount() == 0, 'and die')
-for _ = 1, 100 do I.sparks(0, 0, 1, 3, 0, 0, 6000) end
-assert(I.sparkCount() <= I.get('sparks.maxSparks'), 'at most maxSparks alive')
-I.set('sparks.enabled', false)
-I.clear()
-I.sparks(0, 0, 1, 3, 0, 0, 4000)
-assert(I.sparkCount() == 0, 'with the setting off no sparks')
-I.set('sparks.enabled', true)
+I.sparks()
+assert(I.callCount('sparks') == 1, 'the GE side counts the spark calls (the sparks themselves are the game\'s particles on the car)')
 
 -- the marks seam when the marks module is there
 local seam = 0
@@ -133,7 +113,9 @@ I.onExtensionUnloaded()
 -- ---- the shared contact wrapper and the car side
 local calls = {}
 onNodeCollision = function(...) calls[#calls + 1] = 'orig' end
-obj = { getAbsNodePosition = function() return { x = 1, y = 2, z = 3 } end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getNodeVelocityVector = function() return { x = 1, y = 0, z = 0 } end,
+local particles = {}
+obj = { addParticleVelWidthTypeCount = function(_, node, dir, vel, speed, width, ptype, count) particles[#particles + 1] = { node = node, ptype = ptype, count = count } end,
+  getAbsNodePosition = function() return { x = 1, y = 2, z = 3 } end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getNodeVelocityVector = function() return { x = 1, y = 0, z = 0 } end,
   getId = function() return 7 end, queueGameEngineLua = function(_, cmd) calls[#calls + 1] = cmd end, breakBeam = function(_, cid) calls[#calls + 1] = 'break' .. cid end }
 wheels = { wheels = { [0] = { node1 = 100, node2 = 101 } } }
 v = { data = { nodes = { [1] = { nodeMaterial = 2 }, [2] = { nodeMaterial = 2 }, [3] = { nodeMaterial = 3 }, [4] = { nodeMaterial = 3 } },
@@ -173,17 +155,24 @@ for _ = 1, 40 do C.onBeamBroke(11, 50) end                            -- a plast
 for _ = 1, 20 do X.updateGFX(0.05) end
 assert(geCalls('impacts.glass') == 0, 'a headlight lens is not a window')
 calls = {}
+particles = {}
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 2)
-assert(geCalls('impacts.sparks') == 1, 'metal grinding on metal sparks')
+assert(geCalls('impacts.sparks%(%)') == 1 and #particles == 1 and particles[1].ptype == 1 and particles[1].count >= 2, 'metal grinding on metal throws the game\'s own spark particle: ' .. #particles)
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 14)
-assert(geCalls('impacts.sparks') == 1, 'not on dirt (and the cooldown)')
+assert(#particles == 1, 'not on dirt (and the cooldown)')
 calls = {}
 for _ = 1, 3 do X.updateGFX(0.2) end
+particles = {}
 onNodeCollision(6, nil, nil, { x = 0, y = 0, z = 0 }, 12, nil, 0, 0, 100, 0, 3, 2)
-assert(geCalls('impacts.debris') == 1, 'a hard hit throws debris')
+assert(geCalls('impacts.debris') == 1 and #particles == 1 and particles[1].ptype >= 56 and particles[1].ptype <= 58, 'a hard hit on plastic throws the game\'s plastic chunk particles: ' .. #particles)
 onNodeCollision(100, nil, nil, { x = 0, y = 0, z = 0 }, 12, nil, 0, 0, 100, 0, 3, 2)
 assert(geCalls('impacts.debris') == 1, 'a wheel node never does')
 assert(X.breakWindows() == 1, 'the test break finds the one window beam')
+local same = true
+for kind, list in pairs(R.PARTICLE) do for i, id in ipairs(list) do if X.PARTICLE[kind][i] ~= id then same = false end end end
+assert(same, 'the car side and the GE side use the same particle numbers')
+X.test('sparks')
+assert(#particles > 3, 'the test throws sparks by hand')
 
 -- restore
 vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFile, jsonWriteFile, debugDrawer = saved.vec3, saved.ColorF, saved.Engine, saved.be, saved.core_camera,

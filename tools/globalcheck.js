@@ -7,7 +7,7 @@ const luaparse = require('luaparse');
 const STD = 'assert error ipairs pairs next pcall xpcall select setmetatable getmetatable rawget rawset rawequal tonumber tostring type unpack require print math string table os io _G coroutine'.split(' ');
 const GAME = {
   ge: 'ColorF castRayStatic debugDrawer be log scenetree createObject Sim jsonReadFile jsonWriteFile deepcopy core_environment core_vehicle_manager core_camera extensions sl_weather surfaceFXBody Engine jsonEncode UI_TEXTURE_USAGE_AUTOMATIC setExtensionUnloadMode carSurfaceFx_scratch carSurfaceFx_meshuv surfaceFXHiFiScratch getAllVehicles getObjectByID tableKeys tableSize hptimer readFile FS getPlayerVehicle dumps unpack vec3 ui_options guihooks quat getCurrentLevelIdentifier core_terrain util_surfaceMaskWheels carSurfaceFx_grass carSurfaceFx_marks carSurfaceFx_fluids slrr_settings'.split(' '),
-  vehicle: 'obj electrics wheels log extensions carSurfaceFxWheels v onNodeCollision damageTracker powertrain energyStorage particles carSurfaceFxContact'.split(' '),
+  vehicle: 'obj electrics wheels log extensions carSurfaceFxWheels v onNodeCollision damageTracker powertrain energyStorage particles carSurfaceFxContact vec3'.split(' '),
 };
 const root = process.argv[2] || path.join(__dirname, '..', 'mod', 'lua');
 const files = [];

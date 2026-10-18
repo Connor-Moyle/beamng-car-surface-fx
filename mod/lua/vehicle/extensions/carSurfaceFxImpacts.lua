@@ -4,13 +4,18 @@
 --   metal grinding on a hard surface -> a short burst of sparks.
 -- The rules (which beams are windows, which materials make which pieces, which contacts spark) are in the GE side's impactrules.lua (tested); the vehicle side keeps the same small gates.
 local M = {}
-local random, floor = math.random, math.floor
+local random, floor, min, max = math.random, math.floor, math.min, math.max
 
 local MAT = { METAL = 2, PLASTIC = 3, RUBBER = 4, GLASS = 5, WOOD = 6, ROCK = 13 }
 local NO_SPARK = { [4] = true, [7] = true, [8] = true, [9] = true, [14] = true, [15] = true, [16] = true, [17] = true, [18] = true, [19] = true, [20] = true, [22] = true, [31] = true }
 
 local cfg = { glass = false, debris = false, sparks = false, glassMinEnergy = 5, clusterRadius = 0.8, idle = 0.22, impactSpeed = 6.0, jointChance = 0.5, boltChance = 0.3,
-  sparkMinSpeed = 3.0, sparkMinForce = 600 }
+  sparkMinSpeed = 3.0, sparkMinForce = 600, sparkAmount = 1.0, debrisAmount = 1.0, particles = 1 }
+
+-- the game's own particle emitters (BNGP_<n>, the same numbers lua/vehicle/beamstate.lua and lua/common/particles.json use); kept equal to the GE side's impactrules.PARTICLE by the test
+M.PARTICLE = { metal = { 1 }, bolt = { 1 }, plastic = { 56, 57, 58 }, glass = { 68, 69 }, wood = { 12 }, rock = { 2 } }
+local SPARK = 1
+local function particleFor(kind) local l = M.PARTICLE[kind] or M.PARTICLE.metal return l[1 + floor(random() * #l) % #l] end
 local clusters = {}
 local simTime = 0
 local nodeCooldown = {}
@@ -38,10 +43,19 @@ local function classify(m1, m2)
   return 'metal'
 end
 
+-- throw `count` of the game's particles from a node: along the surface normal (or up) carrying the node's velocity
+local function throw(node, nx, ny, nz, vx, vy, vz, ptype, count, speed, width)
+  if count < 1 then return end
+  pcall(function() obj:addParticleVelWidthTypeCount(node, vec3(nx, ny, nz), vec3(vx, vy, vz), speed, width, ptype, count) end)
+end
+
 local function burst(nodeId, kind, hard, spread)
   local pos = obj:getPosition()
   local p = obj:getAbsNodePosition(nodeId)
   local nv = obj:getNodeVelocityVector(nodeId)
+  if cfg.particles == 1 and kind ~= 'glass' then      -- (a breaking window is the game's own glass particles already)
+    throw(nodeId, 0, 0, 1, nv.x, nv.y, nv.z, particleFor(kind), floor((hard and 2 or 1) * cfg.debrisAmount + 0.5), 1.0, 0.1)
+  end
   ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.debris(%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"%s",%s,%.2f) end', obj:getId(), p.x, p.y, p.z, nv.x, nv.y, nv.z, kind, hard and 'true' or 'false', spread))
 end
 
@@ -78,8 +92,9 @@ local function onEvent(ev)
     local t = simTime
     if (sparkCooldown[ev.node] or 0) <= t then
       sparkCooldown[ev.node] = t + 0.08
-      local nv = obj:getNodeVelocityVector(ev.node)
-      ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.sparks(%.3f,%.3f,%.3f,%.2f,%.2f,%.2f,%.0f) end', ev.x, ev.y, ev.z, nv.x, nv.y, nv.z, ev.normalForce))
+      -- the game's own spark particle (the one it uses for metal on asphalt), a few more for a harder scrape
+      throw(ev.node, ev.nx, ev.ny, ev.nz, ev.vx, ev.vy, ev.vz, SPARK, max(1, floor((1 + min(ev.normalForce, 6000) / 2000) * cfg.sparkAmount + 0.5)), 1.0, 0.1)
+      ge('if carSurfaceFx_impacts then carSurfaceFx_impacts.sparks() end')
     end
   end
   if cfg.debris and ev.perp >= cfg.impactSpeed and m1 ~= MAT.RUBBER and m2 ~= MAT.RUBBER and not isWheel(ev.node) then
@@ -122,6 +137,20 @@ local function frame(dt)
       i = i + 1
     end
   end
+end
+
+-- a test: the effects thrown from the car's front by hand (the game's own particles): 'sparks' or 'debris'
+function M.test(what)
+  local n = 1
+  for _, nd in pairs(v.data.nodes or {}) do
+    n = nd.cid or n
+    break
+  end
+  if what == 'sparks' then for _ = 1, 8 do throw(n, 0, 0, 1, 0, 0, 0, SPARK, 3, 1.0, 0.1) end
+  else
+    for kind in pairs(M.PARTICLE) do throw(n, 0, 0, 1, 0, 0, 0, particleFor(kind), 3, 1.0, 0.1) end
+  end
+  return what
 end
 
 -- a test: every window beam of this car breaks through the engine's own call, so the whole chain runs (the break, the detection, the pile). Returns how many beams.

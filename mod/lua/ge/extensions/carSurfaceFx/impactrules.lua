@@ -9,6 +9,14 @@ M.clamp = clamp
 
 M.MAT = { METAL = 2, PLASTIC = 3, RUBBER = 4, GLASS = 5, WOOD = 6, ROCK = 13 }
 M.DEBRIS = { 'metal', 'bolt', 'plastic', 'glass', 'wood', 'rock' }
+-- the game's own particle emitters (BNGP_<number>, lua/common/particles.json and vehicle/beamstate.lua): plastic chunks 56-58 and glass 68/69 are what it throws itself when a plastic or glass
+-- beam breaks, wood 12, loose stones 2, and 1 is the bright fleck its collision table uses for metal on asphalt and metal on metal (the sparks). Their colours are baked into the emitters.
+M.PARTICLE = { metal = { 1 }, bolt = { 1 }, plastic = { 56, 57, 58 }, glass = { 68, 69 }, wood = { 12 }, rock = { 2 } }
+M.SPARK_PARTICLE = 1
+function M.particleFor(kind, rnd)
+  local list = M.PARTICLE[kind] or M.PARTICLE.metal
+  return list[1 + math.floor((rnd or 0) * #list) % #list]
+end
 
 function M.defaults()
   return {
@@ -18,11 +26,11 @@ function M.defaults()
       enabled = true, color = { 0.80, 0.88, 0.92 }, opacity = 0.75, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
     },
     debris = {
-      enabled = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
+      enabled = true, particles = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
       size = 1.0, boltChance = 0.3,
       colors = { metal = { 0.45, 0.45, 0.47 }, bolt = { 0.30, 0.30, 0.32 }, plastic = { 0.12, 0.12, 0.13 }, glass = { 0.78, 0.86, 0.90 }, wood = { 0.40, 0.28, 0.16 }, rock = { 0.42, 0.40, 0.38 } },
     },
-    sparks = { enabled = true, amount = 1.0, minSpeed = 3.0, minForce = 600, maxSparks = 160, life = 0.45, brightness = 1.0, color = { 1.0, 0.72, 0.28 } },
+    sparks = { enabled = true, amount = 1.0, minSpeed = 3.0, minForce = 600 },
     cullRadius = 90,
   }
 end
@@ -111,23 +119,6 @@ function M.sparkOk(m1, m2, force, slip, cfg)
   if m1 ~= M.MAT.METAL and m2 ~= M.MAT.METAL then return false end
   if NO_SPARK[m1] or NO_SPARK[m2] then return false end
   return true
-end
-
--- one spark: { x,y,z, vx,vy,vz, life, age }; a streak from the last place to this one
-function M.sparkStep(s, dt)
-  s.px, s.py, s.pz = s.x, s.y, s.z
-  s.vz = s.vz - M.GRAVITY * 0.7 * dt
-  local drag = clamp(1 - 1.5 * dt, 0, 1)
-  s.vx, s.vy = s.vx * drag, s.vy * drag
-  s.x, s.y, s.z = s.x + s.vx * dt, s.y + s.vy * dt, s.z + s.vz * dt
-  s.age = s.age + dt
-  return s.age >= s.life
-end
-
--- a spark's brightness over its life: bright, then it cools
-function M.sparkGlow(s, brightness)
-  local f = 1 - clamp(s.age / s.life, 0, 1)
-  return clamp(f * f * (brightness or 1), 0, 1)
 end
 
 -- the sparks of a grinding contact: count scaled by the setting and the force, given the car's velocity and the surface normal-ish spread

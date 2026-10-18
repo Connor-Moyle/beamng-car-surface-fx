@@ -1,7 +1,9 @@
 -- Car Surface FX, vehicle side: ONE place that listens to the car's contacts and breaks, so body wear, sparks, debris and glass share it instead of each wrapping the game's calls.
 --   carSurfaceFxContact.subscribe(name, function(ev) end)   name: any string (subscribing again with the same name replaces it); unsubscribe(name)
 -- ev is a table that is REUSED for every event (copy what you need, never keep it):
---   a node collision: { kind = 'node', node, mat1, mat2, otherMat, perp, slip, speed, normalForce, x, y, z }   (x, y, z: the node's world position)
+--   a node collision: { kind = 'node', node, mat1, mat2, otherMat, perp, slip, speed, normalForce, x, y, z, nx, ny, nz, vx, vy, vz }
+--     (x, y, z: the node's world position; nx, ny, nz: the surface normal, nz > 0.7 is ground; vx, vy, vz: the node's velocity; perp and slip m/s, normalForce N;
+--      mat1 is this car's node material, mat2 (= otherMat) what it touched, the game's particles.json ids)
 --   a beam break:     { kind = 'beam', beam, energy }
 -- onNodeCollision is wrapped once, chain-safe (the previous handler runs first); onBeamBroke is the game's own extension hook. Every subscriber is called under pcall.
 local M = {}
@@ -54,6 +56,9 @@ local function wrapNodeCollision()
     ev.speed = nodeVel and math.sqrt((nodeVel.x or 0) ^ 2 + (nodeVel.y or 0) ^ 2 + (nodeVel.z or 0) ^ 2) or 0
     local ok, p = pcall(function() return obj:getAbsNodePosition(id1) end)
     if ok and p then ev.x, ev.y, ev.z = p.x, p.y, p.z else ev.x, ev.y, ev.z = 0, 0, 0 end
+    local n, nv = normal, nodeVel
+    ev.nx, ev.ny, ev.nz = n and n.x or 0, n and n.y or 0, n and n.z or 1
+    ev.vx, ev.vy, ev.vz = nv and nv.x or 0, nv and nv.y or 0, nv and nv.z or 0
     ev.beam, ev.energy = nil, nil
     publish(ev)
   end

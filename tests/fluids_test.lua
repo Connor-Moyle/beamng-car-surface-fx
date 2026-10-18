@@ -113,16 +113,12 @@ assert(F.status():find('oil=%d%(r0%.[4-9]') or F.status():find('oil=%d%(r[1-9]')
 
 -- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
 castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height
-local sphere = 0
-debugDrawer = { drawSphere = function() sphere = sphere + 1 end }
 F.clear()
 t = t + 0.2
 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
 t = t + 0.2
 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1)
 assert(F.dropCount() >= 1 and F.count() == 0, 'drips start as drops in the air: ' .. F.dropCount() .. ' ' .. F.count())
-F.onPreRender(0.016)
-assert(sphere >= 1, 'a falling drop is drawn')
 for _ = 1, 8 do F.onUpdate(0.05) end
 assert(F.dropCount() == 0 and F.count() >= 1, 'and lands as a drip: ' .. F.dropCount() .. ' ' .. F.count())
 for i = 1, 200 do t = t + 0.05 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, true, true, true, 'nil', 'nil', 0.4, 1, true, true, 1) end
@@ -136,7 +132,6 @@ F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0
 assert(F.dropCount() == 0 and F.count() >= 1, 'with the setting off the spots just appear')
 F.set('fallingDrops', true)
 castRayStatic = function() return 0.6 end
-debugDrawer = nil
 
 -- the same car driving leaves drip spots
 F.clear()
@@ -180,7 +175,8 @@ F.onExtensionUnloaded()
 
 -- ---- the car side with a mocked car
 local appliedCalls = {}
-obj = { getPosition = function() return { x = 3, y = 0, z = 0 } end, getVelocity = function() return { x = 0, y = 0, z = 0 } end, getId = function() return 1 end,
+local dropParticles = {}
+obj = { addParticleVelWidthTypeCount = function(_, node, dir, vel, speed, width, ptype, count) dropParticles[#dropParticles + 1] = { node = node, ptype = ptype, count = count, width = width } end, getPosition = function() return { x = 3, y = 0, z = 0 } end, getVelocity = function() return { x = 0, y = 0, z = 0 } end, getId = function() return 1 end,
   getAbsNodePosition = function(_, n) return ({ [1] = { x = 2.5, y = 0.5, z = 0.3 }, [2] = { x = 2.5, y = 0.5, z = 0.3 }, [3] = { x = 8, y = 8, z = 0.3 }, [4] = { x = 8, y = 8, z = 0.3 } })[n] end,
   setNodeFrictionSlidingCoefs = function(_, nid, a, b) appliedCalls[#appliedCalls + 1] = { nid, a, b } end, queueGameEngineLua = function(_, cmd) sent[#sent + 1] = cmd end }
 wheels = { wheels = { [0] = { node1 = 1, node2 = 2, treadNodes = { 10, 11 } }, [1] = { node1 = 3, node2 = 4, treadNodes = { 12 }, isTireDeflated = false } } }
@@ -195,6 +191,15 @@ C.setConfig(true, false, true)
 sent = {}
 C.updateGFX(0.25)
 assert(sent[1] and sent[1]:find('carSurfaceFx_fluids.car%(1,') and sent[1]:find('true,false,false,false,0.1,0,'), 'the car reports its damage and the engine\'s own leak rates: ' .. tostring(sent[1]))
+assert(#dropParticles == 1 and dropParticles[1].ptype == 36 and dropParticles[1].count == 2, 'a leaking oil pan sheds the game\'s own oil-drop particles from the engine: ' .. #dropParticles)
+C.setConfig(true, false, true, false, 0.06, 2)
+dropParticles = {}
+C.updateGFX(0.25)
+assert(#dropParticles == 0, 'with the setting off no falling-drop particles')
+C.setConfig(true, false, true, true, 0.06, 2)
+local sameDrops = true
+for kind, id in pairs(R.DROP_PARTICLE) do if kind ~= 'exhaust' and ({ oil = 36, coolant = 48, fuel = 50 })[kind] ~= id then sameDrops = false end end
+assert(sameDrops, 'the car side and the rules use the same drop emitters')
 C.setPuddles({ { 2.5, 0.5, 1.0, 0.55, 0.25 } })
 for _ = 1, 20 do C.updateGFX(0.1) end
 local m10
