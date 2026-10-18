@@ -188,7 +188,7 @@ assert(next(bodySplats) == nil, 'slow through a puddle: no splash')
 M.debug() tick(5)
 M.debug('rain', 0)  tick(10)
 M.debug('air', -4) M.debug('snowing', 1)
-for _ = 1, 400 do M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, -4) end
+for _ = 1, 400 do M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, -4) end  -- 400 reports: heavy snow now takes 180 s to coat a car (200 reports left it at 0.56)
 assert(M.status():find('snow 1%.00'), 'a standing car under snow gets a coat: ' .. M.status())
 assert((bodySplats.top or 0) > 0, 'snow splats went on the roof')
 for _ = 1, 40 do M.onGround(7, 0, 0, 1, 0, 0, 30, 0.5, 0, -4) end
