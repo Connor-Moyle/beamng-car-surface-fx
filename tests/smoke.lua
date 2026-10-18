@@ -259,7 +259,13 @@ local told = 0
 guihooks.message = function() told = told + 1 end
 surfaceFXBody = {} dirtSkidManager = {}
 tick(8)
-assert(rawget(_G, 'surfaceFXBody') == nil and rawget(_G, 'dirtSkidManager') == nil, 'the old mod was unloaded')
+local gone = {}
+for _, n in ipairs(unloaded) do gone[n] = true end
+assert(gone.surfaceFXBody and gone.dirtSkidManager and rawget(_G, 'dirtSkidManager') == nil, 'the old mod was unloaded (our own surfaceFXBody takes its name back)')
+surfaceFXBody = { csfxShim = true }
+unloaded = {}
+tick(8)
+assert(#unloaded == 0, 'our compatibility modules are not taken for the old mod')
 assert(told == 1, 'the player is told once: ' .. told)
 surfaceFXBody = {}
 tick(8)

@@ -70,6 +70,16 @@ Run in the game's Lua console.
 
 `carSurfaceFx.apiVersion` is 2.
 
+## Modder API (old Surface FX)
+
+Mods written for Surface FX / Enhanced Skid Marks keep working. Car Surface FX provides the same public names (the MODDER_API.md of that mod):
+
+- `surfaceFX.registerModule{ id, name, settingsSchema, onSettingsChanged | getValues + onSet, onAction, onUpdate, onVehicleSpawned }` (also `surfaceFX.register`). The page of the module is now its own entry in the pause-menu Mods menu (Wrench Works must be installed for the page; without it the module still gets its callbacks). The controls map like this: `bool` to a switch, `range` to a slider (an integer stepper with `int`), `colour` to a colour picker, `texturePicker` to a tile grid of the `folder`, `dropdown` to a choice, `button` to a button, `group` to one heading per item.
+- `surfaceFXStore.get/set/getAll`: the same file (`settings/fatkiwi_surfaceFX_modules.json`) and layout as before, so saved values carry over.
+- `surfaceFXBody.wash()` washes the player's car (same as `carSurfaceFx.wash()`). `surfaceFXBody.dump()` does nothing and logs once; the other old modules (`surfaceFXGlass`, `surfaceFXDebris`, `surfaceFXSparks`, `surfaceFXDebug`...) do not exist: a mod that calls them must guard with `if surfaceFXGlass then`, as the old documentation said.
+
+The old app's own calls (`uiGetModules`, `uiSet`, `uiAction`, `uiSetGroup`, `uiActionGroup`) still exist for a mod that drives them. Do not install the old mod itself next to this one: it is switched off with a message, and these modules take its names.
+
 ## Known limits
 
 - The water beads on the paint do not run down the panels; they grow, merge and fade. The drops on the windows do move.

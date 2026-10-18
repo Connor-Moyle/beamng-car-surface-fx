@@ -515,12 +515,15 @@ local OLD_GE = { 'dirtSkidManager', 'surfaceFX', 'surfaceFXStore', 'surfaceFXBod
   'surfaceFXDebug', 'dirtDeform', 'dirtScratch' }
 local OLD_VEH = "{'dirtSkidWheels','dirtSkidBody','dirtScratchBody','dirtSkidDrips','dirtGrip','dirtGlass','dirtDebris','dirtSparks','dirtScratchHiFi','dirtDeformWheels'}"
 local oldTold = false
+local SHIMS = { surfaceFX = true, surfaceFXStore = true, surfaceFXBody = true }
 local function retireOldMod()
   local found = false
   for _, n in ipairs(OLD_GE) do
-    if rawget(_G, n) ~= nil then
+    local g = rawget(_G, n)
+    if g ~= nil and not (type(g) == 'table' and g.csfxShim) then       -- our own compatibility modules (surfaceFX, surfaceFXStore, surfaceFXBody) are not the old mod
       found = true
       pcall(extensions.unload, n)
+      if SHIMS[n] then pcall(extensions.load, n) end                  -- the old one is gone: ours takes the name back
     end
   end
   if not found then return end
