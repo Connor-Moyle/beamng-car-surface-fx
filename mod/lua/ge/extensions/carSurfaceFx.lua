@@ -700,6 +700,16 @@ function M.debug(kind, value)
 end
 
 -- carSurfaceFx.enable('windscreen', true) turns an effect on or off for this session (the settings file is not changed)
+-- carSurfaceFx.setSetting('windscreen', 'overlay', false): one value of a settings group for this session (the file is not changed); returns the old value, or nil and why
+-- (used by the benchmark, carSurfaceFx_bench)
+function M.setSetting(group, key, value)
+  local g = settings and settings[group]
+  if type(g) ~= 'table' or g[key] == nil then return nil, 'unknown setting ' .. tostring(group) .. '.' .. tostring(key) end
+  local old = g[key]
+  g[key] = value
+  return old
+end
+
 function M.enable(effect, on)
   if not (settings and settings[effect] and type(settings[effect]) == 'table') then return 'unknown effect' end
   settings[effect].enabled = on and true or false
