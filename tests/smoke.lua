@@ -126,7 +126,7 @@ assert(paintCalls > 0, 'the paint was updated')
 assert(started[1] == 'carSurfaceFx_meshuv' and started[2] == 'carSurfaceFx_scratch', 'the scratch module started, map first')
 local grassStarted = false
 for _, n in ipairs(started) do if n == 'carSurfaceFx_grass' then grassStarted = true end end
-assert(grassStarted, 'the grass module started with the default settings')
+assert(not grassStarted, 'the grass module stays off by default (not proven in game)')
 assert(splats > 0, 'dirt splats were asked for on loose ground')
 assert(waterCalls > 0 and lastWater.rain >= 0 and lastWater.speed ~= nil, 'the paint water gets the weather and the motion')
 for _ = 1, 40 do M.onGround(7, 0, 0, 0, 0, 1, 5, 0.5, 0) tick(2) end   -- then through a river: washed

@@ -4,7 +4,7 @@
 local M = {}
 
 M.DEFAULTS = {
-  enabled = true,           -- grass bends under the wheels
+  enabled = false,          -- grass bends under the wheels
   strength = 1,             -- 0..1: how flat (the game's own stamper uses 1)
   widthScale = 1,           -- x the tyre width x 1.6
   wheelspinCut = true,      -- a spinning or skidding wheel tears the grass out (bare earth)
