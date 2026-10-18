@@ -363,7 +363,7 @@ end
 
 M.glassEmissive = 1.0                                             -- how bright the drops glint (emissiveFactor)
 M.glassLight = 1                                                  -- 0..1: how bright the scene is (set from the time of day): the glints are bright by day and faint at night
-M.glassNits = 22000                                               -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze at 1500; hazy at 6000, milky at 25000, solid white at 100000, measured on the covet's side windows by day, so the thin drops need about 40000)
+M.glassNits = 28000                                               -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze at 1500; hazy at 6000, milky at 25000, solid white at 100000, measured on the covet's side windows by day, so the thin drops need about 40000)
 function M.glassFields(st, tag, mode)
   local field = M.glassMap(st, mode or 'color')
   if not field then return {} end
