@@ -121,6 +121,14 @@ function M.age(store, dt, cfg)
   return alive
 end
 
+-- the ring recycles the oldest next: once it is full, the oldest tenth fades out by rank (0 = gone, 1 = untouched) so a recycled puddle does not pop
+function M.ringFade(store, i)
+  if store.count < store.max then return 1 end
+  local zone = math.max(1, math.ceil(store.max * 0.1))
+  local rank = (i - store.head - 1) % store.max + 1                   -- 1 = the oldest, next to be overwritten
+  return rank > zone and 1 or (rank - 0.5) / zone
+end
+
 -- how opaque a puddle is: its fluid's opacity, thinner while it dries
 function M.alpha(p, cfg)
   local k = cfg.kinds[p.kind]

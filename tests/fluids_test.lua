@@ -226,3 +226,10 @@ vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFi
 _G.carSurfaceFx_marks = saved.carSurfaceFx_marks
 obj, wheels, v, damageTracker, energyStorage, electrics, powertrain = nil, nil, nil, nil, nil, nil, nil
 print('carSurfaceFx fluids: ok')
+do local st = R.newStore(20)
+  assert(R.ringFade(st, 1) == 1, 'a ring that is not full fades nothing')
+  for n = 1, 20 do R.drip(st, n, 0, 0, 'oil', 1, R.defaults(), true, 0.5) end
+  local oldest = (st.head % st.max) + 1
+  assert(R.ringFade(st, oldest) < 0.5 and R.ringFade(st, st.head) == 1, 'the oldest fades, the newest does not')
+  assert(R.ringFade(st, oldest) < R.ringFade(st, oldest % st.max + 1), 'older fades more')
+end

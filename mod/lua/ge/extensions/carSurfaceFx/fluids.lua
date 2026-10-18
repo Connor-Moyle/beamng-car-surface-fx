@@ -256,7 +256,7 @@ function M.onPreRender(dt)
             local ca, sa = math.cos(p.angle or 0), math.sin(p.angle or 0)
             e.forwardVec:set(ca, sa, 0)
             e.scale:set(p.r * 2, p.r * 2 * 0.85, DEPTH)
-            e.color = ColorF(c[1], c[2], c[3], rules.alpha(p, settings))
+            e.color = ColorF(c[1], c[2], c[3], rules.alpha(p, settings) * rules.ringFade(store, i))
           end
         end
       end
