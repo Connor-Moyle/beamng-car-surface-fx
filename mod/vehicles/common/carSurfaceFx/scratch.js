@@ -140,17 +140,19 @@
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
   var live = 0, last = performance.now(), rate = 0;
-  var DR = 24, drop = document.createElement('canvas');            // one drop: a faint dark body, a darker rim, lower right darker still (what multiplies the paint colour)
+  // One drop, for the base colour map (which MULTIPLIES the paint colour: it can only darken): water is clear, so the body is left alone; what shows is the thin dark edge of
+  // the bead, heavier on its lower right (the drop is a lens that bends the dark ground into it there). The earlier sprite had a dark body and read as black spots.
+  var DR = 24, drop = document.createElement('canvas');
   drop.width = drop.height = DR;
   (function () {
     var c = drop.getContext('2d'), data = c.createImageData(DR, DR);
     for (var y = 0; y < DR; y++) for (var x = 0; x < DR; x++) {
       var u = (x + 0.5) / DR * 2 - 1, v = (y + 0.5) / DR * 2 - 1, d2 = u * u + v * v, o = (y * DR + x) * 4;
       var d = Math.sqrt(d2);
-      var ring = d < 1 ? Math.max(0, 1 - Math.abs(d - 0.8) / 0.25) : 0;
-      var shade = Math.min(0.9, ring * (0.5 + 0.4 * Math.max(0, (u + v) * 0.7)) + (d < 1 ? 0.3 + 0.15 * Math.max(0, (u + v) * 0.7) : 0));
+      var ring = d < 1.05 ? Math.max(0, 1 - Math.abs(d - 0.82) / 0.2) : 0;
+      var low = Math.max(0, Math.min(1, (u + v) * 0.7));
       data.data[o] = data.data[o + 1] = data.data[o + 2] = 0;
-      data.data[o + 3] = Math.min(255, shade * 255 * Math.min(1, (1 - d) * 5 + 0.0));
+      data.data[o + 3] = Math.min(255, ring * (0.3 + 0.35 * low) * 255);
     }
     c.putImageData(data, 0, 0);
   })();
@@ -201,11 +203,11 @@
       var steps = Math.max(1, Math.min(12, Math.round(dt * 60)));
       tctx.fillStyle = 'rgba(255,255,255,' + (1 - Math.pow(0.97, steps)) + ')'; tctx.fillRect(0, 0, W, W);
       var moving = 0;
-      tctx.fillStyle = 'rgba(0,0,0,0.22)';
+      tctx.fillStyle = 'rgba(0,0,0,0.10)';                              // a wet trail darkens the paint only a little
       for (var t = 0; t < water.n; t++) {
         if (!water.alive[t] || !water.moved[t]) { tseen[t] = 0; continue; }
         moving++;
-        var rr = Math.max(1.5, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
+        var rr = Math.max(1.0, water.r[t] * W * 0.7), cx = water.x[t] * W, cy = water.y[t] * W;
         for (var s = 1; s <= steps; s++) {
           var u = tseen[t] ? s / steps : 1;                         // from where it was, if it was moving a frame ago
           var dx = tseen[t] ? tpx[t] + (cx - tpx[t]) * u : cx, dy = tseen[t] ? tpy[t] + (cy - tpy[t]) * u : cy;
@@ -222,8 +224,13 @@
     try {
       for (var i = 0; i < water.n; i++) {
         if (!water.alive[i]) continue;
-        var R = Math.max(2.5, water.r[i] * W) * 1.3;
-        ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
+        var R = Math.max(0.7, water.r[i] * W) * 1.15;                        // a 3 mm bead is about one texel across: drawn at its real size, not rounded up
+        if (R < 1.8) {                                                      // too small for the sprite: a thin dark ring of that size
+          ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R, 0, Math.PI * 2); ctx.stroke();
+        } else {
+          ctx.drawImage(drop, water.x[i] * W - R, water.y[i] * W - R, R * 2, R * 2);
+        }
         if (wdebug) { ctx.fillStyle = 'rgb(0,0,0)'; ctx.beginPath(); ctx.arc(water.x[i] * W, water.y[i] * W, R * 0.5, 0, Math.PI * 2); ctx.fill(); }   // black: the base map MULTIPLIES the paint colour, so only dark shows on bright paint
       }
     } catch (e) { window.csfxError = 'drops ' + String(e); }

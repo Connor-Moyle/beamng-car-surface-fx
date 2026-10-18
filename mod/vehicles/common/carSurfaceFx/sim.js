@@ -58,6 +58,7 @@
     // where the air and the car's motion push: down the glass at rest, back up it with speed, braking throws it forward and down, accelerating back
     var down = 0.02 - Math.pow(p.speed / 30, 2) * 0.35 - p.aLong * 0.012;
     var across = p.aLat * 0.012;
+    var fl = p.flow && p.flow.ready ? p.flow : null;                  // the per-pane directions, when the game side has sent them
     var evap = (1 - Math.min(p.rain * 3, 1)) * dt * (0.0015 + 0.004 * (1 - p.wet));
     for (var i = 0; i < d.n; i++) {
       if (!d.alive[i]) continue;
@@ -68,9 +69,19 @@
       var vd = down * f, va = across * f;
       if (r > slide && down > 0) vd += 0.03 * big * big;             // the weight of a big drop
       var nx = d.x[i] + (gx * vd + px * va) * dt, ny = d.y[i] + (gy * vd + py * va) * dt;
+      var dirx = gx, diry = gy;
+      if (fl) {                                                       // this pane's own directions (carSurfaceFx/glassflow.lua): gravity, the air and acceleration (back), a corner (right)
+        var cxn = Math.min(fl.n - 1, Math.max(0, Math.floor(d.x[i] * fl.n))), cyn = Math.min(fl.n - 1, Math.max(0, Math.floor(d.y[i] * fl.n))), k = (cyn * fl.n + cxn) * 2;
+        var backPush = Math.pow(p.speed / 30, 2) * 0.35 + p.aLong * 0.012, rightPush = -p.aLat * 0.012;
+        var gw = 0.02 * f + (r > slide ? 0.03 * big * big : 0), bw = backPush * f, rw = rightPush * f;
+        var mx = fl.g[k] * gw + fl.b[k] * bw + fl.r[k] * rw, my = fl.g[k + 1] * gw + fl.b[k + 1] * bw + fl.r[k + 1] * rw;
+        nx = d.x[i] + mx * dt; ny = d.y[i] + my * dt;
+        var ml = Math.sqrt(mx * mx + my * my);
+        if (ml > 1e-9) { dirx = mx / ml; diry = my / ml; }
+      }
       if (r > slide) {                                                // a running drop leaves small drops behind
         var moved = Math.abs(nx - d.x[i]) + Math.abs(ny - d.y[i]);
-        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - gx * r * 1.6, d.y[i] - gy * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z, maxR);
+        if (n0 < cap && moved > 0 && rnd(d) < moved * 60) add(d, d.x[i] - dirx * r * 1.6, d.y[i] - diry * r * 1.6, (0.0025 + 0.002 * rnd(d)) * z, maxR);
       }
       d.x[i] = nx; d.y[i] = ny;
       d.r[i] -= evap;

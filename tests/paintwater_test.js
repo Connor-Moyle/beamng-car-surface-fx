@@ -33,7 +33,7 @@ for (let i = 0; i < 30; i++) W.step(w, 1 / 30, { rain: 0, wet: 1, fx: 0, fy: 30,
 assert(w.x[d] > 0.5, 'the wind pushes it along a horizontal panel');
 
 w = W.create(); W.setNodes(w, panel(true));
-d = W.add(w, 0.5, 0.45, 0.0012);
+d = W.add(w, 0.5, 0.45, 0.0005);
 for (let i = 0; i < 60; i++) W.step(w, 1 / 30, gravity);
 assert(Math.abs(w.y[d] - 0.45) < 0.02 || !w.alive[d], 'a tiny drop stays put (or dries)');
 
@@ -46,10 +46,19 @@ for (let i = 0; i < 30 * 30; i++) W.step(w, 1 / 30, { rain: 0, wet: 1, fx: 0, fy
 assert.strictEqual(w.alive[d], 0, 'every drop is gone after a while');
 
 w = W.create(); W.setNodes(w, panel(true));
-const a = W.add(w, 0.5, 0.5, 0.002), b = W.add(w, 0.5, 0.5, 0.0015);
+const a = W.add(w, 0.5, 0.5, 0.0004, 0.2), b = W.add(w, 0.5, 0.5, 0.0003, 0.2);
 assert.strictEqual(a, b, 'drops that meet merge');
 const c = W.add(w, 0.5, 0.5, 0.0095);
 assert.strictEqual(c, -1, 'but not into something bigger than a drop');
+// real size: a drop that rain makes is 1.5 to 6 mm in radius whatever the texture density of the car
+for (const dens of [0.1, 0.4]) {
+  const ws = W.create(); const rows = [];
+  for (let i = 0; i < 20; i++) for (let j = 0; j < 20; j++) rows.push(0.4 + i * 0.01, 0.4 + j * 0.01, 0, dens, 0, 0, 0, -dens, dens);
+  W.setNodes(ws, rows);
+  for (let i = 0; i < 30; i++) W.step(ws, 1 / 30, { rain: 1, wet: 1, fx: 0, fy: 0, fz: 0 });
+  let maxm = 0, n = 0; for (let i = 0; i < ws.n; i++) if (ws.alive[i]) { maxm = Math.max(maxm, ws.r[i] / dens); n++; }
+  assert(n > 50 && maxm > 0.0012 && maxm <= 0.0061, 'drops are millimetres at density ' + dens + ': ' + (maxm * 1000).toFixed(1) + ' mm, ' + n + ' drops');
+}
 
 w = W.create(); W.setNodes(w, panel(true)); d = W.add(w, 0.5, 0.45, 0.003);
 for (let i = 0; i < 30 * 40; i++) W.step(w, 1 / 30, { rain: 0, wet: 0, fx: 0, fy: 0, fz: 0 });

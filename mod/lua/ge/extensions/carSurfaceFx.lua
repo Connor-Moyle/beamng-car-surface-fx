@@ -15,6 +15,7 @@ M.apiVersion = 2                          -- 2: repair(id), getState / setState,
 local rules = require('carSurfaceFx/rules')
 local screen = require('carSurfaceFx/screen')
 local grassRules = require('carSurfaceFx/grassRules')
+local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
@@ -47,7 +48,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 12                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 13                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -193,6 +194,12 @@ local function attach(id)
     end
   end
   cars[id] = car
+  local glassMat = {}
+  for _, info in ipairs(car.mats) do if info.glass then glassMat[info.mapTo] = true glassMat[info.name] = true end end
+  if next(glassMat) then                                             -- which way water runs on each pane, from the car's own mesh (carSurfaceFx/glassflow.lua)
+    car.flowAt = {}
+    glassflow.request(id, glassMat, function(f) if cars[id] == car then car.flow = f end end)
+  end
   if settings.mud.buildup or settings.windscreen.enabled then M.pushGround(veh) end
   log_('I', string.format('car %d: %d materials (paint and glass)', id, #car.mats))
 end
@@ -606,11 +613,24 @@ local function update(dtReal)
     setRung(q[1], q[2])
     q[1].pending = nil
   end
+  glassflow.tick()
   pushScreen(dtReal)
   ensureT = ensureT + dtReal
   if ensureT > 1 then
     ensureT = 0
     for _, info in pairs(mats) do if info.glass and info.rung > 0 then canvases(info, true) end end
+    local now = os.clock()
+    for _, car in pairs(cars) do                                     -- the pane directions go to each wet glass canvas, again every 20 s (a page that was still loading drops them)
+      if car.flow then
+        for _, info in ipairs(car.mats) do
+          local field = info.glass and info.rung > 0 and (car.flow[info.mapTo] or car.flow[info.name])
+          if field and now - (car.flowAt[info.name] or -100) > 20 then
+            car.flowAt[info.name] = now
+            for _, msg in ipairs(glassflow.messages(field)) do car.veh:queueJSUITexture(info.tag, msg) end
+          end
+        end
+      end
+    end
   end
   timer = timer + dtReal
   if timer < 0.2 then return end
