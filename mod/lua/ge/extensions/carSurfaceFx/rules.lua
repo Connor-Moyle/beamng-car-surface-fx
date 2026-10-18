@@ -309,6 +309,17 @@ end
 -- Glass (windscreen, side windows): the same water beads on the glass material itself, no colour change; any detail map the glass already has stays.
 -- Lamps and their lenses are never touched: not by name, and not by an emissive or glow setting on the material.
 local LAMP = { 'light', 'lamp', 'lens', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'beacon', 'strobe', 'led', 'beam', 'reflector' }
+-- how bright the day is, 0.04 at night to 1 at noon, in six steps (a change of the glass light costs a material reload, so it moves in steps): t = time of day 0..1 (0 = midnight, 0.5 = noon)
+local LEVELS = { 0.04, 0.1, 0.25, 0.5, 0.75, 1 }
+function M.sceneLight(t, rainy)
+  if type(t) ~= 'number' then return 1 end
+  local sun = math.max(0, math.sin((t - 0.25) * 2 * math.pi))                  -- 0 at six in the morning and evening, 1 at noon
+  local b = 0.04 + 0.96 * sun ^ 0.6
+  if rainy then b = b * 0.8 end
+  local best = LEVELS[1]
+  for _, l in ipairs(LEVELS) do if b >= l - 0.001 then best = l end end
+  return best
+end
 function M.isLampName(name)
   local n = tostring(name):lower()
   for _, w in ipairs(LAMP) do if n:find(w, 1, true) then return true end end
@@ -348,6 +359,7 @@ function M.glassMap(st, mode)
 end
 
 M.glassEmissive = 0.6                                             -- how bright the drops glint (emissiveFactor)
+M.glassLight = 1                                                  -- 0..1: how bright the scene is (set from the time of day): the glints are bright by day and faint at night
 M.glassNits = 1500                                                -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze)
 function M.glassFields(st, tag, mode)
   local field = M.glassMap(st, mode or 'color')
@@ -355,7 +367,7 @@ function M.glassFields(st, tag, mode)
   local out = { [field] = tag }
   if mode == 'emissive' then
     out.emissiveFactor = string.format('%.2f %.2f %.2f', M.glassEmissive, M.glassEmissive, M.glassEmissive)
-    out.emissiveIntensityNits = string.format('%.0f', M.glassNits)
+    out.emissiveIntensityNits = string.format('%.0f', M.glassNits * M.glassLight)
   end
   return out
 end

@@ -51,6 +51,15 @@ local lampRoof = { name = 'car_trimlamp', version = '1.5', translucent = 'true',
 local glowing = { name = 'car_plasticx', version = '1.5', translucent = '0', meshes = 5, stages = { [0] = { emissiveFactor = '1 1 1' } } }
 assert(not R.paintNames({ body, lampRoof }).car_trimlamp and not R.trimNames({ body, glowing }, R.paintNames({ body })).car_plasticx, 'a lamp or a glowing material never counts as body or trim')
 assert(R.outsideMode == 'emissive', 'the outside glass never replaces the tint map by default: the glass keeps its own colour')
+-- the glints follow the light of the day
+eq(R.sceneLight(0.5, false), 1, 'noon is full light')
+eq(R.sceneLight(0, false) <= 0.04 + 1e-9 and R.sceneLight(0.98, false) <= 0.1, true, 'midnight is dark')
+eq(R.sceneLight(0.25, false) <= 0.1, true, 'at six in the morning it is dim')
+eq(R.sceneLight(0.5, true) < 1 and R.sceneLight(0.5, true) >= 0.75, true, 'rain takes a little off at noon')
+eq(R.sceneLight(nil, false), 1, 'no time of day: full light')
+R.glassLight = 0.1
+eq(R.glassFields({ emissiveMap = '/x.png' }, '@csfx_x', 'emissive').emissiveIntensityNits, string.format('%.0f', R.glassNits * 0.1), 'the emissive intensity scales with the light')
+R.glassLight = 1
 local nopal = R.paintNames({ { name = 'a', version = '1.5', translucent = '0', meshes = 3, stages = { [0] = {} } }, { name = 'b', version = '1.5', translucent = '0', meshes = 9, stages = { [0] = {} } } })
 eq(nopal.b, true, 'no palette: the biggest')
 

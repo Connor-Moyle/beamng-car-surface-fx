@@ -663,6 +663,12 @@ local function update(dtReal)
   if ensureT > 1 then
     ensureT = 0
     for _, info in pairs(mats) do if info.glass and info.rung > 0 then canvases(info, true) end end
+    local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+    local light = rules.sceneLight(type(tod) == 'table' and tod.time or tod, wet > 0.3)
+    if light ~= rules.glassLight then                                -- the glints follow the light of the day: bright by day, faint at night
+      rules.glassLight = light
+      for _, info in pairs(mats) do if info.glass and info.mode == 'emissive' and info.rung > 0 then info.rung = -1 end end
+    end
     local now = os.clock()
     for _, car in pairs(cars) do                                     -- the pane directions go to each wet glass canvas, again every 20 s (a page that was still loading drops them)
       if car.flow then
