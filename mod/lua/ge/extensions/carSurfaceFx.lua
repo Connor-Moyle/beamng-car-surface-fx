@@ -305,7 +305,7 @@ local function splash(id, shareL, shareR, speed, depth)
 end
 
 local groundCalls, groundAt = 0, 0
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR)
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin)
   groundCalls, groundAt = groundCalls + 1, os.clock()
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
@@ -324,7 +324,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if not (settings and settings.mud.enabled) then return end
   local old = dirtBy[id] or rules.dirtNew()
   local air = airC()
-  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, spin = tonumber(spin), snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
     airC = air, tod = timeOfDay() }, speed, wet)
   if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
   if not settings.weather.snow then d.snow = old.snow end
