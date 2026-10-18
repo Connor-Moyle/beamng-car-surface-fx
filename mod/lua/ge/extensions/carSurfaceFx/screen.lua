@@ -59,9 +59,17 @@ end
 -- 0.3 m in a frame at 20 m/s, the windscreen is about one metre from the eye). In the driver's view the eye sits still in the car's own frame, so: while the car is nearly
 -- still the eye's offset in the car's frame is learned, and at speed the camera position is rebuilt from the car's position and rotation of THIS frame and that offset.
 -- state = { off = { x, y, z } or nil } per car; cam = { x, y, z, ... } is changed in place; returns the correction in metres.
-function M.stabilise(state, cam, vpos, vq, speed)
+-- When the car was never seen standing (an AI start, a spawn while rolling) the offset is first taken from a camera pushed forward by one frame of travel (vel, the car's velocity,
+-- times M.LAG seconds), which is the lag it is assumed to have; it is learned exactly the first time the car is nearly still.
+M.LAG = 1 / 60
+function M.stabilise(state, cam, vpos, vq, speed, vel)
   local inv = { x = -vq.x, y = -vq.y, z = -vq.z, w = vq.w }
-  if speed < 1 or not state.off then state.off = M.qrot(inv, { x = cam.x - vpos.x, y = cam.y - vpos.y, z = cam.z - vpos.z }) end
+  if speed < 1 then
+    state.off = M.qrot(inv, { x = cam.x - vpos.x, y = cam.y - vpos.y, z = cam.z - vpos.z })
+  elseif not state.off then
+    local l = vel and M.LAG or 0
+    state.off = M.qrot(inv, { x = cam.x + (vel and vel.x or 0) * l - vpos.x, y = cam.y + (vel and vel.y or 0) * l - vpos.y, z = cam.z + (vel and vel.z or 0) * l - vpos.z })
+  end
   local w = M.qrot(vq, state.off)
   local nx, ny, nz = vpos.x + w.x, vpos.y + w.y, vpos.z + w.z
   local d = math.sqrt((nx - cam.x) ^ 2 + (ny - cam.y) ^ 2 + (nz - cam.z) ^ 2)
@@ -122,7 +130,7 @@ function M.windscreen(veh)
     local v = veh:getVelocity()
     local speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
     eyeBy[veh:getID()] = eyeBy[veh:getID()] or {}
-    last.speed, last.fix = speed, M.stabilise(eyeBy[veh:getID()], cam, base, vq, speed)
+    last.speed, last.fix = speed, M.stabilise(eyeBy[veh:getID()], cam, base, vq, speed, v)
   end
   local pts = {}
   for _, cid in ipairs(nodes) do

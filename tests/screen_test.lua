@@ -39,4 +39,9 @@ local q90 = { x = 0, y = 0, z = math.sqrt(0.5), w = math.sqrt(0.5) }
 local c3 = { x = 0, y = 0, z = 0 }
 S.stabilise(st, c3, { x = 100, y = 100, z = 0.5 }, q90, 20)
 assert(math.abs(c3.x - 100) < 1e-6 and math.abs(c3.y - 100.3) < 1e-6 and math.abs(c3.z - 1.2) < 1e-9, 'the offset turns with the car: ' .. c3.x .. ' ' .. c3.y)
+-- never seen standing: the first offset allows for one frame of lag
+local st2 = {}
+local c4 = { x = 25.0, y = 5, z = 1.2 }
+S.stabilise(st2, c4, { x = 25.4, y = 5, z = 0.5 }, q0, 24, { x = 24, y = 0, z = 0 })
+assert(math.abs(st2.off.x - (25.0 + 24 / 60 - 25.4)) < 1e-9, 'the default offset allows for the lag: ' .. st2.off.x)
 print('carSurfaceFx screen: ok')
