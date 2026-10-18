@@ -69,6 +69,14 @@ local gr = B.sample(map, 'grime', 400, rnd)
 local gh, grear, gflat = stat(gr)
 assert(gh < 0.4 and grear > 0.1 and gflat < 0.1, 'road film: low, on the rear face, not on the roof: ' .. gh .. ' ' .. grear .. ' ' .. gflat)
 
+-- dust climbs with the amount and the rain takes the top of it
+local low = B.sample(map, 'dust', 300, rnd, nil, { maxH = 0.3, washH = 1 })
+local hl = stat(low)
+assert(hl <= 0.3, 'a little dust only reaches the low band: ' .. hl)
+local washed = B.sample(map, 'dust', 300, rnd, nil, { maxH = 1, washH = 0.25 })
+assert(stat(washed) <= 0.25, 'dust above the washed height is gone')
+assert(stat(B.sample(map, 'dust', 300, rnd, nil, { maxH = 1, washH = 1 })) > hl, 'full dust reaches higher')
+
 assert(B.coverage(map, 'snow') < B.coverage(map, 'grime'), 'snow covers less of the body than road film')
 assert(#B.sample(B.build({}, {}) or { list = {}, cache = {} }, 'snow', 5, rnd) == 0, 'an empty map gives no splats')
 -- the build from a .dae text and the vehicle data: a roof quad on the second texture coordinate set, two wheels

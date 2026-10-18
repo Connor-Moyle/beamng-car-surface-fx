@@ -364,13 +364,13 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
-function M.dirtAt(id, kind, n, wi, c, a, size)
+function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local car = cars[id]
   local map = car and car.map
   local veh = getObjectByID(id)
   if not (map and veh and settings.dirtEnabled) then return false end
   if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
-  local list = bodymap.sample(map, kind, n, random, wi)
+  local list = bodymap.sample(map, kind, n, random, wi, opts)
   if #list == 0 then return true end
   local blobs, dirs = {}, {}
   for i, s in ipairs(list) do

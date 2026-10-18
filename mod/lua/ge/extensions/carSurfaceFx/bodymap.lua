@@ -129,7 +129,8 @@ function RULES.grime(map, c)
   if c.ny > 0.5 and c.h < 0.85 then w = w + 1.2 * (0.4 + 0.6 * (1 - c.h)) end                          -- a rear face: the vortex behind the car puts the road film on it, fading upward
   return w
 end
-function RULES.dust(map, c)
+function RULES.dust(map, c, wi, opts)
+  if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
   return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + (c.ny > 0.5 and c.h < 0.9 and 0.6 or 0)
 end
 function RULES.rubber(map, c, wi)
@@ -149,15 +150,15 @@ end
 M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)
-local function table_for(map, kind, wi)
-  local key = kind .. ':' .. tostring(wi)
+local function table_for(map, kind, wi, opts)
+  local key = kind .. ':' .. tostring(wi) .. (opts and string.format(':%d:%d', floor(opts.maxH * 10), floor(opts.washH * 10)) or '')
   local t = map.cache[key]
   if t then return t end
   local rule = RULES[kind]
   t = { total = 0, cum = {} }
   if rule then
     for _, c in ipairs(map.list) do
-      local w = rule(map, c, wi) * c.w
+      local w = rule(map, c, wi, opts) * c.w
       if w > 1e-9 then t.total = t.total + w end
       t.cum[#t.cum + 1] = t.total
     end
@@ -167,10 +168,10 @@ local function table_for(map, kind, wi)
 end
 
 -- n splats of a kind: { u, v, dx, dy, s } with u, v texture coordinates (0..1), dx, dy the direction of the spray on the texture (unit, mud only), s texture units per metre.
--- rnd() is a function that returns 0..1. wi: the wheel that throws it (mud, rubber).
-function M.sample(map, kind, n, rnd, wi)
+-- rnd() is a function that returns 0..1. wi: the wheel that throws it (mud, rubber). opts (dust): { maxH, washH } the height 0..1 the film reaches and the height above which rain has washed it.
+function M.sample(map, kind, n, rnd, wi, opts)
   local out = {}
-  local t = table_for(map, kind, wi)
+  local t = table_for(map, kind, wi, opts)
   if t.total <= 0 or #t.cum == 0 then return out end
   for _ = 1, n do
     local r = rnd() * t.total

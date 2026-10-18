@@ -272,7 +272,8 @@ local function bodyDirt(id, kind, amount, wi)
   local n = math.floor(amount * pl[1] + math.random())
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
-  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3]) then return end
+  local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
+  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then return end
   local f = FALL[kind]
   if not f then return end                                          -- the road film and rubber need the body map
   sc.bodySplat(id, f[1], COL[kind], pl[2], n, f[2], f[3])
