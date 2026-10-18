@@ -191,6 +191,8 @@ function M.build(S, owner)
   add({
     F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
     lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). Off by default: it changes how the car drives.', 'gripEnabled'),
+    lk('leaks_drops', 'Leaks', 'bool', 'Drops falling from the leak', 'Small drops visibly fall from the engine to the ground before they make a spot. Off: the spots just appear.', 'fallingDrops'),
+    lk('leaks_drop_size', 'Leaks', 'slider', 'Falling drop size', 'How big the falling drops look, in metres across.', 'dropSize', { min = 0.01, max = 0.08, step = 0.005, unit = 'm', advanced = true }),
     lk('leaks_others', 'Other cars', 'bool', 'Traffic and AI cars leak too', 'Off: only the car you drive leaks.', 'others.enabled'),
     lk('leaks_others_cars', 'Other cars', 'int', 'Most other cars that leak', 'The nearest cars up to this number leak, for the frame rate.', 'others.maxCars', { min = 0, max = 12, advanced = true }),
     lk('leaks_max', 'Leaks', 'int', 'How many puddles stay', 'The number of puddles and drip spots kept before the oldest are recycled.', 'maxPuddles', { min = 8, max = 300, advanced = true }),
