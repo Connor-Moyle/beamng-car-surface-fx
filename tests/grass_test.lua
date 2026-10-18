@@ -182,4 +182,7 @@ local ids, ok = {}, true
 for _, f in ipairs(fields) do ids[f.id] = f end
 assert(ids.grass_enabled.store.path == 'grass.enabled' and ids.grass_clear_after.type == 'int' and ids.grass_clear_now.type == 'button' and #fields == 9, 'fields')
 assert(ids.grass_strength.default == R.DEFAULTS.strength and ids.grass_clear_after.default == R.DEFAULTS.clearAfterMin, 'defaults come from the rules')
+-- (the globals this test made are taken away again: the other tests run in the same state)
+for _, n in ipairs({ 'SurfaceMaskClipmap', 'util_surfaceMaskWheels', 'core_terrain', 'be', 'getCurrentLevelIdentifier', 'vec3', 'quat' }) do _G[n] = nil end
+os.clockhp = nil
 print('carSurfaceFx grass: ok')
