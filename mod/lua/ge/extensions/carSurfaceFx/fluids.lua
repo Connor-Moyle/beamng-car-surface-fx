@@ -230,8 +230,24 @@ local function draw(pool, n)
   end
 end
 
+-- the drops in the air, seen: a small sphere in the fluid's colour with a fainter one trailing above it (the fall is a quarter of a second: a streak reads better than a dot)
+local function drawFalling()
+  if dropN == 0 or not debugDrawer then return end
+  for i = 1, dropN do
+    local d = drops[i]
+    local c = colors[d.kind] or { 0.1, 0.1, 0.1 }
+    local r = math.max(0.012, settings.dropSize * 0.5)
+    d.pos:set(d.x, d.y, d.z)
+    pcall(function()
+      debugDrawer:drawSphere(d.pos, r, ColorF(c[1], c[2], c[3], 0.95))
+      debugDrawer:drawSphere(vec3(d.x, d.y, d.z + r * 2.4), r * 0.7, ColorF(c[1], c[2], c[3], 0.5))
+    end)
+  end
+end
+
 function M.onPreRender(dt)
   if not settings.enabled then return end
+  drawFalling()
   if store.count == 0 then return end
   if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then diag.err = diag.err or 'no DynamicDecalMgr' return end
   diag.frames = diag.frames + 1
