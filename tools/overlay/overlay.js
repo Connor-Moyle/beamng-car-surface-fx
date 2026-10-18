@@ -123,8 +123,10 @@ function createOverlay(doc, win) {
     trailBox = join(trailBox, cur);
     var wp = st.p.wiper;
     st.p.wiper = 0;                                                   // the blades are the overlay's own (arcs), not the simulation's column
+    var rn = st.p.rain;
+    if (wp > 0.05) st.p.rain = rn * 0.4;                               // with the wipers going the glass stays mostly clear between sweeps
     CsfxSim.step(sim, dt, st.p);
-    st.p.wiper = wp;
+    st.p.rain = rn; st.p.wiper = wp;
     var b = st.bbox, bw = b.w * W, bh = b.h * H, bx = b.x0 * W, by = b.y0 * H;
     for (var fi = 0; fi < sim.fresh.length; fi++) born[sim.fresh[fi]] = now;       // drops that just landed get a ring (below)
     sim.fresh.length = 0;
@@ -205,6 +207,11 @@ function createOverlay(doc, win) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(255,255,255,' + (0.25 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
       }
+    }
+    if (st.p.wiper > 0.05) {                                          // the blades themselves: a thin dark rubber line along the sweep angle (the car's own wipers do not move for this view)
+      ctx.strokeStyle = 'rgba(12,12,14,0.8)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath();
+      for (var wl = 0; wl < 2; wl++) { var wcx = bx + BLADES[wl].px * bw, wcy = by + bh, wL = BLADES[wl].len * bw; ctx.moveTo(wcx, wcy); ctx.lineTo(wcx + Math.cos(aNow) * wL, wcy - Math.sin(aNow) * wL); }
+      ctx.stroke();
     }
     ctx.restore();
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
