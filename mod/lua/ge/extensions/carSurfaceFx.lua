@@ -837,6 +837,7 @@ end
 function M.debug(kind, value)
   if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray = nil, nil, nil, 0, nil, nil, nil, nil return 'debug cleared' end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
+  if kind == 'speed' then value = tonumber(value) or 0 forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end   -- m/s, not clamped
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   for _, k in ipairs(rules.KINDS) do
@@ -855,7 +856,6 @@ function M.debug(kind, value)
   if kind == 'snowing' then forcedSnowing = value return 'snowfall forced to ' .. value end
   if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
   if kind == 'glassoff' then glassOff = value > 0 return 'the window canvases stay clear: ' .. tostring(glassOff) end
-  if kind == 'speed' then forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
