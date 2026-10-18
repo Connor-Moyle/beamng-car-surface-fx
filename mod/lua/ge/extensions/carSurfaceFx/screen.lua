@@ -34,6 +34,43 @@ function M.project(p, cam)
   return { x = (nx + 1) * 0.5, y = (1 - ny) * 0.5 }
 end
 
+-- A convex polygon { {x, y}, ... } clipped to the rectangle x0..x1, y0..y1 (Sutherland-Hodgman, one side at a time): the part of the windscreen that is on the screen.
+-- nil when fewer than 3 points are left (nothing of it is on the screen). The windscreen is close to the eye, so its outline runs off the screen; unclipped, the page would
+-- lay its drops over an area several times the screen and size them by it.
+function M.clipHull(poly, x0, y0, x1, y1)
+  if not poly then return nil end
+  local function side(list, axis, bound, keepAbove)
+    local out = {}
+    local n = #list
+    for i = 1, n do
+      local a, b = list[i], list[i % n + 1]
+      local av, bv = a[axis], b[axis]
+      local ain = keepAbove and av >= bound or (not keepAbove and av <= bound)
+      local bin = keepAbove and bv >= bound or (not keepAbove and bv <= bound)
+      if ain then out[#out + 1] = a end
+      if ain ~= bin then
+        local t = (bound - av) / (bv - av)
+        local p = { x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t }
+        p[axis] = bound
+        out[#out + 1] = p
+      end
+    end
+    return out
+  end
+  local list = poly
+  list = side(list, 'x', x0, true)
+  if #list < 3 then return nil end
+  list = side(list, 'x', x1, false)
+  if #list < 3 then return nil end
+  list = side(list, 'y', y0, true)
+  if #list < 3 then return nil end
+  list = side(list, 'y', y1, false)
+  if #list < 3 then return nil end
+  local area = 0                                                    -- (a sliver along an edge, a polygon that only touches it: nothing to draw in)
+  for i = 1, #list do local a, b = list[i], list[i % #list + 1] area = area + (a.x * b.y - b.x * a.y) end
+  return math.abs(area) * 0.5 > 1e-5 and list or nil
+end
+
 -- the hull as a flat list { x1, y1, x2, y2, ... } for the page, 4 decimals, or nil
 function M.flat(hull)
   if not hull then return nil end
@@ -219,7 +256,9 @@ function M.windscreen(veh)
     local s = M.project({ x = w.x + base.x, y = w.y + base.y, z = w.z + base.z }, cam)
     if s then pts[#pts + 1] = s end
   end
-  local hull = M.flat(M.convexHull(pts))
+  local whole = M.convexHull(pts)
+  local hull = M.flat(M.clipHull(whole, 0, 0, 1, 1))
+  last.clipped = whole ~= nil and hull ~= nil and #hull ~= #whole * 2
   if hull then
     local x0, y0, x1, y1 = 1, 1, 0, 0
     for i = 1, #hull, 2 do x0, x1, y0, y1 = math.min(x0, hull[i]), math.max(x1, hull[i]), math.min(y0, hull[i + 1]), math.max(y1, hull[i + 1]) end

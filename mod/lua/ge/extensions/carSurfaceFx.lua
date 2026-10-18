@@ -515,7 +515,7 @@ end
 -- what the projection and the overlay see: speed, how far the camera position was corrected, the windscreen's box on the screen, the points projected, and the last report of the page
 function M.screenDiag()
   local l = screen.last
-  return string.format('speed %.1f eyeFix %.2f m box %s points %s | page: %s', l.speed or 0, l.fix or 0, tostring(l.box), tostring(l.points), overlayReport)
+  return string.format('speed %.1f eyeFix %.2f m box %s points %s clipped %s | page: %s', l.speed or 0, l.fix or 0, tostring(l.box), tostring(l.points), l.clipped and 'to the screen' or 'no', overlayReport)
 end
 
 -- the overlay page reports (debug on): its drop count, frame rate and the box it draws in, once a second; also written to the log

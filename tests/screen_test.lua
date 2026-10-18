@@ -57,4 +57,18 @@ assert(#keep == 24, 'the 24 glass nodes are kept, the two others dropped: ' .. #
 local flat = {}
 for i = 1, 5 do flat[i] = { x = i, y = i * i % 3, z = 0 } end
 assert(#S.planeInliers(flat) == 5, 'nodes that all lie on one plane are all kept')
+-- the outline clipped to the screen: inside stays, a part outside is cut at the edge, outside altogether is nothing
+local function box(poly) local x0, y0, x1, y1 = 9, 9, -9, -9 for _, p in ipairs(poly) do x0, x1, y0, y1 = math.min(x0, p.x), math.max(x1, p.x), math.min(y0, p.y), math.max(y1, p.y) end return x0, y0, x1, y1 end
+local inside = { { x = 0.2, y = 0.3 }, { x = 0.8, y = 0.3 }, { x = 0.8, y = 0.6 }, { x = 0.2, y = 0.6 } }
+local same = S.clipHull(inside, 0, 0, 1, 1)
+assert(#same == 4 and select(1, box(same)) == 0.2 and select(4, box(same)) == 0.6, 'a polygon inside the screen is left as it is')
+local wide = { { x = -0.5, y = 0.4 }, { x = 2.1, y = 0.4 }, { x = 2.1, y = 1.3 }, { x = -0.5, y = 1.3 } }       -- like the drive trace: past the right edge and below the middle
+local cx0, cy0, cx1, cy1 = box(S.clipHull(wide, 0, 0, 1, 1))
+assert(cx0 == 0 and cx1 == 1 and cy0 == 0.4 and cy1 == 1, 'a polygon running off the screen is cut at its edges')
+local tri = { { x = 0.5, y = 0.5 }, { x = 3, y = 0.5 }, { x = 0.5, y = 3 } }
+local ct = S.clipHull(tri, 0, 0, 1, 1)
+assert(#ct >= 4 and select(3, box(ct)) == 1 and select(4, box(ct)) == 1, 'a triangle clipped by two edges gains corners')
+assert(S.clipHull({ { x = 2, y = 2 }, { x = 3, y = 2 }, { x = 3, y = 3 } }, 0, 0, 1, 1) == nil, 'outside altogether: nothing')
+assert(S.clipHull({ { x = -1, y = 0.2 }, { x = 0, y = 0.2 }, { x = 0, y = 0.8 } }, 0, 0, 1, 1) == nil, 'touching the edge only: nothing')
+assert(S.clipHull(nil, 0, 0, 1, 1) == nil, 'no polygon, no result')
 print('carSurfaceFx screen: ok')
