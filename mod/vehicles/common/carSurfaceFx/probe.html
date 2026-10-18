@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <canvas id="csfxProbe"></canvas>
+  <script>
+  // Car Surface FX probe page (carSurfaceFx_roughProbe): a white canvas with black discs, a black band and a black-to-white bar, to see whether a slot of the paint material
+  // (roughness, metallic) reads a web canvas and what it does to the paint. White = 1 (rough / metal), black = 0 (glossy / not metal). ?m=gradient only the bar.
+  (function () {
+    var c = document.getElementById('csfxProbe');
+    var W = c.width = c.height = 1024;
+    var x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, W);
+    var mode = /[?&]m=([a-z]+)/.exec(location.search); mode = mode ? mode[1] : 'grid';
+    var g = x.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, '#000'); g.addColorStop(1, '#fff');
+    if (mode === 'gradient') { x.fillStyle = g; x.fillRect(0, 0, W, W); return; }
+    x.fillStyle = '#000';
+    for (var i = 0; i < 6; i++) for (var j = 0; j < 6; j++) {            // discs 15, 30, 45, 60, 75 and 90 texels across, in rows
+      var r = 8 + i * 8;
+      x.beginPath(); x.arc(110 + j * 160, 110 + i * 120, r, 0, Math.PI * 2); x.fill();
+    }
+    x.fillRect(0, 880, W, 40);                                           // a black band
+    x.fillStyle = g; x.fillRect(0, 940, W, 60);                          // and the bar from black (left) to white (right)
+  })();
+  </script>
+</body>
+</html>
