@@ -51,17 +51,30 @@ def main():
     save_grey(mask, os.path.join(out, 'puddle_o.data.png'))
     save_grey(mask * 0.6, os.path.join(out, 'puddle_o_thin.data.png'))
     Image.fromarray(np.full((16, 16, 3), 255, np.uint8), 'RGB').save(os.path.join(out, 'white.color.png'))
-    # the sheen: hue bands round the puddle that wander with the angle (a thin film is a ramp of colours with its thickness), strongest in the outer half
-    rng = np.random.default_rng(7)
-    ph = rng.uniform(0, 6.283, 4)
-    hue = (dd * 2.3 + 0.12 * np.sin(2 * th + ph[0]) + 0.08 * np.sin(5 * th + ph[1]) + 0.1 * np.sin(dd * 9 + ph[2])) % 1.0
-    rgb = np.zeros((N, N, 3), np.float32)
-    flat = hue.reshape(-1)
-    cols = np.array([colorsys.hsv_to_rgb(h, 0.55, 1.0) for h in np.linspace(0, 1, 256)], np.float32)
-    rgb = cols[(flat * 255).astype(int)].reshape(N, N, 3)
+    # the sheen: a thin film is muted (purple, bronze, teal), marbled and patchy, strongest in wisps and toward the thin edge; never an even ring
+    def noise(seed, beta):
+        rng = np.random.default_rng(seed)
+        f = np.fft.fft2(rng.standard_normal((N, N)))
+        fy, fx = np.meshgrid(np.fft.fftfreq(N), np.fft.fftfreq(N), indexing='ij')
+        k = np.sqrt(fx * fx + fy * fy)
+        k[0, 0] = 1
+        a = np.real(np.fft.ifft2(f / k ** beta))
+        return (a - a.mean()) / (a.std() + 1e-9)
+    n1, n2, n3 = noise(11, 2.2), noise(23, 2.6), noise(37, 1.8)
+    palette = [0.78, 0.55, 0.09, 0.85, 0.47]               # purple, blue, bronze, magenta, teal
+    t = (0.5 + 0.35 * n1 + 0.25 * np.sin(dd * 5 + n2)) % 1.0
+    pos = t * len(palette)
+    i0 = pos.astype(int) % len(palette)
+    i1 = (i0 + 1) % len(palette)
+    fr = pos - np.floor(pos)
+    hue = np.array(palette)[i0] * (1 - fr) + np.array(palette)[i1] * fr
+    cols = np.array([colorsys.hsv_to_rgb(h % 1.0, 0.32, 1.0) for h in np.linspace(0, 1, 256)], np.float32)
+    rgb = cols[(hue % 1.0 * 255).astype(int)]
     Image.fromarray((rgb * 255 + 0.5).astype(np.uint8), 'RGB').save(os.path.join(out, 'rainbow.color.png'))
-    band = 0.55 + 0.45 * np.sin(dd * 14 + ph[3]) ** 2
-    save_grey(mask * smoothstep(0.2, 0.9, dd) * band * 0.45, os.path.join(out, 'rainbow_o.data.png'))
+    wisp = smoothstep(0.1, 0.9, n2 * 0.6 + n3 * 0.4 + 0.25)                           # random wisps across the surface
+    thin = 0.35 + 0.65 * smoothstep(0.3, 0.95, dd)                                    # stronger in the thin outer film
+    bare = smoothstep(-0.2, 0.6, n1)                                                   # part of the rim carries no colour at all
+    save_grey(mask * wisp * thin * bare * 0.5, os.path.join(out, 'rainbow_o.data.png'))
 
     D = '/art/surfacefx/fluids/'
 
