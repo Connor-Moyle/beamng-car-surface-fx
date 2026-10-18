@@ -23,6 +23,7 @@ st.marks[1][1] = 99
 assert(M.getState(7).marks[1][1] == 0.1, 'getState hands out copies')
 
 M.washSplats(7, 0, 1)                                      -- the dust is washed off, the mud stays; the scratches are not touched
+M.onUpdate(0.2)                                             -- (the calls to the canvas go out one per page frame)
 st = M.getState(7)
 assert(#st.splats == 1 and st.splats[1][5] == 2 and #st.marks == 2, 'washing keeps scratches and mud')
 assert(sent[#sent]:find('csfxWash', 1, true), 'the canvas is told too')
@@ -41,7 +42,7 @@ assert(M.count(7) == 0, 'a destroyed car is forgotten')
 -- the car-side reporter is put into a car when it is new, when the setting changes and every 5 s, not every second
 local injected = 0
 function veh:getMaterialNames() return {} end
-function veh:queueLuaCommand(c) if c:find('carSurfaceFxScratch', 1, true) then injected = injected + 1 end end
+carSurfaceFx_bodywear = { inject = function() injected = injected + 1 end }       -- what injecting a car means now: the body wear puts its car-side extensions in
 M.configure({ enabled = true })
 M.onUpdate(1.1)
 assert(injected == 1, 'a new car gets it at once')
@@ -64,4 +65,28 @@ function getAllVehicles() return { veh } end
 function veh:getActiveUITextureTagNames() error('dead car') end
 assert(pcall(M.onExtensionUnloaded), 'a car that errors does not stop the unload')
 assert(destroyed == 0, 'no canvas was destroyed by these')
+function veh:getActiveUITextureTagNames() return { '@csfx_base' } end
+-- dirt put where it lands: mud thrown off the tyres reaches the canvas as splats and, low on the body, clods (a once-wrong bounds read made every mud hit fail)
+do
+  local B, ST = require('carSurfaceFx/bodymap'), require('carSurfaceFx/spraytrace')
+  local X0, X1, Y0, Y1, Z0, Z1 = -0.9, 0.9, -2, 2, 0.2, 1.4
+  local function quad(p1, p2, p3, p4, u0, v0, u1, v1, out)
+    out[#out + 1] = { pos = { p1[1], p1[2], p1[3], p2[1], p2[2], p2[3], p3[1], p3[2], p3[3] }, uv = { u0, v0, u1, v0, u1, v1 } }
+    out[#out + 1] = { pos = { p1[1], p1[2], p1[3], p3[1], p3[2], p3[3], p4[1], p4[2], p4[3] }, uv = { u0, v0, u1, v1, u0, v1 } }
+  end
+  local tr = {}
+  quad({ X0, Y0, Z1 }, { X1, Y0, Z1 }, { X1, Y1, Z1 }, { X0, Y1, Z1 }, 0, 0, 0.5, 0.5, tr)
+  quad({ X1, Y0, Z0 }, { X1, Y1, Z0 }, { X1, Y1, Z1 }, { X1, Y0, Z1 }, 0.5, 0, 1, 0.5, tr)
+  quad({ X0, Y0, Z0 }, { X0, Y1, Z0 }, { X0, Y1, Z1 }, { X0, Y0, Z1 }, 0, 0.5, 0.5, 1, tr)
+  local wh = { { x = 0.8, y = -1.3, z = 0.35, r = 0.35 }, { x = -0.8, y = -1.3, z = 0.35, r = 0.35 }, { x = 0.8, y = 1.3, z = 0.35, r = 0.35 }, { x = -0.8, y = 1.3, z = 0.35, r = 0.35 } }
+  local bm = B.build(tr, wh)
+  bm.spray = ST.bake(tr, wh, {})
+  M.configure({ enabled = true, dirtEnabled = true })
+  M.useMap(7, bm)
+  local before = #sent
+  assert(M.dirtAt(7, 'mud', 300, nil, { 0.25, 0.17, 0.1 }, 0.85, 0.035) == true, 'mud is placed on the car')
+  for _ = 1, 40 do M.onUpdate(0.2) end                                               -- the pages get them one call per page frame
+  assert(#sent > before + 4, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
+  assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
+end
 print('carSurfaceFx scratch memory: ok')

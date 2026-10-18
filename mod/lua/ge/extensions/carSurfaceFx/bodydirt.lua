@@ -7,6 +7,7 @@ local read = require('carSurfaceFx/daeread').read
 local bodymap = require('carSurfaceFx/bodymap')
 local spraytrace = require('carSurfaceFx/spraytrace')
 local cache, jobs = {}, {}
+local SLICE_MS = 2                                  -- the build takes this much of each frame (more frames, no hitch)
 
 -- the wheels' centres and radii in the car's frame: { { x, y, z, r }, ... } from the vehicle data (nodes at rest)
 function M.wheelList(vdata)
@@ -52,22 +53,26 @@ function M.request(vehId, paintMat, cb)
     end
     return map
   end)
-  jobs[#jobs + 1] = { co = co, cb = cb }
+  jobs[#jobs + 1] = { co = co, cb = cb, frames = 0, ms = 0, name = tostring(vd.vehicleDirectory) }
 end
 
 function M.tick()
   local job = jobs[1]
   if not job then return end
   local t0 = os.clock()
+  job.frames = job.frames + 1
   repeat
     local ok, res = coroutine.resume(job.co)
     if coroutine.status(job.co) == 'dead' then
       table.remove(jobs, 1)
+      job.ms = job.ms + (os.clock() - t0) * 1000
+      log('I', TAG, string.format('%s: body map job took %d frames, %.0f ms in all', job.name, job.frames, job.ms))
       if not ok then log('E', TAG, 'build failed: ' .. tostring(res)) res = nil end
       job.cb(res)
       return
     end
-  until (os.clock() - t0) * 1000 > 6
+  until (os.clock() - t0) * 1000 > SLICE_MS
+  job.ms = job.ms + (os.clock() - t0) * 1000
 end
 
 return M

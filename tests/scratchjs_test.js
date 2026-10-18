@@ -53,9 +53,9 @@ p.reset();
 p.w.csfxBlobs({ l: [0.3, 0.3, 0.02], d: [0.8, 0.6], c: [0.3, 0.2, 0.1], a: 0.7, k: 'mud' });
 assert(p.ops.arcs >= 7, 'a sprayed splat has a streak: ' + p.ops.arcs + ' arcs');
 
-const pal = page('?m=p');                                // the palette page never draws splats
+const pal = page('?m=p');                                // the palette page punches the same splats out of the palette
 pal.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
-assert.strictEqual(pal.ops.arcs, 0, 'splats are base page only');
+assert(pal.ops.arcs >= 7, 'the palette page draws the same splat (punched out): ' + pal.ops.arcs);
 // the running drops through the page, as the game side drives it: the node map in pieces, the debug switch, a few frames
 const wp = page('?m=b');
 const rows = [];
@@ -67,4 +67,24 @@ wp.reset();
 let now = 0;
 for (let i = 0; i < 20; i++) { now += 100; frames.cb(now); }
 assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs + ' disc draws)');
+// a clod of mud is drawn (a ring of lumps, a lit top, droplets) and washes with the mud
+{
+  const c = page('?m=b');
+  c.w.csfxBlobs({ l: [0.4, 0.4, 0.05], c: [0.25, 0.17, 0.1], a: 0.9, k: 'cake' });
+  assert(c.ops.arcs >= 12, 'a clod is a ring of lumps, a top and droplets: ' + c.ops.arcs);
+  c.reset(); c.w.csfxWash({ dust: 1, mud: 0.01 });
+  assert.strictEqual(c.ops.arcs, 0, 'a clod washes away with the mud');
+}
+// the page's own cost of a fully muddy car: 6000 splats (150 pieces of 40) and one full redraw, JS time on the stub canvas (the raster cost in the real browser is on the UI side)
+{
+  const c = page('?m=b');
+  const t0 = process.hrtime.bigint();
+  for (let k = 0; k < 150; k++) { const l = []; const d = []; for (let j = 0; j < 40; j++) { l.push(Math.random(), Math.random(), 0.008); d.push(0.6, 0.8); } c.w.csfxBlobs({ l, d, c: [0.25, 0.17, 0.1], a: 0.9, k: k % 4 === 0 ? 'cake' : 'mud' }); }
+  const t1 = process.hrtime.bigint();
+  c.w.csfxWash({ dust: 1, mud: 0.99 });                                              // a full redraw of everything
+  const t2 = process.hrtime.bigint();
+  const add = Number(t1 - t0) / 1e6, redraw = Number(t2 - t1) / 1e6;
+  console.log('paint page JS: 6000 splats added in ' + add.toFixed(1) + ' ms (' + (add / 150).toFixed(2) + ' ms per piece of 40), a full redraw ' + redraw.toFixed(1) + ' ms');
+  assert(add / 150 < 3, 'a piece of 40 splats costs under 3 ms of page JS: ' + (add / 150));
+}
 console.log('carSurfaceFx scratch page: ok');

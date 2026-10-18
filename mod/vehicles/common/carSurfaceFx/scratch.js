@@ -17,7 +17,7 @@
   var palette = /[?&]m=p/.test(location.search);
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
-  var MAX_LINES = 300, MAX_BLOBS = 2500;
+  var MAX_LINES = 300, MAX_BLOBS = 6000;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
 
@@ -28,7 +28,8 @@
 
   // the engine reads this texture as LINEAR colour, so a plain sRGB value comes out washed-out: pre-darken it
   function ch(x) { return Math.round(Math.pow(Math.max(0, Math.min(1, x)), 2.2) * 255); }
-  function rgba(c, a) { return 'rgba(' + ch(c[0]) + ',' + ch(c[1]) + ',' + ch(c[2]) + ',' + a + ')'; }
+  function rgbaColour(c, a) { return 'rgba(' + ch(c[0]) + ',' + ch(c[1]) + ',' + ch(c[2]) + ',' + a + ')'; }
+  var rgba = rgbaColour;
   // base page: paint in colour c. palette page: punch the same shape out instead.
   // the base goes on much heavier than the punch-out: what shows is base x (white..paint by what's left of
   // the palette), so any white left in the base under a part-erased palette reads as chalky, not as the colour.
@@ -67,15 +68,37 @@
   // right for a scratch, but it made dirt look like chrome with a dark rim.
   // a number 0..1 from a place and an index, the same every time (a redraw must give the same splatter)
   function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
+  // On the palette page the same splat is punched out of the palette (the paint's tint goes where the dirt is, so the dirt shows in ITS colour, not multiplied with the paint:
+  // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
   function drawBlob(b) {
-    if (palette) return;
-    sctx.globalCompositeOperation = 'source-over';
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     if (b.k === 'dust') {                                             // dust and snow: soft patches
       var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
       g.addColorStop(0, rgba(b.c, b.a)); g.addColorStop(1, rgba(b.c, 0));
       sctx.fillStyle = g;
       sctx.beginPath(); sctx.arc(x, y, r, 0, Math.PI * 2); sctx.fill();
+    } else if (b.k === 'cake') {                                      // a clod of mud: a dark ring of lumps, a lighter lumpy top lit from up left, a few thrown droplets
+      var nl2 = 6 + Math.floor(hash(b.x, b.y, 0) * 4), q;
+      var rim = [b.c[0] * 0.45, b.c[1] * 0.45, b.c[2] * 0.45], top = [Math.min(1, b.c[0] * 1.15), Math.min(1, b.c[1] * 1.12), Math.min(1, b.c[2] * 1.1)];
+      for (q = 0; q < nl2; q++) {
+        var qa = hash(b.x, b.y, q + 1) * 6.2832, qd = r * 0.45 * hash(b.x, b.y, q + 9), qr = r * (0.42 + 0.4 * hash(b.x, b.y, q + 17));
+        sctx.fillStyle = rgba(rim, b.a);
+        sctx.beginPath(); sctx.arc(x + Math.cos(qa) * qd, y + Math.sin(qa) * qd, qr, 0, Math.PI * 2); sctx.fill();
+      }
+      for (q = 0; q < nl2; q++) {
+        var qa2 = hash(b.x, b.y, q + 1) * 6.2832, qd2 = r * 0.45 * hash(b.x, b.y, q + 9), qr2 = r * (0.42 + 0.4 * hash(b.x, b.y, q + 17)) * 0.72;
+        sctx.fillStyle = rgba(b.c, b.a);
+        sctx.beginPath(); sctx.arc(x + Math.cos(qa2) * qd2 - r * 0.06, y + Math.sin(qa2) * qd2 - r * 0.06, qr2, 0, Math.PI * 2); sctx.fill();
+      }
+      sctx.fillStyle = rgba(top, b.a * 0.7);
+      sctx.beginPath(); sctx.arc(x - r * 0.22, y - r * 0.25, r * 0.28, 0, Math.PI * 2); sctx.fill();
+      sctx.fillStyle = rgba(rim, b.a * 0.9);
+      for (q = 0; q < 3 + Math.floor(hash(b.x, b.y, 30) * 4); q++) {
+        var qa3 = hash(b.x, b.y, q + 40) * 6.2832, qd3 = r * (1 + 0.9 * hash(b.x, b.y, q + 50)), qr3 = Math.max(1, r * (0.06 + 0.12 * hash(b.x, b.y, q + 60)));
+        sctx.beginPath(); sctx.arc(x + Math.cos(qa3) * qd3, y + Math.sin(qa3) * qd3, qr3, 0, Math.PI * 2); sctx.fill();
+      }
     } else if (b.dx || b.dy) {                                        // sprayed mud: an elongated splat along the spray, a tail of droplets behind it and a few ahead
       var ang = Math.atan2(b.dy, b.dx), j;
       sctx.fillStyle = rgba(b.c, b.a * 0.8);
@@ -120,7 +143,9 @@
   };
 
   // o = { l: [x,y,radius, ...], c: [r,g,b], a, k: 'dust' | 'mud' }
+  var callCount = 0;
   window.csfxBlobs = function (o) {
+    callCount++;
     for (var i = 0; i < o.l.length; i += 3) {
       var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
       if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
@@ -134,7 +159,7 @@
   window.csfxWash = function (o) {
     var keep = [];
     for (var i = 0; i < blobs.length; i++) {
-      var b = blobs[i], f = o[b.k] === undefined ? 1 : o[b.k];
+      var b = blobs[i], f = o[b.k === 'cake' ? 'mud' : b.k] === undefined ? 1 : o[b.k === 'cake' ? 'mud' : b.k];
       b.a *= f;
       if (b.a > 0.04) keep.push(b);
     }
@@ -149,7 +174,13 @@
   window.csfxClear = function () { lines = []; blobs = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
-  window.csfxProbe = function () { lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw(); };
+  window.csfxProbe = function () {
+    lines.push({ l: [0.05, 0.05, 0.95, 0.95, 0.06, 0.95, 0.05, 0.05, 0.95, 0.06], c: [1, 0, 0], a: 1 }); redraw();
+    // and what this page holds, written large over the map in several places: blobs kept, calls received so far
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over'; sctx.fillStyle = palette ? '#000' : '#f00'; sctx.font = 'bold 110px sans-serif';
+    for (var ty = 1; ty <= 9; ty += 2) sctx.fillText('blobs ' + blobs.length + ' calls ' + callCount, 20, ty * 100);
+    dirty = true;
+  };
 
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
   var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work

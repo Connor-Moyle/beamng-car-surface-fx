@@ -14,11 +14,12 @@ local TAG = 'carSurfaceFx'
 M.apiVersion = 2                          -- 2: repair(id), getState / setState, level
 local rules = require('carSurfaceFx/rules')
 local screen = require('carSurfaceFx/screen')
+local grassRules = require('carSurfaceFx/grassRules')
 local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512 }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, snowRate = 1, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -61,6 +62,7 @@ local queue = {}                              -- material edits still to do, one
 
 local function log_(level, msg) log(level, TAG, msg) end
 local function scratchOn() return rawget(_G, 'carSurfaceFx_scratch') ~= nil end
+local function grassOn() return rawget(_G, 'carSurfaceFx_grass') ~= nil end
 
 -- the settings file, <user>/settings/carSurfaceFx.json, is the one store; the Mods menu (Wrench Works' slrr_settings, see carSurfaceFx/schema.lua) reads and writes it
 local screenSize = 4.5
@@ -80,13 +82,13 @@ local function loadSettings()
       settings[k].intensity = rules.clamp(settings[k].intensity or 1, 0, 1)
     elseif type(d) == 'boolean' and s[k] ~= nil then settings[k] = s[k] and true or false end
   end
+  rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize
   local on, _, moved = rules.migrate(s, nil)
   if moved then                                                      -- one time, see rules.migrate
     if on then settings.mud.buildup = true end
     settings.settingsVersion = rules.SETTINGS_VERSION
     jsonWriteFile(SETTINGS_FILE, settings, true)
   end
-  rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize
 end
 
 local function skipped(name)
@@ -260,20 +262,23 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { mud = { 0.33, 0.23, 0.14 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { mud = { 0.25, 0.17, 0.10 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 260, 0.8, 0.018 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 2400, 0.9, 0.045 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
   if amount <= 0 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
   local pl = PLACE[kind]
   if kind == 'bugs' then pl = { pl[1], pl[2], pl[3] * rules.bugSize(dirtBy[id] and dirtBy[id].bugs) } end      -- the more bugs, the bigger the next ones
-  local n = math.floor(amount * pl[1] + math.random())
+  local n = math.floor(amount * pl[1] * (settings.scratch.dirtRate or 1) + math.random())      -- (the Splat rate setting: fewer splats for a slower machine)
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
-  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then return end
+  if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, math.floor(n / 3)), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    return
+  end
   local f = FALL[kind]
   if not f then return end                                          -- the road film and rubber need the body map
   sc.bodySplat(id, f[1], COL[kind], pl[2], n, f[2], f[3])
@@ -311,12 +316,13 @@ local function splash(id, shareL, shareR, speed, depth)
 end
 
 local groundCalls, groundAt = 0, 0
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR)
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin)
   groundCalls, groundAt = groundCalls + 1, os.clock()
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
   engineBy[id] = tonumber(engine)
+  if grassOn() then carSurfaceFx_grass.noteGround(id, loose, mud, slip, speed) end
   if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
     local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
@@ -329,7 +335,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if not (settings and settings.mud.enabled) then return end
   local old = dirtBy[id] or rules.dirtNew()
   local air = airC()
-  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, snowing = settings.weather.snow and snowfall() or 0, warm = air ~= nil and air > rules.SNOW_AIR,
+  local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, spin = tonumber(spin), snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
     airC = air, tod = timeOfDay() }, speed, wet)
   if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
   if not settings.weather.snow then d.snow = old.snow end
@@ -381,7 +387,7 @@ end
 -- wheels on a per-car canvas. Not started while Enhanced Skid Marks' own copy runs (the two would fight over the paint layer).
 local function startScratch()
   if scratchOn() or rawget(_G, 'surfaceFXHiFiScratch') ~= nil or not settings.scratch.enabled then return end
-  for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch' }) do
+  for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch', 'carSurfaceFx_bodywear' }) do
     extensions.load(name)
     setExtensionUnloadMode(name, 'manual')
   end
@@ -389,8 +395,64 @@ local function startScratch()
   log_('I', 'scratch module started')
 end
 
+local function marksOn() return rawget(_G, 'carSurfaceFx_marks') ~= nil end
+local function startMarks()
+  if marksOn() or not settings.marks.enabled then return end
+  extensions.load('carSurfaceFx_marks')
+  setExtensionUnloadMode('carSurfaceFx_marks', 'manual')
+  log_('I', 'marks module started')
+end
+local function stopMarks()
+  if marksOn() then extensions.unload('carSurfaceFx_marks') end
+end
+
+local function fluidsOn() return rawget(_G, 'carSurfaceFx_fluids') ~= nil end
+local function startFluids()
+  if fluidsOn() or not settings.fluids.enabled then return end
+  extensions.load('carSurfaceFx_fluids')
+  setExtensionUnloadMode('carSurfaceFx_fluids', 'manual')
+  log_('I', 'leaking fluids module started')
+end
+local function stopFluids()
+  if fluidsOn() then extensions.unload('carSurfaceFx_fluids') end
+end
+
+local function rutsOn() return rawget(_G, 'carSurfaceFx_ruts') ~= nil end
+local function startRuts()
+  if rutsOn() or not settings.ruts.enabled then return end
+  extensions.load('carSurfaceFx_ruts')
+  setExtensionUnloadMode('carSurfaceFx_ruts', 'manual')
+  log_('I', 'ruts module started')
+end
+local function stopRuts()
+  if rutsOn() then extensions.unload('carSurfaceFx_ruts') end
+end
+
+local function impactsOn() return rawget(_G, 'carSurfaceFx_impacts') ~= nil end
+local function startImpacts()
+  if impactsOn() or not settings.impacts.enabled then return end
+  extensions.load('carSurfaceFx_impacts')
+  setExtensionUnloadMode('carSurfaceFx_impacts', 'manual')
+  log_('I', 'crash effects module started (glass, debris, sparks)')
+end
+local function stopImpacts()
+  if impactsOn() then extensions.unload('carSurfaceFx_impacts') end
+end
+
+-- Grass that bends under the wheels (carSurfaceFx/grass.lua): the game's own surface mask, stamped from the wheels. Runs while settings.grass.enabled.
+local function startGrass()
+  if grassOn() or not settings.grass.enabled then return end
+  extensions.load('carSurfaceFx_grass')
+  setExtensionUnloadMode('carSurfaceFx_grass', 'manual')
+  if carSurfaceFx_grass then carSurfaceFx_grass.configure(settings.grass) end
+  log_('I', 'grass module started')
+end
+local function stopGrass()
+  if grassOn() then extensions.unload('carSurfaceFx_grass') end
+end
+
 local function stopScratch()
-  for _, name in ipairs({ 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
+  for _, name in ipairs({ 'carSurfaceFx_bodywear', 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
     if rawget(_G, name) ~= nil then extensions.unload(name) end
   end
 end
@@ -467,6 +529,10 @@ end
 -- the water canvas of the player's car gets the weather and the car's motion; every second, cars spawned since get their canvas too
 local ensureT = 0
 local rainT = 0                              -- seconds since the rain last washed the splats off
+-- what the windows and the driver view show of frost and road spray: the real amount times the amount the player chose (0 shows none; the weather itself goes on, so turning it
+-- back up shows the true state). The driver-view amounts are an accessibility setting: drops, frost and mist can each be turned down or off on their own.
+local function frostShown() return frostP * (settings.weather.frostStrength or 1) end
+local function sprayShown() return sprayP * (settings.weather.sprayStrength or 1) end
 -- carSurfaceFx.glassDebug(true): the window canvases show their glass cells and the page's numbers (drops, flow, cells, rain, size) written on the glass
 -- carSurfaceFx.glassDebug('drops'): no grid, only the live drops, drawn eight times their size in solid white (is it the look, or the place?)
 local glassDbg = false
@@ -497,8 +563,34 @@ local function targetWet()
 end
 
 local reset
--- Enhanced Skid Marks' body extension edits the same paint fields: pause while it is loaded
-local function conflict() return rawget(_G, 'surfaceFXBody') ~= nil end
+-- The old Surface FX / Enhanced Skid Marks (dirtSkidMarks) is what this mod now contains: if it is loaded as well it is switched off (its extensions unloaded, on the cars too)
+-- and the player is told once to remove it. Its own versions of everything run here.
+local OLD_GE = { 'dirtSkidManager', 'surfaceFX', 'surfaceFXStore', 'surfaceFXBody', 'surfaceFXGlass', 'surfaceFXDebris', 'surfaceFXSparks', 'surfaceFXHiFiScratch', 'surfaceFXMeshUV',
+  'surfaceFXDebug', 'dirtDeform', 'dirtScratch' }
+local OLD_VEH = "{'dirtSkidWheels','dirtSkidBody','dirtScratchBody','dirtSkidDrips','dirtGrip','dirtGlass','dirtDebris','dirtSparks','dirtScratchHiFi','dirtDeformWheels'}"
+local oldTold = false
+local SHIMS = { surfaceFX = true, surfaceFXStore = true, surfaceFXBody = true }
+local function retireOldMod()
+  local found = false
+  for _, n in ipairs(OLD_GE) do
+    local g = rawget(_G, n)
+    if g ~= nil and not (type(g) == 'table' and g.csfxShim) then       -- our own compatibility modules (surfaceFX, surfaceFXStore, surfaceFXBody) are not the old mod
+      found = true
+      pcall(extensions.unload, n)
+      if SHIMS[n] then pcall(extensions.load, n) end                  -- the old one is gone: ours takes the name back
+    end
+  end
+  if not found then return end
+  for _, v in ipairs(getAllVehicles()) do
+    v:queueLuaCommand('for _, n in ipairs(' .. OLD_VEH .. ') do if rawget(_G, n) ~= nil then extensions.unload(n) end end')
+  end
+  if not oldTold then
+    oldTold = true
+    log_('W', 'the old Surface FX / Enhanced Skid Marks mod is installed as well: switched off, Car Surface FX has all of its features. Please remove the old mod (dirtSkidMarks).')
+    if guihooks and guihooks.message then guihooks.message('Car Surface FX now includes Surface FX (Enhanced Skid Marks). The old mod was switched off for this session: please remove it from your mods.', 20, 'csfx') end
+  end
+end
+local retireT = 1
 
 -- The driver's view: the inside pane of the windscreen cannot show the canvas (see docs/DESIGN.md), so while the camera looks through a wet windscreen the game's web UI layer
 -- (ui/modModules/csfxRain) draws the drops on the screen, clipped to the windscreen's outline, which is projected from its nodes about 15 times a second.
@@ -512,7 +604,8 @@ local function pushScreen(dt)
   screenT = 0
   local pv = be:getPlayerVehicle(0)
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
-  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and (wet > 0.03 or frostP > 0.03 or sprayP > 0.03) and not conflict()
+  local drops = settings.windscreen.overlayStrength or 1
+  local want = pv and settings.windscreen.enabled and settings.windscreen.overlay and DRIVER_CAMS[cam] and ((wet > 0.03 and drops > 0.01) or frostShown() > 0.03 or sprayShown() > 0.03)
   if cam ~= screenCam then screenCam = cam if pv then screen.resetEye(pv:getID()) end end              -- another camera has another eye position
   local hull = want and screen.windscreen(pv) or nil
   screenWhy.cam, screenWhy.wet, screenWhy.overlay, screenWhy.want, screenWhy.hull, screenWhy.on = cam, wet, settings.windscreen.overlay, want and true or false, hull and #hull / 2 or nil, screenOn
@@ -531,8 +624,8 @@ local function pushScreen(dt)
   end
   local mo = motion[pv:getID()] or { speed = 0, aLong = 0, aLat = 0 }
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())
-  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity, wet = wet, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-    wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostP, spray = sprayP })
+  guihooks.trigger('csfxScreen', { on = true, hull = hull, rain = rain * settings.windscreen.intensity * drops, wet = wet * drops, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+    wiper = wipersOf(pv:getID(), rain), size = screenSize, debug = screenDebug, frost = frostShown(), spray = sprayShown() })
   screenOn = true
 end
 
@@ -572,12 +665,15 @@ function M.screenTrace(on) screenTrace = on and true or false traceT = 1 return 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
 local function update(dtReal)
+  retireT = retireT + dtReal
+  if retireT >= 1 then retireT = 0 retireOldMod() end
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
+  if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
+  if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
+  if settings and settings.ruts and settings.ruts.enabled ~= rutsOn() then if settings.ruts.enabled then startRuts() else stopRuts() end end
+  if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
+  if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
   if not settings then loadSettings() end
-  if conflict() then
-    if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
-    return
-  end
   local q = queue[1]
   if q then                                         -- one material reload per frame
     table.remove(queue, 1)
@@ -635,7 +731,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostP > 0.03 or sprayP > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
@@ -696,7 +792,7 @@ function M.onModDeactivated() end
 
 function M.defaults() return deepcopy(DEFAULTS) end
 
--- carSurfaceFx.set('scratch.colour', { r, g, b }): one value of the settings by its path, kept in the file
+-- carSurfaceFx.set('scratch.colour', { r, g, b }): one value of the settings by its path, kept in the file (for the values the Mods menu cannot store as plain json)
 function M.set(path, value)
   local t, key = settings, nil
   local parts = {}
@@ -709,7 +805,6 @@ function M.set(path, value)
   M.reloadSettings()
   return true
 end
-
 function M.getSettings() return settings end
 
 function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
@@ -730,7 +825,13 @@ function M.onClientEndMission()
   for _, info in pairs(mats) do info.rung = 0 end
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
-function M.onExtensionUnloaded() reset() stopScratch() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() stopGrass() stopImpacts() stopRuts() if rawget(_G, 'carSurfaceFx_debug') then extensions.unload('carSurfaceFx_debug') end end
+
+-- carSurfaceFx.debugTools(): loads the console debug set (counts, status, wheel contact markers, ground kind labels, clear all, test all); see carSurfaceFx_debug.lua
+function M.debugTools()
+  if not rawget(_G, 'carSurfaceFx_debug') then extensions.load('carSurfaceFx_debug') end
+  return carSurfaceFx_debug.help()
+end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
@@ -904,6 +1005,9 @@ function M.glassInfo()
     car.flowAt and next(car.flowAt) and 'yes' or 'not yet') or (car and 'not built (yet, or the car has no source mesh)' or 'no car'))
   return table.concat(out, '\n')
 end
+
+-- how wet the ground is now, 0..1 (the ruts pick their wet or dry material by it)
+function M.wetness() return wet end
 
 function M.status()
   if failed then return 'SWITCHED OFF after: ' .. failed end

@@ -119,6 +119,12 @@ eq(d2.mud > 0.5, true, 'wet loose ground gives mud')
 local d3 = R.dirtBuild(R.dirtNew(), 100000, { road = 1 }, 20, 0)
 eq(d3.grime, R.CAP.grime, 'road film is capped')
 eq(R.dirtBuild(R.dirtNew(), 10, { slip = 1 }, 20, 0).rubber, 0.4, 'a 10 s burnout')
+-- the throw follows the tyres: a slow mud run with the wheels spinning (8 m/s car, 22 m/s tyre surface) throws more than a 60 km/h dry dirt road
+local slowMud = R.dirtBuild(R.dirtNew(), 60, { mud = 1, spin = 22 }, 8, 0).mud
+local dirtRoad = R.dirtBuild(R.dirtNew(), 60, { loose = 0.6 }, 60 / 3.6, 0).dust
+assert(slowMud > dirtRoad, 'a spinning slow mud run beats the dirt road: ' .. slowMud .. ' vs ' .. dirtRoad)
+assert(R.dirtBuild(R.dirtNew(), 60, { mud = 1 }, 8, 0).mud < slowMud / 2, 'without spin a slow mud run is lighter')
+eq(R.dirtBuild(R.dirtNew(), 60, { mud = 1, spin = 0 }, 20, 0).mud, R.dirtBuild(R.dirtNew(), 60, { mud = 1 }, 20, 0).mud, 'no spin report changes nothing')
 local w = R.dirtWash({ dust = 1, mud = 1, rubber = 1, grime = 1 }, 30, 1, 0)
 eq(w.dust, 0.5, 'rain washes dust fast')
 eq(w.mud > 0.9, true, 'and mud slowly')
@@ -129,9 +135,9 @@ eq(R.dirtTotal(R.dirtClean({ dust = 1, mud = 1, rubber = 1, grime = 1 }, 1)), 0,
 
 -- snow, bugs, frost
 local function D(t) local d = R.dirtNew() for k, v in pairs(t) do d[k] = v end return d end
-local sn = R.dirtBuild(R.dirtNew(), 90, { snowing = 1 }, 0, 0)
-eq(sn.snow, 1, 'a standing car under full snow: a full coat in 90 s')
-eq(R.dirtBuild(R.dirtNew(), 90, { snowing = 1 }, 20, 0).snow, 0, 'a fast car blows it off at once')
+local sn = R.dirtBuild(R.dirtNew(), 180, { snowing = 1 }, 0, 0)
+eq(sn.snow, 1, 'a standing car under full snow: a full coat in 180 s')
+eq(R.dirtBuild(R.dirtNew(), 180, { snowing = 1 }, 20, 0).snow, 0, 'a fast car blows it off at once')
 eq(R.dirtBuild(D({ snow = 1 }), 10, {}, 10, 0).snow, 0.5, 'blown off above 8 m/s: 2 m/s over for 10 s takes half')
 eq(R.dirtBuild(D({ snow = 1 }), 900, { warm = true }, 0, 0).snow, 0, 'melts when warm')
 eq(R.dirtBuild(D({ snow = 0.5 }), 900, {}, 0, 0).snow, 0.5, 'stays when cold and still')
@@ -142,7 +148,16 @@ eq(R.dirtWash({ bugs = 1, snow = 1 }, 500, 1, 0).bugs, 0, 'rain washes bugs')
 -- bug dynamics: warm air, dusk, rain, size, soaking
 eq(R.bugRate(38, 22, nil, 0), 1 / 300, 'bugs in warm air at 38 m/s: 1/300 per second')
 eq(R.bugRate(38, 4, nil, 0), 0, 'none in the cold')
-assert(R.bugRate(38, 12, nil, 0) < R.bugRate(38, 22, nil, 0) and R.bugRate(38, 12, nil, 0) > 0, 'fewer in cool air')
+assert(R.bugRate(38, 16, nil, 0) < R.bugRate(38, 22, nil, 0) and R.bugRate(38, 16, nil, 0) > 0, 'fewer in cool air')
+eq(R.dirtBuild(R.dirtNew(), 100, { mud = 1 }, 0, 0).mud, 0, 'a standing car throws no mud')
+assert(R.dirtBuild(R.dirtNew(), 100, { mud = 1 }, 20, 0).mud >= 0.9, 'mud ground at 20 m/s for 100 s: caked')
+assert(R.dirtBuild(R.dirtNew(), 100, { road = 1 }, 20, 1).grime > 2 * R.dirtBuild(R.dirtNew(), 100, { road = 1 }, 20, 0).grime, 'wet tarmac throws the road film faster')
+assert(R.dirtWash({ dust = 1, grime = 0, mud = 0, rubber = 0, snow = 0, bugs = 0 }, 60, 1, 0).grime > 0.25, 'washed dust leaves a film')
+do local d, m = R.dirtNew(), R.dirtNew() for _ = 1, 120 do d = R.dirtBuild(d, 1, { loose = 1 }, 16.7, 0) m = R.dirtBuild(m, 1, { loose = 1 }, 16.7, 0.6) end
+  assert(d.dust > 0.5 and m.mud > 0.5, '60 km/h on a dirt road for 2 min: the car cakes, dry or damp (dust ' .. d.dust .. ', mud ' .. m.mud .. ')') end
+do local d = R.dirtBuild(R.dirtNew(), 120, { loose = 1 }, 0, 0) assert(d.dust > 0 and d.dust < 0.3, 'a parked car on dirt still gets a little settling dust') end
+assert(R.dirtBuild(R.dirtNew(), 120, { snowing = 1 }, 0, 0).snow > 0.5, 'snow settles on a parked car')
+assert(R.dirtBuild(R.dirtNew(), 30, { loose = 1 }, 20, 0.7).mud < 0.6 * R.dirtBuild(R.dirtNew(), 30, { mud = 1 }, 20, 0.7).mud, 'a damp dirt road muddies the car slower than mud ground')
 assert(R.isGlassName('covet_glass') and not R.isGlassName('covet_glass_on') and not R.isGlassName('covet_glass_on_intense') and not R.isGlassName('covet_sidemarkerglass'), 'the lamp-on glass states and the side markers are not windows')
 assert(R.bugRate(38, 22, 0.245, 0) > 1.3 * R.bugRate(38, 22, 0.0, 0), 'more at dusk')
 assert(R.bugRate(38, 22, 0.775, 0) > R.bugRate(38, 22, 0.5, 0), 'and at dawn, not at night')

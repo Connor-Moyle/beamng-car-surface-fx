@@ -1,0 +1,252 @@
+{
+ "types": [
+  {
+   "type": "skid_asphalt",
+   "dry": "csfx_skid_asphalt_dry",
+   "wet": "csfx_skid_asphalt_wet",
+   "textureLength": 4.0,
+   "width": 0.35,
+   "size": [
+    128,
+    512
+   ],
+   "note": "rubber skid on tarmac, one tyre",
+   "blob": false
+  },
+  {
+   "type": "track_dirt",
+   "dry": "csfx_track_dirt_dry",
+   "wet": "csfx_track_dirt_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    256,
+    512
+   ],
+   "note": "tyre track with tread in dirt",
+   "blob": false
+  },
+  {
+   "type": "rut_dirt",
+   "dry": "csfx_rut_dirt_dry",
+   "wet": "csfx_rut_dirt_wet",
+   "textureLength": 4.0,
+   "width": 0.9,
+   "size": [
+    256,
+    512
+   ],
+   "note": "deep wheel rut with raised lips in dirt",
+   "blob": false
+  },
+  {
+   "type": "track_gravel",
+   "dry": "csfx_track_gravel_dry",
+   "wet": "csfx_track_gravel_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    256,
+    512
+   ],
+   "note": "tyre track with tread in gravel",
+   "blob": false
+  },
+  {
+   "type": "rut_gravel",
+   "dry": "csfx_rut_gravel_dry",
+   "wet": "csfx_rut_gravel_wet",
+   "textureLength": 4.0,
+   "width": 0.9,
+   "size": [
+    256,
+    512
+   ],
+   "note": "deep wheel rut with raised lips in gravel",
+   "blob": false
+  },
+  {
+   "type": "track_sand",
+   "dry": "csfx_track_sand_dry",
+   "wet": "csfx_track_sand_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    256,
+    512
+   ],
+   "note": "tyre track with tread in sand",
+   "blob": false
+  },
+  {
+   "type": "rut_sand",
+   "dry": "csfx_rut_sand_dry",
+   "wet": "csfx_rut_sand_wet",
+   "textureLength": 4.0,
+   "width": 0.9,
+   "size": [
+    256,
+    512
+   ],
+   "note": "deep wheel rut with raised lips in sand",
+   "blob": false
+  },
+  {
+   "type": "track_mud",
+   "dry": "csfx_track_mud_dry",
+   "wet": "csfx_track_mud_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    256,
+    512
+   ],
+   "note": "tyre track with tread in mud",
+   "blob": false
+  },
+  {
+   "type": "rut_mud",
+   "dry": "csfx_rut_mud_dry",
+   "wet": "csfx_rut_mud_wet",
+   "textureLength": 4.0,
+   "width": 0.9,
+   "size": [
+    256,
+    512
+   ],
+   "note": "deep wheel rut with raised lips in mud",
+   "blob": false
+  },
+  {
+   "type": "track_snow",
+   "dry": "csfx_track_snow_dry",
+   "wet": "csfx_track_snow_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    256,
+    512
+   ],
+   "note": "tyre track with tread in snow",
+   "blob": false
+  },
+  {
+   "type": "rut_snow",
+   "dry": "csfx_rut_snow_dry",
+   "wet": "csfx_rut_snow_wet",
+   "textureLength": 4.0,
+   "width": 0.9,
+   "size": [
+    256,
+    512
+   ],
+   "note": "deep wheel rut with raised lips in snow",
+   "blob": false
+  },
+  {
+   "type": "gouge_asphalt",
+   "dry": "csfx_gouge_asphalt_dry",
+   "wet": "csfx_gouge_asphalt_wet",
+   "textureLength": 3.0,
+   "width": 0.45,
+   "size": [
+    128,
+    512
+   ],
+   "note": "ground gouge scar on tarmac",
+   "blob": false
+  },
+  {
+   "type": "gouge_dirt",
+   "dry": "csfx_gouge_dirt_dry",
+   "wet": "csfx_gouge_dirt_wet",
+   "textureLength": 3.0,
+   "width": 0.45,
+   "size": [
+    128,
+    512
+   ],
+   "note": "ground gouge in soil",
+   "blob": false
+  },
+  {
+   "type": "wall_concrete",
+   "dry": "csfx_wall_concrete_dry",
+   "wet": "csfx_wall_concrete_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    128,
+    512
+   ],
+   "note": "scrape streak from a concrete wall",
+   "blob": false
+  },
+  {
+   "type": "wall_metal",
+   "dry": "csfx_wall_metal_dry",
+   "wet": "csfx_wall_metal_wet",
+   "textureLength": 3.0,
+   "width": 0.5,
+   "size": [
+    128,
+    512
+   ],
+   "note": "scrape streak from a metal barrier",
+   "blob": false
+  },
+  {
+   "type": "oil",
+   "dry": "csfx_oil_dry",
+   "wet": "csfx_oil_wet",
+   "textureLength": 1.0,
+   "width": 1.0,
+   "size": [
+    256,
+    256
+   ],
+   "note": "oil stain",
+   "blob": true
+  },
+  {
+   "type": "coolant",
+   "dry": "csfx_coolant_dry",
+   "wet": "csfx_coolant_wet",
+   "textureLength": 1.0,
+   "width": 1.0,
+   "size": [
+    256,
+    256
+   ],
+   "note": "coolant stain",
+   "blob": true
+  },
+  {
+   "type": "fuel",
+   "dry": "csfx_fuel_dry",
+   "wet": "csfx_fuel_wet",
+   "textureLength": 1.0,
+   "width": 1.0,
+   "size": [
+    256,
+    256
+   ],
+   "note": "fuel stain with a faint sheen",
+   "blob": true
+  },
+  {
+   "type": "test_bump",
+   "dry": "csfx_test_bump_dry",
+   "wet": "csfx_test_bump_wet",
+   "textureLength": 4.0,
+   "width": 1.0,
+   "size": [
+    256,
+    512
+   ],
+   "note": "TEST: domes on the left, pits on the right, to see which way the normal map is read",
+   "blob": false
+  }
+ ],
+ "normalConvention": "DirectX (green down)"
+}

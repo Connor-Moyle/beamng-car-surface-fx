@@ -24,7 +24,7 @@
       a layer's OPACITY can't be driven by a canvas (the shader reads it only from a
       file texture's red channel - tried, renders solid), which is why this rides on
       the existing paint layer instead of adding one on top.
-    * WHEN: carSurfaceFxScratch.lua (car side) reports hard sliding body hits and
+    * WHEN: carSurfaceFxWear.lua (car side, through carSurfaceFx/bodywear.lua) reports hard sliding body hits and
       wheels rolling on loose ground; everything else happens here.
 
   limits, on purpose:
@@ -42,10 +42,11 @@
 
 local M = {}
 local bodymap = require('carSurfaceFx/bodymap')
+local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the .dae's v runs up, the canvas runs down
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 20                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 24                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -94,10 +95,7 @@ function M.configure(t)
 end
 local function active() return settings.enabled or settings.dirtEnabled end
 
--- ---- the car-side reporter ----
-local function pushCmd()
-  return ('if carSurfaceFxScratch then carSurfaceFxScratch.setConfig(%s) end'):format(tostring(settings.enabled))
-end
+-- ---- the car-side reporter (carSurfaceFx/bodywear.lua puts the contact sorting into the cars) ----
 -- (a command into every car's Lua once a second was a lot of traffic for nothing: now when the setting changed or every 5 s, and at once for a new car)
 local injectedAt = {}      -- vehId -> { at = os.clock(), enabled = }
 local function injectVehicle(veh)
@@ -105,7 +103,8 @@ local function injectVehicle(veh)
   local i = injectedAt[id]
   if i and i.enabled == settings.enabled and now - i.at < 5 then return end
   if i then i.at, i.enabled = now, settings.enabled else injectedAt[id] = { at = now, enabled = settings.enabled } end
-  veh:queueLuaCommand("if not carSurfaceFxScratch then extensions.load('carSurfaceFxScratch') end " .. pushCmd())
+  local bw = rawget(_G, 'carSurfaceFx_bodywear')
+  if bw then bw.inject(veh, settings.enabled) end                     -- the car-side body wear (contact sorting) replaces the old detector
 end
 
 -- ---- materials ----
@@ -199,7 +198,8 @@ local function restoreAll()
 end
 
 -- the level is ending: its materials and the cars' canvases go with it, so nothing is reloaded or destroyed in the same tick the engine takes the cars down; only our references are dropped
-local function dropAll() bound = {}; cars = {} end
+local outq, outHead = {}, 1                                      -- the calls for the paint pages, sent a few a frame (see send)
+local function dropAll() bound = {}; cars = {}; outq, outHead = {}, 1 end
 
 -- ---- per-car setup ----
 local bodydirt = require('carSurfaceFx/bodydirt')
@@ -234,12 +234,31 @@ local function start(veh)
   end)
 end
 
-local function draw(veh, fn, data)
-  local js = fn .. '(' .. jsonEncode(data) .. ')'
-  veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
+-- Everything for the two paint pages goes through one queue, ONE call per page frame. A web texture runs one queued script per frame of its own (FPS, 10 a second) and the
+-- others of that frame are lost: what showed in the game was always about one piece of 40 splats however many were sent (35 in a frame: 30 marks; 120 in a frame: none;
+-- 6 a frame: 30 marks).
+local SEND_EVERY = 1.3 / FPS
+local sendT = 0
+local function send(veh, js) outq[#outq + 1] = { veh:getId(), js } end
+local function flush(dt)
+  sendT = sendT + (dt or 0)
+  if sendT < SEND_EVERY then return end
+  while outHead <= #outq do
+    local e = outq[outHead]
+    outq[outHead] = false
+    outHead = outHead + 1
+    local veh = getObjectByID(e[1])
+    local ok, has = pcall(function() return veh and hasCanvas(veh) end)
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]) sendT = 0 break end
+  end
+  if outHead > #outq then outq, outHead = {}, 1 end
 end
 
--- ---- called from the car (carSurfaceFxScratch.lua) ----
+local function draw(veh, fn, data)
+  send(veh, fn .. '(' .. jsonEncode(data) .. ')')
+end
+
+-- ---- called by carSurfaceFx/bodywear.lua, from the car's contacts ----
 -- a body node slid hard against something. a,b,c = the slip direction along the car's left/back/up lines.
 function M.hit(id, cid, force, slip, a, b, c)
   local car = cars[id]
@@ -370,24 +389,57 @@ end
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
 local SOFT = { dust = true, snow = true, grime = true }
+-- splats to the pages in pieces of 100, with short numbers: one call of 550 splats with 17-digit floats was a 50 kB piece of script, more than a web texture may take
+local function drawSplats(veh, list, dirs, props)
+  for first = 1, #list, 300 do
+    local l, d = {}, {}
+    for i = first, math.min(#list, first + 299), 3 do
+      l[#l + 1], l[#l + 2], l[#l + 3] = q(list[i], 10000), q(list[i + 1], 10000), q(list[i + 2], 100000)
+      if dirs then local j = (i - 1) / 3 * 2 + 1 d[#d + 1], d[#d + 2] = q(dirs[j], 1000), q(dirs[j + 1], 1000) end
+    end
+    draw(veh, 'csfxBlobs', { l = l, d = dirs and d or nil, c = props.c, a = props.a, k = props.k })
+  end
+end
+function M.useMap(id, map) cars[id] = cars[id] or {} cars[id].map = map end                    -- (for the tests: a car's body map without the mesh reading)
+local dd = { calls = 0, refused = 0, sent = 0, clods = 0, last = 'never' }              -- what dirtAt did, for diagnose()
 function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local car = cars[id]
   local map = car and car.map
   local veh = getObjectByID(id)
-  if not (map and veh and settings.dirtEnabled) then return false end
-  if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
-  local list = bodymap.sample(map, kind, n, random, wi, opts)
+  dd.calls = dd.calls + 1
+  if not (map and veh and settings.dirtEnabled) then dd.refused = dd.refused + 1 dd.last = string.format('%s refused (car %s, map %s, veh %s, dirtEnabled %s)', kind, tostring(car ~= nil), tostring(map ~= nil), tostring(veh ~= nil), tostring(settings.dirtEnabled)) return false end
+  local list
+  if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 1 then                  -- every wheel throws its share (one wheel for the whole call put it all on one corner)
+    list = {}
+    local per = math.max(1, math.floor(n / #map.wheels + 0.5))
+    for w = 1, #map.wheels do for _, s in ipairs(bodymap.sample(map, kind, per, random, w, opts)) do list[#list + 1] = s; wi = w end end
+  else
+    if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end
+    list = bodymap.sample(map, kind, n, random, wi, opts)
+  end
   if #list == 0 then return true end
-  local blobs, dirs = {}, {}
+  local blobs, dirs, cakes = {}, {}, {}
   for i, s in ipairs(list) do
-    local k = #blobs
-    blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, 1 - s.v, size * (0.6 + random() * 0.8) * s.s
-    if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
+    local h = s.h or (s.z and bodymap.heightOf(map, s.z))                            -- how high on the car (0 sill .. 1 roof)
+    if kind == 'mud' and h and h < 0.35 and random() < 0.5 then                       -- the lowest dirt is thick: a clod, bigger than a splat, in its own layer
+      cakes[#cakes + 1], cakes[#cakes + 2], cakes[#cakes + 3] = s.u, canvasV(s.v), size * (1.0 + 2.6 * random() ^ 1.5) * s.s
+    else
+      local k = #blobs
+      blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (kind == 'mud' and (0.3 + 1.4 * random() ^ 2) or (0.6 + 0.8 * random())) * s.s       -- mud: many small, a few big; the soft kinds: even patches
+      if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
+    end
   end
   local soft = SOFT[kind] and 'dust' or 'mud'
-  draw(veh, 'csfxBlobs', { l = blobs, d = dirs, c = c, a = a, k = soft })
   local m = mem(id)
-  for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
+  dd.sent, dd.clods, dd.last = dd.sent + #blobs / 3, dd.clods + #cakes / 3, string.format('%s: %d splats, %d clods, wheel %s', kind, #blobs / 3, #cakes / 3, tostring(wi))
+  if #blobs > 0 then
+    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft })
+    for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
+  end
+  if #cakes > 0 then
+    drawSplats(veh, cakes, nil, { c = c, a = math.min(1, a + 0.1), k = 'cake' })
+    for i = 1, #cakes, 3 do remember(m.splats, { q(cakes[i]), q(cakes[i + 1]), q(cakes[i + 2], 10000), q(a), 2 }) end
+  end
   return true
 end
 
@@ -395,8 +447,7 @@ end
 function M.washSplats(id, fDust, fMud)
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then
-      local js = ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud)
-      veh:queueJSUITexture(TAG_B, js); veh:queueJSUITexture(TAG_P, js)
+      send(veh, ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud))
     end
   end
   for vid, m in pairs(memory) do
@@ -414,7 +465,7 @@ end
 -- repair: the scratches of car id buffed out (every car's when id is nil); the dirt stays
 function M.repair(id)
   for _, veh in ipairs(getAllVehicles()) do
-    if (id == nil or veh:getId() == id) and hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxRepair()'); veh:queueJSUITexture(TAG_P, 'csfxRepair()') end
+    if (id == nil or veh:getId() == id) and hasCanvas(veh) then send(veh, 'csfxRepair()') end
   end
   for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} end end
 end
@@ -422,7 +473,7 @@ end
 function M.buffOut()
   memory = {}
   for _, veh in ipairs(getAllVehicles()) do
-    if hasCanvas(veh) then veh:queueJSUITexture(TAG_B, 'csfxClear()'); veh:queueJSUITexture(TAG_P, 'csfxClear()') end
+    if hasCanvas(veh) then send(veh, 'csfxClear()') end
   end
 end
 
@@ -555,6 +606,7 @@ function M.diagnose()
     end
   end
   out[#out + 1] = ('paint water: %d calls, %d sent, last [%s], blocked because [%s], map sent %s s ago'):format(waterCalls, waterSent, lastWaterJs, waterWhy, tostring(nodesSent[veh:getId()] and math.floor(os.clock() - nodesSent[veh:getId()]) or 'never'))
+  out[#out + 1] = string.format('dirtAt: %d calls, %d refused, %d splats and %d clods sent, last: %s', dd.calls, dd.refused, dd.sent, dd.clods, dd.last)
   out[#out + 1] = 'canvases on the car: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
   for nm, layers in pairs(bound) do
     local mat = scenetree.findObject(nm)
@@ -569,10 +621,21 @@ function M.diagnose()
 end
 
 -- carSurfaceFx_scratch.probe(): a big red cross on the player car's canvases; if it never shows on the paint, the page or the binding does not reach the material
+-- carSurfaceFx_scratch.stamp(): 36 big red marks, ONE per call, one call per 0.13 s, on a 6 x 6 grid of the paint map: how many of them show on the car says how many calls arrive
+-- (each mark is a call of its own; count the red marks)
+function M.stamp()
+  local veh = getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  for gx = 0, 5 do for gy = 0, 5 do
+    draw(veh, 'csfxBlobs', { l = { (gx + 0.5) / 6, (gy + 0.5) / 6, 0.03 }, c = { 1, 0.1, 0.1 }, a = 1, k = 'mud' })
+  end end
+  return '36 calls queued, one every 0.13 s'
+end
+
 function M.probe()
   local veh = getPlayerVehicle(0)
   if not veh then return 'no player vehicle' end
-  veh:queueJSUITexture(TAG_B, 'csfxProbe()'); veh:queueJSUITexture(TAG_P, 'csfxProbe()')
+  send(veh, 'csfxProbe()')
   return 'probe sent; canvases: ' .. table.concat(veh:getActiveUITextureTagNames() or {}, ', ')
 end
 
@@ -591,7 +654,9 @@ end
 function M.onExtensionLoaded() end
 local pollTimer = 0
 function M.onUpdate(dt)
+  flush(dt)
   carSurfaceFx_meshuv.tick()
+  bodydirt.tick()
   pollTimer = pollTimer + (dt or 0)
   if pollTimer < 1.0 then return end
   pollTimer = 0

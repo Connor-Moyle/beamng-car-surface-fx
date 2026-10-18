@@ -11,6 +11,7 @@ local loose, mud, road = {}, {}, {}      -- collision type id -> weight
 local timer = 0
 local sLoose, sMud, sRoad, tSlip, tWater, tWaterL, tWaterR = 0, 0, 0, 0, 0, 0, 0    -- time-weighted sums over the interval
 local wiperKeys, wiperScan = {}, 0
+local tSpin = 0                         -- the fastest tyre surface speed (m/s) of a loaded wheel in the interval
 
 function M.setClasses(l, m, r)
   loose, mud, road = type(l) == 'table' and l or {}, type(m) == 'table' and m or {}, type(r) == 'table' and r or {}
@@ -55,6 +56,7 @@ function M.updateGFX(dt)
       if id == RUBBER_MAT then id = wd.contactMaterialID2 or -1 end
       l, m, r = l + (loose[id] or 0), m + (mud[id] or 0), r + (road[id] or 0)
       n = n + 1
+      tSpin = math.max(tSpin, math.abs(tonumber(wd.angularVelocity) or 0) * (tonumber(wd.radius) or 0.3))
       if math.abs(wd.lastSlip or 0) * math.min((wd.downForce or 0) * 0.1, 1) >= SKID then skid = true end
     end
   end
@@ -71,9 +73,9 @@ function M.updateGFX(dt)
   timer = timer + dt
   if timer < INTERVAL then return end
   local v = obj:getVelocity()
-  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f, %s, %.3f, %.3f) end', obj:getId(),
-    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer), engineTemp(), tWaterL / timer, tWaterR / timer))
-  timer, sLoose, sMud, sRoad, tSlip, tWater, tWaterL, tWaterR = 0, 0, 0, 0, 0, 0, 0, 0
+  obj:queueGameEngineLua(string.format('if carSurfaceFx then carSurfaceFx.onGround(%d, %.3f, %.3f, %.3f, %.3f, %.3f, %.2f, %.3f, %.2f, %s, %.3f, %.3f, %.2f) end', obj:getId(),
+    sLoose / timer, sMud / timer, sRoad / timer, tSlip / timer, tWater / timer, v:length(), timer, wipers(timer), engineTemp(), tWaterL / timer, tWaterR / timer, tSpin))
+  timer, sLoose, sMud, sRoad, tSlip, tWater, tWaterL, tWaterR, tSpin = 0, 0, 0, 0, 0, 0, 0, 0, 0
 end
 
 return M

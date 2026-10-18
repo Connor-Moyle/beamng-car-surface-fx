@@ -107,6 +107,12 @@ local function behind(map, c, wi)
   return c.py - wh.y, abs(c.px - wh.x)
 end
 
+-- the wake: a rear face is wetted by the low-pressure air behind the car, thickest low and fading up; a steep sloping one (a fastback's glass) gets less
+local function wake(c)
+  if c.ny > 0.5 then return (c.h < 1.0 and 0.4 + 0.6 * (1 - c.h) or 0.4 * exp(-(c.h - 1.0) / 0.5)) * (c.nz > 0.5 and 0.4 or 1) end      -- 1 m is where it starts to fade, not a cutoff: a hatch's glass gets some up to the roofline
+  return 0
+end
+
 local RULES = {}
 function RULES.mud(map, c, wi)
   local base = exp(-c.h / 0.22)                                           -- mostly low
@@ -117,12 +123,12 @@ function RULES.mud(map, c, wi)
     local wh = map.wheels[wi]
     local dz = c.pz - wh.z
     if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.5) * up * 1.0 end
-    if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.5 end                          -- the underside near the wheel
+    if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.1 end                          -- the underside near the wheel (nobody sees it)
   else
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w
+  return w + 1.3 * wake(c)
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -131,7 +137,7 @@ function RULES.grime(map, c)
 end
 function RULES.dust(map, c, wi, opts)
   if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
-  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + (c.ny > 0.5 and c.h < 0.9 and 0.6 or 0)
+  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 1.2 * wake(c)
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)
@@ -172,21 +178,24 @@ end
 function M.sample(map, kind, n, rnd, wi, opts)
   local out = {}
   if map.spray and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then                 -- thrown from the tyres: where the traced spray really hits
-    local tries = kind == 'rubber' and n * 3 or n
+    local tries = kind == 'rubber' and n * 3 or n * 4
+    local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
-      if #out < n and (kind == 'mud' or (h.dist or 9) < 1.1) then out[#out + 1] = h end                   -- rubber only where it is close to the wheel
+      -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
-    if #out > 0 then return out end
+    if kind == 'rubber' and #out > 0 then return out end
   end
   local t = table_for(map, kind, wi, opts)
   if t.total <= 0 or #t.cum == 0 then return out end
-  for _ = 1, n do
+  for _ = #out + 1, n do
     local r = rnd() * t.total
     local lo, hi = 1, #t.cum
     while lo < hi do local mid = floor((lo + hi) / 2) if t.cum[mid] >= r then hi = mid else lo = mid + 1 end end
     local c = map.list[lo]
     local s = {}
     s.u, s.v = (c.gx + rnd()) / N, (c.gy + rnd()) / N
+    s.h = c.h
     s.s = sqrt((c.jux ^ 2 + c.juy ^ 2 + c.juz ^ 2 + c.jvx ^ 2 + c.jvy ^ 2 + c.jvz ^ 2) / 2)
     if kind == 'mud' then                                                  -- along the spray: thrown backward and up from the tread
       local dux, dvx = c.jux * 0 + c.juy * 1 + c.juz * 0.5, c.jvx * 0 + c.jvy * 1 + c.jvz * 0.5
@@ -196,6 +205,12 @@ function M.sample(map, kind, n, rnd, wi, opts)
     out[#out + 1] = s
   end
   return out
+end
+
+-- how high a point of the car frame is on the body: 0 at the lowest point, 1 at the roof (map.bounds is { x0, x1, y0, y1, z0, z1 })
+function M.heightOf(map, z)
+  local b = map.bounds
+  return max(0, min(1, (z - b[5]) / max(0.01, b[6] - b[5])))
 end
 
 -- how much of the body a kind could land on (0..1 of the cell count): for the tests and the status line
