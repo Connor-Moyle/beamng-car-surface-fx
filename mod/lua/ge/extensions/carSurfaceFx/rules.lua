@@ -347,12 +347,16 @@ function M.glassMap(st, mode)
   return 'baseColorMap', st.baseColorMap
 end
 
-M.glassEmissive = 0.4                                             -- how bright the inside drops glint (emissiveFactor)
+M.glassEmissive = 0.6                                             -- how bright the drops glint (emissiveFactor)
+M.glassNits = 1500                                                -- and how strong that light is (emissiveIntensityNits): the engine's default is far too faint to see in daylight (a solid white canvas showed as a faint haze)
 function M.glassFields(st, tag, mode)
   local field = M.glassMap(st, mode or 'color')
   if not field then return {} end
   local out = { [field] = tag }
-  if mode == 'emissive' then out.emissiveFactor = string.format('%.2f %.2f %.2f', M.glassEmissive, M.glassEmissive, M.glassEmissive) end
+  if mode == 'emissive' then
+    out.emissiveFactor = string.format('%.2f %.2f %.2f', M.glassEmissive, M.glassEmissive, M.glassEmissive)
+    out.emissiveIntensityNits = string.format('%.0f', M.glassNits)
+  end
   return out
 end
 
