@@ -56,7 +56,7 @@
       var r, g, b, a;
       if (emissive) {
         var lit = ring * Math.max(0, Math.min(1, -(u + v) * 0.7)) * 0.2;           // a narrow lit edge on the upper left, faint: the body of a drop on the glass is clear
-        a = Math.min(1, lit + glint * 0.8); r = g = b = 255;
+        a = Math.min(1, lit + glint * 0.65); r = g = b = 255;
       } else {
         var spot = d < 0.8 ? 0.14 * Math.exp(-((u - 0.25) * (u - 0.25) + (v - 0.3) * (v - 0.3)) / 0.12) : 0;      // light focused low right
         var dark = ring * (0.32 + 0.40 * low);
@@ -148,7 +148,7 @@
     }
     if (tiny) ctx.stroke();
     if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
