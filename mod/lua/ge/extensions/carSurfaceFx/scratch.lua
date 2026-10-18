@@ -42,6 +42,7 @@
 
 local M = {}
 local bodymap = require('carSurfaceFx/bodymap')
+local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the .dae's v runs up, the canvas runs down
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
@@ -379,7 +380,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local blobs, dirs = {}, {}
   for i, s in ipairs(list) do
     local k = #blobs
-    blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, 1 - s.v, size * (0.6 + random() * 0.8) * s.s
+    blobs[k + 1], blobs[k + 2], blobs[k + 3] = s.u, canvasV(s.v), size * (0.6 + random() * 0.8) * s.s
     if s.dx then dirs[#dirs + 1], dirs[#dirs + 2] = s.dx, -s.dy else dirs[#dirs + 1], dirs[#dirs + 2] = 0, 0 end   -- the canvas has y turned over
   end
   local soft = SOFT[kind] and 'dust' or 'mud'

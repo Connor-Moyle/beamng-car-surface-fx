@@ -47,6 +47,10 @@ end
 
 -- tris = list of { pos = {9 numbers}, uv = {6 numbers} } -> { g = { N*N*2 numbers }, b = ..., r = ..., filled = cells with data }
 function M.field(tris)
+  local flipped = {}                                                  -- the web canvas has its top row at v = 1 (the .dae's v runs up): a window sits in the rows the page draws in only when v is turned over (seen with the labelled debug grid)
+  local cv = require('carSurfaceFx/daeread').canvasV
+  for i, t in ipairs(tris) do local u = t.uv flipped[i] = { pos = t.pos, mesh = t.mesh, uv = { u[1], cv(u[2]), u[3], cv(u[4]), u[5], cv(u[6]) } } end
+  tris = flipped
   local sSum, sN = 0, 0
   local sum, cnt = { {}, {}, {} }, {}
   for i = 1, N * N do cnt[i] = 0 for d = 1, 3 do sum[d][i * 2 - 1], sum[d][i * 2] = 0, 0 end end
@@ -154,7 +158,21 @@ function M.request(vehId, glassMat, cb)
     for _ in pairs(stats.nodes) do info.matched = info.matched + 1 end
     for mn, f in pairs(out) do info.fields[#info.fields + 1] = string.format('%s: %d cells, %.2f/m', mn, f.filled, f.uvPerM) end
     out._info = info
-    local line = string.format('%s: %d glass triangles, %d .dae file(s), %d fitted meshes found of %d nodes; materials asked for [%s]; cells [%s]', tostring(vd.vehicleDirectory), #tris, #files, info.matched, stats.nodeCount, info.wantedMats, table.concat(info.fields, '; '))
+    local per, names = {}, {}
+    for _, t in ipairs(tris) do                                       -- which fitted meshes gave the pane cells, and where they lie on the texture
+      local m = per[t.mesh]
+      if not m then m = { n = 0, u0 = 9, u1 = -9, v0 = 9, v1 = -9 } per[t.mesh] = m names[#names + 1] = t.mesh end
+      m.n = m.n + 1
+      for i = 0, 2 do
+        local u, v = t.uv[i * 2 + 1], t.uv[i * 2 + 2]
+        if u < m.u0 then m.u0 = u end if u > m.u1 then m.u1 = u end if v < m.v0 then m.v0 = v end if v > m.v1 then m.v1 = v end
+      end
+    end
+    table.sort(names)
+    local ml = {}
+    for _, nm in ipairs(names) do local m = per[nm] ml[#ml + 1] = string.format('%s:%d u%.2f-%.2f v%.2f-%.2f', nm, m.n, m.u0, m.u1, m.v0, m.v1) end
+    info.meshes = table.concat(ml, '; ')
+    local line = string.format('%s: %d glass triangles, %d .dae file(s), %d fitted meshes found of %d nodes; materials asked for [%s]; cells [%s]; meshes [%s]', tostring(vd.vehicleDirectory), #tris, #files, info.matched, stats.nodeCount, info.wantedMats, table.concat(info.fields, '; '), info.meshes)
     if #tris == 0 then
       local glassy = {}
       for nm in pairs(stats.daeMats) do if nm:lower():find('glass', 1, true) then glassy[#glassy + 1] = nm end end
