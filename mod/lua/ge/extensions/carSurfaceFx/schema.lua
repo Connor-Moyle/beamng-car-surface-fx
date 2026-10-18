@@ -10,6 +10,7 @@ M.TABS = {
   { id = 'dirt', title = 'Dirt & wear', description = 'Dirt that builds up while you drive, and the scratches and splats on the body.' },
   { id = 'weather', title = 'Weather extras', description = 'Snow, frost, bugs and road spray.' },
   { id = 'marks', title = 'Skid marks & terrain', description = 'Marks your tyres leave on the ground, surface by surface.' },
+  { id = 'crash', title = 'Glass, debris & sparks', description = 'What a crash leaves behind: glass on the road, pieces thrown off the car, and sparks where metal grinds on the ground.' },
   { id = 'leaks', title = 'Leaks & puddles', description = 'Oil, coolant and fuel that a damaged car drips, the puddles it leaves when it stands, and how slippery they are.' },
   require('carSurfaceFx/grass').TAB,
   { id = 'textures', title = 'Textures', description = 'The pictures used for the marks. Drop your own white-on-transparent 256 x 256 PNG into a surface folder under art/decals and it shows up here.' },
@@ -49,6 +50,37 @@ local function marksStore(path, kind, dir)
       if not (m and m.set) then return end
       if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b }
       elseif kind == 'texture' then value = tostring(value):match('([^/\\]+)$') or '' end
+      m.set(path, value)
+    end }
+end
+
+-- ---- the crash effects module's values (carSurfaceFx_impacts)
+local function impactsModule() return rawget(_G, 'carSurfaceFx_impacts') end
+local function impactDefaultAt(path)
+  local t = require('carSurfaceFx/impactrules').defaults()
+  for part in tostring(path):gmatch('[^%.]+') do
+    if type(t) ~= 'table' then return nil end
+    t = t[part]
+  end
+  return t
+end
+local function impactStore(path, kind)
+  local function raw()
+    local m = impactsModule()
+    local v = m and m.get and m.get(path)
+    if v == nil then v = impactDefaultAt(path) end
+    return v
+  end
+  return { kind = 'custom',
+    get = function()
+      local v = raw()
+      if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
+      return v
+    end,
+    set = function(value)
+      local m = impactsModule()
+      if not (m and m.set) then return end
+      if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b } end
       m.set(path, value)
     end }
 end
@@ -213,6 +245,39 @@ function M.build(S, owner)
     }
     return list
   end))
+
+  -- ---- Glass, debris & sparks
+  local function ic(id, group, typ, label, tooltip, path, extra)
+    local f = { id = id, tab = 'crash', group = group, type = typ, label = label, tooltip = tooltip, default = impactDefaultAt(path), store = impactStore(path, typ == 'color' and 'color' or nil), apply = 'live' }
+    if typ == 'color' then local c = f.default f.default = { r = c[1], g = c[2], b = c[3] } end
+    for k, v in pairs(extra or {}) do f[k] = v end
+    return f
+  end
+  add({
+    F('crash', 'crash', 'Crash effects', 'bool', 'Glass, debris and sparks', 'Master switch for what a crash leaves behind. Off: no glass piles, no flying pieces, no sparks.', 'impacts.enabled'),
+    ic('crash_others', 'Crash effects', 'bool', 'Traffic and AI cars too', 'Off: only the car you drive leaves glass, pieces and sparks.', 'others.enabled'),
+    ic('crash_glass_on', 'Glass', 'bool', 'Glass on the road', 'A broken window leaves a pile of glass shards on the ground under it.', 'glass.enabled'),
+    ic('crash_glass_color', 'Glass', 'color', 'Glass colour', 'The colour of the shards. It is multiplied over the shard picture.', 'glass.color'),
+    ic('crash_glass_opacity', 'Glass', 'slider', 'Glass strength', 'How strongly the shards show.', 'glass.opacity', { min = 0.1, max = 1, step = 0.05, unit = '%', scale = 100 }),
+    ic('crash_glass_size', 'Glass', 'slider', 'Pile size', 'How big a pile of shards is (1 is normal).', 'glass.size', { min = 0.3, max = 3, step = 0.1, unit = 'x' }),
+    ic('crash_glass_max', 'Glass', 'int', 'How many piles stay', 'The number of glass piles kept before the oldest are recycled.', 'glass.maxPiles', { min = 4, max = 200, advanced = true }),
+    ic('crash_debris_on', 'Debris', 'bool', 'Pieces thrown off the car', 'A joint giving way or a hard hit throws off pieces of trim, plastic, metal or glass; they bounce, settle on the road and are cleaned up later.', 'debris.enabled'),
+    ic('crash_debris_amount', 'Debris', 'slider', 'Amount of debris', 'How many pieces a break or a hit throws (1 is normal, 0 none).', 'debris.amount', { min = 0, max = 4, step = 0.25, unit = 'x' }),
+    ic('crash_debris_size', 'Debris', 'slider', 'Piece size', 'How big the pieces are (1 is normal).', 'debris.size', { min = 0.4, max = 3, step = 0.1, unit = 'x' }),
+    ic('crash_debris_life', 'Debris', 'slider', 'Pieces stay for', 'Seconds until a piece on the road is cleaned up.', 'debris.life', { min = 20, max = 1800, step = 10, unit = 's' }),
+    ic('crash_debris_clear', 'Debris', 'slider', 'Cleaned up beyond', 'A piece further than this from the camera is cleaned up at once.', 'debris.clearDistance', { min = 50, max = 600, step = 10, unit = 'm', advanced = true }),
+    ic('crash_debris_speed', 'Debris', 'slider', 'Hit speed that throws pieces', 'How hard a hit must be (speed into the surface, m/s) before it throws pieces.', 'debris.impactSpeed', { min = 2, max = 20, step = 0.5, unit = 'm/s', advanced = true }),
+    ic('crash_debris_chance', 'Debris', 'slider', 'Chance a broken joint sheds a piece', 'How often a joint that gives way throws a piece.', 'debris.jointChance', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100, advanced = true }),
+    ic('crash_debris_flying', 'Debris', 'int', 'Most pieces in the air', 'A limit on pieces flying at once, for the frame rate.', 'debris.maxFlying', { min = 5, max = 200, advanced = true }),
+    ic('crash_debris_resting', 'Debris', 'int', 'Most pieces on the road', 'The number of settled pieces kept before the oldest are recycled.', 'debris.maxResting', { min = 10, max = 500, advanced = true }),
+    ic('crash_sparks_on', 'Sparks', 'bool', 'Sparks', 'Metal grinding on a hard surface throws sparks. Not on dirt, grass, snow or rubber.', 'sparks.enabled'),
+    ic('crash_sparks_amount', 'Sparks', 'slider', 'Amount of sparks', 'How many sparks a scrape throws (1 is normal).', 'sparks.amount', { min = 0.25, max = 4, step = 0.25, unit = 'x' }),
+    ic('crash_sparks_bright', 'Sparks', 'slider', 'Spark brightness', 'How bright the sparks are.', 'sparks.brightness', { min = 0.3, max = 2, step = 0.1, unit = 'x' }),
+    ic('crash_sparks_color', 'Sparks', 'color', 'Spark colour', 'The colour of a hot spark.', 'sparks.color'),
+    ic('crash_sparks_life', 'Sparks', 'slider', 'Spark life', 'How long a spark lives, in seconds.', 'sparks.life', { min = 0.1, max = 1.5, step = 0.05, unit = 's', advanced = true }),
+    ic('crash_sparks_speed', 'Sparks', 'slider', 'Sliding speed for sparks', 'How fast the metal must slide on the surface before it throws sparks.', 'sparks.minSpeed', { min = 1, max = 15, step = 0.5, unit = 'm/s', advanced = true }),
+    ic('crash_sparks_max', 'Sparks', 'int', 'Most sparks at once', 'A limit on sparks alive at once, for the frame rate.', 'sparks.maxSparks', { min = 10, max = 600, advanced = true }),
+  })
 
   -- ---- Textures: one tile grid per surface and kind, read from the surface's own folder
   add(S.each(marks.TYPES, function(t)

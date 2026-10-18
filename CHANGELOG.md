@@ -2,6 +2,8 @@
 
 ## Unreleased (after 0.2.0)
 
+- Crash effects (port P9-P11): glass shard piles where a window broke, pieces of trim, plastic and metal thrown off by a breaking joint or a hard hit (they fly, bounce, settle on the road and are cleaned up after a time or a distance), and sparks where metal grinds on a hard surface; leaking fluids now fall as visible drops before they make a spot. Settings in the Mods menu tab "Glass, debris & sparks" and "Leaks & puddles".
+
 - Leaking fluids (port P7/P8): a car with a punctured oil pan, radiator or fuel tank drips on the ground, a parked leaking car builds a puddle (oil, coolant, fuel; exhaust condensation when cold, off by default), read from the engine's own leak rates. Optional real grip loss: each tyre in a puddle scales its own friction (off by default). Settings in the Mods menu tab "Leaks & puddles"; decals go through `marks.drawBatch`.
 
 - Wipers: two blades sweep clear arcs on the driver's view (drops, streaks and frost in the arc are gone and the drops bead up again behind them); the window canvases clear their frost in the blade's band. A car with no wiper value gets its wipers from the rain.

@@ -2,7 +2,7 @@
 # Car Surface FX in-game QA: forces each effect with carSurfaceFx.debug(), reads carSurfaceFx.status() / screenInfo() back as the check, and takes a named screenshot of each.
 # The game must be up with a car on any level (the same arrangement as qa_game/run.sh --no-launch); this script launches and kills nothing.
 #
-#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids
+#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids shards crash
 #   QA_SHOT_DIR=<dir>  where the screenshots go (default: the wc\morning folder), named surfacefx_<check>.jpg
 #   QA_CONTROL=<dir>   the control repo whose tools/qa_game/lib.sh (R, SHOT, rec) is used (read only), default /c/Dev/SLRR BeamNG Graph
 # Wired into the control suite as:  csfx) bash "/c/Dev/BeamNG Car Surface FX/tools/qa/csfx_qa.sh" ;;
@@ -187,6 +187,55 @@ if want fluids; then
   expect "grip comes back after the puddle" 'grip (1\.00|0\.9[5-9]|1)' "$(FL 'status()')"
   R "carSurfaceFx_fluids.set('gripEnabled', false) carSurfaceFx_fluids.clear() be:getPlayerVehicle(0):queueLuaCommand('input.event(\"brake\",0) if carSurfaceFxFluids then carSurfaceFxFluids.force(\"oil\", false) end') return 1" > /dev/null
   rec "fluids: reset the car after this section (the punctured pan stays until a reset)" INFO "use the game's recover/reset key or respawn the car"
+fi
+
+IM() { R "return carSurfaceFx_impacts and carSurfaceFx_impacts.$1" | tr -d '\r'; }
+
+if want shards; then
+  # P9: every window beam of the car breaks through the engine's own call (the real chain: break, detection, pile); piles appear under the windows
+  R "if not carSurfaceFx_impacts then extensions.load('carSurfaceFx_impacts') end carSurfaceFx_impacts.clear() be:getPlayerVehicle(0):queueLuaCommand('input.event(\"brake\",1) input.event(\"parkingbrake\",1)') return 1" > /dev/null
+  nap 3
+  cam external; shot window_before
+  IM "breakWindows()" > /dev/null
+  nap 4
+  expect "a broken window leaves a pile of glass on the ground" 'piles [1-9]' "$(IM 'status()')"
+  shot glass_piles
+  IM "test('glass')" > /dev/null
+  nap 2; shot glass_test_piles
+fi
+
+if want crash; then
+  # P10 + P11: a hard crash into the nearest wall (debris must be thrown and settle on the road), then a slide along it (sparks)
+  R "if not carSurfaceFx_impacts then extensions.load('carSurfaceFx_impacts') end carSurfaceFx_impacts.clear() be:getPlayerVehicle(0):queueLuaCommand('input.event(\"parkingbrake\",0) input.event(\"brake\",0)') return 1" > /dev/null
+  R "local v=be:getPlayerVehicle(0) local p=v:getPosition() local bd,ba=99,0
+for a=0,355,5 do local r=math.rad(a) local h=castRayStatic(p+vec3(0,0,0.5),vec3(math.cos(r),math.sin(r),0),80) if h<bd then bd=h ba=a end end
+local r=math.rad(ba) local n=vec3(math.cos(r),math.sin(r),0)
+spawn.safeTeleport(v, p+n*bd-n*25+vec3(0,0,0.4), quatFromDir(n, vec3(0,0,1)), true, nil, nil, nil, false)
+v:queueLuaCommand('input.event(\"throttle\",1)') return bd" > /dev/null
+  nap 6
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
+  nap 3
+  expect "a hard crash throws debris" 'calls glass [0-9]+ debris [1-9]' "$(IM 'status()')"
+  nap 6
+  expect "the pieces settle on the road" 'resting [1-9]' "$(IM 'status()')"
+  cam external; nap 1; shot crash_debris
+  # a slide along a wall: sparks
+  IM "clear()" > /dev/null
+  R "local v=be:getPlayerVehicle(0) local p=v:getPosition() local bd,ba=99,0
+for a=0,355,5 do local r=math.rad(a) local h=castRayStatic(p+vec3(0,0,0.5),vec3(math.cos(r),math.sin(r),0),60) if h<bd then bd=h ba=a end end
+local r=math.rad(ba) local n=vec3(math.cos(r),math.sin(r),0) local t=vec3(-n.y,n.x,0)
+local c,s=math.cos(math.rad(10)),math.sin(math.rad(10))
+spawn.safeTeleport(v, p+n*bd-n*4+vec3(0,0,0.4), quatFromDir(t*c+n*s, vec3(0,0,1)), true, nil, nil, nil, false)
+v:queueLuaCommand('input.event(\"brake\",0) input.event(\"throttle\",1)') return bd" > /dev/null
+  nap 2
+  shot sparks_slide
+  nap 3
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
+  expect "a scrape along a wall throws sparks" 'sparks [1-9][0-9]* *$|calls glass [0-9]+ debris [0-9]+ sparks [1-9]' "$(IM 'status()')"
+  IM "test('sparks')" > /dev/null
+  nap 0.3; shot sparks_test
+  IM "test('debris')" > /dev/null
+  nap 4; shot debris_test
 fi
 
 dbg ""
