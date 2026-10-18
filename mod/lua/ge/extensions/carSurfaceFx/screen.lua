@@ -49,35 +49,90 @@ function M.isWindscreenMesh(name)
   return not (n:find('_int', 1, true) or n:find('dmg', 1, true) or n:find('broken', 1, true) or n:find('crack', 1, true))
 end
 
--- Rotating a vector by a unit quaternion { x, y, z, w }.
-function M.qrot(q, v)
-  local tx, ty, tz = 2 * (q.y * v.z - q.z * v.y), 2 * (q.z * v.x - q.x * v.z), 2 * (q.x * v.y - q.y * v.x)
-  return { x = v.x + q.w * tx + (q.y * tz - q.z * ty), y = v.y + q.w * ty + (q.z * tx - q.x * tz), z = v.z + q.w * tz + (q.x * ty - q.y * tx) }
+-- A frame made from three of the car's own nodes (the reference, left, back and up nodes of its jbeam): the same data as the windscreen's nodes and the same moment, so no
+-- rotation convention of the game can be wrong in it. fr = { o = {x,y,z}, ex, ey, ez = unit vectors }.
+local function sub(a, b) return { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z } end
+local function dot(a, b) return a.x * b.x + a.y * b.y + a.z * b.z end
+local function unit(a) local l = math.sqrt(dot(a, a)) if l < 1e-9 then return { x = 0, y = 0, z = 0 } end return { x = a.x / l, y = a.y / l, z = a.z / l } end
+local function axpy(v, k, a) return { x = v.x - a.x * k, y = v.y - a.y * k, z = v.z - a.z * k } end
+function M.makeFrame(pRef, pLeft, pBack, pUp)
+  local ex = unit(sub(pLeft, pRef))
+  local ey = unit(axpy(sub(pBack, pRef), dot(sub(pBack, pRef), ex), ex))
+  local u = sub(pUp, pRef)
+  local ez = unit(axpy(axpy(u, dot(u, ex), ex), dot(u, ey), ey))
+  return { o = pRef, ex = ex, ey = ey, ez = ez }
+end
+function M.toFrame(fr, p) local d = sub(p, fr.o) return { x = dot(d, fr.ex), y = dot(d, fr.ey), z = dot(d, fr.ez) } end
+function M.fromFrame(fr, l)
+  return { x = fr.o.x + fr.ex.x * l.x + fr.ey.x * l.y + fr.ez.x * l.z, y = fr.o.y + fr.ex.y * l.x + fr.ey.y * l.y + fr.ez.y * l.z, z = fr.o.z + fr.ex.z * l.x + fr.ey.z * l.y + fr.ez.z * l.z }
 end
 
 -- The camera's position as read from the camera is a frame behind the car's, which is invisible at rest and puts the windscreen many centimetres off at speed (the car moves
 -- 0.3 m in a frame at 20 m/s, the windscreen is about one metre from the eye). In the driver's view the eye sits still in the car's own frame, so: while the car is nearly
--- still the eye's offset in the car's frame is learned, and at speed the camera position is rebuilt from the car's position and rotation of THIS frame and that offset.
+-- still the eye's offset in the car's frame is learned, and at speed the camera position is rebuilt from the car's frame of THIS frame and that offset.
 -- state = { off = { x, y, z } or nil } per car; cam = { x, y, z, ... } is changed in place; returns the correction in metres.
 -- When the car was never seen standing (an AI start, a spawn while rolling) the offset is first taken from a camera pushed forward by one frame of travel (vel, the car's velocity,
 -- times M.LAG seconds), which is the lag it is assumed to have; it is learned exactly the first time the car is nearly still.
 M.LAG = 1 / 60
-function M.stabilise(state, cam, vpos, vq, speed, vel)
-  local inv = { x = -vq.x, y = -vq.y, z = -vq.z, w = vq.w }
+function M.stabilise(state, cam, fr, speed, vel)
   if speed < 1 then
-    state.off = M.qrot(inv, { x = cam.x - vpos.x, y = cam.y - vpos.y, z = cam.z - vpos.z })
+    state.off = M.toFrame(fr, cam)
   elseif not state.off then
     local l = vel and M.LAG or 0
-    state.off = M.qrot(inv, { x = cam.x + (vel and vel.x or 0) * l - vpos.x, y = cam.y + (vel and vel.y or 0) * l - vpos.y, z = cam.z + (vel and vel.z or 0) * l - vpos.z })
+    state.off = M.toFrame(fr, { x = cam.x + (vel and vel.x or 0) * l, y = cam.y + (vel and vel.y or 0) * l, z = cam.z + (vel and vel.z or 0) * l })
   end
-  local w = M.qrot(vq, state.off)
-  local nx, ny, nz = vpos.x + w.x, vpos.y + w.y, vpos.z + w.z
-  local d = math.sqrt((nx - cam.x) ^ 2 + (ny - cam.y) ^ 2 + (nz - cam.z) ^ 2)
-  cam.x, cam.y, cam.z = nx, ny, nz
+  local n = M.fromFrame(fr, state.off)
+  local d = math.sqrt((n.x - cam.x) ^ 2 + (n.y - cam.y) ^ 2 + (n.z - cam.z) ^ 2)
+  cam.x, cam.y, cam.z = n.x, n.y, n.z
   return d
 end
 
+-- The windscreen's nodes also hold the pillars, the roof edge and the cowl they are attached to, which made the outline far bigger than the glass. The glass is a plane: fit
+-- z = a x + b y + c through the nodes (in the car's frame) and drop the ones that sit far off it, a few rounds. pts = list of { x, y, z }; returns the indices of the nodes kept.
+function M.planeInliers(pts)
+  local keep = {}
+  for i = 1, #pts do keep[i] = true end
+  for _ = 1, 4 do
+    local n, sx, sy, sz, sxx, sxy, syy, sxz, syz = 0, 0, 0, 0, 0, 0, 0, 0, 0
+    for i, p in ipairs(pts) do
+      if keep[i] then
+        n, sx, sy, sz = n + 1, sx + p.x, sy + p.y, sz + p.z
+        sxx, sxy, syy, sxz, syz = sxx + p.x * p.x, sxy + p.x * p.y, syy + p.y * p.y, sxz + p.x * p.z, syz + p.y * p.z
+      end
+    end
+    if n < 4 then break end
+    -- the normal equations of the least squares plane, solved by Cramer's rule
+    local function det3(a, b, c, d, e, f, g, h, i) return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g) end
+    local D = det3(sxx, sxy, sx, sxy, syy, sy, sx, sy, n)
+    if math.abs(D) < 1e-9 then break end
+    local a = det3(sxz, sxy, sx, syz, syy, sy, sz, sy, n) / D
+    local b = det3(sxx, sxz, sx, sxy, syz, sy, sx, sz, n) / D
+    local c = det3(sxx, sxy, sxz, sxy, syy, syz, sx, sy, sz) / D
+    local ss, cnt = 0, 0
+    local res = {}
+    for i, p in ipairs(pts) do
+      res[i] = math.abs(p.z - (a * p.x + b * p.y + c))
+      if keep[i] then ss, cnt = ss + res[i] * res[i], cnt + 1 end
+    end
+    local limit = math.max(0.03, 2.0 * math.sqrt(ss / cnt))
+    local changed, left = false, 0
+    for i = 1, #pts do
+      local k = res[i] <= limit
+      if k ~= keep[i] then changed = true end
+      keep[i] = k
+      if k then left = left + 1 end
+    end
+    if not changed or left < 4 then break end
+  end
+  local out = {}
+  for i = 1, #pts do if keep[i] then out[#out + 1] = i end end
+  if #out < 4 then out = {} for i = 1, #pts do out[i] = i end end
+  return out
+end
+
 -- ---- the game side ----
+local frameIds = {}                                   -- vehicle id -> { ref, left, back, up } node ids of its jbeam, false when it has none
+local glassBy = {}                                    -- vehicle id -> the windscreen nodes that lie on the glass (the plane fit), found once
 local nodesBy = {}
 local eyeBy = {}                                    -- vehicle id -> the eye's offset in the car's frame (see stabilise)
 M.last = {}                                          -- what the last projection saw, for the diagnostics                                    -- vehicle id -> { cid, ... } (the windscreen's nodes), false when the car has none
@@ -95,7 +150,7 @@ local function windscreenNodes(id)
   return nodesBy[id]
 end
 
-function M.forget(id) nodesBy[id] = nil eyeBy[id] = nil end
+function M.forget(id) nodesBy[id] = nil eyeBy[id] = nil frameIds[id] = nil glassBy[id] = nil end
 function M.resetEye(id) eyeBy[id] = nil end
 
 -- how many nodes the car's windscreen has (0: none found), for the screen trace
@@ -118,6 +173,20 @@ function M.camera()
 end
 
 -- the windscreen of car veh on the screen as a flat hull list, or nil (no windscreen found, behind the camera, off the screen)
+local function frameOf(veh)
+  local id = veh:getID()
+  if frameIds[id] == nil then
+    local data = core_vehicle_manager and core_vehicle_manager.getVehicleData(id)
+    local r = data and data.vdata and data.vdata.refNodes and data.vdata.refNodes[0]
+    frameIds[id] = (r and r.ref and r.left and r.back and r.up) and r or false
+  end
+  local r = frameIds[id]
+  if not r then return nil end
+  local base = veh:getPosition()
+  local function P(cid) local w = veh:getNodePosition(cid) return { x = w.x + base.x, y = w.y + base.y, z = w.z + base.z } end
+  return M.makeFrame(P(r.ref), P(r.left), P(r.back), P(r.up))
+end
+
 function M.windscreen(veh)
   local nodes = windscreenNodes(veh:getID())
   local cam = M.camera()
@@ -125,12 +194,24 @@ function M.windscreen(veh)
   local base = veh:getPosition()
   local last = M.last
   last.speed, last.fix = 0, 0
-  local okQ, vq = pcall(function() return veh:getRotation() end)
-  if okQ and vq and vq.w then
+  local fr = frameOf(veh)
+  if fr then
+    local id = veh:getID()
+    if not glassBy[id] then                                          -- the nodes on the glass plane, once (the car's own frame, so it does not depend on how the car stands)
+      local pts = {}
+      for i, cid in ipairs(nodes) do
+        local w = veh:getNodePosition(cid)
+        pts[i] = M.toFrame(fr, { x = w.x + base.x, y = w.y + base.y, z = w.z + base.z })
+      end
+      local keep, list = M.planeInliers(pts), {}
+      for _, i in ipairs(keep) do list[#list + 1] = nodes[i] end
+      glassBy[id] = list
+    end
+    nodes = glassBy[id]
     local v = veh:getVelocity()
     local speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
-    eyeBy[veh:getID()] = eyeBy[veh:getID()] or {}
-    last.speed, last.fix = speed, M.stabilise(eyeBy[veh:getID()], cam, base, vq, speed, v)
+    eyeBy[id] = eyeBy[id] or {}
+    last.speed, last.fix = speed, M.stabilise(eyeBy[id], cam, fr, speed, v)
   end
   local pts = {}
   for _, cid in ipairs(nodes) do
