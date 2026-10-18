@@ -230,6 +230,9 @@ local function draw(pool, n)
   end
 end
 
+-- NOTE (route): the car side still throws the game's own drop particles (carSurfaceFxFluids: addParticleVelWidthTypeCount, types 36/48/50), but in 80's runs (5d18845) no drop was seen
+-- falling from the engine, so these spheres are a visible stand-in. The debug drawer is a developer overlay (a game debug setting can hide it, photo mode may draw through it, it costs per
+-- shape): players may see nothing. Bounded: addDrip stops at settings.maxDrops (32), so at most 64 spheres a frame. Remove this once the particles are shown to be visible.
 -- the drops in the air, seen: a small sphere in the fluid's colour with a fainter one trailing above it (the fall is a quarter of a second: a streak reads better than a dot)
 local function drawFalling()
   if dropN == 0 or not debugDrawer then return end
