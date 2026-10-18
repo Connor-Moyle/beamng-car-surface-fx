@@ -123,7 +123,7 @@ function RULES.mud(map, c, wi)
     local wh = map.wheels[wi]
     local dz = c.pz - wh.z
     if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.5) * up * 1.0 end
-    if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.5 end                          -- the underside near the wheel
+    if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.1 end                          -- the underside near the wheel (nobody sees it)
   else
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
@@ -178,15 +178,17 @@ end
 function M.sample(map, kind, n, rnd, wi, opts)
   local out = {}
   if map.spray and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then                 -- thrown from the tyres: where the traced spray really hits
-    local tries = kind == 'rubber' and n * 3 or n
+    local tries = kind == 'rubber' and n * 3 or n * 4
+    local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
-      if #out < n and (kind == 'mud' or (h.dist or 9) < 1.1) then out[#out + 1] = h end                   -- rubber only where it is close to the wheel
+      -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
-    if #out > 0 then return out end
+    if kind == 'rubber' and #out > 0 then return out end
   end
   local t = table_for(map, kind, wi, opts)
   if t.total <= 0 or #t.cum == 0 then return out end
-  for _ = 1, n do
+  for _ = #out + 1, n do
     local r = rnd() * t.total
     local lo, hi = 1, #t.cum
     while lo < hi do local mid = floor((lo + hi) / 2) if t.cum[mid] >= r then hi = mid else lo = mid + 1 end end

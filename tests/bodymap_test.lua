@@ -112,7 +112,8 @@ do
   local hits = B.sample(map, 'mud', 60, math.random, 1)
   local low, n = 0, 0
   for _, h in ipairs(hits) do if h.z then n = n + 1 local hh = B.heightOf(map, h.z) assert(hh >= 0 and hh <= 1, 'a height 0..1') if hh < 0.5 then low = low + 1 end end end
-  assert(n == 0 or low >= n * 0.5, 'thrown mud lands low on the body: ' .. low .. ' of ' .. n)
+  assert(#hits == 60, 'the thrown mud is topped up from the body rule to the amount asked: ' .. #hits)
+  assert(n > 0 and n <= 30 and low >= n * 0.3, 'the throws that get away from the tyre land low on the body: ' .. low .. ' of ' .. n)
   map.spray = nil
 end
 -- the height of a point on the body, from the map's bounds (an array of six: the cake rule in scratch.lua once read them by name and failed on every mud hit)
