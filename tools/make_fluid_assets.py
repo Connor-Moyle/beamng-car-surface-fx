@@ -65,15 +65,15 @@ def main():
 
     D = '/art/surfacefx/fluids/'
 
-    def mat(name, tint, opacity, rough=0.03, metal=0.1, base='white.color.png'):
+    def mat(name, tint, opacity, rough=0.03, metal=0.1, base='white.color.png', zwrite=True):
         return {'name': name, 'mapTo': name, 'class': 'Material',
                 'Stages': [{'baseColorMap': D + base, 'opacityMap': D + opacity, 'baseColorFactor': tint, 'metallicFactor': metal, 'roughnessFactor': rough}, {}, {}, {}],
                 'annotation': 'ASPHALT', 'castShadows': False, 'materialTag0': 'decal', 'materialTag1': 'road', 'materialTag2': 'beamng',
-                'translucent': True, 'translucentZWrite': True, 'doubleSided': True, 'version': 1.5}
-    mats = [mat('csfx_puddle_oil', [0.025, 0.023, 0.02, 1], 'puddle_o.data.png', 0.03, 0.1),
-            mat('csfx_puddle_coolant', [0.10, 0.50, 0.18, 1], 'puddle_o_thin.data.png', 0.03, 0.05),
-            mat('csfx_puddle_fuel', [0.55, 0.44, 0.10, 1], 'puddle_o_thin.data.png', 0.04, 0.05),
-            mat('csfx_puddle_sheen', [1, 1, 1, 1], 'rainbow_o.data.png', 0.08, 0.5, 'rainbow.color.png')]
+                'translucent': True, 'translucentZWrite': zwrite, 'doubleSided': True, 'version': 1.5}
+    mats = [mat('csfx_puddle_oil', [0.03, 0.028, 0.025, 1], 'puddle_o.data.png', 0.02, 0.9),
+            mat('csfx_puddle_coolant', [0.10, 0.50, 0.18, 1], 'puddle_o_thin.data.png', 0.03, 0.5),
+            mat('csfx_puddle_fuel', [0.55, 0.44, 0.10, 1], 'puddle_o_thin.data.png', 0.04, 0.5),
+            mat('csfx_puddle_sheen', [1, 1, 1, 1], 'rainbow_o.data.png', 0.08, 0.5, 'rainbow.color.png', zwrite=False)]      # the sheen writes no depth: the plane under it must not be hidden by its empty parts
     with open(os.path.join(out, 'main.materials.json'), 'w') as f:
         json.dump({m['name']: m for m in mats}, f, indent=1)
     print('wrote', out)
