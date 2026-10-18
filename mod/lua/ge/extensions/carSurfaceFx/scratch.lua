@@ -404,8 +404,15 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local veh = getObjectByID(id)
   dd.calls = dd.calls + 1
   if not (map and veh and settings.dirtEnabled) then dd.refused = dd.refused + 1 dd.last = string.format('%s refused (car %s, map %s, veh %s, dirtEnabled %s)', kind, tostring(car ~= nil), tostring(map ~= nil), tostring(veh ~= nil), tostring(settings.dirtEnabled)) return false end
-  if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end        -- a wheel throws it
-  local list = bodymap.sample(map, kind, n, random, wi, opts)
+  local list
+  if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 1 then                  -- every wheel throws its share (one wheel for the whole call put it all on one corner)
+    list = {}
+    local per = math.max(1, math.floor(n / #map.wheels + 0.5))
+    for w = 1, #map.wheels do for _, s in ipairs(bodymap.sample(map, kind, per, random, w, opts)) do list[#list + 1] = s; wi = w end end
+  else
+    if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end
+    list = bodymap.sample(map, kind, n, random, wi, opts)
+  end
   if #list == 0 then return true end
   local blobs, dirs, cakes = {}, {}, {}
   for i, s in ipairs(list) do
