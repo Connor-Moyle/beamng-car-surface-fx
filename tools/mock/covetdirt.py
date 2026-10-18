@@ -126,15 +126,25 @@ def cell_height(u, v, hmap):
     return hmap[min(N - 1, int(v * N)), min(N - 1, int(u * N))]
 
 
-def heightmap():
+def maps():
+    """per-cell maps of the body map (N x N): height 0..1, normal z and y, place x y z"""
     n = int(lua.eval('#MAP.list'))
-    flat = lua.eval("(function() local o = {} for i, c in ipairs(MAP.list) do o[#o + 1] = c.gx o[#o + 1] = c.gy o[#o + 1] = c.h o[#o + 1] = c.nz end return o end)()")
-    a = np.array([flat[i + 1] for i in range(n * 4)], np.float32).reshape(n, 4)
+    flat = lua.eval("(function() local o = {} for i, c in ipairs(MAP.list) do o[#o + 1] = c.gx o[#o + 1] = c.gy o[#o + 1] = c.h o[#o + 1] = c.nz o[#o + 1] = c.ny o[#o + 1] = c.px o[#o + 1] = c.py o[#o + 1] = c.pz end return o end)()")
+    a = np.array([flat[i + 1] for i in range(n * 8)], np.float32).reshape(n, 8)
     N = int(lua.eval('B.N'))
-    h, nz = np.full((N, N), 1.0, np.float32), np.zeros((N, N), np.float32)
-    h[a[:, 1].astype(int), a[:, 0].astype(int)] = a[:, 2]
-    nz[a[:, 1].astype(int), a[:, 0].astype(int)] = a[:, 3]
-    return h, nz
+    out = {k: np.zeros((N, N), np.float32) for k in ('h', 'nz', 'ny', 'px', 'py', 'pz')}
+    out['h'][:] = 1.0
+    gy, gx = a[:, 1].astype(int), a[:, 0].astype(int)
+    for j, k in enumerate(('h', 'nz', 'ny', 'px', 'py', 'pz')):
+        out[k][gy, gx] = a[:, 2 + j]
+    out['on'] = np.zeros((N, N), np.float32)
+    out['on'][gy, gx] = 1
+    return out
+
+
+def heightmap():
+    m = maps()
+    return m['h'], m['nz']
 
 
 # ---------- textures and the canvas
@@ -150,78 +160,14 @@ def tile(a, w, h, ox=0, oy=0):
 
 
 def up(g):
-    return np.asarray(Image.fromarray(g).resize((CV, CV), Image.BICUBIC), np.float32).clip(0, None)
+    """a per-cell map to canvas size; cells off the car are filled from their neighbours first so the edges of the UV islands do not fade"""
+    g = np.asarray(g, np.float32)
+    return np.asarray(Image.fromarray(g).resize((CV, CV), Image.BILINEAR), np.float32).clip(0, None)
 
 
 def smooth(x, a, b):
     t = np.clip((x - a) / (b - a), 0, 1)
     return t * t * (3 - 2 * t)
-
-
-def sprite(img, angle, scale):
-    im = Image.fromarray((img * 255).astype(np.uint8), 'RGBA')
-    im = im.resize((max(1, int(im.width * scale)), max(1, int(im.height * scale))), Image.LANCZOS).rotate(angle, expand=True, resample=Image.BICUBIC)
-    return np.asarray(im, np.float32) / 255
-
-
-def put(cov, shade, spr, x, y):
-    h, w = spr.shape[:2]
-    xa, ya = int(x - w / 2), int(y - h / 2)
-    cx0, cy0, cx1, cy1 = max(0, xa), max(0, ya), min(CV, xa + w), min(CV, ya + h)
-    if cx1 <= cx0 or cy1 <= cy0:
-        return
-    sub = spr[cy0 - ya:cy1 - ya, cx0 - xa:cx1 - xa]
-    a = sub[..., 3]
-    if shade is not None:
-        m = a > cov[cy0:cy1, cx0:cx1]
-        shade[cy0:cy1, cx0:cx1] = np.where(m, sub[..., 0], shade[cy0:cy1, cx0:cx1])
-    cov[cy0:cy1, cx0:cx1] = 1 - (1 - cov[cy0:cy1, cx0:cx1]) * (1 - a)
-
-
-def canvas(name):
-    rng = np.random.default_rng(11)
-    am = amounts(name)
-    print(name, {k: round(v, 3) for k, v in am.items()})
-    hmap, nzmap = heightmap()
-    cov = {k: np.zeros((CV, CV), np.float32) for k in ('film', 'dust', 'speck', 'cake', 'streak', 'snow', 'mudfilm')}
-    cake_shade = np.ones((CV, CV), np.float32)
-    if am['grime'] > 0:
-        w = up(weights('grime'))
-        cov['film'] = tile(film_t[..., 3], CV, CV, 31, 7) * np.clip(w / 1.6, 0, 1) * min(1, am['grime'] / 0.35 + 0.25)
-    if am['dust'] > 0:
-        mh = am['dust'] ** 0.7
-        w = up(weights('dust', mh))
-        cov['dust'] = tile(dust_t[..., 3], CV, CV, 5, 77) * np.clip(w / 1.0, 0, 1) * min(1, 0.3 + am['dust'])
-    if am['mud'] > 0:
-        n = int(am['mud'] * PLACE['mud'][0])
-        dryshare = 0.45 if name == 'dirtroad' else 0.15
-        lua.execute("SPRAY = MAP.spray MAP.spray = nil")           # the rules' own places (sills, the panel behind each wheel, arch lips, bumper edge) for the clods
-        cov['mudfilm'] = tile(film_t[..., 3], CV, CV, 90, 40) * np.clip(up(weights('mud')) / 1.1, 0, 1) * min(1, am['mud'])   # the splash haze under the clods
-        cakehits = []
-        for wi in (1, 2, 3, 4):
-            cakehits += hits('mud', int(n * 0.6), wi)
-        lua.execute("MAP.spray = SPRAY")
-        for (u, v, s, dx, dy, _) in cakehits:
-            if cell_height(u, v, hmap) > 0.42:
-                continue
-            dry = 1 if rng.random() < dryshare else 0
-            vi = int(rng.integers(0, 4))
-            cell = cakes_t[dry * 128:(dry + 1) * 128, vi * 128:(vi + 1) * 128]
-            size = s * CV * rng.uniform(0.05, 0.10)                  # 5 to 10 cm
-            put(cov['cake'], cake_shade, sprite(cell, rng.uniform(0, 360), size / 128), u * CV, v * CV)
-        for wi in (1, 2, 3, 4):                                      # the traced spray: fans along the throw
-            for (u, v, s, dx, dy, _) in hits('mud', int(n / 4 * 0.35), wi):
-                k = int(rng.integers(0, 4))
-                cell = speck_t[(k // 2) * 256:(k // 2) * 256 + 256, (k % 2) * 256:(k % 2) * 256 + 256]
-                put(cov['speck'], None, sprite(cell, -90 - np.degrees(np.arctan2(dy, dx)), s * CV * rng.uniform(0.22, 0.36) / 256), u * CV, v * CV)
-        if name == 'mud':                                             # after rain a mud run runs: streaks below the dirty vertical panels
-            wv = up(weights('mud')) * (1 - np.clip(up(nzmap), 0, 1))
-            cov['streak'] = tile(streak_t[..., 3], CV, CV, 0, 200) * np.clip(wv / 0.6, 0, 1) * 0.7
-    if am['snow'] > 0:
-        w = up(weights('snow'))
-        nz = fnoise(CV, 3.0, 9)
-        cov['snow'] = smooth(np.clip(w, 0, 1) * min(1, am['snow'] * 1.15) - 0.25 * (nz - 0.5) - 0.12, 0.0, 0.18)
-    return cov, cake_shade
 
 
 def fnoise(n, beta, seed):
@@ -233,24 +179,140 @@ def fnoise(n, beta, seed):
     return (a - a.min()) / (a.max() - a.min())
 
 
-def compose(cov, cake_shade):
+def sprite(img, angle, sx, sy=None):
+    sy = sx if sy is None else sy
+    im = Image.fromarray((img * 255).astype(np.uint8), 'RGBA')
+    im = im.resize((max(1, int(im.width * sx)), max(1, int(im.height * sy))), Image.LANCZOS).rotate(angle, expand=True, resample=Image.BICUBIC)
+    return np.asarray(im, np.float32) / 255
+
+
+def put(cov, rgb, spr, x, y, col=None):
+    """union a sprite's alpha into cov; where it wins, rgb gets col * the sprite's shade (cakes) or just col"""
+    h, w = spr.shape[:2]
+    xa, ya = int(x - w / 2), int(y - h / 2)
+    cx0, cy0, cx1, cy1 = max(0, xa), max(0, ya), min(CV, xa + w), min(CV, ya + h)
+    if cx1 <= cx0 or cy1 <= cy0:
+        return
+    sub = spr[cy0 - ya:cy1 - ya, cx0 - xa:cx1 - xa]
+    a = sub[..., 3]
+    if rgb is not None:
+        m = (a > cov[cy0:cy1, cx0:cx1])[..., None]
+        rgb[cy0:cy1, cx0:cx1] = np.where(m, np.clip(np.array(col, np.float32) * sub[..., :1] * 2.0, 0, 1), rgb[cy0:cy1, cx0:cx1])
+    cov[cy0:cy1, cx0:cx1] = 1 - (1 - cov[cy0:cy1, cx0:cx1]) * (1 - a)
+
+
+# what each drive looks like (the amounts come from the rules; these are how the look is set for it)
+LOOK = {
+    'dirtroad': dict(crust=0.55, dryshare=0.65, wake=(0.40, 0.35, 0.29), wake_k=0.95, film=1.0, streak=0.25, splash=0.5, dust=1.0, cakes=0.7),
+    'mud':      dict(crust=1.0, dryshare=0.08, wake=(0.20, 0.15, 0.11), wake_k=1.0, film=0.0, streak=1.0, splash=1.0, dust=0.0, cakes=1.0),
+    'snow':     dict(crust=0, dryshare=0, wake=(0, 0, 0), wake_k=0, film=0, streak=0, splash=0, dust=0, cakes=0),
+}
+WET, DRY = np.array([0.19, 0.14, 0.10], np.float32), np.array([0.47, 0.41, 0.34], np.float32)
+
+
+def canvas(name):
+    rng = np.random.default_rng(11)
+    am = amounts(name)
+    lk = LOOK[name]
+    print(name, {k: round(v, 3) for k, v in am.items()})
+    m = maps()
+    H_, NZ, NY = m['h'], m['nz'], m['ny']
+    cov = {k: np.zeros((CV, CV), np.float32) for k in ('film', 'dust', 'speck', 'cake', 'streak', 'snow', 'mudfilm', 'wake', 'crust')}
+    cake_rgb = np.zeros((CV, CV, 3), np.float32)
+    crust_rgb = np.zeros((CV, CV, 3), np.float32)
+    hh, nzu, nyu = up(H_), up(NZ), up(NY)
+    n1, n2, n3 = fnoise(CV, 2.2, 3), fnoise(CV, 1.4, 4), fnoise(CV, 3.0, 5)
+    # --- road film: an even grey-brown haze over the lower half, fading upward; dust lifts the paint a little so it reads dull
+    if lk['film'] > 0:
+        w = np.clip((0.95 - hh) / 0.95, 0, 1) ** 0.75
+        base = tile(film_t[..., 3], CV, CV, 31, 7)
+        cov['film'] = np.clip(w * (0.55 + 0.7 * base) * (0.7 + 0.3 * n1) * lk['film'], 0, 1)
+    # --- the wake: the tailgate, the rear bumper and the rear glass, thickest at the bottom
+    if lk['wake_k'] > 0:
+        wk = smooth(nyu, 0.12, 0.55) * np.clip(1 - hh * 0.95, 0, 1) ** 0.6
+        cov['wake'] = np.clip(wk * 1.25 * (0.62 + 0.38 * n2) , 0, 1)
+    # --- where the heavy mud is: arch lips, the panel right behind each wheel, the sills, the bumper's lower edge
+    px, py, pz = up(m['px']), up(m['py']), up(m['pz'])
+    crustW = np.zeros((CV, CV), np.float32)
+    for (wx, wy, wz) in WHEELS:
+        d = np.sqrt((px - wx) ** 2 + (py - wy) ** 2 + (pz - wz) ** 2)
+        lip = np.exp(-((d - (WR + 0.07)) ** 2) / (2 * 0.11 ** 2))
+        dy = (py - wy) * (1 if wy < 0 else 1)                       # behind the wheel = toward the back of the car (the car goes forward, -y)
+        dx = np.abs(px - wx)
+        beh = np.where((dy > -0.1) & (dy < 1.0) & (dx < 0.7), np.exp(-np.maximum(dy, 0) / 0.55), 0) * np.exp(-np.maximum(pz - wz, 0) / 0.45)
+        crustW = np.maximum(crustW, np.maximum(lip * np.exp(-np.maximum(pz - 0.15, 0) / 0.8), beh))
+    sill = np.where(hh < 0.2, 1.0, np.exp(-(hh - 0.2) / 0.12)) * (np.abs(nzu) < 0.6)
+    bump = np.where((nyu > 0.3) & (hh < 0.22), 1.0, 0)
+    crustW = np.maximum(crustW, np.maximum(0.7 * sill, 0.85 * bump))
+    if lk['crust'] > 0 and am['mud'] > 0:
+        A = lk['crust'] * min(1, am['mud'])
+        cov['crust'] = smooth(crustW * (0.55 + 0.9 * A) - 0.38 * (n1 - 0.5) - 0.20 * (n3 - 0.5) - 0.18, 0.0, 0.20)
+        dry = smooth(n2 + (lk['dryshare'] - 0.5) * 0.9, 0.42, 0.62)       # patches that have dried lighter
+        shade = (0.65 + 0.9 * (n3 - 0.5) + 0.35 * (fnoise(CV, 1.0, 6) - 0.5)).clip(0.35, 1.3)
+        crust_rgb[:] = (WET[None, None, :] * (1 - dry[..., None]) + DRY[None, None, :] * dry[..., None]) * shade[..., None]
+        # the splash haze under everything, heaviest low and behind the wheels
+        cov['mudfilm'] = np.clip(tile(film_t[..., 3], CV, CV, 90, 40) * 0.5 + 0.55, 0, 1) * np.clip(crustW * 1.2 + np.exp(-hh / 0.35) * 0.35, 0, 1) * lk['splash']
+        # clods of varied size and shape on top of the crust and beyond it: more of the small, merging near the wheels
+        n = int(am['mud'] * PLACE['mud'][0] * lk['cakes'])
+        lua.execute("SPRAY = MAP.spray MAP.spray = nil")
+        ch = []
+        for wi in (1, 2, 3, 4):
+            ch += hits('mud', int(n * 0.9), wi)
+        lua.execute("MAP.spray = SPRAY")
+        for (u, v, s, dx, dy, _) in ch:
+            if cell_height(u, v, H_) > 0.5:
+                continue
+            for k in range(1 + int(rng.random() < 0.6) + int(rng.random() < 0.3)):     # the clod and its neighbours
+                ox, oy = (rng.normal(0, 7), rng.normal(0, 7)) if k else (0.0, 0.0)
+                dry = rng.random() < lk['dryshare']
+                vi = int(rng.integers(0, 4))
+                cell = cakes_t[(128 if dry else 0):(256 if dry else 128), vi * 128:(vi + 1) * 128]
+                size = s * CV * float(np.clip(np.exp(rng.normal(np.log(0.045), 0.55)), 0.015, 0.15))     # 1.5 to 15 cm, mostly small
+                st = rng.uniform(0.7, 1.45)
+                col = (DRY if dry else WET) * rng.uniform(0.85, 1.15)
+                put(cov['cake'], cake_rgb, sprite(cell, rng.uniform(0, 360), size / 128 * st, size / 128 / st), u * CV + ox, v * CV + oy, col)
+        # fans thrown back from each tyre (the traced spray)
+        for wi in (1, 2, 3, 4):
+            for (u, v, s, dx, dy, _) in hits('mud', int(n / 4 * 0.5), wi):
+                k = int(rng.integers(0, 4))
+                cell = speck_t[(k // 2) * 256:(k // 2) * 256 + 256, (k % 2) * 256:(k % 2) * 256 + 256]
+                put(cov['speck'], None, sprite(cell, -90 - np.degrees(np.arctan2(dy, dx)), s * CV * rng.uniform(0.35, 0.6) / 256), u * CV, v * CV)
+        # runs down the vertical panels from the dirty areas
+        if lk['streak'] > 0:
+            wv = np.clip(crustW * 1.3 + 0.25, 0, 1) * (1 - np.clip(np.abs(nzu), 0, 1)) * np.clip(1.15 - hh, 0, 1)
+            cov['streak'] = np.clip(tile(streak_t[..., 3], CV, CV, 0, 200) * 1.6, 0, 1) * wv * lk['streak']
+    if lk['dust'] > 0 and am['dust'] > 0:
+        w = up(weights('dust', am['dust'] ** 0.7))
+        cov['dust'] = np.clip(tile(dust_t[..., 3], CV, CV, 5, 77) * 1.3, 0, 1) * np.clip(w / 1.0, 0, 1) * 0.9
+    if am['snow'] > 0:
+        w = up(weights('snow'))
+        cov['snow'] = smooth(np.clip(w, 0, 1) * min(1, am['snow'] * 1.15) - 0.25 * (n3 - 0.5) - 0.12, 0.0, 0.18)
+    return (cov, cake_rgb, crust_rgb, lk)
+
+
+def compose(pack):
+    cov, cake_rgb, crust_rgb, lk = pack
     img = np.zeros((CV, CV, 3), np.float32) + np.array(PAINT, np.float32)
 
     def mult(img, c, col, k):
         return img * (1 - (c * k)[..., None] * (1 - np.array(col, np.float32)))
-    img = mult(img, cov['film'], (0.52, 0.48, 0.42), 0.8)
-    img = mult(img, cov['mudfilm'], (0.34, 0.25, 0.17), 0.9)
-    img = mult(img, cov['streak'], (0.40, 0.32, 0.25), 0.9)
-    img = mult(img, cov['speck'], (0.33, 0.24, 0.16), 0.95)
-    mudc = np.array([0.40, 0.27, 0.16], np.float32)
+    # film: dull, dusty paint (a multiply by grey-brown and a lift toward pale)
+    img = mult(img, cov['film'], (0.50, 0.46, 0.40), 0.92)
+    img = img + (np.array([0.66, 0.60, 0.52]) - img) * (cov['film'] * 0.30)[..., None]
+    img = mult(img, cov['wake'], lk['wake'], lk['wake_k'])
+    img = img + (np.array([0.55, 0.50, 0.42]) - img) * (cov['wake'] * 0.12 * (1 if lk['dust'] else 0))[..., None]
+    img = mult(img, cov['mudfilm'], (0.30, 0.22, 0.15), 0.9)
+    img = mult(img, cov['streak'], (0.28, 0.21, 0.15), 0.95)
+    img = mult(img, cov['speck'], (0.26, 0.19, 0.13), 0.97)
+    c = cov['crust'][..., None]
+    img = img * (1 - c) + crust_rgb * c
     c = cov['cake'][..., None]
-    img = img * (1 - c) + c * np.clip(mudc * cake_shade[..., None] * 1.25, 0, 1)
-    dust = cov['dust'][..., None] * 0.55
-    img = img + (np.array([0.80, 0.72, 0.58]) - img) * dust
+    img = img * (1 - c) + cake_rgb * c
+    img = img + (np.array([0.80, 0.72, 0.58]) - img) * (cov['dust'] * 0.45)[..., None]
     sn = cov['snow'][..., None]
     img = img * (1 - sn) + np.array([0.93, 0.95, 0.98]) * sn
-    dirty = np.clip(cov['film'] * 0.5 + cov['mudfilm'] + cov['speck'] + cov['cake'] + cov['dust'] * 0.6 + cov['snow'] + cov['streak'], 0, 1)
-    return np.clip(img, 0, 1), dirty
+    dirty = np.clip(cov['film'] * 0.7 + cov['wake'] + cov['mudfilm'] + cov['speck'] + cov['crust'] + cov['cake'] + cov['dust'] * 0.6 + cov['snow'] + cov['streak'], 0, 1)
+    return np.clip(img, 0, 1), dirty, lk
 
 
 # ---------- the renderer
@@ -276,7 +338,7 @@ def normals(pos):
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
 
 
-def render(view, albedo, dirty, size=(1500, 820), ss=2):
+def render(view, albedo, dirty, lk=None, size=(1500, 820), ss=2):
     W, H = size[0] * ss, size[1] * ss
     c = np.array(view['cam'], np.float32); c /= np.linalg.norm(c)
     f = -c
@@ -330,8 +392,12 @@ def render(view, albedo, dirty, size=(1500, 820), ss=2):
     ix = np.clip((uvp[..., 0] * CV).astype(int), 0, CV - 1)
     iy = np.clip((uvp[..., 1] * CV).astype(int), 0, CV - 1)
     alb = albedo[iy, ix]
+    wz = (1 - B1 - B2) * P[t][..., 0, 2] + B1 * P[t][..., 1, 2] + B2 * P[t][..., 2, 2]
     drt = dirty[iy, ix]
     col = np.where((cl == 0)[..., None], alb, np.where((cl == 1)[..., None], np.array([0.05, 0.07, 0.09], np.float32), np.where((cl == 3)[..., None], np.array([0.05, 0.05, 0.055], np.float32), np.array([0.16, 0.16, 0.17], np.float32))))
+    if lk is not None and lk['wake_k'] > 0:                          # the glass gets the wake too (it has its own canvas in the game): rear-facing, thickest at the bottom
+        wk = smooth(n[..., 1], 0.12, 0.55) * np.clip(1 - (wz - z0) / (z1 - z0) * 0.95, 0, 1) ** 0.6 * 0.9
+        col = np.where((cl == 1)[..., None], col * (1 - wk[..., None]) + np.array(lk['wake'], np.float32) * 1.25 * wk[..., None], col)
     L = np.array([0.45, 0.55, 0.8], np.float32); L /= np.linalg.norm(L)
     nl = np.clip(n @ L, 0, 1)
     sky = (n[..., 2] * 0.5 + 0.5)
@@ -367,14 +433,14 @@ def main():
         if name == 'clean':
             albedo = np.zeros((CV, CV, 3), np.float32) + np.array(PAINT, np.float32)
             dirty = np.zeros((CV, CV), np.float32)
+            lk_ = None
         else:
             if name not in cache:
-                cov, shade = canvas(name)
-                cache[name] = compose(cov, shade)
+                cache[name] = compose(canvas(name))
                 Image.fromarray((cache[name][0] * 255).astype(np.uint8)).save(os.path.join(out, 'canvas_%s.png' % name))
-            albedo, dirty = cache[name]
+            albedo, dirty, lk_ = cache[name]
         t0 = time.time()
-        im = render(V[view], albedo, dirty)
+        im = render(V[view], albedo, dirty, lk_)
         fn = os.path.join(out, 'covet_%s_%s.png' % (name, view))
         im.save(fn)
         ims[(name, view)] = im
