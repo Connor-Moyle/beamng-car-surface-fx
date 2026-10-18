@@ -233,7 +233,8 @@ function createOverlay(doc, win) {
     var p = st.p;
     ['spray', 'frost', 'rain', 'wet', 'speed', 'aLong', 'aLat', 'wiper', 'size'].forEach(function (k) { if (typeof data[k] === 'number' && isFinite(data[k])) p[k] = data[k]; });
     if (!st.on) { st.on = true; last = null; lastDraw = 0; }
-    root.style.display = 'block';
+    if (!root.parentNode && doc.body) doc.body.appendChild(root);       // the game's UI can rebuild its body: put the layer back
+    root.style.display = 'block'; root.style.visibility = 'visible'; root.style.opacity = '1';
     if (!running) { running = true; win.requestAnimationFrame(frame); }
   }
 
