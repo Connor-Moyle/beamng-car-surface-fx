@@ -17,7 +17,7 @@ local screen = require('carSurfaceFx/screen')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, traffic = false }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlaySize = 4.5, dropSize = 3.0 }, weather = { snow = true, frost = true, bugs = true, spray = true }, marks = { enabled = true }, fluids = { enabled = true }, traffic = false }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -324,6 +324,17 @@ local function stopMarks()
   if marksOn() then extensions.unload('carSurfaceFx_marks') end
 end
 
+local function fluidsOn() return rawget(_G, 'carSurfaceFx_fluids') ~= nil end
+local function startFluids()
+  if fluidsOn() or not settings.fluids.enabled then return end
+  extensions.load('carSurfaceFx_fluids')
+  setExtensionUnloadMode('carSurfaceFx_fluids', 'manual')
+  log_('I', 'leaking fluids module started')
+end
+local function stopFluids()
+  if fluidsOn() then extensions.unload('carSurfaceFx_fluids') end
+end
+
 local function stopScratch()
   for _, name in ipairs({ 'carSurfaceFx_scratch', 'carSurfaceFx_meshuv' }) do
     if rawget(_G, name) ~= nil then extensions.unload(name) end
@@ -485,6 +496,7 @@ local function update(dtReal)
   if retireT >= 1 then retireT = 0 retireOldMod() end
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
+  if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
   if not settings then loadSettings() end
   local q = queue[1]
   if q then                                         -- one material reload per frame
@@ -612,7 +624,7 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() stopMarks() end
+function M.onExtensionUnloaded() reset() stopScratch() stopMarks() stopFluids() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)

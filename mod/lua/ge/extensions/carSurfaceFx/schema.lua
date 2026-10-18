@@ -10,9 +10,11 @@ M.TABS = {
   { id = 'dirt', title = 'Dirt & wear', description = 'Dirt that builds up while you drive, and the scratches and splats on the body.' },
   { id = 'weather', title = 'Weather extras', description = 'Snow, frost, bugs and road spray.' },
   { id = 'marks', title = 'Skid marks & terrain', description = 'Marks your tyres leave on the ground, surface by surface.' },
+  { id = 'leaks', title = 'Leaks & puddles', description = 'Oil, coolant and fuel that a damaged car drips, the puddles it leaves when it stands, and how slippery they are.' },
   { id = 'textures', title = 'Textures', description = 'The pictures used for the marks. Drop your own white-on-transparent 256 x 256 PNG into a surface folder under art/decals and it shows up here.' },
 }
 
+local rules_fluid_kinds = { 'oil', 'coolant', 'fuel', 'exhaust' }
 local function title(s) return (s:gsub('^%l', string.upper)) end
 
 local function json(path) return { kind = 'json', file = MAIN, path = path } end
@@ -46,6 +48,37 @@ local function marksStore(path, kind, dir)
       if not (m and m.set) then return end
       if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b }
       elseif kind == 'texture' then value = tostring(value):match('([^/\\]+)$') or '' end
+      m.set(path, value)
+    end }
+end
+
+-- ---- the leaking fluids module's values (carSurfaceFx_fluids): its get/set by path, the defaults when it is not running
+local function fluidsModule() return rawget(_G, 'carSurfaceFx_fluids') end
+local function fluidDefaultAt(path)
+  local t = require('carSurfaceFx/fluidrules').defaults()
+  for part in tostring(path):gmatch('[^%.]+') do
+    if type(t) ~= 'table' then return nil end
+    t = t[part]
+  end
+  return t
+end
+local function fluidStore(path, kind)
+  local function raw()
+    local m = fluidsModule()
+    local v = m and m.get and m.get(path)
+    if v == nil then v = fluidDefaultAt(path) end
+    return v
+  end
+  return { kind = 'custom',
+    get = function()
+      local v = raw()
+      if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
+      return v
+    end,
+    set = function(value)
+      local m = fluidsModule()
+      if not (m and m.set) then return end
+      if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b } end
       m.set(path, value)
     end }
 end
@@ -145,6 +178,37 @@ function M.build(S, owner)
       mk(t .. '_track_c', g, 'color', 'Track colour', 'The colour of the faint track.', p .. 'track.color'),
       mk(t .. '_track_l', g, 'slider', 'Track length', 'How much the track is stretched along its length (1 is normal).', p .. 'track.length', { min = 0.5, max = 2, step = 0.05, unit = 'x', advanced = true }),
     }
+  end))
+
+  -- ---- Leaks & puddles
+  local function lk(id, group, typ, label, tooltip, path, extra)
+    local f = { id = id, tab = 'leaks', group = group, type = typ, label = label, tooltip = tooltip, default = fluidDefaultAt(path), store = fluidStore(path, typ == 'color' and 'color' or nil), apply = 'live' }
+    if typ == 'color' then local c = f.default f.default = { r = c[1], g = c[2], b = c[3] } end
+    for k, v in pairs(extra or {}) do f[k] = v end
+    return f
+  end
+  add({
+    F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
+    lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). Off by default: it changes how the car drives.', 'gripEnabled'),
+    lk('leaks_others', 'Other cars', 'bool', 'Traffic and AI cars leak too', 'Off: only the car you drive leaks.', 'others.enabled'),
+    lk('leaks_others_cars', 'Other cars', 'int', 'Most other cars that leak', 'The nearest cars up to this number leak, for the frame rate.', 'others.maxCars', { min = 0, max = 12, advanced = true }),
+    lk('leaks_max', 'Leaks', 'int', 'How many puddles stay', 'The number of puddles and drip spots kept before the oldest are recycled.', 'maxPuddles', { min = 8, max = 300, advanced = true }),
+    lk('leaks_cull', 'Leaks', 'slider', 'Draw distance', 'Puddles further than this from the camera are not drawn.', 'cullRadius', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
+    lk('leaks_stain', 'Leaks', 'slider', 'Speed above which drips make spots', 'Driving faster than this, a leak leaves a trail of drip spots on the road instead of building a puddle.', 'stainSpeed', { min = 0.5, max = 10, step = 0.5, unit = 'm/s', advanced = true }),
+  })
+  add(S.each(rules_fluid_kinds, function(k)
+    local g = title(k)
+    local p = 'kinds.' .. k .. '.'
+    local list = {
+      lk('leaks_' .. k .. '_on', g, 'bool', g .. ' leaks', 'Off: no ' .. k .. ' drips or puddles.', p .. 'enabled'),
+      lk('leaks_' .. k .. '_color', g, 'color', g .. ' colour', 'The colour of the ' .. k .. ' on the ground. It is multiplied over the puddle picture.', p .. 'color'),
+      lk('leaks_' .. k .. '_opacity', g, 'slider', g .. ' strength', 'How strongly the ' .. k .. ' shows on the ground.', p .. 'opacity', { min = 0.05, max = 1, step = 0.05, unit = '%', scale = 100 }),
+      lk('leaks_' .. k .. '_size', g, 'slider', g .. ' puddle size', 'The biggest radius a ' .. k .. ' puddle grows to, in metres.', p .. 'size', { min = 0.1, max = 2.5, step = 0.05, unit = 'm' }),
+      lk('leaks_' .. k .. '_growth', g, 'slider', g .. ' puddle growth', 'How fast a puddle grows under a parked car (square metres per second of a full leak).', p .. 'growth', { min = 0.001, max = 0.1, step = 0.001, advanced = true }),
+      lk('leaks_' .. k .. '_life', g, 'slider', g .. ' dries after', 'Seconds until the puddle has dried. 0 means it stays until it is recycled.', p .. 'life', { min = 0, max = 3600, step = 30, unit = 's' }),
+      lk('leaks_' .. k .. '_grip', g, 'slider', g .. ' grip loss', 'How much grip a tyre loses in the middle of a puddle (when tyres slip in puddles is on).', p .. 'grip', { min = 0, max = 0.9, step = 0.05, unit = '%', scale = 100 }),
+    }
+    return list
   end))
 
   -- ---- Textures: one tile grid per surface and kind, read from the surface's own folder

@@ -2,6 +2,8 @@
 
 ## Unreleased (after 0.2.0)
 
+- Leaking fluids (port P7/P8): a car with a punctured oil pan, radiator or fuel tank drips on the ground, a parked leaking car builds a puddle (oil, coolant, fuel; exhaust condensation when cold, off by default), read from the engine's own leak rates. Optional real grip loss: each tyre in a puddle scales its own friction (off by default). Settings in the Mods menu tab "Leaks & puddles"; decals go through `marks.drawBatch`.
+
 - Wipers: two blades sweep clear arcs on the driver's view (drops, streaks and frost in the arc are gone and the drops bead up again behind them); the window canvases clear their frost in the blade's band. A car with no wiper value gets its wipers from the rain.
 - Puddle splash on your own car: dirty water on the lower body by side, a sheet over the windscreen for a deep puddle at speed.
 - Road spray from the car ahead on a wet road (mist and tiny drops on the windscreen and the driver's view, scaled by speed, closeness, length and wetness; the nearby cars are looked at four times a second).

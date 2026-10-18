@@ -148,6 +148,9 @@ end
 -- the one place a batch of decals goes to the engine (all with one texture)
 local function drawBatch(pool, n) Engine.Render.DynamicDecalMgr.addDecals(pool, n) end
 
+-- the seam for the other decal modules (the leaking fluids): the same engine call, so the scene lighting changes in one place
+function M.drawBatch(pool, n) return drawBatch(pool, n) end
+
 local budget = 0
 local function renderKind(kind, camX, camY, cr2)
   local b = buf[kind]

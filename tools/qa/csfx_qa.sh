@@ -2,7 +2,7 @@
 # Car Surface FX in-game QA: forces each effect with carSurfaceFx.debug(), reads carSurfaceFx.status() / screenInfo() back as the check, and takes a named screenshot of each.
 # The game must be up with a car on any level (the same arrangement as qa_game/run.sh --no-launch); this script launches and kills nothing.
 #
-#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape
+#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids
 #   QA_SHOT_DIR=<dir>  where the screenshots go (default: the wc\morning folder), named surfacefx_<check>.jpg
 #   QA_CONTROL=<dir>   the control repo whose tools/qa_game/lib.sh (R, SHOT, rec) is used (read only), default /c/Dev/SLRR BeamNG Graph
 # Wired into the control suite as:  csfx) bash "/c/Dev/BeamNG Car Surface FX/tools/qa/csfx_qa.sh" ;;
@@ -153,6 +153,40 @@ v:queueLuaCommand('input.event(\"throttle\",1)') return bd" > /dev/null
   N1="$(R "return carSurfaceFx_scratch and carSurfaceFx_scratch.count(be:getPlayerVehicleID(0)) or -1" | tr -d '\r')"
   if [ "${N1:-0}" -gt "${N0:-0}" ] 2>/dev/null; then rec "wall scrape leaves scratches" PASS "scratch marks $N0 -> $N1"; else rec "wall scrape leaves scratches" FAIL "scratch marks $N0 -> $N1 (no contact, or no hit report)"; fi
   cam external; nap 2; shot scratch_real
+fi
+
+if want fluids; then
+  # P7/P8: a REAL puncture of the engine's oil pan (the engine's own damage call), a parked car makes a puddle, then a tyre drives through it and loses grip
+  FL() { R "return carSurfaceFx_fluids and carSurfaceFx_fluids.$1" | tr -d ''; }
+  R "if not carSurfaceFx_fluids then extensions.load('carSurfaceFx_fluids') end carSurfaceFx_fluids.clear() carSurfaceFx_fluids.set('gripEnabled', true) return 1" > /dev/null
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1) input.event(\"parkingbrake\",1)') return 1" > /dev/null
+  nap 3
+  FL "puncture('oil')" > /dev/null
+  nap 10
+  expect "a punctured oil pan leaks (the engine's own rate)" 'leak oil 0\.[2-9]|leak oil 1' "$(FL 'status()')"
+  nap 30
+  expect "a parked leaking car builds an oil puddle" 'oil=[1-9][0-9]*\(r0\.[1-9]|oil=[1-9][0-9]*\(r[1-9]' "$(FL 'status()')"
+  cam external; nap 2; shot oil_puddle
+  FL "puncture('coolant')" > /dev/null
+  nap 25
+  expect "a punctured radiator leaks coolant too" 'coolant=[1-9]' "$(FL 'status()')"
+  shot coolant_puddle
+  # the grip: a puddle right under the car's path, drive through it and read the tyres' multiplier back from the car
+  R "carSurfaceFx_fluids.clear() carSurfaceFx_fluids.set('kinds.oil.size', 1.5) return carSurfaceFx_fluids.puddleAhead('oil', 6, 1.5)" > /dev/null
+  shot puddle_ahead
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"parkingbrake\",0) input.event(\"brake\",0) input.event(\"throttle\",0.35)') return 1" > /dev/null
+  LOW=1
+  for i in $(seq 1 16); do
+    nap 0.4
+    G="$(FL 'status()' | sed -n 's/.* grip \([0-9.]*\) gripOn.*//p')"
+    LOW="$(awk -v a="$LOW" -v b="${G:-1}" 'BEGIN{print (b < a) ? b : a}')"
+  done
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
+  if awk -v b="$LOW" 'BEGIN{exit !(b < 0.9)}'; then rec "a tyre driving through an oil puddle loses grip" PASS "lowest grip multiplier $LOW"; else rec "a tyre driving through an oil puddle loses grip" FAIL "lowest grip multiplier $LOW (no loss seen)"; fi
+  nap 5
+  expect "grip comes back after the puddle" 'grip (1\.00|0\.9[5-9]|1)' "$(FL 'status()')"
+  R "carSurfaceFx_fluids.set('gripEnabled', false) carSurfaceFx_fluids.clear() be:getPlayerVehicle(0):queueLuaCommand('input.event(\"brake\",0) if carSurfaceFxFluids then carSurfaceFxFluids.force(\"oil\", false) end') return 1" > /dev/null
+  rec "fluids: reset the car after this section (the punctured pan stays until a reset)" INFO "use the game's recover/reset key or respawn the car"
 fi
 
 dbg ""
