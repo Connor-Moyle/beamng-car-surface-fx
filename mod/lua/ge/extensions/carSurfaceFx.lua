@@ -56,7 +56,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 33                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 34                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 

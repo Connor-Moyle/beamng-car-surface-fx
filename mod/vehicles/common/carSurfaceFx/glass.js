@@ -146,8 +146,8 @@
         ctx.drawImage(sprite, px - R, py - R, R * 2, R * 2);
       }
     }
-    if (tiny) { if (emissive) { ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fill(); } ctx.stroke(); }      // a lit disc under the ring: a drop is a lens, not a dot
-    if (glints.length) {
+    if (tiny) { if (emissive) { ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill(); } ctx.stroke(); }      // a lit disc under the ring: a drop is a lens, not a dot
+    if (glints.length && !emissive) {      // the inside light map has no glints: at 4 mm a texel any lit mark of a drop reads as a white dot up close; the disc and the ring carry it
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1.2, 1.2);
     }
