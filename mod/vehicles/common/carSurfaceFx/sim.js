@@ -4,7 +4,7 @@
   var MAX = 260;
 
   function create() {
-    return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
+    return { n: MAX, x: new Float32Array(MAX), y: new Float32Array(MAX), r: new Float32Array(MAX), alive: new Uint8Array(MAX), fresh: [], t: 0, wipe: 0, wipeDir: 1, seed: 12345 };
   }
   function rnd(d) { d.seed = (d.seed * 16807) % 2147483647; return d.seed / 2147483647; }
 
@@ -47,7 +47,7 @@
     var n0 = count(d);
     var spawns = n0 < cap ? p.rain * (mm ? 170 * amount : 80 * z) * (0.5 + Math.min(p.speed / 30, 1)) * dt : 0;
     while (spawns > 0) {
-      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); add(d, rnd(d), rnd(d), mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); }
+      if (spawns >= 1 || rnd(d) < spawns) { var q = rnd(d); var j = add(d, rnd(d), rnd(d), mm ? (p.glassMm / 2000) * (0.6 + 0.8 * q * q) * sg : (0.006 + 0.012 * q * q) * z, maxR); if (j >= 0 && d.fresh.length < 64) d.fresh.push(j); }
       spawns -= 1;
     }
     if (p.spray > 0.01) {                                             // road spray from the car ahead: a fine shower of tiny drops
