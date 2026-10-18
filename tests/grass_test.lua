@@ -5,7 +5,7 @@ local function near(a, b) return math.abs(a - b) < 1e-6 end
 -- ---- the rules -------------------------------------------------------------------------------------------------------------------------------------------
 local s = R.sanitize({ strength = 9, widthScale = 0, distance = 1, maxCars = 99, clearAfterMin = -3, enabled = false, junk = 1 })
 assert(s.strength == 1 and s.widthScale == 0.3 and s.distance == 10 and s.maxCars == 20 and s.clearAfterMin == 0 and s.enabled == false and s.junk == nil, 'sanitize clamps and keeps false')
-assert(R.sanitize(nil).enabled == true and R.sanitize({ traffic = 'x' }).traffic == true, 'defaults')
+assert(R.sanitize(nil).enabled == false and R.sanitize({ traffic = 'x' }).traffic == true, 'defaults')
 assert(near(R.stampWidth(0.25, 1), 0.4) and R.stampWidth(0.05, 1) == 0.35 and R.stampWidth(2, 1) == 1.4 and near(R.stampWidth(nil, 2), 0.8), 'stamp width: tyre x 1.6, clamped')
 assert(near(R.flatten(0, 1), 0.6) and near(R.flatten(25, 1), 1) and near(R.flatten(100, 0.5), 0.5) and R.flatten(10, 0) == 0, 'flatten grows with speed, scales with strength')
 assert(R.mark(0.5, true) == 1 and R.mark(0.1, true) == 0.5 and R.mark(0.9, false) == 0.5, 'a spinning wheel cuts, only when allowed')
