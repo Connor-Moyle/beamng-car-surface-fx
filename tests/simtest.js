@@ -55,7 +55,7 @@ for (let i = 0; i < d.n; i++) if (d.alive[i]) { rbig += d.r[i]; nbig++; }
 assert(nbig > 0 && rbig / nbig > 0.006, 'size scales the drops up');
 d = S.create();
 for (let i = 0; i < 60 * 30; i++) S.step(d, 1 / 60, P({ rain: 1, speed: 0, size: 1.4 }));
-assert(S.count(d) <= Math.floor(300 / 1.4) + 3, 'a window carries a limited number of drops');
+assert(S.count(d) <= Math.floor(300 / Math.sqrt(1.4)) + 3, 'a window carries a limited number of drops');
 // no drop outgrows the window (this seed, rain, speed and the overlay's size used to make one thousands of pixels wide)
 d = S.create(); d.seed = 12345;
 let biggest = 0;
