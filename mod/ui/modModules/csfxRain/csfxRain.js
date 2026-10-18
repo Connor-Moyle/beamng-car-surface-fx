@@ -229,6 +229,26 @@ function createOverlay(doc, win) {
     c.putImageData(data, 0, 0);
   })();
 
+  // a small bead (under about 8 px): a dark rim all round, a faint dark body, a soft light spot low right and a small glint up left; the big sprite's hard glints turned a small
+  // drop into a white dot that read as snow
+  var BS = 24, bead = doc.createElement('canvas');
+  bead.width = bead.height = BS;
+  (function () {
+    var c = bead.getContext('2d'), data = c.createImageData(BS, BS);
+    for (var y = 0; y < BS; y++) for (var x = 0; x < BS; x++) {
+      var u = (x + 0.5) / BS * 2 - 1, v = (y + 0.5) / BS * 2 - 1, d = Math.sqrt(u * u + v * v), o = (y * BS + x) * 4;
+      if (d >= 1) { data.data[o + 3] = 0; continue; }
+      var rim = Math.max(0, 1 - Math.abs(d - 0.8) / 0.22) * (0.7 + 0.3 * (u + v) * 0.7071 + 0.0);   // heavier low right
+      var cx = u - 0.25, cy = v - 0.3, spot = 0.55 * Math.exp(-(cx * cx + cy * cy) / 0.07);
+      var gx = u + 0.38, gy = v + 0.42, glint = Math.min(1, 1.3 * Math.exp(-(gx * gx + gy * gy) / 0.018));
+      var dark = Math.min(0.85, 0.16 + rim * 0.65), lightA = Math.min(1, spot + glint);
+      var a = dark + lightA * (1 - dark);                       // the colour is the share of light in the two
+      var k = a > 0 ? lightA / (dark + lightA) : 0, col = Math.round(18 * (1 - k) + 255 * k);
+      data.data[o] = data.data[o + 1] = data.data[o + 2] = col; data.data[o + 3] = Math.round(Math.min(1, a) * Math.min(1, (1 - d) * 6) * 255);
+    }
+    c.putImageData(data, 0, 0);
+  })();
+
   function bbox(h) {
     var x0 = 1, y0 = 1, x1 = 0, y1 = 0;
     for (var i = 0; i < h.length; i += 2) { x0 = Math.min(x0, h[i]); x1 = Math.max(x1, h[i]); y0 = Math.min(y0, h[i + 1]); y1 = Math.max(y1, h[i + 1]); }
@@ -332,7 +352,7 @@ function createOverlay(doc, win) {
       if (!sim.alive[n]) continue;
       alive++;
       var R = Math.max(1.5, sim.r[n] * bh);
-      ctx.drawImage(sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
+      ctx.drawImage(R < 8 ? bead : sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
         var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
