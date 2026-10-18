@@ -85,10 +85,10 @@ function createOverlay(doc, win) {
     for (var y = 0; y < BS; y++) for (var x = 0; x < BS; x++) {
       var u = (x + 0.5) / BS * 2 - 1, v = (y + 0.5) / BS * 2 - 1, d = Math.sqrt(u * u + v * v), o = (y * BS + x) * 4;
       if (d >= 1) { data.data[o + 3] = 0; continue; }
-      var rim = Math.max(0, 1 - Math.abs(d - 0.88) / 0.2) * (0.75 + 0.25 * (u + v) * 0.7071);   // a thin dark edge, heavier low right
-      var spot = 0;                                                  // no light spot: a drop on a windscreen is a darker lens with a tiny glint, not a ball
+      var rim = Math.max(0, 1 - Math.abs(d - 0.88) / 0.2) * Math.max(0, (u + v) * 0.7071 + 0.15);   // a thin dark lower rim only (the upper side lets the sky through)
+      var spot = d < 0.85 ? 0.2 * (1 - (u + v) * 0.35) : 0;           // the body is lighter than the glass: it takes the bright sky
       var gx = u + 0.4, gy = v + 0.45, glint = Math.min(1, 1.2 * Math.exp(-(gx * gx + gy * gy) / 0.01));
-      var dark = Math.min(0.9, 0.3 + rim * 0.5), lightA = Math.min(1, spot + glint);
+      var dark = Math.min(0.9, 0.05 + rim * 0.62), lightA = Math.min(1, spot + glint);
       var a = dark + lightA * (1 - dark);                       // the colour is the share of light in the two
       var k = a > 0 ? lightA / (dark + lightA) : 0, col = Math.round(18 * (1 - k) + 255 * k);
       data.data[o] = data.data[o + 1] = data.data[o + 2] = col; data.data[o + 3] = Math.round(Math.min(1, a) * Math.min(1, (1 - d) * 6) * 255);
@@ -199,7 +199,7 @@ function createOverlay(doc, win) {
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
       alive++;
-      var R = Math.min(7, Math.max(2, sim.r[n] * bh * 0.7));          // real drops seen from the seat: mostly 2 to 8 px across, a few up to 12, flattened
+      var R = Math.min(7, Math.max(1.2, Math.pow(sim.r[n] * bh, 1.25) * 0.45));          // real drops seen from the seat: mostly 2 to 8 px across, a few up to 12, flattened
       ctx.drawImage(bead, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R * 0.85, R * 2, R * 1.7);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
@@ -209,9 +209,10 @@ function createOverlay(doc, win) {
       }
     }
     if (st.p.wiper > 0.05) {                                          // the blades themselves: a thin dark rubber line along the sweep angle (the car's own wipers do not move for this view)
-      ctx.strokeStyle = 'rgba(12,12,14,0.7)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.strokeStyle = 'rgba(20,25,30,0.13)'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath();
       for (var wl = 0; wl < 2; wl++) { var wcx = bx + BLADES[wl].px * bw, wcy = by + bh, wL = BLADES[wl].len * bw; ctx.moveTo(wcx, wcy); ctx.lineTo(wcx + Math.cos(aNow) * wL, wcy - Math.sin(aNow) * wL); }
       ctx.stroke();
+      ctx.strokeStyle = 'rgba(20,25,30,0.28)'; ctx.lineWidth = 1.2; ctx.stroke();      // a soft wet smear with a thin edge line, not a black string
     }
     ctx.restore();
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
