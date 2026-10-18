@@ -15,10 +15,11 @@ M.apiVersion = 2                          -- 2: repair(id), getState / setState,
 local rules = require('carSurfaceFx/rules')
 local options = require('carSurfaceFx/options')
 local screen = require('carSurfaceFx/screen')
+local grassRules = require('carSurfaceFx/grassRules')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2 }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor' }
@@ -53,6 +54,7 @@ local queue = {}                              -- material edits still to do, one
 
 local function log_(level, msg) log(level, TAG, msg) end
 local function scratchOn() return rawget(_G, 'carSurfaceFx_scratch') ~= nil end
+local function grassOn() return rawget(_G, 'carSurfaceFx_grass') ~= nil end
 
 -- the Options page's own settings (game settings with our keys) win over the file once they exist; the file gives the start values
 local function gameSettings() local g = rawget(_G, 'settings') return g and g.getValue and g or nil end
@@ -294,6 +296,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
   engineBy[id] = tonumber(engine)
+  if grassOn() then carSurfaceFx_grass.noteGround(id, loose, mud, slip, speed) end
   if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
     local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
@@ -363,6 +366,18 @@ local function startScratch()
   end
   carSurfaceFx_scratch.configure(settings.scratch)
   log_('I', 'scratch module started')
+end
+
+-- Grass that bends under the wheels (carSurfaceFx/grass.lua): the game's own surface mask, stamped from the wheels. Runs while settings.grass.enabled.
+local function startGrass()
+  if grassOn() or not settings.grass.enabled then return end
+  extensions.load('carSurfaceFx_grass')
+  setExtensionUnloadMode('carSurfaceFx_grass', 'manual')
+  if carSurfaceFx_grass then carSurfaceFx_grass.configure(settings.grass) end
+  log_('I', 'grass module started')
+end
+local function stopGrass()
+  if grassOn() then extensions.unload('carSurfaceFx_grass') end
 end
 
 local function stopScratch()
@@ -532,6 +547,7 @@ function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'ov
 
 local function update(dtReal)
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
+  if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
   if not settings then loadSettings() end
   if conflict() then
     if next(mats) or next(cars) then reset() log_('W', 'surfaceFXBody is loaded: Car Surface FX is paused') end
@@ -645,7 +661,7 @@ function reset()
   cars, queue, rung, wet, forced, forcedDirt, dirtBy, frostBy, engineBy, frostP = {}, {}, 0, 0, nil, nil, {}, {}, {}, 0
 end
 M.onClientEndMission = reset
-function M.onExtensionUnloaded() reset() stopScratch() end
+function M.onExtensionUnloaded() reset() stopScratch() stopGrass() end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
