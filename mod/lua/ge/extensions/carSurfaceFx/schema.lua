@@ -11,6 +11,7 @@ M.TABS = {
   { id = 'weather', title = 'Weather extras', description = 'Snow, frost, bugs and road spray.' },
   { id = 'marks', title = 'Skid marks & terrain', description = 'Marks your tyres leave on the ground, surface by surface.' },
   { id = 'crash', title = 'Glass, debris & sparks', description = 'What a crash leaves behind: glass on the road, pieces thrown off the car, and sparks where metal grinds on the ground.' },
+  { id = 'ruts', title = 'Ruts', description = 'Wheel ruts in mud, snow, sand, dirt and gravel: deeper with a heavy car and soft ground, and deeper again when the same track is driven twice.' },
   { id = 'leaks', title = 'Leaks & puddles', description = 'Oil, coolant and fuel that a damaged car drips, the puddles it leaves when it stands, and how slippery they are.' },
   require('carSurfaceFx/grass').TAB,
   { id = 'textures', title = 'Textures', description = 'The pictures used for the marks. Drop your own white-on-transparent 256 x 256 PNG into a surface folder under art/decals and it shows up here.' },
@@ -51,6 +52,30 @@ local function marksStore(path, kind, dir)
       if kind == 'color' and type(value) == 'table' then value = { value.r, value.g, value.b }
       elseif kind == 'texture' then value = tostring(value):match('([^/\\]+)$') or '' end
       m.set(path, value)
+    end }
+end
+
+-- ---- the ruts module's values (carSurfaceFx_ruts)
+local function rutsModule() return rawget(_G, 'carSurfaceFx_ruts') end
+local function rutDefaultAt(path)
+  local t = require('carSurfaceFx/rutrules').defaults()
+  for part in tostring(path):gmatch('[^%.]+') do
+    if type(t) ~= 'table' then return nil end
+    t = t[part]
+  end
+  return t
+end
+local function rutStore(path)
+  return { kind = 'custom',
+    get = function()
+      local m = rutsModule()
+      local v = m and m.get and m.get(path)
+      if v == nil then v = rutDefaultAt(path) end
+      return v
+    end,
+    set = function(value)
+      local m = rutsModule()
+      if m and m.set then m.set(path, value) end
     end }
 end
 
@@ -251,6 +276,33 @@ function M.build(S, owner)
       lk('leaks_' .. k .. '_grip', g, 'slider', g .. ' grip loss', 'How much grip a tyre loses in the middle of a puddle (when tyres slip in puddles is on).', p .. 'grip', { min = 0, max = 0.9, step = 0.05, unit = '%', scale = 100 }),
     }
     return list
+  end))
+
+  -- ---- Ruts
+  local function rt(id, group, typ, label, tooltip, path, extra)
+    local f = { id = id, tab = 'ruts', group = group, type = typ, label = label, tooltip = tooltip, default = rutDefaultAt(path), store = rutStore(path), apply = 'live' }
+    for k, v in pairs(extra or {}) do f[k] = v end
+    return f
+  end
+  add({
+    F('ruts', 'ruts', 'Ruts', 'bool', 'Wheel ruts in soft ground', 'Mud, snow, sand, dirt and gravel take a rut where a loaded wheel rolls. Off: the ground stays smooth.', 'ruts.enabled'),
+    rt('ruts_routing', 'Ruts', 'enum', 'How ruts are drawn', 'Lit road decals (they take the sun, shade and wet) or plain ground decals. If the lit way cannot be made in a level, ground decals are used on their own.', 'routing',
+      { options = { { id = 'road', label = 'Lit road decals' }, { id = 'decal', label = 'Ground decals' } } }),
+    rt('ruts_width', 'Ruts', 'slider', 'Rut width', 'How wide the ruts are (1 is normal).', 'widthScale', { min = 0.5, max = 2, step = 0.05, unit = 'x' }),
+    rt('ruts_layers', 'Ruts', 'int', 'Passes that deepen a rut', 'How many times the same track can be driven and still get deeper. 1 means a rut never deepens.', 'maxLayers', { min = 1, max = 5 }),
+    rt('ruts_depth', 'Ruts', 'slider', 'How hard a wheel must press', 'The least pressing (ground softness x the wheel load) that leaves a rut. Higher means only heavy cars or soft ground rut.', 'minDepth', { min = 0.05, max = 1, step = 0.05, advanced = true }),
+    rt('ruts_max', 'Ruts', 'int', 'How many rut pieces stay', 'The number of rut pieces kept before the oldest are removed.', 'maxRoads', { min = 20, max = 600, advanced = true }),
+    rt('ruts_rate', 'Ruts', 'int', 'Pieces made per second', 'A limit on rut pieces made each second, for the frame rate.', 'maxPerSecond', { min = 1, max = 20, advanced = true }),
+    rt('ruts_wet', 'Ruts', 'slider', 'Wet look from', 'How wet the ground must be before ruts use their wet, glossy look.', 'wetAbove', { min = 0.1, max = 0.9, step = 0.05, advanced = true }),
+    rt('ruts_cull', 'Ruts', 'slider', 'Draw distance (ground decals)', 'Ground-decal ruts further than this from the camera are not drawn.', 'cullRadius', { min = 30, max = 300, step = 10, unit = 'm', advanced = true }),
+    rt('ruts_others', 'Other cars', 'bool', 'Traffic and AI cars rut too', 'Off: only the car you drive leaves ruts.', 'others.enabled'),
+  })
+  add(S.each({ 'mud', 'snow', 'sand', 'dirt', 'gravel' }, function(k)
+    local g = title(k)
+    return {
+      rt('ruts_' .. k .. '_on', g, 'bool', g .. ' ruts', 'Off: ' .. k .. ' stays smooth.', 'kinds.' .. k .. '.enabled'),
+      rt('ruts_' .. k .. '_soft', g, 'slider', g .. ' softness', 'How easily this ground takes a rut. Higher means shallower loads rut it.', 'kinds.' .. k .. '.soft', { min = 0.1, max = 1.5, step = 0.05 }),
+    }
   end))
 
   -- ---- Glass, debris & sparks

@@ -2,7 +2,7 @@
 # Car Surface FX in-game QA: forces each effect with carSurfaceFx.debug(), reads carSurfaceFx.status() / screenInfo() back as the check, and takes a named screenshot of each.
 # The game must be up with a car on any level (the same arrangement as qa_game/run.sh --no-launch); this script launches and kills nothing.
 #
-#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids shards crash
+#   bash tools/qa/csfx_qa.sh [--only a,b,c]       sections: overlay glass paint dirt wipers frost snow bugs spray lead splash scrape fluids shards crash ruts
 #   QA_SHOT_DIR=<dir>  where the screenshots go (default: the wc\morning folder), named surfacefx_<check>.jpg
 #   QA_CONTROL=<dir>   the control repo whose tools/qa_game/lib.sh (R, SHOT, rec) is used (read only), default /c/Dev/SLRR BeamNG Graph
 # Wired into the control suite as:  csfx) bash "/c/Dev/BeamNG Car Surface FX/tools/qa/csfx_qa.sh" ;;
@@ -237,6 +237,21 @@ v:queueLuaCommand('input.event(\"brake\",0) input.event(\"throttle\",1)') return
   nap 0.3; shot sparks_test
   IM "test('debris')" > /dev/null
   nap 4; shot debris_test
+fi
+
+if want ruts; then
+  # P4: the player's wheels press this ground as mud (forced); drive, then the same track again; roads or ground decals must appear and deepen
+  RT() { R "return carSurfaceFx_ruts and carSurfaceFx_ruts.$1" | tr -d ''; }
+  R "if not carSurfaceFx_ruts then extensions.load('carSurfaceFx_ruts') end carSurfaceFx_ruts.clear() carSurfaceFx_ruts.force('mud') be:getPlayerVehicle(0):queueLuaCommand('input.event(\"parkingbrake\",0) input.event(\"brake\",0) input.event(\"throttle\",0.6)') return 1" > /dev/null
+  nap 6
+  R "be:getPlayerVehicle(0):queueLuaCommand('input.event(\"throttle\",0) input.event(\"brake\",1)') return 1" > /dev/null
+  nap 3
+  expect "wheels in mud leave rut pieces" 'roads [1-9]|segments [1-9]' "$(RT 'status()')"
+  cam external; nap 1; shot ruts_mud
+  RT "test('mud', 3)" > /dev/null
+  nap 2; shot ruts_layers
+  expect "a rut test of three passes is deeper than one" 'cells [1-9]' "$(RT 'status()')"
+  R "carSurfaceFx_ruts.force(nil) carSurfaceFx_ruts.clear() return 1" > /dev/null
 fi
 
 dbg ""
