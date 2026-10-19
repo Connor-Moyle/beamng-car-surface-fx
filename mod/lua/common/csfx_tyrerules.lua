@@ -11,18 +11,18 @@ M.clamp = clamp
 -- ---- compounds (research section 4). h0 tread mm, margin = how far below zero the belts/cord go before the blow-out, k mm3/J, lo/hi the grip window (C), grip20 the grip at 20 C,
 -- drop the grip lost per 10 C over hi, wearOn the temperature wear starts to climb, dry0/wet0 the grip at 0 mm, crr rolling resistance
 M.COMPOUNDS = {
-  road        = { base = 1.0, h0 = 8.0,  margin = 0.5, k = 0.10, lo = 20,  hi = 85,  grip20 = 0.98, drop = 0.02, wearOn = 110, dry0 = 1.02, wet0 = 0.80, crr = 0.010, wetF = 1.0, aqua = 22, loose = 0.9, snow = 0.7 },
-  performance = { base = 1.05, h0 = 7.0,  margin = 0.5, k = 0.14, lo = 40,  hi = 90,  grip20 = 0.93, drop = 0.03, wearOn = 110, dry0 = 1.03, wet0 = 0.75, crr = 0.011, wetF = 0.95, aqua = 20, loose = 0.85, snow = 0.65 },
-  semislick   = { base = 1.12, h0 = 5.0,  margin = 0.4, k = 0.25, lo = 70,  hi = 104, grip20 = 0.85, drop = 0.04, wearOn = 120, dry0 = 1.04, wet0 = 0.60, crr = 0.013, wetF = 0.75, aqua = 16, loose = 0.8, snow = 0.6 },
-  slick       = { base = 1.2, h0 = 3.0,  margin = 0.3, k = 0.40, lo = 80,  hi = 105, grip20 = 0.75, drop = 0.05, wearOn = 125, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
-  slicksoft   = { base = 1.25, h0 = 3.0,  margin = 0.3, k = 0.60, lo = 85,  hi = 110, grip20 = 0.72, drop = 0.06, wearOn = 120, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
-  drag        = { base = 1.15, h0 = 3.0,  margin = 0.3, k = 0.50, lo = 60,  hi = 100, grip20 = 0.80, drop = 0.04, wearOn = 130, dry0 = 1.00, wet0 = 0.40, crr = 0.015, wetF = 0.5, aqua = 11, loose = 0.65, snow = 0.45 },
-  offroad     = { base = 0.9, h0 = 11.0, margin = 0.6, k = 0.12, lo = 0,   hi = 70,  grip20 = 1.00, drop = 0.02, wearOn = 100, dry0 = 1.00, wet0 = 0.85, crr = 0.014, wetF = 1.0, aqua = 22, loose = 1.15, snow = 0.9 },
-  mud         = { base = 0.85, h0 = 15.0, margin = 0.6, k = 0.15, lo = 0,   hi = 60,  grip20 = 1.00, drop = 0.02, wearOn = 95,  dry0 = 0.98, wet0 = 0.85, crr = 0.016, wetF = 1.0, aqua = 22, loose = 1.25, snow = 0.95 },
-  winter      = { base = 0.92, h0 = 9.0,  margin = 0.5, k = 0.12, lo = -25, hi = 15,  grip20 = 0.94, drop = 0.03, wearOn = 70,  dry0 = 1.00, wet0 = 0.80, crr = 0.011, wetF = 1.02, aqua = 22, loose = 1.0, snow = 1.3 },
-  intermediate = { base = 0.95, h0 = 7.5, margin = 0.5, k = 0.20, lo = 25, hi = 70, grip20 = 0.90, drop = 0.04, wearOn = 85, dry0 = 0.95, dryF = 0.96, wet0 = 0.85, crr = 0.012, wetF = 1.20, aqua = 28, loose = 0.8, snow = 0.7 },
-  fullwet      = { base = 0.9, h0 = 9.0, margin = 0.5, k = 0.30, lo = 15, hi = 55, grip20 = 0.92, drop = 0.06, wearOn = 70, dry0 = 0.85, dryF = 0.90, wet0 = 0.90, crr = 0.013, wetF = 1.30, aqua = 33, loose = 0.8, snow = 0.8 },
-  rally       = { base = 0.97, h0 = 9.0,  margin = 0.5, k = 0.15, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012, wetF = 1.0, aqua = 22, loose = 1.1, snow = 0.85 },
+  road        = { base = 1.0, h0 = 8.0,  margin = 0.5, k = 0.025, lo = 20,  hi = 85,  grip20 = 0.98, drop = 0.02, wearOn = 110, dry0 = 1.02, wet0 = 0.80, crr = 0.010, wetF = 1.0, aqua = 22, loose = 0.9, snow = 0.7 },
+  performance = { base = 1.05, h0 = 7.0,  margin = 0.5, k = 0.035, lo = 40,  hi = 90,  grip20 = 0.93, drop = 0.03, wearOn = 110, dry0 = 1.03, wet0 = 0.75, crr = 0.011, wetF = 0.95, aqua = 20, loose = 0.85, snow = 0.65 },
+  semislick   = { base = 1.12, h0 = 5.0,  margin = 0.4, k = 0.0625, lo = 70,  hi = 104, grip20 = 0.85, drop = 0.04, wearOn = 120, dry0 = 1.04, wet0 = 0.60, crr = 0.013, wetF = 0.75, aqua = 16, loose = 0.8, snow = 0.6 },
+  slick       = { base = 1.2, h0 = 3.0,  margin = 0.3, k = 0.1, lo = 80,  hi = 105, grip20 = 0.75, drop = 0.05, wearOn = 125, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  slicksoft   = { base = 1.25, h0 = 3.0,  margin = 0.3, k = 0.15, lo = 85,  hi = 110, grip20 = 0.72, drop = 0.06, wearOn = 120, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  drag        = { base = 1.15, h0 = 3.0,  margin = 0.3, k = 0.125, lo = 60,  hi = 100, grip20 = 0.80, drop = 0.04, wearOn = 130, dry0 = 1.00, wet0 = 0.40, crr = 0.015, wetF = 0.5, aqua = 11, loose = 0.65, snow = 0.45 },
+  offroad     = { base = 0.9, h0 = 11.0, margin = 0.6, k = 0.03, lo = 0,   hi = 70,  grip20 = 1.00, drop = 0.02, wearOn = 100, dry0 = 1.00, wet0 = 0.85, crr = 0.014, wetF = 1.0, aqua = 22, loose = 1.15, snow = 0.9 },
+  mud         = { base = 0.85, h0 = 15.0, margin = 0.6, k = 0.0375, lo = 0,   hi = 60,  grip20 = 1.00, drop = 0.02, wearOn = 95,  dry0 = 0.98, wet0 = 0.85, crr = 0.016, wetF = 1.0, aqua = 22, loose = 1.25, snow = 0.95 },
+  winter      = { base = 0.92, h0 = 9.0,  margin = 0.5, k = 0.03, lo = -25, hi = 15,  grip20 = 0.94, drop = 0.03, wearOn = 70,  dry0 = 1.00, wet0 = 0.80, crr = 0.011, wetF = 1.02, aqua = 22, loose = 1.0, snow = 1.3 },
+  intermediate = { base = 0.95, h0 = 7.5, margin = 0.5, k = 0.05, lo = 25, hi = 70, grip20 = 0.90, drop = 0.04, wearOn = 85, dry0 = 0.95, dryF = 0.96, wet0 = 0.85, crr = 0.012, wetF = 1.20, aqua = 28, loose = 0.8, snow = 0.7 },
+  fullwet      = { base = 0.9, h0 = 9.0, margin = 0.5, k = 0.075, lo = 15, hi = 55, grip20 = 0.92, drop = 0.06, wearOn = 70, dry0 = 0.85, dryF = 0.90, wet0 = 0.90, crr = 0.013, wetF = 1.30, aqua = 33, loose = 0.8, snow = 0.8 },
+  rally       = { base = 0.97, h0 = 9.0,  margin = 0.5, k = 0.0375, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012, wetF = 1.0, aqua = 22, loose = 1.1, snow = 0.85 },
 }
 
 function M.defaults()
@@ -31,7 +31,7 @@ function M.defaults()
     wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
     surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
     deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)
-    heatWearScale = 60, heatWearMax = 4,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
+    heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
     heatRate = 1.0, coolRate = 1.0, rainCool = 4, sunRoad = 8,
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,

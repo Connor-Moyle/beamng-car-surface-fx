@@ -40,13 +40,16 @@ local x10, x1 = R.new('road', 16), R.new('road', 16)
 R.addEnergy(x10, 5, 20000) R.addEnergy(x1, 5, 20000) R.wearStep(x10, {}, fast) R.wearStep(x1, {}, cfg)
 near((8 - x10.h[5]) / (8 - x1.h[5]), 10, 0.001, 'the wear multiplier scales the time')
 
--- ---- the calibration target: 100 to 0 km/h locked on a 1500 kg car, ~190 kJ into one front tyre, ~1.5 mm of flat spot (research 2.2)
+-- ---- the calibration target (62, live test): a 1 s lock from 46 km/h (~64 kJ) leaves 0.1 to 0.3 mm, 100 to 0 km/h locked (~190 kJ into one front tyre) about a millimetre
 local lock = R.new('road', 16, 0.305, 0.175, 20)
 -- the lock holds one patch of ~15,000 mm2, about one sector (both lanes); the stationary patch flashes hot (60 C over the tyre)
 R.addEnergy(lock, 9, 95000) R.addEnergy(lock, 10, 95000) lock.flash[5] = 60
-lock.Ts = 60 R.wearStep(lock, {}, cfg)
+lock.Ts = 150 R.wearStep(lock, {}, cfg)               -- (a long skid heats the tyre: about 150 C by the end)
 local w = R.worstFlat(lock)
-assert(w > 1.0 and w < 3.0, 'a locked skid makes a flat spot of a millimetre or two: ' .. w)
+assert(w > 0.3 and w < 1.5, 'a long locked skid makes a flat spot of about a millimetre: ' .. w)
+local short = R.new('road', 16, 0.305, 0.175, 20)
+R.addEnergy(short, 9, 32000) R.addEnergy(short, 10, 32000) short.Ts = 40 short.flash[5] = 30 R.wearStep(short, {}, cfg)
+assert(R.worstFlat(short) > 0.05 and R.worstFlat(short) < 0.3, 'and a 1 s lock from 46 km/h a flat spot of 0.1 to 0.3 mm: ' .. R.worstFlat(short))
 -- the same energy spread over the whole ring does not
 local roll = R.new('road', 16, 0.305, 0.175, 20)
 for j = 1, 32 do R.addEnergy(roll, j, 190000 / 32) end
@@ -58,7 +61,7 @@ local _, at = R.worstFlat(lock)
 assert(at == 5, 'the flat spot is where the energy went: ' .. tostring(at))
 assert(R.flatDepth(roll, 3) == 0, 'no flat depth on an even ring')
 -- wrap-around: the ring is closed
-local ring = R.new('road', 16) R.addEnergy(ring, 1, 150000) R.addEnergy(ring, 2, 150000) R.wearStep(ring, {}, cfg)
+local ring = R.new('road', 16) R.addEnergy(ring, 1, 500000) R.addEnergy(ring, 2, 500000) R.wearStep(ring, {}, cfg)
 assert(R.flatDepth(ring, 1) > 0.5 and R.flatDepth(ring, 16) < 0.001 + 0.5 * 1.1, 'sector 1 is next to sector 16')
 -- belts, cord and the blow-out
 local worn = R.new('road', 16)
