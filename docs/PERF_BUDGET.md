@@ -60,6 +60,8 @@ Median of three off and three on windows, ms per frame (off to on, delta); windo
 
 Reading: parked, nothing but the window canvases costs a measurable amount. The earlier cumulative run while driving (+5 to +13 ms all on) is therefore a cost of driving (new marks, dirt build-up, spray traces) or too noisy to tell. Next: the same A/B while the AI drives a fixed loop, and leaks with a real 100-puddle ring (drive a leaking car, or place the puddles apart).
 
+Leaks with a real ring (connor-80, 2f37d48, `fillRing(100, 4, 'oil', 0.6)`, 100 puddles, 20,066 decals drawn, parked): off 12.82 ms, on 12.84 ms, delta +0.03 ms (p99 +0.03). Leaks cost nothing measurable parked. The mesh planes were read after the run (28 built and deleted), so the plane cost itself is still unread: read `carSurfaceFx_fluids.status()` during the run. A scripted constant-steer circle is not possible on this map (the covet reaches a wall within 6 to 10 s everywhere), so the driving A/B uses the AI in `random` mode.
+
 ## Budget table (Max preset)
 
 | Feature | Proposed cap (ms) | Measured by 80 (ms) | Main knobs |
