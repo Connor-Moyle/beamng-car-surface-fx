@@ -43,6 +43,23 @@ The report to bring back: one table per run (avg, p95, p99, the Lua ms per step)
 One feature at a time, the car parked, no traffic, a fixed camera: `extensions.load('carSurfaceFx_benchab')`, then `carSurfaceFx_benchab.run('leaks')` (about 150 s: off, on, off, on, off, on, each 4 s settle and 20 s measured), `carSurfaceFx_benchab.report()` (also `settings/csfx_benchab.txt`). The report gives the median of the off windows and of the on windows, the delta in ms and in p99, and every window's number. Names: `carSurfaceFx_benchab.features()` (leaks, glass, overlay, dirt, marks, paintwater, paint, weather).
 Run leaks first, on its own. Before it, fill the puddle ring with the camera looking along the line: `for i = 1, 60 do carSurfaceFx_fluids.puddleAhead('oil', 3 + i * 0.4, 0.6) end`, then check `carSurfaceFx_fluids.status()`. Then the others, with rain forced (`carSurfaceFx.debug('rain', 1)`) in every run, the Max preset, and the same camera.
 
+## Quiet A/B bench, first result (connor-80, cee4aba, Max preset, parked covet, no traffic, fixed camera, heavy rain forced)
+
+Median of three off and three on windows, ms per frame (off to on, delta); window spread inside a state was up to 0.5 ms (leaks up to 3 ms).
+
+| Feature | Off | On | Delta | Note |
+|---|---|---|---|---|
+| Glass (window canvases) | 12.66 | 13.96 | +1.31 | the only one above the noise |
+| Leaks | 14.54 | 15.01 | +0.46 | only 20 puddles existed (the 60 asked for merged), so not a test of the cap; within its own noise |
+| Overlay | 12.17 | 12.21 | +0.04 | |
+| Dirt | 12.10 | 12.02 | -0.08 | |
+| Marks | 12.06 | 12.13 | +0.07 | |
+| Paint water | 12.07 | 12.16 | +0.09 | |
+| Paint canvases | 11.89 | 11.85 | -0.04 | |
+| Weather | 12.18 | 12.02 | -0.15 | |
+
+Reading: parked, nothing but the window canvases costs a measurable amount. The earlier cumulative run while driving (+5 to +13 ms all on) is therefore a cost of driving (new marks, dirt build-up, spray traces) or too noisy to tell. Next: the same A/B while the AI drives a fixed loop, and leaks with a real 100-puddle ring (drive a leaking car, or place the puddles apart).
+
 ## Budget table (Max preset)
 
 | Feature | Proposed cap (ms) | Measured by 80 (ms) | Main knobs |
