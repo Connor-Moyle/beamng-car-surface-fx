@@ -332,21 +332,18 @@ function P.blowout(i, newtons)
   say('body nodes in 0.55 m of the wheel (not wheel nodes):', #list)
   P.blowTargets = {}
   for k = 1, math.min(3, #list) do P.blowTargets[k] = list[k] end
-  P.blowSteps = 3 P.blowForce = f
+  P.blowSteps = 3 P.blowForce = f P.blowHub = w.node1
   try('deflateTire', function() beamstate.deflateTire(i) return 'popped' end)
   return P.dump()
 end
 -- call this from updateGFX-like ticks; here: a one-off helper that applies one step. Call it 3 times in a row (3 run_lua_vehicle calls, or loop with CSFXP.blowoutApply(3))
-function P.blowoutApply(times)
+function P.blowoutApply(newtons, seconds, sign)       -- f7 again: applyForceTime(body node, the wheel hub, F, t) for a sustained push (the one-step applyForceVector moved a node 0.03 mm in probe f8)
   local n = 0
-  for _ = 1, math.min(times or 1, P.blowSteps or 0) do
-    for _, t in ipairs(P.blowTargets or {}) do
-      if pcall(function() obj:applyForceVector(t.cid, vec3(t.dx * P.blowForce, t.dy * P.blowForce, t.dz * P.blowForce)) end) then n = n + 1 end
-    end
-    P.blowSteps = P.blowSteps - 1
+  local f = math.min(newtons or 1500, 3000) * (sign or 1)
+  for _, t in ipairs(P.blowTargets or {}) do
+    if pcall(function() obj:applyForceTime(t.cid, P.blowHub, f, math.min(seconds or 0.05, 0.2)) end) then n = n + 1 end
   end
-  if (P.blowSteps or 0) <= 0 then P.blowTargets = {} end
-  return 'applied ' .. n .. ' pushes'
+  return 'applied ' .. n .. ' timed pushes of ' .. f .. ' N for ' .. tostring(seconds or 0.05) .. ' s (sign -1 reverses the direction if the panel was pulled inwards)'
 end
 
 return P
