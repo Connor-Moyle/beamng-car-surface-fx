@@ -18,8 +18,8 @@ local grassRules = require('carSurfaceFx/grassRules')
 local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, snowRate = 1, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS, tyres = { enabled = false } }
+local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false, dirtGlow = false, dirtGlowNits = 45000 }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -56,7 +56,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 26                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 40                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -162,7 +162,7 @@ local function setRung(info, r)
     local palette = false
     for _, s2 in pairs(info.stages) do if rules.isPaintStage(s2) then palette = true end end
     if info.glass or rules.isPaintStage(st) or (not palette and L == 0 and st) then      -- a material without a palette (trim, a carbon roof) is wetted on its first stage
-      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r)) or {}
+      local wetF = r > 0 and (info.glass and rules.glassFields(st, info.tag, info.mode) or rules.wetFields(st, r, info.trim)) or {}
       for _, k in ipairs(info.glass and GLASS_KEYS or WET_KEYS) do
         local v = wetF[k] or st[k]
         if v == nil and (k == 'detailNormalMap' or (info.glass and (k == 'baseColorMap' or k == 'emissiveMap'))) then v = ''
@@ -210,6 +210,7 @@ local function attach(id)
   for name in pairs(rules.trimNames(seen, paint)) do                  -- bumpers, trim, mirrors, wheels, seals: the rest of the outside gets wet too
     for _, info in ipairs(seen) do
       if info.name == name and not mats[name] then
+        info.trim = true
         mats[name] = info
         car.mats[#car.mats + 1] = info
       end
@@ -262,9 +263,9 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { mud = { 0.25, 0.17, 0.10 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 2400, 0.9, 0.045 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 140, 0.85, 0.012 }, snow = { 90, 0.85, 0.07 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 3000, 0.9, 0.03 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 200, 0.95, 0.10 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
@@ -274,9 +275,13 @@ local function bodyDirt(id, kind, amount, wi)
   local n = math.floor(amount * pl[1] * (settings.scratch.dirtRate or 1) + math.random())      -- (the Splat rate setting: fewer splats for a slower machine)
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
+  local vd = core_vehicle_manager and core_vehicle_manager.getVehicleData(id)
+  local pp = vd and vd.config and vd.config.paints
+  local pc = pp and pp[1] and pp[1].baseColor
+  if pc and sc.setPaintLum then sc.setPaintLum(id, 0.2126 * (pc[1] or 0) + 0.7152 * (pc[2] or 0) + 0.0722 * (pc[3] or 0)) end
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
   if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
-    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, math.floor(n / 3)), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(2, n), nil, COL.dust, 0.10, 0.30, { maxH = 1, washH = opts.washH, film = true }) end      -- and a faint haze over the whole body, the roof and bonnet too
     return
   end
   local f = FALL[kind]
@@ -325,11 +330,11 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if grassOn() then carSurfaceFx_grass.noteGround(id, loose, mud, slip, speed) end
   if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
-    local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
+    local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate * 0.4
     local n = math.floor(x + math.random())
     if n > 0 then
       local muddy = mud > 0.2 or wet > 0.3
-      carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
+      carSurfaceFx_scratch.splat(id, muddy and { 0.42, 0.30, 0.20 } or { 0.55, 0.48, 0.36 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
     end
   end
   if not (settings and settings.mud.enabled) then return end
@@ -357,6 +362,7 @@ end
 -- a car wash (or anything else that cleans): carSurfaceFx.wash() cleans the player car, wash(id, 0.5) takes off half of one car's dirt
 function M.wash(id, amount)
   id = id or be:getPlayerVehicleID(0)
+  if forcedDirt and id == be:getPlayerVehicleID(0) then forcedDirt = nil end      -- a debug amount would show the dirt through the wash
   dirtBy[id] = rules.dirtClean(dirtBy[id] or rules.dirtNew(), amount)
   if scratchOn() then local f = rules.clamp(1 - (amount or 1), 0, 1) carSurfaceFx_scratch.washSplats(id, f, f) end
   return 'dirt ' .. rules.dirtTotal(dirtBy[id])
@@ -562,10 +568,13 @@ function M.pushGlass(car, mo)
   local wetG = wet
   if glassOff then rain, wetG = 0, 0 end                                                -- debug: the window canvases stay clear while the driver's view keeps drawing
   local js
+  -- from the driver's seat the inside panes are close to the eye and their drops are big soft blobs: the overlay draws the windscreen's water, so these stay clear (the player's own car only)
+  local inside = settings.windscreen.overlay and car.veh:getID() == be:getPlayerVehicleID(0) and core_camera and core_camera.getActiveCamName and ({ driver = true, onboard = true })[core_camera.getActiveCamName(0)]
   for _, info in ipairs(car.mats) do
+    local clear = inside and tostring(info.name or info.tag):find('_int', 1, true)
     if info.glass and info.rung > 0 and hasCanvas(car.veh, info.tag) then                    -- (a new car's canvases are made over the next ticks: nothing is sent before they exist)
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
-      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount, imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = rain * settings.windscreen.intensity, wet = wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount * (settings.rain.glassAmount or 3), imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = clear and 0 or rain * settings.windscreen.intensity, wet = clear and 0 or wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
         wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
@@ -752,7 +761,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.windows and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
@@ -863,6 +872,7 @@ end
 function M.debug(kind, value)
   if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray = nil, nil, nil, 0, nil, nil, nil, nil return 'debug cleared' end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
+  if kind == 'speed' then value = tonumber(value) or 0 forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end   -- m/s, not clamped
   value = rules.clamp(tonumber(value) or 1, 0, 1)
   if kind == 'rain' then forced = value wet = value return 'rain forced to ' .. value end
   for _, k in ipairs(rules.KINDS) do
@@ -871,7 +881,7 @@ function M.debug(kind, value)
       local old = deepcopy(forcedDirt)
       forcedDirt[k] = value
       if k == 'snow' or k == 'bugs' then weatherSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
-      if k == 'mud' or k == 'dust' then dirtSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
+      if k == 'mud' or k == 'dust' or k == 'rubber' or k == 'grime' then dirtSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
       return k .. ' forced to ' .. value
     end
   end
@@ -881,7 +891,6 @@ function M.debug(kind, value)
   if kind == 'snowing' then forcedSnowing = value return 'snowfall forced to ' .. value end
   if kind == 'flood' then flood = value return 'window canvases solid: ' .. value end
   if kind == 'glassoff' then glassOff = value > 0 return 'the window canvases stay clear: ' .. tostring(glassOff) end
-  if kind == 'speed' then forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end
   if kind == 'wiper' then wiperForced = value > 0 and value or nil return 'wipers forced to ' .. value end
   return kind .. ': not built yet'
 end
@@ -1034,6 +1043,15 @@ end
 
 -- how wet the ground is now, 0..1 (the ruts pick their wet or dry material by it)
 function M.wetness() return wet end
+
+-- carSurfaceFx.bound(): the materials of the player's car that the weather works on, and what each is (paint, trim, glass) and its wet rung
+function M.bound()
+  local car = cars[be:getPlayerVehicleID(0)]
+  if not car then return 'no car' end
+  local out = {}
+  for _, info in ipairs(car.mats) do out[#out + 1] = string.format('%s [%s] r%d', info.name, info.glass and 'glass' or (info.trim and 'trim' or 'paint'), info.rung or 0) end
+  return table.concat(out, ' | ')
+end
 
 function M.status()
   if failed then return 'SWITCHED OFF after: ' .. failed end

@@ -8,7 +8,7 @@
   var canvas = document.getElementById('csfx');
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
-  var sim = CsfxSim.create(900);
+  var sim = CsfxSim.create(1800);
   var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
@@ -41,6 +41,8 @@
   // One drop as a bead, the way the body drops are drawn: a clear body, a thin dark edge (heavier low right) and one sharp glint up-left; no bright rim, which made the drops look
   // like bubbles. The colour map is drawn over the tinted glass image (it can lighten or darken it): the dark edge, the glint and a faint light spot low right that the drop
   // focuses (it lifts a dark tint). The emissive map ADDS light to the inside pane, which is clear: only light parts there, the glint and a narrow lit edge up-left.
+  var dotImg = document.createElement('canvas'); dotImg.width = dotImg.height = 16;        // a small lit drop on the light map: a soft round dot (a square sprite reads as a pixel speck)
+  (function () { var c = dotImg.getContext('2d'), g = c.createRadialGradient(8, 8, 0, 8, 8, 8); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 16, 16); })();
   var S = 64, sprite = document.createElement('canvas');
   sprite.width = sprite.height = S;
   (function () {
@@ -56,7 +58,7 @@
       var r, g, b, a;
       if (emissive) {
         var lit = ring * Math.max(0, Math.min(1, -(u + v) * 0.7)) * 0.2;           // a narrow lit edge on the upper left, faint: the body of a drop on the glass is clear
-        a = Math.min(1, lit + glint * 0.8); r = g = b = 255;
+        a = Math.min(1, lit + glint * 0.85); r = g = b = 255;
       } else {
         var spot = d < 0.8 ? 0.14 * Math.exp(-((u - 0.25) * (u - 0.25) + (v - 0.3) * (v - 0.3)) / 0.12) : 0;      // light focused low right
         var dark = ring * (0.32 + 0.40 * low);
@@ -117,7 +119,7 @@
   }
 
   window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
-  window.csfxClear = function () { sim = CsfxSim.create(900); };
+  window.csfxClear = function () { sim = CsfxSim.create(1800); };
 
   var imp = [], IMP_LIFE = 0.25;                                      // raindrop impacts: [x, y, age] rings that open and fade in a quarter second
   var minMs = 70;                                                   // the texture is only taken 12 times a second (GLASS_FPS in carSurfaceFx.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
@@ -132,28 +134,31 @@
     if (!emissive && p.tint < 1) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - p.tint) + ')'; ctx.fillRect(0, 0, W, H); }
     // a drop of a few pixels: a thin ring and a one-pixel glint, all the rings in one path and all the glints in another (one stroke, one fill); bigger ones the sprite
     var tiny = false;
-    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1 : 0.9;       // the emissive map adds light: a light ring there
+    ctx.strokeStyle = emissive ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)'; ctx.lineWidth = emissive ? 1 : 0.9;       // the emissive map adds light: a light ring there
     ctx.beginPath();
-    var glints = [];
+    var glints = [], dots = [];
     for (var i = 0; i < sim.n; i++) {
       if (!sim.alive[i]) continue;
       var R = sim.r[i] * H, px = sim.x[i] * W, py = sim.y[i] * H;
       if (R < 2.2) {
-        var rr = Math.max(1.2, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
-        ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true;
-        glints.push(px - 0.35 * rr - 1, py - 0.4 * rr - 1);
+        if (emissive && R < 1.0) continue;                           // the fine mist of the sim is too small to be one lit pixel: drawn, it fogs the glass
+        var rr = Math.max(2.6, R);                                    // a bead is about one texel of this canvas: drawn at least 2.4 px across so it can be seen at all
+        if (emissive) dots.push(px - rr * 0.8, py - rr * 0.8, rr * 1.6);      // a ring of 2 px rasterises as a plus and a lit plus is a star up close: on the light map a small drop is one soft lit square
+        else { ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); tiny = true; }
+        glints.push(px - 0.35 * rr - 0.5, py - 0.4 * rr - 0.5);
       } else {
         ctx.drawImage(sprite, px - R, py - R, R * 2, R * 2);
       }
     }
     if (tiny) ctx.stroke();
-    if (glints.length) {
-      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 1 : 0.85) + ')';
-      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 2, 2);
+    if (dots.length) { for (var di = 0; di < dots.length; di += 3) ctx.drawImage(dotImg, dots[di] - dots[di + 2] * 0.2, dots[di + 1] - dots[di + 2] * 0.2, dots[di + 2] * 1.4, dots[di + 2] * 1.4); }
+    if (glints.length && !emissive) {      // the inside light map has no glints: at 4 mm a texel any lit mark of a drop reads as a white dot up close; the disc and the ring carry it
+      ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
+      for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1.2, 1.2);
     }
     if (p.film > 0.02 && p.flow && p.flow.rear && p.flow.rear.length) {       // a dirt road's film on the rear glass: milky, from nothing to hazy
       if (!filmBuilt) buildFilm(p.flow);
-      ctx.globalAlpha = Math.min(1, p.film * (emissive ? 1.1 : 0.45)); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
+      ctx.globalAlpha = Math.min(1, p.film * (emissive ? 0.3 : 0.45)); ctx.drawImage(filmLayer, 0, 0); ctx.globalAlpha = 1;
     }
     if (p.dbg == 2) {                                                 // glassDebug('drops'): only the live drops, eight times their size, solid white (or magenta on the colour map)
       ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); ctx.fillStyle = emissive ? 'rgb(255,255,255)' : 'rgb(255,0,255)';

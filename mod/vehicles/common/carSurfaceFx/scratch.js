@@ -15,6 +15,8 @@
   var canvas = document.getElementById('csfxScratchCanvas');
   var ctx = canvas.getContext('2d');
   var palette = /[?&]m=p/.test(location.search);
+  var paintLum = 0.5;                               // how light the car's paint is (0 black .. 1 white): the lit mud is stronger on dark paint, where it is lighter than the paint
+  var emis = /[?&]m=e/.test(location.search);       // the emissive page: only the dirt's own colour on black, added to the paint as light (the colour map can only darken)
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
   var MAX_LINES = 300, MAX_BLOBS = 6000;
@@ -41,15 +43,34 @@
 
   function blank() {
     sctx.globalCompositeOperation = 'source-over';
-    sctx.fillStyle = palette ? '#f00' : '#fff';
+    sctx.fillStyle = palette ? '#f00' : (emis ? '#000' : '#fff');
     sctx.fillRect(0, 0, W, W);
+    dirty = true;
+  }
+
+  // a scratch stamp (4 columns x 8 rows of 256 x 128, the scratch runs along x) along every segment of a mark: the variant by place, thickness by the mark's width
+  function drawStamps(o, img) {
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    for (var i = 0; i < o.l.length; i += 5) {
+      var x1 = o.l[i] * W, y1 = o.l[i + 1] * W, x2 = o.l[i + 2] * W, y2 = o.l[i + 3] * W, len = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+      if (len < 2) continue;
+      var v = Math.floor(hash(o.l[i], o.l[i + 1], 3) * 32), th = Math.max(6, o.l[i + 4] * W * 5);
+      sctx.save();
+      sctx.globalAlpha = Math.min(1, o.a);
+      sctx.translate((x1 + x2) / 2, (y1 + y2) / 2); sctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+      sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 128, 256, 128, -len * 0.6, -th / 2, len * 1.2, th);
+      sctx.restore();
+    }
     dirty = true;
   }
 
   // each scratch is a dark soft edge with the real colour down the middle, so it reads on light AND dark paint.
   function drawLines(o) {
+    if (emis) return;
     sctx.lineCap = 'round';
+    var stamps = atlasFor('scratch', 1);                           // real scratches (art/surfacefx/splats/scratch.png): a stamp along each segment instead of a plain line
     for (var pass = 0; pass < 2; pass++) {
+      if (pass === 1 && stamps) { drawStamps(o, stamps); continue; }
       var edge = pass === 0;
       var k = dark ? 0.12 : (edge ? 0.3 : 1);
       ink([o.c[0] * k, o.c[1] * k, o.c[2] * k], edge ? o.a * 0.5 : o.a);
@@ -70,9 +91,46 @@
   function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
   // On the palette page the same splat is punched out of the palette (the paint's tint goes where the dirt is, so the dirt shows in ITS colour, not multiplied with the paint:
   // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
+  // Real splat pictures (art/surfacefx/splats/<kind>.png, made by tools/make_real_splats.py from CC0 photographs, see docs/TEXTURE_CREDITS.md): 4 x 4 variants of 256 px, RGBA.
+  // Until a picture has loaded (or if it is missing) the splat is drawn the procedural way below, and the page redraws when it arrives.
+  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1, grime: 1, rubber: 1 }, atlases = {};
+  function atlasFor(kind) {
+    var a = atlases[kind];
+    if (a === undefined && typeof Image === 'undefined') return null;
+    if (a === undefined) {
+      a = atlases[kind] = { img: new Image(), ok: false };
+      a.img.onload = function () { a.ok = true; dirty = true; redraw(); };
+      a.img.onerror = function () { a.bad = true; };
+      a.img.src = 'local://local/art/surfacefx/splats/' + kind + '.png?v=1';
+    }
+    return a.ok ? a.img : null;
+  }
+  // one real splat: a variant (by place, so a redraw gives the same splat), turned, drawn about r across. Base page: the picture's own colour; palette page: its alpha punches the palette;
+  // lit page: the colour at a fraction of its brightness, the lit mud and dust of the paint (snow stays white).
+  function drawReal(b, img) {
+    var v = Math.floor(hash(b.x, b.y, 5) * 16), x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
+    var ang = (b.dx || b.dy) ? Math.atan2(b.dy, b.dx) + Math.PI / 2 + (hash(b.x, b.y, 6) - 0.5) * 0.6 : hash(b.x, b.y, 7) * 6.2832;
+    var size = r * (b.t === 'mud' ? 2.6 : 2.2), stretch = (b.dx || b.dy) ? 1.35 : 1;
+    sctx.save();
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    sctx.globalAlpha = Math.min(1, b.a * (emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
+    if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
+    sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
+    sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
+    sctx.restore();
+    dirty = true;
+  }
+
   function drawBlob(b) {
+    if (b.t && SPLAT_KINDS[b.t] && b.k !== 'cake') { var at = atlasFor(b.t); if (at) { drawReal(b, at); return; } }
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
+    if (emis && b.k === 'dust') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a > 0.2 ? b.a * 0.25 : b.a * 1.8, k: 'dust' };      // lit dust: the patches stay faint so the whole-car haze makes a film, not spots of light
+    if (emis && b.k !== 'dust') {                                        // lit mud: as light the earth colours are far too bright and saturated (orange): darker and browner, every splat a little different, soft edges
+      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3, tone = 0.8 + 0.4 * hash(b.y, b.x, 77), thick = (0.6 + 0.75 * hash(b.x, b.y, 91)) * (0.8 + 0.8 * (1 - paintLum)), kk = 0.26 * tone * (1 + 0.9 * (1 - paintLum));
+      b = { x: b.x, y: b.y, r: b.r, dx: b.dx, dy: b.dy, k: b.k, a: Math.min(1, b.a * thick * (b.k === 'cake' ? 0.8 : 1)), c: [(mean + (b.c[0] - mean) * 0.55) * kk, (mean + (b.c[1] - mean) * 0.55) * kk, (mean + (b.c[2] - mean) * 0.55) * kk] };
+      sctx.filter = 'blur(1.3px)';
+    }
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     if (b.k === 'dust') {                                             // dust and snow: soft patches
       var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
@@ -126,6 +184,7 @@
         sctx.beginPath(); sctx.arc(x + Math.cos(a2) * d2, y + Math.sin(a2) * d2, r2, 0, Math.PI * 2); sctx.fill();
       }
     }
+    if (emis) sctx.filter = 'none';
     dirty = true;
   }
 
@@ -147,7 +206,7 @@
   window.csfxBlobs = function (o) {
     callCount++;
     for (var i = 0; i < o.l.length; i += 3) {
-      var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
+      var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud', t: o.t };
       if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
       blobs.push(b);
       drawBlob(b);
@@ -171,6 +230,8 @@
   window.csfxRepair = function () { lines = []; redraw(); };
 
   // everything gone
+  window.csfxPaintLum = function (v) { v = Number(v); if (isFinite(v) && Math.abs(v - paintLum) > 0.04) { paintLum = Math.max(0, Math.min(1, v)); if (emis) redraw(); } };
+
   window.csfxClear = function () { lines = []; blobs = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
@@ -183,7 +244,7 @@
   };
 
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
-  var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
+  var water = (typeof CsfxPaintWater !== 'undefined' && !emis) ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
   var live = 0, last = performance.now(), rate = 0;
   // One drop, for the base colour map (which MULTIPLIES the paint colour: it can only darken): water is clear, so the body is left alone; what shows is the thin dark edge of
@@ -222,7 +283,7 @@
   window.csfxWater = function (o) { gotWater++; for (var k in o) if (typeof o[k] === 'number' && isFinite(o[k])) wp[k] = o[k]; };
   window.csfxInfo = function () { return water ? 'nodes ' + water.count + ' drops ' + CsfxPaintWater.alive(water) + ' rain ' + wp.rain : 'no water sim'; };
 
-  var imp = [], IMP_LIFE = 0.3;                                       // raindrop impacts: [x, y, age] rings that open and fade in about 0.3 s (3 frames at 10 a second)
+  var imp = [], IMP_LIFE = 0.6;                                       // raindrop impacts: [x, y, age] rings that open and fade in about 0.3 s (3 frames at 10 a second)
   var minMs = 90;                                                   // the texture is only taken 10 times a second (FPS in scratch.lua): drawing more often is wasted work; csfxThrottle(0) draws on every frame the browser gives
   window.csfxThrottle = function (ms) { minMs = Number(ms) > 0 ? Number(ms) : 0; };
   function frame(now) {
@@ -286,15 +347,15 @@
     } catch (e) { window.csfxError = 'drops ' + String(e); }
     try {                                                           // impacts: a small ring opening where a raindrop landed (wp.imp: how many of the landings get one, 0 = none)
       var fr = water.fresh;
-      for (var f = 0; f < fr.length && wp.imp > 0; f++) if (imp.length < 80 && Math.random() < wp.imp) imp.push([water.x[fr[f]] * W, water.y[fr[f]] * W, 0]);
+      for (var f = 0; f < fr.length && wp.imp > 0; f++) if (imp.length < 160 && Math.random() < wp.imp) imp.push([water.x[fr[f]] * W, water.y[fr[f]] * W, 0]);
       fr.length = 0;
       var kept = 0;
       for (var m = 0; m < imp.length; m++) {
         var im = imp[m]; im[2] += dt;
         if (im[2] >= IMP_LIFE) continue;
         var ph = im[2] / IMP_LIFE;
-        ctx.strokeStyle = 'rgba(0,0,0,' + (0.30 * (1 - ph) + 0.04).toFixed(2) + ')'; ctx.lineWidth = 0.7;
-        ctx.beginPath(); ctx.arc(im[0], im[1], 0.7 + 1.9 * ph, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,' + (0.45 * (1 - ph) + 0.05).toFixed(2) + ')'; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.arc(im[0], im[1], 0.8 + 3.4 * ph, 0, Math.PI * 2); ctx.stroke();
         imp[kept++] = im;
       }
       imp.length = kept;

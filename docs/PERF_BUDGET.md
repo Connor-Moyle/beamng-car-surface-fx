@@ -14,7 +14,55 @@ Run (connor-80, driver camera, steady speed, heavy rain with traffic):
 4. Repeat the Max run twice more with Drivers `setDriverRig('flex')` and `setDriverRig('props')`, everything else equal. Reset to `'props'` afterwards.
 
 Steps the bench has today: paint canvases, rain drops on the paint, window canvases, cockpit overlay, dirt and mud, frost and snow, bugs and road spray.
-Steps it does not have, to add before the run: skid marks (with traffic), grass flattening, wheel-arch splats and the body map. Without them the table cannot name where a Max overrun comes from.
+Steps added since: skid marks and leaks. Still missing: grass flattening (off by default), wheel-arch splats and the body map. Without them the table cannot name where a Max overrun comes from.
+
+## Console step list for connor-80 (the full run)
+
+Setup: West Coast, the covet, traffic on, heavy rain. Lighting frozen at noon. Nothing else running on the GPU (no Ollama). Open an admin terminal beside the game for `nvidia-smi`.
+1. In the game console: `extensions.load('carSurfaceFx_bench')`, `carSurfaceFx.debug('rain', 1)`. Fill the puddle ring for the leak step: drive a leaking car or run `for i = 1, 100 do carSurfaceFx_fluids.puddleAhead('oil', 3 + i * 0.7, 0.6) end`, then check `carSurfaceFx_fluids.status()` shows about 100 puddles.
+2. Cockpit run: driver camera, drive the same straight at a steady 14 m/s (or the AI on the dirt circuit). `carSurfaceFx_bench.run()` (about 125 s, 10 steps of 5 s settle and 7 s measure). When it ends, `carSurfaceFx_bench.report()`. The table has avg ms per frame, p95, p99 ("1% low"), the mod's own Lua ms. Copy `settings/csfx_bench.txt` to the report.
+3. At the end of each run, in the admin terminal: `nvidia-smi --query-gpu=memory.used --format=csv`. Take it once at the start of step 2 (everything off) and once at the end (everything on), and report both.
+4. Chase camera run: the same, camera on chase (`be:getPlayerVehicle(0)` stays the same), repeat steps 2 and 3.
+5. Lit dirt: `carSurfaceFx.set('scratch.dirtGlow', true)`, respawn the car, repeat step 2 once (cockpit camera). Set it back to false and respawn afterwards.
+6. 512 against 1024 window canvas: `carSurfaceFx.set('windscreen.canvasSize', 512)`, respawn, repeat step 2; then `...canvasSize', 1024)`, respawn, repeat.
+7. Sky Light wet tarmac on and off (the Sky Light mod's own Mods-menu switch for wet tarmac): repeat step 2 once with each, everything else equal.
+8. Reset every setting you changed, and the game to the normal car, when done.
+
+The report to bring back: one table per run (avg, p95, p99, the Lua ms per step), the two VRAM numbers per run, and the camera and traffic count used.
+
+## First measured run (connor-80, 6caef4f, Max preset, covet, heavy rain, traffic 6 cars)
+
+- The mod's own Lua is 0.13 to 0.5 ms per frame in every run. The rest is GPU and page uploads, which the bench can only see as frame time.
+- The noise is too large to read single numbers: the same settings gave +5.5 ms and +13.6 ms against "everything off" (the baseline frame itself moved between 19 and 26 ms in heavy rain with traffic). Differences of a few ms between runs mean nothing; only repeated steps are comparable.
+- In the one cumulative run, the biggest steps were leaks (+11.5 ms, p99 43), dirt and mud, and the cockpit overlay. 512 against 1024 window canvas and Sky Light wet tarmac on/off showed no difference beyond the noise. VRAM moved less than 130 MiB over a run in every case (no growth), at about 7.7 GB used of 12 GB.
+- Actions taken: at most 60 glossy leak planes at once (`maxMeshes`), and the Max preset now has 200 puddles (was 300) with a 120 m cull (was 160).
+- A quieter bench is needed to set real budgets: the car parked, no traffic, rain frozen, a fixed camera, 20 s windows, each feature switched on and off in alternation three times, and the median taken.
+
+## Quiet A/B bench (carSurfaceFx_benchab)
+
+One feature at a time, the car parked, no traffic, a fixed camera: `extensions.load('carSurfaceFx_benchab')`, then `carSurfaceFx_benchab.run('leaks')` (about 150 s: off, on, off, on, off, on, each 4 s settle and 20 s measured), `carSurfaceFx_benchab.report()` (also `settings/csfx_benchab.txt`). The report gives the median of the off windows and of the on windows, the delta in ms and in p99, and every window's number. Names: `carSurfaceFx_benchab.features()` (leaks, glass, overlay, dirt, marks, paintwater, paint, weather).
+Run leaks first, on its own. Before it, fill the puddle ring with the camera looking along the line: `carSurfaceFx_fluids.fillRing(100, 4, 'oil', 0.6)`, then check `carSurfaceFx_fluids.status()`. Then the others, with rain forced (`carSurfaceFx.debug('rain', 1)`) in every run, the Max preset, and the same camera.
+
+## Quiet A/B bench, first result (connor-80, cee4aba, Max preset, parked covet, no traffic, fixed camera, heavy rain forced)
+
+Median of three off and three on windows, ms per frame (off to on, delta); window spread inside a state was up to 0.5 ms (leaks up to 3 ms).
+
+| Feature | Off | On | Delta | Note |
+|---|---|---|---|---|
+| Glass (window canvases) | 12.66 | 13.96 | +1.31 | the only one above the noise |
+| Leaks | 14.54 | 15.01 | +0.46 | only 20 puddles existed (the 60 asked for merged), so not a test of the cap; within its own noise |
+| Overlay | 12.17 | 12.21 | +0.04 | |
+| Dirt | 12.10 | 12.02 | -0.08 | |
+| Marks | 12.06 | 12.13 | +0.07 | |
+| Paint water | 12.07 | 12.16 | +0.09 | |
+| Paint canvases | 11.89 | 11.85 | -0.04 | |
+| Weather | 12.18 | 12.02 | -0.15 | |
+
+Reading: parked, nothing but the window canvases costs a measurable amount. The earlier cumulative run while driving (+5 to +13 ms all on) is therefore a cost of driving (new marks, dirt build-up, spray traces) or too noisy to tell. Next: the same A/B while the AI drives a fixed loop, and leaks with a real 100-puddle ring (drive a leaking car, or place the puddles apart).
+
+Leaks with a real ring (connor-80, 2f37d48, `fillRing(100, 4, 'oil', 0.6)`, 100 puddles, 20,066 decals drawn, parked): off 12.82 ms, on 12.84 ms, delta +0.03 ms (p99 +0.03). Leaks cost nothing measurable parked. The mesh planes were read after the run (28 built and deleted), so the plane cost itself is still unread: read `carSurfaceFx_fluids.status()` during the run. A scripted constant-steer circle is not possible on this map (the covet reaches a wall within 6 to 10 s everywhere), so the driving A/B uses the AI in `random` mode.
+
+Driving A/B (connor-80, 687eb01, AI `random` at about 33 km/h average, Max preset, heavy rain, three off and three on windows per feature, noise within a state 1 to 4 ms): skid marks 17.71 to 20.36 ms (**+2.65**, every on window above every off window, the only clear one), dirt +0.62, weather +0.70, cockpit overlay +0.74 (all inside the noise). So skid marks are what costs while driving. Action: the Max preset's mark caps are lowered (drawn decals 1200 from 2000, skid marks 3000 from 5000, track marks 5000 from 8000, and the lower levels in proportion); to be re-measured with the same A/B.
 
 ## Budget table (Max preset)
 

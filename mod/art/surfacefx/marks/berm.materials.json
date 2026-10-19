@@ -1,0 +1,137 @@
+{
+  "csfx_berm_mud": {
+    "name": "csfx_berm_mud",
+    "mapTo": "csfx_berm_mud",
+    "class": "Material",
+    "persistentId": "9f442401-159b-5c78-b8bc-aa3d9c413a9d",
+    "Stages": [
+      {
+        "baseColorMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_b.color.png",
+        "normalMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_nm.normal.png",
+        "roughnessMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_r.data.png",
+        "ambientOcclusionMap": "/art/surfacefx/marks/rut_mud/t_rut_mud_ao.data.png",
+        "baseColorFactor": [
+          0.85,
+          0.85,
+          0.85,
+          1
+        ]
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "NATURE",
+    "materialTag0": "RoadAndPath",
+    "translucent": false,
+    "version": 1.5
+  },
+  "csfx_berm_snow": {
+    "name": "csfx_berm_snow",
+    "mapTo": "csfx_berm_snow",
+    "class": "Material",
+    "persistentId": "09ab8bcf-c3c5-5f33-9282-8263dde1bdef",
+    "Stages": [
+      {
+        "baseColorMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_b.color.png",
+        "normalMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_nm.normal.png",
+        "roughnessMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_r.data.png",
+        "ambientOcclusionMap": "/art/surfacefx/marks/rut_snow/t_rut_snow_ao.data.png",
+        "baseColorFactor": [
+          0.85,
+          0.85,
+          0.85,
+          1
+        ]
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "NATURE",
+    "materialTag0": "RoadAndPath",
+    "translucent": false,
+    "version": 1.5
+  },
+  "csfx_berm_sand": {
+    "name": "csfx_berm_sand",
+    "mapTo": "csfx_berm_sand",
+    "class": "Material",
+    "persistentId": "b040250a-0dba-5a13-8475-6757514967db",
+    "Stages": [
+      {
+        "baseColorMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_b.color.png",
+        "normalMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_nm.normal.png",
+        "roughnessMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_r.data.png",
+        "ambientOcclusionMap": "/art/surfacefx/marks/rut_sand/t_rut_sand_ao.data.png",
+        "baseColorFactor": [
+          0.85,
+          0.85,
+          0.85,
+          1
+        ]
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "NATURE",
+    "materialTag0": "RoadAndPath",
+    "translucent": false,
+    "version": 1.5
+  },
+  "csfx_berm_dirt": {
+    "name": "csfx_berm_dirt",
+    "mapTo": "csfx_berm_dirt",
+    "class": "Material",
+    "persistentId": "bd426957-ff07-5b8a-b742-d136eeb0c931",
+    "Stages": [
+      {
+        "baseColorMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_b.color.png",
+        "normalMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_nm.normal.png",
+        "roughnessMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_r.data.png",
+        "ambientOcclusionMap": "/art/surfacefx/marks/rut_dirt/t_rut_dirt_ao.data.png",
+        "baseColorFactor": [
+          0.85,
+          0.85,
+          0.85,
+          1
+        ]
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "NATURE",
+    "materialTag0": "RoadAndPath",
+    "translucent": false,
+    "version": 1.5
+  },
+  "csfx_berm_gravel": {
+    "name": "csfx_berm_gravel",
+    "mapTo": "csfx_berm_gravel",
+    "class": "Material",
+    "persistentId": "ff5e31a1-a476-50ec-89b0-f921356314e6",
+    "Stages": [
+      {
+        "baseColorMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_b.color.png",
+        "normalMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_nm.normal.png",
+        "roughnessMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_r.data.png",
+        "ambientOcclusionMap": "/art/surfacefx/marks/rut_gravel/t_rut_gravel_ao.data.png",
+        "baseColorFactor": [
+          0.85,
+          0.85,
+          0.85,
+          1
+        ]
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "NATURE",
+    "materialTag0": "RoadAndPath",
+    "translucent": false,
+    "version": 1.5
+  }
+}

@@ -16,16 +16,19 @@ function M.defaults()
   return {
     enabled = true,
     texture = '',                                                -- the puddle picture: a file in art/decals/fluids ('' = any of them)
-    gripEnabled = false,                                         -- the real physics part: off unless the player turns it on
-    maxPuddles = 60,                                             -- ring size: the oldest are recycled
+    meshes = true,                                               -- a puddle is a glossy plane like a rain puddle (fluidmesh.lua); off: flat decals only
+    sheen = true,                                                -- oil carries a rainbow film
+    gripEnabled = true,                                          -- the real physics part: a tyre in a puddle slips (proven by yaw logs under braking); the setting turns it off
+    maxPuddles = 100,                                             -- ring size: the oldest are recycled
+    maxMeshes = 60,                                              -- glossy planes at once (the rest stay decals)
     cullRadius = 70,                                             -- puddles further than this from the camera are not drawn
     fallingDrops = true, dropSize = 0.06, dropCount = 2, maxDrops = 32,   -- the game's own drop particles from the leak (width m, drops per burst), and a cap on the drops followed to where they land
     stainSpeed = 3.0,                                            -- m/s: faster than this a leak leaves drip spots along the road instead of a puddle
     others = { enabled = false, maxCars = 4, range = 60 },       -- AI and traffic cars leak too (the nearest ones)
     kinds = {
-      oil = { enabled = true, color = { 0.04, 0.035, 0.03 }, opacity = 0.80, size = 0.9, growth = 0.010, dripSize = 0.07, life = 0, grip = 0.55, gripRadius = 0.25 },
-      coolant = { enabled = true, color = { 0.30, 0.78, 0.35 }, opacity = 0.55, size = 0.8, growth = 0.014, dripSize = 0.07, life = 900, grip = 0.30, gripRadius = 0.20 },
-      fuel = { enabled = true, color = { 0.55, 0.45, 0.12 }, opacity = 0.40, size = 0.7, growth = 0.012, dripSize = 0.06, life = 420, grip = 0.35, gripRadius = 0.20 },
+      oil = { enabled = true, color = { 0.04, 0.035, 0.03 }, opacity = 0.80, size = 0.9, growth = 0.010, dripSize = 0.09, life = 0, grip = 0.85, gripRadius = 0.40 },
+      coolant = { enabled = true, color = { 0.30, 0.78, 0.35 }, opacity = 0.55, size = 0.8, growth = 0.014, dripSize = 0.07, life = 900, grip = 0.65, gripRadius = 0.30 },
+      fuel = { enabled = true, color = { 0.55, 0.45, 0.12 }, opacity = 0.40, size = 0.7, growth = 0.012, dripSize = 0.06, life = 420, grip = 0.70, gripRadius = 0.30 },
       exhaust = { enabled = false, color = { 0.10, 0.10, 0.10 }, opacity = 0.35, size = 0.25, growth = 0.002, dripSize = 0.04, life = 240, grip = 0.0, gripRadius = 0 },
     },
   }
@@ -98,6 +101,7 @@ function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
   end
   local i = (store.head % store.max) + 1
   local p = store.list[i] or {}
+  p.gen, p.meshed = (p.gen or 0) + 1, nil                              -- a new puddle in a recycled slot: its plane (fluidmesh) is not the old one's
   p.x, p.y, p.z, p.kind, p.r, p.age, p.stain = x, y, z, kind, k.dripSize * (stain and (0.7 + 0.6 * ((seed or 0.5))) or 1), 0, stain and true or false
   p.angle = (seed or 0.5) * 6.2832
   p.seed = seed or 0.5
@@ -119,6 +123,14 @@ function M.age(store, dt, cfg)
     end
   end
   return alive
+end
+
+-- the ring recycles the oldest next: once it is full, the oldest tenth fades out by rank (0 = gone, 1 = untouched) so a recycled puddle does not pop
+function M.ringFade(store, i)
+  if store.count < store.max then return 1 end
+  local zone = math.max(1, math.ceil(store.max * 0.1))
+  local rank = (i - store.head - 1) % store.max + 1                   -- 1 = the oldest, next to be overwritten
+  return rank > zone and 1 or (rank - 0.5) / zone
 end
 
 -- how opaque a puddle is: its fluid's opacity, thinner while it dries

@@ -13,17 +13,18 @@ local clock = (os and os.clockhp) or os.clock
 
 -- the steps, each cumulative on the one before: { name, { group, key, value }... }
 M.STEPS = {
-  { 'everything off', { 'windscreen', 'enabled', false }, { 'windscreen', 'overlay', false }, { 'scratch', 'enabled', false }, { 'scratch', 'water', false }, { 'scratch', 'dirtEnabled', false },
-    { 'mud', 'enabled', false }, { 'weather', 'snow', false }, { 'weather', 'frost', false }, { 'weather', 'bugs', false }, { 'weather', 'spray', false } },
+  { 'everything off', { 'windscreen', 'enabled', false }, { 'windscreen', 'windows', false }, { 'windscreen', 'overlay', false }, { 'scratch', 'enabled', false }, { 'scratch', 'water', false }, { 'scratch', 'dirtEnabled', false },
+    { 'mud', 'enabled', false }, { 'weather', 'snow', false }, { 'weather', 'frost', false }, { 'weather', 'bugs', false }, { 'weather', 'spray', false }, { 'marks', 'enabled', false }, { 'fluids', 'enabled', false } },
   { '+ paint canvases (marks and scratches)', { 'scratch', 'enabled', true } },
   { '+ rain drops on the paint', { 'scratch', 'water', true } },
-  { '+ window canvases', { 'windscreen', 'enabled', true } },
+  { '+ window canvases', { 'windscreen', 'enabled', true }, { 'windscreen', 'windows', true } },
   { '+ cockpit overlay', { 'windscreen', 'overlay', true } },
   { '+ dirt and mud', { 'mud', 'enabled', true }, { 'scratch', 'dirtEnabled', true } },
+  { '+ skid marks', { 'marks', 'enabled', true } },
+  { '+ leaks (fill the puddle ring first, see docs/PERF_BUDGET.md)', { 'fluids', 'enabled', true } },
   { '+ frost and snow', { 'weather', 'snow', true }, { 'weather', 'frost', true } },
   { '+ bugs and road spray', { 'weather', 'bugs', true }, { 'weather', 'spray', true } },
 }
-
 local state                  -- nil when idle
 local results = {}
 local luaTime = {}           -- 'ext.hook' -> accumulated seconds in the current measurement
@@ -86,14 +87,14 @@ local function finishStep()
   local detail = {}
   for k, t in pairs(luaTime) do if t > 0 then detail[#detail + 1] = string.format('%s %.3f', k, t * 1000 / math.max(1, frames)) end end
   table.sort(detail)
-  results[#results + 1] = { name = M.STEPS[state.i][1], frames = frames, ms = frames > 0 and sum * 1000 / frames or 0, p95 = percentile(state.dts, 0.95) * 1000, lua = lua * 1000 / math.max(1, frames), detail = table.concat(detail, ', ') }
+  results[#results + 1] = { name = M.STEPS[state.i][1], frames = frames, ms = frames > 0 and sum * 1000 / frames or 0, p95 = percentile(state.dts, 0.95) * 1000, p99 = percentile(state.dts, 0.99) * 1000, lua = lua * 1000 / math.max(1, frames), detail = table.concat(detail, ', ') }
 end
 
 function M.report()
-  local lines = { string.format('%-42s %8s %8s %8s %8s %6s', 'step (cumulative)', 'ms/frame', 'p95 ms', 'vs first', 'lua ms', 'frames') }
+  local lines = { string.format('%-42s %8s %8s %8s %8s %8s %6s', 'step (cumulative)', 'ms/frame', 'p95 ms', 'p99 ms', 'vs first', 'lua ms', 'frames') }
   local base = results[1] and results[1].ms or 0
   for _, r in ipairs(results) do
-    lines[#lines + 1] = string.format('%-42s %8.2f %8.2f %+8.2f %8.3f %6d   %s', r.name, r.ms, r.p95, r.ms - base, r.lua, r.frames, r.detail)
+    lines[#lines + 1] = string.format('%-42s %8.2f %8.2f %8.2f %+8.2f %8.3f %6d   %s', r.name, r.ms, r.p95, r.p99, r.ms - base, r.lua, r.frames, r.detail)
   end
   if #results > 1 then
     local last = results[#results]

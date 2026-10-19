@@ -6,6 +6,8 @@
 local M = {}
 
 M.FILE = '/settings/carSurfaceFx_tyres.json'
+-- the tyre simulation is off until the player switches it on (no file means off), whatever the rules' own default is
+M.ENABLED_DEFAULT = false
 
 M.TABS = {
   { id = 'wear', title = 'Wear', description = 'The tyre simulation, its presets, and how fast tread wears away. Real tyres wear far too slowly to see in play, so the wear rate speeds time up.' },
@@ -17,10 +19,10 @@ M.TABS = {
   { id = 'compounds', title = 'Compounds', description = 'The tyre types one by one: the tread they start with, how fast they wear, where they grip best and how they behave in the wet.' },
 }
 
--- the presets: cfg overrides on top of the defaults (Realistic is the defaults)
+-- the presets: cfg overrides on top of the defaults. The tyre simulation is OFF in the defaults (it ships off until it has been proven in the game); Realistic and Arcade switch it on.
 M.PRESETS = {
-  realistic = {},
-  arcade = { wearRate = 0.3, heatRate = 0.6, coldGrip = 0.3, hotGrip = 0.3, flat = { enabled = false }, fires = false, blowout = { enabled = false } },
+  realistic = { enabled = true },
+  arcade = { enabled = true, wearRate = 0.3, heatRate = 0.6, coldGrip = 0.3, hotGrip = 0.3, flat = { enabled = false }, fires = false, blowout = { enabled = false } },
   off = { enabled = false },
 }
 
@@ -138,6 +140,7 @@ function M.build(S, opts)
   for _, r in ipairs(ROWS) do
     local f = { id = 'ty_' .. r.path:gsub('%.', '_'), tab = r.tab, group = groupOf(r), type = r.type, label = r.label, tooltip = r.tooltip, default = d(r.path), store = json(r.path),
       apply = 'live', onChange = reload, advanced = r.advanced }
+    if r.path == 'enabled' then f.default = M.ENABLED_DEFAULT end
     if r.type == 'slider' or r.type == 'int' then f.min, f.max, f.step, f.unit = r.min, r.max, r.step, r.unit end
     if r.type == 'slider' and r.unit == '%' then f.scale = 100 end
     if r.type == 'bool' then f.feature = true end
@@ -146,9 +149,9 @@ function M.build(S, opts)
 
   -- the preset: a choice that writes a whole set of values (the page reloads after it)
   fields[#fields + 1] = { id = 'ty_preset', tab = 'wear', group = 'Tyre simulation', type = 'enum', label = 'Preset',
-    tooltip = 'Realistic: the starting values. Arcade: slow wear, mild heat and grip effects, no flat spots, fires or blowout damage. Off: the game\'s own tyres. Choosing one sets the values on these pages; you can change them afterwards.',
-    options = { { id = 'realistic', label = 'Realistic' }, { id = 'arcade', label = 'Arcade' }, { id = 'off', label = 'Off' } }, default = 'realistic', apply = 'live',
-    store = { kind = 'custom', get = function() local v = read().preset return M.PRESETS[v or ''] and v or 'realistic' end,
+    tooltip = 'Realistic: the normal values (the start is Off, until the tyre simulation has been proven in the game). Arcade: slow wear, mild heat and grip effects, no flat spots, fires or blowout damage. Off: the game\'s own tyres. Choosing one sets the values on these pages; you can change them afterwards.',
+    options = { { id = 'realistic', label = 'Realistic' }, { id = 'arcade', label = 'Arcade' }, { id = 'off', label = 'Off' } }, default = 'off', apply = 'live',
+    store = { kind = 'custom', get = function() local v = read().preset return M.PRESETS[v or ''] and v or 'off' end,
       set = function(v)
         if not M.PRESETS[v] then return end
         local t = M.merge(D, M.PRESETS[v])

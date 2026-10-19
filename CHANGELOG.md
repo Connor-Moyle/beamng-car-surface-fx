@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased (after 0.2.0)
+## 0.3.0
+
+Proven in the game (connor-80, with screenshots):
+
+- Leaking fluids: oil (black, glossy, faint marbled rainbow sheen), coolant (green) and fuel (amber) as glossy puddles on the ground, growing over time (r 0.32 to 0.56 m in 120 s), real leaks from a hard crash, tyre grip loss in oil, the oldest puddle shrinks away at the cap (default 100). Drip spots of a moving leak are decals.
+- Driver's view rain: lens drops and streaks clipped to the windscreen, about 1 ms a frame.
+- Wet paint look: darker, with beads; plastic trim gets a softer version (no chrome look).
+- Dirt: dust film, tyre rubber splatter near the arches, mud, skid marks on dirt, car wash.
+- Window drops seen wet from 4 m.
+
+Built, not seen in the game (these look or behave unconfirmed; the new defaults are below):
+
+- Window drops (the side and rear glass canvases): the haze is gone but the drops were not clearly visible at real size, so they are off by default (Mods menu, Rain & glass, Windows). The driver's-view drops are separate and stay on.
+- Wiper sweep (the blades move; the clearing is only weakly visible), drop trails at speed, impact rings, bead animation.
+- Falling leak drops are only simulated (invisible: the oil pan is 20 cm above the ground); the sky is not reflected in puddles (engine limit).
+
+Off by default (switch on in the Mods menu once you have tried them):
+
+- Window drops, grass bending (the counters run, the picture was not seen), ruts, snow, frost, bugs, road spray from the car ahead, and crash effects (shards, debris, sparks). Saved profiles keep what they had.
+
+Notes:
+
+- The ring size default is now 100 puddles; a saved profile keeps its old value (60).
+- New Mods-menu rows: glass amount, leak planes, oil sheen, grip loss.
+
+## Not yet tested (older notes)
 
 ### Built, not yet tested in game
 
@@ -8,7 +33,7 @@
 - Wipers: two blades sweep clear arcs on the driver's view (drops, streaks and frost in the arc are gone and the drops bead up again behind them); the window canvases clear their frost in the blade's band. A car with no wiper value gets its wipers from the rain.
 - Puddle splash on your own car: dirty water on the lower body by side, a sheet over the windscreen for a deep puddle at speed.
 - Road spray from the car ahead on a wet road (mist and tiny drops on the windscreen and the driver's view, scaled by speed, closeness, length and wetness; the nearby cars are looked at four times a second).
-- Snow, frost and bugs: see below. (0.2.0 is tagged on the last commit proven in the game; these ship as 0.2.1 once proven.)
+- Snow, frost and bugs: see below.
 
 An item moves to "Passed in the game" only when connor-80 posts a pass for it.
 

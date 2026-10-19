@@ -15,8 +15,8 @@ function createOverlay(doc, win) {
   var ctx = canvas.getContext('2d');
   var trails = doc.createElement('canvas');                         // the streaks: drawn once, faded each frame, wiped by the blade
   var tctx = trails.getContext('2d');
-  var sim = CsfxSim.create(700);
-  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 2.5 }, bbox: null, msgs: 0, debug: false };
+  var sim = CsfxSim.create(1100);
+  var st = { on: false, hull: null, p: { spray: 0, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, size: 3, density: 4.5, airGain: 4, fan: 0.8 }, bbox: null, msgs: 0, debug: false };
   var last = null, lastDraw = 0, running = false, lastReport = 0, lastDrawT = 0;
   // The canvases are as big as the screen, but everything drawn lies in the windscreen's bounding box: so that is all that is cleared, faded and composited (three full-screen
   // passes every frame, about 15 million pixels on an ultrawide, were most of this module's cost). drawn: where the last frame drew; trailBox: where the streaks canvas has
@@ -85,10 +85,10 @@ function createOverlay(doc, win) {
     for (var y = 0; y < BS; y++) for (var x = 0; x < BS; x++) {
       var u = (x + 0.5) / BS * 2 - 1, v = (y + 0.5) / BS * 2 - 1, d = Math.sqrt(u * u + v * v), o = (y * BS + x) * 4;
       if (d >= 1) { data.data[o + 3] = 0; continue; }
-      var rim = Math.max(0, 1 - Math.abs(d - 0.8) / 0.22) * (0.7 + 0.3 * (u + v) * 0.7071 + 0.0);   // heavier low right
-      var cx = u - 0.25, cy = v - 0.3, spot = 0.55 * Math.exp(-(cx * cx + cy * cy) / 0.07);
-      var gx = u + 0.38, gy = v + 0.42, glint = Math.min(1, 1.3 * Math.exp(-(gx * gx + gy * gy) / 0.018));
-      var dark = Math.min(0.85, 0.16 + rim * 0.65), lightA = Math.min(1, spot + glint);
+      var rim = Math.max(0, 1 - Math.abs(d - 0.88) / 0.2) * Math.max(0, (u + v) * 0.7071 + 0.15);   // a thin dark lower rim only (the upper side lets the sky through)
+      var spot = d < 0.85 ? 0.3 * (1 - (u + v) * 0.35) : 0;           // the body is lighter than the glass: it takes the bright sky
+      var gx = u + 0.4, gy = v + 0.45, glint = Math.min(1, 1.2 * Math.exp(-(gx * gx + gy * gy) / 0.01));
+      var dark = Math.min(0.9, 0.05 + rim * 0.62), lightA = Math.min(1, spot + glint);
       var a = dark + lightA * (1 - dark);                       // the colour is the share of light in the two
       var k = a > 0 ? lightA / (dark + lightA) : 0, col = Math.round(18 * (1 - k) + 255 * k);
       data.data[o] = data.data[o + 1] = data.data[o + 2] = col; data.data[o + 3] = Math.round(Math.min(1, a) * Math.min(1, (1 - d) * 6) * 255);
@@ -123,32 +123,33 @@ function createOverlay(doc, win) {
     trailBox = join(trailBox, cur);
     var wp = st.p.wiper;
     st.p.wiper = 0;                                                   // the blades are the overlay's own (arcs), not the simulation's column
+    var rn = st.p.rain;
+    if (wp > 0.05) st.p.rain = rn * 0.8;                               // with the wipers going a little less lands between sweeps
     CsfxSim.step(sim, dt, st.p);
-    st.p.wiper = wp;
+    st.p.rain = rn; st.p.wiper = wp;
     var b = st.bbox, bw = b.w * W, bh = b.h * H, bx = b.x0 * W, by = b.y0 * H;
     for (var fi = 0; fi < sim.fresh.length; fi++) born[sim.fresh[fi]] = now;       // drops that just landed get a ring (below)
     sim.fresh.length = 0;
 
     // the streaks: fade what is there, add a thin wobbling line behind each drop that has moved, wipe the blade's path
     tctx.globalCompositeOperation = 'destination-out';
-    tctx.fillStyle = 'rgba(0,0,0,0.035)';
+    tctx.fillStyle = 'rgba(0,0,0,0.04)';
     tctx.fillRect(trailBox.x0, trailBox.y0, trailBox.x1 - trailBox.x0, trailBox.y1 - trailBox.y0);
     tctx.globalCompositeOperation = 'source-over';
-    tctx.lineCap = 'round';
+    tctx.lineCap = 'round'; tctx.strokeStyle = 'rgba(35,45,60,0.34)'; tctx.lineWidth = 1.3; tctx.beginPath();      // every streak in one path: one stroke a frame, not one per drop
     for (var k = 0; k < sim.n; k++) {
       if (!sim.alive[k]) { seen[k] = 0; continue; }
       var X = bx + sim.x[k] * bw, Y = by + sim.y[k] * bh;
       if (seen[k] && sim.r[k] > 0.012 * st.p.size * 0.6) {
         var dx = X - px[k], dy = Y - py[k];
-        if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 40000) {
-          var w = Math.max(1, sim.r[k] * bh * 0.3), wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
-          tctx.strokeStyle = 'rgba(30,40,55,0.20)';
-          tctx.lineWidth = w;
-          tctx.beginPath(); tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y); tctx.stroke();
+        if (dx * dx + dy * dy > 0.5 && dx * dx + dy * dy < 900) {
+          var w = 1.6, wob = Math.sin(Y * 0.12 + k * 1.7) * w * 0.25;
+          tctx.moveTo(px[k] + Math.sin(py[k] * 0.12 + k * 1.7) * w * 0.25, py[k]); tctx.lineTo(X + wob, Y);
         }
       }
       px[k] = X; py[k] = Y; seen[k] = 1;
     }
+    tctx.stroke();
     if (st.p.frost < 0.05) frostFresh = false;
     else if (!frostFresh) { fctx.setTransform(1, 0, 0, 1, 0, 0); fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
     aPrev = aNow;
@@ -198,20 +199,26 @@ function createOverlay(doc, win) {
     for (var n = 0; n < sim.n; n++) {
       if (!sim.alive[n]) continue;
       alive++;
-      var R = Math.max(1.5, sim.r[n] * bh);
-      ctx.drawImage(R < 8 ? bead : sprite, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R, R * 2, R * 2);
+      var R = Math.min(7, Math.max(1.2, Math.pow(sim.r[n] * bh, 1.25) * 0.45));          // real drops seen from the seat: mostly 2 to 8 px across, a few up to 12, flattened
+      ctx.drawImage(bead, bx + sim.x[n] * bw - R, by + sim.y[n] * bh - R * 0.85, R * 2, R * 1.7);
       var age = now - born[n];
       if (age >= 0 && age < 320) {                                    // a drop landing: a ring that spreads and fades, a dark one and a light one so it shows on any background
-        var k2 = age / 320, rr2 = Math.min(R, 8) * (1.1 + 1.4 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
+        var k2 = age / 320, rr2 = Math.min(R, 4) * (1.2 + 1.2 * k2), cx2 = bx + sim.x[n] * bw, cy2 = by + sim.y[n] * bh;      // a small ring, not a halo: it is the drop landing, not the drop
         ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.25 * (1 - k2)).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(cx2, cy2, rr2, 0, 6.2832); ctx.stroke();
       }
+    }
+    if (st.p.wiper > 0.05) {                                          // the blades themselves: a thin dark rubber line along the sweep angle (the car's own wipers do not move for this view)
+      ctx.strokeStyle = 'rgba(20,25,30,0.13)'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath();
+      for (var wl = 0; wl < 2; wl++) { var wcx = bx + BLADES[wl].px * bw, wcy = by + bh, wL = BLADES[wl].len * bw; ctx.moveTo(wcx, wcy); ctx.lineTo(wcx + Math.cos(aNow) * wL, wcy - Math.sin(aNow) * wL); }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(20,25,30,0.28)'; ctx.lineWidth = 1.2; ctx.stroke();      // a soft wet smear with a thin edge line, not a black string
     }
     ctx.restore();
     if (st.debug && now - lastReport > 1000) {                         // tell the game side what the page is doing (carSurfaceFx.overlayReport)
       lastReport = now;
       var fps = Math.round(1000 / Math.max(1, now - lastDrawT)), text = 'drops ' + alive + ' fps~' + fps + ' box ' + Math.round(bx) + ',' + Math.round(by) + ' ' + Math.round(bw) + 'x' + Math.round(bh) + ' of ' + W + 'x' + H +
-        ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' msgs ' + st.msgs;
+        ' rain ' + st.p.rain.toFixed(2) + ' speed ' + st.p.speed.toFixed(1) + ' wiper ' + st.p.wiper.toFixed(1) + ' msgs ' + st.msgs;
       try {                                                          // what the layer really is: pixels lit on its canvas, its style, and what lies on top at the middle of the box
         var gd = ctx.getImageData(Math.max(0, Math.round(bx)), Math.max(0, Math.round(by)), Math.max(1, Math.min(W - Math.round(bx), Math.round(bw))), Math.max(1, Math.min(H - Math.round(by), Math.round(bh)))), lit = 0, dd = gd.data;
         for (var li = 3; li < dd.length; li += 32) if (dd[li] > 8) lit++;
@@ -232,7 +239,7 @@ function createOverlay(doc, win) {
 
   function handle(name, data) {
     if (!data) return;
-    if (!data.on) { st.on = false; sim = CsfxSim.create(700); seen.fill(0); return; }
+    if (!data.on) { st.on = false; sim = CsfxSim.create(1100); seen.fill(0); return; }
     st.msgs++; st.debug = !!data.debug;
     st.hull = data.hull && data.hull.length >= 6 ? data.hull : null;
     st.bbox = st.hull ? bbox(st.hull) : null;

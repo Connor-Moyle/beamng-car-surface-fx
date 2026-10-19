@@ -9,7 +9,7 @@ M.KINDS = { 'mud', 'snow', 'sand', 'dirt', 'gravel' }                 -- the gro
 
 function M.defaults()
   return {
-    enabled = true,
+    enabled = false,
     routing = 'road',                                                  -- 'road': small DecalRoads with the lit mark materials; 'decal': the decal manager (the fallback)
     maxRoads = 200,                                                    -- chunks kept (a ring: the oldest are removed)
     maxPerSecond = 6,                                                  -- chunks made per second at most (a DecalRoad rebuilds its mesh when made)
@@ -21,6 +21,7 @@ function M.defaults()
     wetAbove = 0.3, dryBelow = 0.2,                                    -- the wet material from this wetness, the dry one again below the other (a little hysteresis)
     cullRadius = 120,
     others = { enabled = false, maxCars = 3, range = 50 },
+    berms = { enabled = false, maxBerms = 120, heightScale = 1.0, lift = 0.01 },      -- soil lips beside the track (berm.lua, bermrules.lua); off until seen in game
     kinds = {
       mud = { enabled = true, soft = 1.00 }, snow = { enabled = true, soft = 0.85 }, sand = { enabled = true, soft = 0.75 },
       dirt = { enabled = true, soft = 0.55 }, gravel = { enabled = true, soft = 0.35 },

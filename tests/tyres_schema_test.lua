@@ -50,6 +50,7 @@ end
 assert(compoundFields > 150, 'the compounds are all there: ' .. compoundFields)
 
 -- the cautions: blowout damage is off, and its force cap cannot be raised above 3000
+assert(byPath['enabled'].default == false, 'the tyre simulation is off until it is switched on, as the game side treats a missing file')
 assert(byPath['blowout.enabled'].default == false, 'blowout damage is off by default')
 assert(byPath['blowout.maxForce'].max == 3000 and byPath['blowout.maxForce'].default <= 3000, 'the blowout force cap stays at 3000')
 assert(byPath['fires'].label == 'Tyre fires' and byPath['fireSpread'].label == 'Fires can spread to the car', 'the fire labels')
@@ -57,17 +58,18 @@ assert(byPath['enabled'] and not byPath['enabled'].advanced and byPath['wearRate
 
 -- the presets
 local preset = ids.ty_preset
-assert(preset.store.get() == 'realistic', 'Realistic is the start')
+assert(preset.store.get() == 'off' and R.defaults().enabled == false, 'the start is Off: the tyre simulation ships off')
 preset.store.set('arcade')
-assert(store.wearRate == 0.3 and store.heatRate == 0.6 and store.coldGrip == 0.3 and store.hotGrip == 0.3 and store.flat.enabled == false and store.fires == false and store.blowout.enabled == false, 'Arcade')
+assert(store.enabled == true and store.wearRate == 0.3 and store.heatRate == 0.6 and store.coldGrip == 0.3 and store.hotGrip == 0.3 and store.flat.enabled == false and store.fires == false and store.blowout.enabled == false, 'Arcade')
 assert(store.deadZone == R.defaults().deadZone and store.flat.minDepth == R.defaults().flat.minDepth and store.preset == 'arcade' and preset.store.get() == 'arcade', 'Arcade keeps the other values at their defaults')
 preset.store.set('off')
 assert(store.enabled == false and store.wearRate == 1.0 and preset.store.get() == 'off', 'Off')
 preset.store.set('realistic')
-assert(store.enabled == false and store.fires == true and store.blowout.enabled == false and store.wearRate == 1.0, 'Realistic is the defaults')
+assert(store.enabled == true and store.fires == true and store.blowout.enabled == false and store.wearRate == 1.0, 'Realistic is the defaults with the simulation on')
 assert(reloads == 3, 'a preset reloads the settings')
 preset.store.set('nonsense')
 assert(preset.store.get() == 'realistic' and reloads == 3, 'an unknown preset is ignored')
+assert(ids.ty_preset.default == 'off' and byPath['enabled'].default == false, 'the page shows the simulation off by default')
 
 -- the debris amount scales both shares
 local amount = ids.ty_debris_amount

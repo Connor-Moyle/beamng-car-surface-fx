@@ -94,3 +94,5 @@ The old app's own calls (`uiGetModules`, `uiSet`, `uiAction`, `uiSetGroup`, `uiA
 ## Credits
 
 Scratch and wheel-dirt engine: Fatkiwi, from Enhanced Skid Marks (Surface FX). Everything else: Connor Moyle.
+
+Dirt, dust, mud and snow splats are made from CC0 photographs from ambientCG (https://ambientcg.com): the list is in docs/TEXTURE_CREDITS.md.

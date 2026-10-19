@@ -4,7 +4,7 @@
 local M = {}
 local MIN_DOWNFORCE = 200       -- N: a wheel in the air or barely touching does not count
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one
-local SKID = 3                  -- m/s of slip (scaled by load) that counts as skidding
+local SKID = 5                  -- m/s of slip (scaled by load) that counts as skidding
 local INTERVAL = 0.5
 
 local loose, mud, road = {}, {}, {}      -- collision type id -> weight

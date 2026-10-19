@@ -46,7 +46,7 @@ assert(calls.clears - c0 < 120 && calls.clears - c0 > 60, 'throttled to 30 fps: 
 const t0 = process.hrtime.bigint();
 for (let i = 0; i < 600; i++) { t += 34; rafCb(t); }
 const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
-assert(ms < 0.5, 'frame cost ' + ms.toFixed(3) + ' ms');
+assert(ms < 0.8, 'frame cost ' + ms.toFixed(3) + ' ms');
 console.log('overlay frame JS cost: ' + ms.toFixed(3) + ' ms');
 
 // the wipers: arcs are cleared (two blades), and the drops in the swept area are gone

@@ -114,19 +114,19 @@ end
 
 -- the fields (name -> string for setField) one paint stage gets at a rung: darker, glossier, with beads of water (they replace the paint's own
 -- orange-peel normal detail while wet: a water film hides it)
-function M.wetFields(st, rung)
+function M.wetFields(st, rung, trim)
   local f = FRACTION[rung]
   local out = {}
   local c = color4(st.baseColorFactor)
-  local k = 1 - 0.25 * f
+  local k = 1 - (trim and 0.35 or 0.25) * f                          -- black plastic: darker and much smoother when wet, or it looks the same dry
   out.baseColorFactor = string.format('%.4f %.4f %.4f %.4f', c[1] * k, c[2] * k, c[3] * k, c[4])
-  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - 0.65 * f))
+  out.roughnessFactor = string.format('%.4f', (tonumber(st.roughnessFactor) or 1) * (1 - (trim and 0.6 or 0.65) * f))
   out.clearCoatRoughnessFactor = string.format('%.4f', (tonumber(st.clearCoatRoughnessFactor) or 1) * (1 - 0.5 * f))
   local own = false
   for _, d in ipairs(DETAIL_MAPS) do if set(st[d]) then own = true end end
   if not own then
     out.detailNormalMap = string.format(M.DROPLETS, rung)
-    out.detailNormalMapStrength = string.format('%.3f', M.beadStrength * f)
+    out.detailNormalMapStrength = string.format('%.3f', M.beadStrength * f * (trim and 1.4 or 1))
     out.detailScale = M.beadScale
   end
   return out
@@ -137,7 +137,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 M.KINDS = { 'dust', 'mud', 'rubber', 'grime', 'snow', 'bugs' }
 local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 }, snow = { 0.93, 0.95, 0.98 }, bugs = { 0.14, 0.11, 0.07 } }
-local SHOW = { dust = 0.35, mud = 0.5, rubber = 0.45, grime = 0.5, snow = 0.95, bugs = 0.35 }              -- how much of the paint a full amount of that kind covers
+local SHOW = { dust = 0.2, mud = 0.18, rubber = 0.1, grime = 0.25, snow = 0.08, bugs = 0.05 }              -- how much of the paint a full amount of that kind covers
 local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6, snow = 0.5, bugs = 0.1 }                  -- how much of the gloss and metal it takes off
 M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6, snow = 1, bugs = 0.5 }                             -- a road film never gets as thick as mud
 
@@ -186,8 +186,9 @@ function M.dirtBuild(d, dt, r, speed, wet)
   local wetK = clamp((wet or 0) * 1.5, 0, 1)
   local out = {}
   out.dust = d.dust + ((r.loose or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / 60) + ((r.road or 0) * (1 - wetK) * math.max(sf, 0.1) * dt / M.DUST_ROAD) - ((r.loose or 0) == 0 and math.max(0, (speed or 0) - 25) * dt / 1500 or 0)   -- dust settles slowly on a parked car; only highway wind off the dirt sheds it      -- loose ground: fast; dry tarmac: a thin film, slowly
-  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK * 0.5) * sf * (1 + (wet or 0) * 0.5) * dt / 90 - (((speed or 0) > 12 and (wet or 0) < 0.1 and (r.mud or 0) + (r.loose or 0) == 0) and dt / 1800 or 0)   -- dry mud flakes off at speed, but never while it is being thrown on
-  out.rubber = d.rubber + (r.slip or 0) * dt / 25
+  local mudSf = (speed or 0) > 2 and math.max(sf, 0.35) or sf                      -- wet ground sticks to a rolling tyre even slowly (a standing car still throws none)
+  out.mud = d.mud + ((r.mud or 0) + (r.loose or 0) * wetK * 0.5) * mudSf * (1 + (wet or 0) * 0.5) * dt / 90 - (((speed or 0) > 12 and (wet or 0) < 0.1 and (r.mud or 0) + (r.loose or 0) == 0) and dt / 1800 or 0)   -- dry mud flakes off at speed, but never while it is being thrown on
+  out.rubber = d.rubber + (r.slip or 0) * clamp(((r.road or 0) - 0.5) * 2, 0, 1) * dt / 12      -- rubber only from a skid on a hard road (tarmac): sliding on dirt, gravel or grass leaves none
   out.grime = d.grime + (r.road or 0) * sf * dt * ((1 - wetK) / 1200 + wetK / 400)              -- wet tarmac throws a road film three times faster
   -- snow settles while it snows (a car that stands takes all of it, a moving one little) and is blown off above SNOW_BLOW m/s; above warm it melts
   local snowing, v = r.snowing or 0, speed or 0

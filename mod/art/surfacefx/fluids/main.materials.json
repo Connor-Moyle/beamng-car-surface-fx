@@ -1,0 +1,126 @@
+{
+ "csfx_puddle_oil": {
+  "name": "csfx_puddle_oil",
+  "mapTo": "csfx_puddle_oil",
+  "class": "Material",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/fluids/white.color.png",
+    "opacityMap": "/art/surfacefx/fluids/puddle_o.data.png",
+    "baseColorFactor": [
+     0.03,
+     0.028,
+     0.025,
+     1
+    ],
+    "metallicFactor": 0.9,
+    "roughnessFactor": 0.02
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "ASPHALT",
+  "castShadows": false,
+  "materialTag0": "decal",
+  "materialTag1": "road",
+  "materialTag2": "beamng",
+  "translucent": true,
+  "translucentZWrite": true,
+  "doubleSided": true,
+  "version": 1.5
+ },
+ "csfx_puddle_coolant": {
+  "name": "csfx_puddle_coolant",
+  "mapTo": "csfx_puddle_coolant",
+  "class": "Material",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/fluids/white.color.png",
+    "opacityMap": "/art/surfacefx/fluids/puddle_o_thin.data.png",
+    "baseColorFactor": [
+     0.1,
+     0.5,
+     0.18,
+     1
+    ],
+    "metallicFactor": 0.5,
+    "roughnessFactor": 0.03
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "ASPHALT",
+  "castShadows": false,
+  "materialTag0": "decal",
+  "materialTag1": "road",
+  "materialTag2": "beamng",
+  "translucent": true,
+  "translucentZWrite": true,
+  "doubleSided": true,
+  "version": 1.5
+ },
+ "csfx_puddle_fuel": {
+  "name": "csfx_puddle_fuel",
+  "mapTo": "csfx_puddle_fuel",
+  "class": "Material",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/fluids/white.color.png",
+    "opacityMap": "/art/surfacefx/fluids/puddle_o_thin.data.png",
+    "baseColorFactor": [
+     0.55,
+     0.44,
+     0.1,
+     1
+    ],
+    "metallicFactor": 0.5,
+    "roughnessFactor": 0.04
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "ASPHALT",
+  "castShadows": false,
+  "materialTag0": "decal",
+  "materialTag1": "road",
+  "materialTag2": "beamng",
+  "translucent": true,
+  "translucentZWrite": true,
+  "doubleSided": true,
+  "version": 1.5
+ },
+ "csfx_puddle_sheen": {
+  "name": "csfx_puddle_sheen",
+  "mapTo": "csfx_puddle_sheen",
+  "class": "Material",
+  "Stages": [
+   {
+    "baseColorMap": "/art/surfacefx/fluids/rainbow.color.png",
+    "opacityMap": "/art/surfacefx/fluids/rainbow_o.data.png",
+    "baseColorFactor": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "metallicFactor": 0.5,
+    "roughnessFactor": 0.08
+   },
+   {},
+   {},
+   {}
+  ],
+  "annotation": "ASPHALT",
+  "castShadows": false,
+  "materialTag0": "decal",
+  "materialTag1": "road",
+  "materialTag2": "beamng",
+  "translucent": true,
+  "translucentZWrite": false,
+  "doubleSided": true,
+  "version": 1.5
+ }
+}

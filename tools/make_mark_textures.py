@@ -9,6 +9,7 @@ in the game's material format (version 1.5, translucent, translucentZWrite, Road
 roughness map). The normal maps are in the DirectX convention (green down) unless --flip-green; the swatch map (carSurfaceFx/markSwatches.lua) shows if a bump reads inverted.
 """
 import argparse
+import glob
 import json
 import os
 import uuid
@@ -92,6 +93,7 @@ def make_skid(seed, flip):
     col = np.stack([0.035 + 0.01 * grain, 0.035 + 0.01 * grain, 0.04 + 0.01 * grain], -1)
     hgt = 0.04 * streak + 0.015 * grain
     rough = 0.55 - 0.1 * (1 - np.abs(u)) + 0.05 * grain
+    col, hgt, rough = apply_real(real_detail('asphalt', seed, H, W), col, hgt, rough, a, 0.55)      # the grain of real tarmac under the rubber
     return dict(color=col, opacity=a * 0.95, normal=normal_from_height(hgt, 1.0, flip), rough=rough, size=(W, H))
 
 
@@ -102,6 +104,56 @@ SURF = {   # surface colour of the ground the track is pressed into (linear-ish)
     'mud':    dict(col=(0.17, 0.12, 0.08), depth=0.8, tread=0.8, stones=0.0, rough=0.5),
     'snow':   dict(col=(0.78, 0.82, 0.88), depth=0.5, tread=0.7, stones=0.0, rough=0.6),
 }
+
+
+# ---- real detail (CC0 photographs, docs/TEXTURE_CREDITS.md) ---------------------------------------------------------------------------------------------
+# With --raw <folder of downloads> the track and rut types take the micro-detail of a real photographed ground: its light and dark (the colour keeps the surface colour of SURF), its
+# displacement (added to the height, so the normal map carries real grain, pebbles and clods) and its roughness. A strip is a 256 px crop, mirrored along the road so that it still loops.
+RAW = None
+REAL_SRC = {   # surface -> ambientCG assets (in <raw>/<group>/<asset>/)
+    'mud': ('mud', ['Ground023', 'Ground036', 'Ground051', 'Ground071', 'Ground095A', 'Ground106']),
+    'dirt': ('dirt', ['Ground103', 'Ground048', 'Ground107', 'Ground111']),
+    'gravel': ('dirt', ['Ground108', 'Ground110']),
+    'sand': ('dirt', ['Ground080']),
+    'snow': ('snow', ['Snow001', 'Snow003', 'Snow004', 'Snow013']),
+    'asphalt': ('grime', ['Asphalt031', 'Asphalt033', 'Asphalt023S', 'Asphalt025C', 'Asphalt026C', 'Road012A', 'Road013A']),
+}
+
+
+def _gray(path):
+    return np.asarray(Image.open(path).convert('L'), dtype=np.float32) / 255.0
+
+
+def real_detail(name, seed, H, W):
+    if not RAW or name not in REAL_SRC:
+        return None
+    group, assets = REAL_SRC[name]
+    asset = assets[seed % len(assets)]
+    d = os.path.join(RAW, group, asset)
+    hit = {k: glob.glob(os.path.join(d, '*_' + k + '.jpg')) for k in ('Color', 'Displacement', 'Roughness')}
+    if not all(hit.values()):
+        return None
+    rng = np.random.default_rng(seed)
+    col, disp, rough = [_gray(hit[k][0]) for k in ('Color', 'Displacement', 'Roughness')]
+    y, x = (int(rng.integers(0, col.shape[0] - W + 1)), int(rng.integers(0, col.shape[1] - W + 1)))
+    def tile(a):
+        c = a[y:y + W, x:x + W]
+        parts = [c]
+        while sum(p.shape[0] for p in parts) < H:
+            parts.append(parts[-1][::-1])
+        return np.concatenate(parts, 0)[:H]         # mirrored along the road: loops
+    c, dp, r = tile(col), tile(disp), tile(rough)
+    shade = np.clip(c / max(float(c.mean()), 1e-3), 0.4, 1.8)
+    return dict(shade=shade, disp=dp - float(dp.mean()), rough=r / max(float(r.mean()), 1e-3), asset=asset)
+
+
+def apply_real(real, col, hgt, rough, pressed, base_rough):
+    if real is None:
+        return col, hgt, rough
+    col = col * (0.62 + 0.38 * real['shade'])[..., None]
+    hgt = hgt + 0.55 * real['disp'] * (0.35 + pressed)
+    rough = 0.5 * rough + 0.5 * np.clip(base_rough * real['rough'], 0.05, 1.0)
+    return col, hgt, rough
 
 
 def make_track(name, seed, flip):
@@ -124,6 +176,8 @@ def make_track(name, seed, flip):
         col = col * (1 - 0.3 * stones[..., None]) + 0.05 * stones[..., None]
     a = edge * (0.8 + 0.15 * grain) * smooth(0.0, 0.25, edge)
     rough = s['rough'] - (0.25 if name == 'mud' else 0.1 if name == 'snow' else 0.0) * pressed + 0.04 * grain
+    real = real_detail(name, seed, H, W)
+    col, hgt, rough = apply_real(real, col, hgt, rough, pressed, s['rough'])
     ao = 1.0 - 0.45 * pressed * (1 - t * 0.5)
     return dict(color=np.clip(col, 0, 1), opacity=a, normal=normal_from_height(hgt, 2.2, flip), rough=rough, ao=ao, size=(W, H))
 
@@ -149,6 +203,8 @@ def make_rut(name, seed, flip):
     col = base[None, None, :] * ((0.6 + 0.3 * lips - 0.28 * groove + 0.1 * grain)[..., None] * (1 - moist[..., None] * 0.35))
     a = edge * (0.55 + 0.35 * groove + 0.25 * lips).clip(0, 1) * smooth(0.0, 0.2, edge)
     rough = s['rough'] - groove * (0.3 if name == 'mud' else 0.25 if name in ('dirt', 'snow') else 0.05) + 0.04 * grain
+    real = real_detail(name, seed, H, W)
+    col, hgt, rough = apply_real(real, col, hgt, rough, groove + lips, s['rough'])
     ao = 1.0 - 0.6 * groove + 0.1 * lips
     return dict(color=np.clip(col, 0, 1), opacity=a, normal=normal_from_height(hgt, 3.5, flip), rough=rough, ao=ao, size=(W, H))
 
@@ -171,6 +227,7 @@ def make_gouge(name, seed, flip):
     col = edge_col[None, None, :] * (1 - mix) + base[None, None, :] * (0.85 + 0.2 * streak[..., None]) * mix
     rough = rough0 - 0.15 * core + 0.05 * chips
     ao = 1.0 - 0.5 * core
+    col, hgt, rough = apply_real(real_detail('asphalt' if name == 'asphalt' else 'dirt', seed, H, W), col, hgt, rough, core, rough0)
     return dict(color=np.clip(col, 0, 1), opacity=a, normal=normal_from_height(hgt, 3.0, flip), rough=rough, ao=ao, size=(W, H))
 
 
@@ -271,7 +328,6 @@ TYPES['wall_metal'] = (lambda f: make_wall('metal', 71, f), 3.0, 0.5, 'scrape st
 TYPES['oil'] = (lambda f: make_fluid('oil', 80, f), 1.0, 1.0, 'oil stain')
 TYPES['coolant'] = (lambda f: make_fluid('coolant', 81, f), 1.0, 1.0, 'coolant stain')
 TYPES['fuel'] = (lambda f: make_fluid('fuel', 82, f), 1.0, 1.0, 'fuel stain with a faint sheen')
-TYPES['test_bump'] = (lambda f: make_bump(90, f), 4.0, 1.0, 'TEST: domes on the left, pits on the right, to see which way the normal map is read')
 FLUIDS = ('oil', 'coolant', 'fuel')
 
 
@@ -309,7 +365,10 @@ def main():
     ap.add_argument('--out', default=os.path.join(os.path.dirname(__file__), '..', 'mod', 'art', 'surfacefx', 'marks'))
     ap.add_argument('--flip-green', action='store_true')
     ap.add_argument('--only', default='')
+    ap.add_argument('--raw', default='', help='folder of the CC0 photographs (mud/, dirt/, snow/): the tracks and ruts take their micro-detail from them')
     args = ap.parse_args()
+    global RAW
+    RAW = args.raw or None
     out = os.path.abspath(args.out)
     mod_path = '/art/surfacefx/marks'
     mats, index = {}, []

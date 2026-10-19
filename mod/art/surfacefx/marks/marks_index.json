@@ -233,19 +233,6 @@
    ],
    "note": "fuel stain with a faint sheen",
    "blob": true
-  },
-  {
-   "type": "test_bump",
-   "dry": "csfx_test_bump_dry",
-   "wet": "csfx_test_bump_wet",
-   "textureLength": 4.0,
-   "width": 1.0,
-   "size": [
-    256,
-    512
-   ],
-   "note": "TEST: domes on the left, pits on the right, to see which way the normal map is read",
-   "blob": false
   }
  ],
  "normalConvention": "DirectX (green down)"

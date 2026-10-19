@@ -76,3 +76,6 @@ local near = S.eyeNodes({ { r = 0, u = -0.1, d = 0.6 }, { r = 0.5, u = -0.1, d =
 assert(near and #near == 4 and near[4] == 4, 'the hood, the nose and what is behind the eye are not the glass')
 assert(S.eyeNodes({ { r = 0, u = 0, d = 0.5 }, { r = 0, u = 0, d = 0.6 } }) == nil, 'fewer than four: the old nodes are used')
 print('carSurfaceFx screen: ok')
+do local h = S.inset({ 0.2, 0.1, 0.8, 0.1, 0.8, 0.6, 0.2, 0.6 }, 0.9, 0.5)
+  assert(math.abs(h[2] - 0.35) < 1e-9 and math.abs(h[6] - 0.6) < 1e-9 and math.abs(h[1] - 0.23) < 1e-9, 'the hull shrinks up from its bottom edge and in from its sides')
+end

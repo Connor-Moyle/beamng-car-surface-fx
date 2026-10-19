@@ -7,6 +7,7 @@
 local M = {}
 
 local rules = require('carSurfaceFx/rutrules')
+local berm = require('carSurfaceFx/berm')
 
 local TAG = 'carSurfaceFx_ruts'
 local SETTINGS_FILE = 'settings/carSurfaceFx_ruts.json'
@@ -212,6 +213,7 @@ local function makeChunk(chunk)
     if ok then done = true else useFallback(why) end
   end
   if not done then makeSegments(chunk, width, layer) end
+  if done and settings.berms.enabled then berm.add(settings.berms, chunk, width, chunk.depth or 0.6, layer) end
   rules.markPassed(grid, chunk.kind, chunk.points)
 end
 
@@ -241,6 +243,7 @@ function M.clear()
   paths, pending, pendingN, roads, roadHead, roadN, segs, segHead, segN = {}, {}, 0, {}, 0, 0, {}, 0, 0
   grid = rules.newGrid()
   made = { roads = 0, segments = 0, skipped = 0 }
+  berm.clear()
 end
 
 -- ---- drawing the fallback
@@ -280,6 +283,7 @@ function M.onUpdate(dt)
     makeChunk(chunk)
   end
   rules.budget(bucket, dt, settings.maxPerSecond)
+  if settings.berms.enabled then berm.update(settings.berms) end
   idleT = idleT + dt
   if idleT >= 0.5 then
     idleT = 0
@@ -305,8 +309,8 @@ function M.cells() return grid.n end
 function M.pendingCount() return pendingN end
 
 function M.status()
-  return string.format('routing %s roads %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s', mode or '?', roadN, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
-    wetness(), tostring(fellBack))
+  return string.format('routing %s roads %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s; %s', mode or '?', roadN, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
+    wetness(), tostring(fellBack), berm.status())
 end
 
 -- a rut put down by hand ahead of the car: n samples along its heading on the given ground (to see how it is drawn)

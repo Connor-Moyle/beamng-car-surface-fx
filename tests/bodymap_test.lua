@@ -121,3 +121,8 @@ do local B = require('carSurfaceFx/bodymap') local m = { bounds = { -1, 1, -2, 2
   assert(B.heightOf(m, 0.2) == 0 and B.heightOf(m, 1.4) == 1 and math.abs(B.heightOf(m, 0.5) - 0.25) < 1e-9, 'heightOf: sill 0, roof 1')
 end
 print('carSurfaceFx body map: ok')
+
+-- the back of the car after a dirt road: a good share of mud and dust lands on the rear faces (the wake of the car), not only the sides
+local function rearShare(kind, opts) local _, r = stat(B.sample(map, kind, 800, rnd, nil, opts)) return r end
+local rm, rd = rearShare('mud'), rearShare('dust', { maxH = 1, washH = 1 })
+assert(rm > 0.2 and rd > 0.15, 'mud and dust cake the rear: ' .. rm .. ' ' .. rd)

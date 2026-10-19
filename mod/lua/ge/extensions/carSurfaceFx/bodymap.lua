@@ -128,7 +128,7 @@ function RULES.mud(map, c, wi)
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w + 1.3 * wake(c)
+  return w + 1.8 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -136,14 +136,16 @@ function RULES.grime(map, c)
   return w
 end
 function RULES.dust(map, c, wi, opts)
-  if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
-  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 1.2 * wake(c)
+  local edge = 1                                                              -- the film only reaches so high and the rain has taken the top of it: a soft edge over 0.15 of the height, not a cut
+  if opts then edge = max(0, min(1, (opts.maxH - c.h) / 0.15, (opts.washH - c.h) / 0.15)) if edge <= 0 then return 0 end end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
+  if opts and opts.film then return ((1.05 - 0.6 * c.h) * (c.nz > 0.7 and 0.6 or 1) + 2.0 * wake(c)) * edge end      -- the whole-car film: spread over the body with only a soft fade upward (a steep low band of weights showed as a hard-edged stripe)
+  return ((exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 2.0 * wake(c)) * edge
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)
-  if d > 0.95 then return 0 end
+  if d > 0.5 then return 0 end                                          -- a band at the arch edge, not the whole quarter panel
   local dy = behind(map, c, wi or select(2, nearWheel(map, c)))
-  return exp(-d / 0.4) * (dy > -0.15 and 1 or 0.25)                       -- the arch lip and the panel behind the spinning wheel
+  return exp(-d / 0.22) * (dy > -0.15 and 1 or 0.25)                       -- the arch lip and the panel behind the spinning wheel
 end
 function RULES.bugs(map, c)
   if c.ny > -0.4 then return 0 end                                        -- forward-facing: the nose, the front of the bonnet, the base of the windscreen
@@ -157,7 +159,7 @@ M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)
 local function table_for(map, kind, wi, opts)
-  local key = kind .. ':' .. tostring(wi) .. (opts and string.format(':%d:%d', floor(opts.maxH * 10), floor(opts.washH * 10)) or '')
+  local key = kind .. ':' .. tostring(wi) .. (opts and string.format(':%d:%d%s', floor(opts.maxH * 10), floor(opts.washH * 10), opts.film and 'f' or '') or '')
   local t = map.cache[key]
   if t then return t end
   local rule = RULES[kind]
@@ -177,12 +179,12 @@ end
 -- rnd() is a function that returns 0..1. wi: the wheel that throws it (mud, rubber). opts (dust): { maxH, washH } the height 0..1 the film reaches and the height above which rain has washed it.
 function M.sample(map, kind, n, rnd, wi, opts)
   local out = {}
-  if map.spray and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then                 -- thrown from the tyres: where the traced spray really hits
+  if map.spray and kind == 'mud' and #map.wheels > 0 then                 -- thrown from the tyres: where the traced spray really hits
     local tries = kind == 'rubber' and n * 3 or n * 4
     local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
       -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
-      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.5)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
     if kind == 'rubber' and #out > 0 then return out end
   end
