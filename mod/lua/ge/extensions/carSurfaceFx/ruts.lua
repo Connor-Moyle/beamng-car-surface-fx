@@ -285,7 +285,7 @@ function M.onUpdate(dt)
     pendingN = pendingN - 1
     makeChunk(chunk)
   end
-  rules.budget(bucket, dt, settings.maxPerSecond)
+  rules.refill(bucket, dt, settings.maxPerSecond)                 -- (not budget: that would spend a token every frame, and the bucket would never hold one for a chunk)
   if settings.berms.enabled then berm.update(settings.berms) end
   idleT = idleT + dt
   if idleT >= 0.5 then
@@ -351,7 +351,8 @@ end
 
 function M.onVehicleSpawned() pcall(injectAll) end
 function M.onVehicleSwitched() pcall(injectAll) end
-function M.onExtensionLoaded() M.load() loadSizes() M.clear() pcall(injectAll) end
+-- carSurfaceFx.lua loads this module only while its ruts switch is on, so being loaded is being on (the module's own `enabled` defaults to false and nothing else ever set it)
+function M.onExtensionLoaded() M.load() settings.enabled = true loadSizes() M.clear() pcall(injectAll) end
 function M.onExtensionUnloaded()
   M.clear()
   pcall(function()
