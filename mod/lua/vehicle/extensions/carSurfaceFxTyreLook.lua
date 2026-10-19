@@ -66,7 +66,16 @@ function M.info()       -- for game tests: per wheel the switches found (origina
   local t = {}
   for wi, l in pairs(sw) do local p = {} for _, s in ipairs(l) do p[#p + 1] = s.orig .. '#' .. s.msc end t[#t + 1] = wi .. ':' .. table.concat(p, ',') end
   table.sort(t)
-  return table.concat(t, ' ')
+  local out = table.concat(t, ' ')
+  if not out:find('#', 1, true) then       -- nothing matched: show what the matching saw
+    local seen = {}
+    for wi, wd in pairs(wheels.wheels or {}) do seen[#seen + 1] = 'wheel ' .. wi .. ' name=' .. tostring(wd.name) end
+    for _, fb in pairs(v.data.flexbodies or {}) do
+      if tostring(fb.mesh):find('tire', 1, true) then seen[#seen + 1] = 'fb ' .. tostring(fb.mesh) .. ' group=' .. (type(fb.group) == 'table' and table.concat(fb.group, '/') or tostring(fb.group)) end
+    end
+    out = out .. ' | ' .. table.concat(seen, '; ')
+  end
+  return out
 end
 function M.setEnabled(on) disabled = not on if disabled then M.restore() end end
 
