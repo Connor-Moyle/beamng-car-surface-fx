@@ -192,7 +192,7 @@ local function sendState(events)
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
     local stage = e.t.blown and 5 or R.stage(e.t, cfg)
-    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage) end
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage, true) end
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
     parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, stage, e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,

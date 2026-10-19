@@ -23,3 +23,11 @@ L.set(0, 3) L.restore()
 assert(L.stages() == '', 'restore puts everything back')
 assert(L.info() == '0:tire_01a@tire_01a_15x7_24D 1:tire_01a@tire_01a_15x7_24', 'info lists the meshes: ' .. L.info())
 print('carSurfaceFxTyreLook: ok')
+-- a stage set by hand is not undone by the tyre module's reports; restore() hands it back
+L.set(1, 5)
+local n = #sent
+L.set(1, 0, true)
+assert(#sent == n and L.stages():find('1=5', 1, true), 'the module reports do not override a stage set by hand')
+L.restore()
+L.set(1, 2, true)
+assert(L.stages() == '1=2', 'after restore the reports drive it again')

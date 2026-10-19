@@ -8,6 +8,7 @@ local RUBBER_MAT, METAL_NAME = 4, 'METAL'
 local sw                            -- wheel index -> { { orig, mesh } } once built
 local stageOf = {}                  -- wheel index -> the stage on show
 local metalOf = {}                  -- wheel index -> true while its tread nodes are METAL
+local pinned = {}                  -- wheel index -> true while a test has set its stage by hand (the tyre module's own reports leave it alone)
 local disabled = false
 
 -- The tyre flexbodies carry no group in the vehicle data (the Covet's are tire_01a_13x5_23, ..D, ..DD, ..DDD with group = nil), so a wheel's tyre mesh is found by a group ending in the wheel's
@@ -65,8 +66,9 @@ local function setMetal(wi, on)
 end
 
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone
-function M.set(wi, stage)
-  if disabled then return end
+function M.set(wi, stage, auto)         -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore()
+  if disabled or (auto and pinned[wi]) then return end
+  if not auto then pinned[wi] = true end
   if not sw then build() end
   stage = math.max(0, math.min(5, math.floor(tonumber(stage) or 0)))
   if stageOf[wi] == stage then return end
@@ -99,7 +101,7 @@ function M.setEnabled(on) disabled = not on if disabled then M.restore() end end
 
 function M.restore()
   for wi in pairs(stageOf) do pcall(M.set, wi, 0) end
-  stageOf = {}
+  stageOf, pinned = {}, {}
 end
 function M.onReset() M.restore() end
 function M.onExtensionUnloaded() pcall(M.restore) end
