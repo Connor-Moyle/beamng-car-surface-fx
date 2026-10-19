@@ -62,6 +62,8 @@ Reading: parked, nothing but the window canvases costs a measurable amount. The 
 
 Leaks with a real ring (connor-80, 2f37d48, `fillRing(100, 4, 'oil', 0.6)`, 100 puddles, 20,066 decals drawn, parked): off 12.82 ms, on 12.84 ms, delta +0.03 ms (p99 +0.03). Leaks cost nothing measurable parked. The mesh planes were read after the run (28 built and deleted), so the plane cost itself is still unread: read `carSurfaceFx_fluids.status()` during the run. A scripted constant-steer circle is not possible on this map (the covet reaches a wall within 6 to 10 s everywhere), so the driving A/B uses the AI in `random` mode.
 
+Driving A/B (connor-80, 687eb01, AI `random` at about 33 km/h average, Max preset, heavy rain, three off and three on windows per feature, noise within a state 1 to 4 ms): skid marks 17.71 to 20.36 ms (**+2.65**, every on window above every off window, the only clear one), dirt +0.62, weather +0.70, cockpit overlay +0.74 (all inside the noise). So skid marks are what costs while driving. Action: the Max preset's mark caps are lowered (drawn decals 1200 from 2000, skid marks 3000 from 5000, track marks 5000 from 8000, and the lower levels in proportion); to be re-measured with the same A/B.
+
 ## Budget table (Max preset)
 
 | Feature | Proposed cap (ms) | Measured by 80 (ms) | Main knobs |
