@@ -67,5 +67,5 @@ veh.switchMaterial = function(_, msc, m) calls[#calls + 1] = msc .. '=' .. m end
 veh.resetMaterials = function(_, msc) calls[#calls + 1] = msc .. '=reset' end
 T.look(7, 0, 3, { { 'tire_01a', 'tire_01a_x' } })
 T.look(7, 0, 0, { { 'tire_01a', 'tire_01a_x' } })
-assert(sw == 1 and calls[1] == '41=csfx_tire_01a_s3' and calls[2] == '41=reset', 'one switch per mesh, stage 3 then back: ' .. table.concat(calls, ' '))
+assert(sw == 1 and calls[#calls - 1] == '41=csfx_tire_01a_s3' and calls[#calls] == '41=reset' and calls[1] == '41=csfx_tire_01a_s1', 'one switch per mesh, all states once, then stage 3 and back: ' .. table.concat(calls, ' '))
 print('carSurfaceFx tyres (game side): ok')

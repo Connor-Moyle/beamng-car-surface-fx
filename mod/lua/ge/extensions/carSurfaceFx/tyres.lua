@@ -77,7 +77,12 @@ function M.look(id, wi, stage, list)
   for _, p in ipairs(list or {}) do
     local key = p[1] .. '|' .. p[2]
     local msc = lookMsc[id][key]
-    if not msc then msc = v:getSwitchableMaterial(p[1], p[1], p[2]) lookMsc[id][key] = msc end
+    if not msc then
+      msc = v:getSwitchableMaterial(p[1], p[1], p[2])
+      lookMsc[id][key] = msc
+      -- like the engine's own switches (common/jbeam/materials.lua): run once through every state so the shaders and textures are ready when it matters (a first switch showed flat black)
+      if msc and msc >= 0 then for st = 1, 5 do v:switchMaterial(msc, 'csfx_' .. p[1] .. '_s' .. st) end v:resetMaterials(msc) end
+    end
     if msc and msc >= 0 then
       if stage == 0 then v:resetMaterials(msc) else v:switchMaterial(msc, 'csfx_' .. p[1] .. '_s' .. stage) end
     end

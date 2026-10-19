@@ -6951,5 +6951,57 @@
    {},
    {}
   ]
+ },
+ "csfx_tire_01a_plain": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_01a_plain",
+  "mapTo": "csfx_tire_01a_plain",
+  "persistentId": "589bae4b-15d0-5de7-888d-6282a5fc9edf",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png"
+   },
+   {},
+   {},
+   {}
+  ]
+ },
+ "csfx_tire_01a_dn": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_01a_dn",
+  "mapTo": "csfx_tire_01a_dn",
+  "persistentId": "c6df0a08-d621-50d7-9249-87571b2e9675",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
+    "detailNormalMap": "/art/surfacefx/tyres/tyre_worn_1.normal.png",
+    "detailNormalMapStrength": 0.5,
+    "detailScale": [
+     3,
+     3
+    ]
+   },
+   {},
+   {},
+   {}
+  ]
  }
 }
