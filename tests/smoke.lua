@@ -207,7 +207,7 @@ M.debug()
 -- the Mods menu schema: registered with the registry, every field complete and consistent with the mod's defaults
 local registered
 slrr_settings = {
-  register = function(sc) registered = sc end,
+  register = function(sc) registered = registered or sc end,          -- (the first page is the mod's own; the Tyres page registers after it)
   each = function(ids, fn) local out = {} for _, id in ipairs(ids) do for _, f in ipairs(fn(id)) do out[#out + 1] = f end end return out end,
   join = function(...) local out = {} for _, l in ipairs({ ... }) do for _, f in ipairs(l) do out[#out + 1] = f end end return out end,
 }

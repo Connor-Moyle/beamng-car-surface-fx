@@ -441,11 +441,17 @@ end
 
 -- Tyre wear, temperature and grip (carSurfaceFx/tyres.lua + the car module). Runs while settings.tyres.enabled (off by default until shown in the game).
 local function tyresOn() return rawget(_G, 'carSurfaceFx_tyres') ~= nil end
+local tyresWanted = false                             -- the Tyres page's switch (file settings/carSurfaceFx_tyres.json), read when the settings are loaded
+local function readTyresFlag()
+  local f = jsonReadFile(require('carSurfaceFx/tyresSchema').FILE)
+  tyresWanted = type(f) == 'table' and f.enabled == true
+  if tyresOn() then carSurfaceFx_tyres.reload() end
+end
 local function startTyres()
-  if tyresOn() or not (settings.tyres and settings.tyres.enabled) then return end
+  if tyresOn() or not tyresWanted then return end
   extensions.load('carSurfaceFx_tyres')
   setExtensionUnloadMode('carSurfaceFx_tyres', 'manual')
-  carSurfaceFx_tyres.configure(settings.tyres)
+  carSurfaceFx_tyres.reload()
   log_('I', 'tyre module started')
 end
 local function stopTyres()
@@ -686,7 +692,7 @@ local function update(dtReal)
   if settings and settings.ruts and settings.ruts.enabled ~= rutsOn() then if settings.ruts.enabled then startRuts() else stopRuts() end end
   if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
   if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
-  if settings and settings.tyres and settings.tyres.enabled ~= tyresOn() then if settings.tyres.enabled then startTyres() else stopTyres() end end
+  if settings and tyresWanted ~= tyresOn() then if tyresWanted then startTyres() else stopTyres() end end
   if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
   if not settings then loadSettings() end
   local q = queue[1]
@@ -787,7 +793,11 @@ function M.resume() failed = nil return 'resumed' end
 local OPTIONS_MARKER = 'carsurfacefx-v1'
 function M.onSlrrSettingsReady()
   local S = rawget(_G, 'slrr_settings')
-  if S and S.register then S.register(require('carSurfaceFx/schema').build(S, M)) end
+  if S and S.register then
+    S.register(require('carSurfaceFx/schema').build(S, M))
+    S.register(require('carSurfaceFx/tyresSchema').build(S, { reload = readTyresFlag }))
+  end
+  readTyresFlag()
 end
 function M.onExtensionLoaded()
   if not settings then loadSettings() end
@@ -799,6 +809,7 @@ end
 function M.reloadSettings()
   if not settings then return end
   loadSettings()
+  readTyresFlag()
   if scratchOn() then carSurfaceFx_scratch.configure(settings.scratch) end
 end
 M.onSettingsChanged = M.reloadSettings

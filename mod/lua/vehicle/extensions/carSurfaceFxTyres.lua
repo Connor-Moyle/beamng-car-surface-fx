@@ -178,6 +178,10 @@ function M.setConfig(tbl)                          -- fields of csfx_tyrerules.d
   if type(tbl) ~= 'table' then return end
   for k, val in pairs(tbl) do
     if k == 'enabled' then enabled = val and true or false
+    elseif k == 'compounds' then              -- the Mods page's per-compound overrides over the rules' table
+      for name, o in pairs(type(val) == 'table' and val or {}) do
+        if R.COMPOUNDS[name] and type(o) == 'table' then for f, x in pairs(o) do if type(x) == 'number' then R.COMPOUNDS[name][f] = x end end end
+      end
     elseif type(val) == 'table' and type(cfg[k]) == 'table' then for k2, v2 in pairs(val) do cfg[k][k2] = v2 end
     else cfg[k] = val end
   end

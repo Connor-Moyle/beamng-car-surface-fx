@@ -30,6 +30,13 @@ function M.configure(t)
   for id in pairs(watched) do load_(id) end
   return cfg
 end
+-- the Mods page's file (carSurfaceFx/tyresSchema.lua): its layout is the cfg's, plus compounds.<name>.<field> overrides; a missing key keeps its default
+function M.reload()
+  local f = jsonReadFile and jsonReadFile(require('carSurfaceFx/tyresSchema').FILE)
+  if type(f) ~= 'table' then return cfg end
+  f.preset = nil
+  return M.configure(f)
+end
 function M.getConfig() return cfg end
 
 function M.attach(id)
