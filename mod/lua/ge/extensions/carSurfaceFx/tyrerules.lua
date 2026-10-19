@@ -11,16 +11,18 @@ M.clamp = clamp
 -- ---- compounds (research section 4). h0 tread mm, margin = how far below zero the belts/cord go before the blow-out, k mm3/J, lo/hi the grip window (C), grip20 the grip at 20 C,
 -- drop the grip lost per 10 C over hi, wearOn the temperature wear starts to climb, dry0/wet0 the grip at 0 mm, crr rolling resistance
 M.COMPOUNDS = {
-  road        = { h0 = 8.0,  margin = 0.5, k = 0.10, lo = 20,  hi = 85,  grip20 = 0.98, drop = 0.02, wearOn = 110, dry0 = 1.02, wet0 = 0.80, crr = 0.010 },
-  performance = { h0 = 7.0,  margin = 0.5, k = 0.14, lo = 40,  hi = 90,  grip20 = 0.93, drop = 0.03, wearOn = 110, dry0 = 1.03, wet0 = 0.75, crr = 0.011 },
-  semislick   = { h0 = 5.0,  margin = 0.4, k = 0.25, lo = 70,  hi = 104, grip20 = 0.85, drop = 0.04, wearOn = 120, dry0 = 1.04, wet0 = 0.60, crr = 0.013 },
-  slick       = { h0 = 3.0,  margin = 0.3, k = 0.40, lo = 80,  hi = 105, grip20 = 0.75, drop = 0.05, wearOn = 125, dry0 = 1.00, wet0 = 0.45, crr = 0.015 },
-  slicksoft   = { h0 = 3.0,  margin = 0.3, k = 0.60, lo = 85,  hi = 110, grip20 = 0.72, drop = 0.06, wearOn = 120, dry0 = 1.00, wet0 = 0.45, crr = 0.015 },
-  drag        = { h0 = 3.0,  margin = 0.3, k = 0.50, lo = 60,  hi = 100, grip20 = 0.80, drop = 0.04, wearOn = 130, dry0 = 1.00, wet0 = 0.40, crr = 0.015 },
-  offroad     = { h0 = 11.0, margin = 0.6, k = 0.12, lo = 0,   hi = 70,  grip20 = 1.00, drop = 0.02, wearOn = 100, dry0 = 1.00, wet0 = 0.85, crr = 0.014 },
-  mud         = { h0 = 15.0, margin = 0.6, k = 0.15, lo = 0,   hi = 60,  grip20 = 1.00, drop = 0.02, wearOn = 95,  dry0 = 0.98, wet0 = 0.85, crr = 0.016 },
-  winter      = { h0 = 9.0,  margin = 0.5, k = 0.12, lo = -25, hi = 15,  grip20 = 0.94, drop = 0.03, wearOn = 70,  dry0 = 1.00, wet0 = 0.80, crr = 0.011 },
-  rally       = { h0 = 9.0,  margin = 0.5, k = 0.15, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012 },
+  road        = { h0 = 8.0,  margin = 0.5, k = 0.10, lo = 20,  hi = 85,  grip20 = 0.98, drop = 0.02, wearOn = 110, dry0 = 1.02, wet0 = 0.80, crr = 0.010, wetF = 1.0, aqua = 22, loose = 0.9, snow = 0.7 },
+  performance = { h0 = 7.0,  margin = 0.5, k = 0.14, lo = 40,  hi = 90,  grip20 = 0.93, drop = 0.03, wearOn = 110, dry0 = 1.03, wet0 = 0.75, crr = 0.011, wetF = 0.95, aqua = 20, loose = 0.85, snow = 0.65 },
+  semislick   = { h0 = 5.0,  margin = 0.4, k = 0.25, lo = 70,  hi = 104, grip20 = 0.85, drop = 0.04, wearOn = 120, dry0 = 1.04, wet0 = 0.60, crr = 0.013, wetF = 0.75, aqua = 16, loose = 0.8, snow = 0.6 },
+  slick       = { h0 = 3.0,  margin = 0.3, k = 0.40, lo = 80,  hi = 105, grip20 = 0.75, drop = 0.05, wearOn = 125, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  slicksoft   = { h0 = 3.0,  margin = 0.3, k = 0.60, lo = 85,  hi = 110, grip20 = 0.72, drop = 0.06, wearOn = 120, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  drag        = { h0 = 3.0,  margin = 0.3, k = 0.50, lo = 60,  hi = 100, grip20 = 0.80, drop = 0.04, wearOn = 130, dry0 = 1.00, wet0 = 0.40, crr = 0.015, wetF = 0.5, aqua = 11, loose = 0.65, snow = 0.45 },
+  offroad     = { h0 = 11.0, margin = 0.6, k = 0.12, lo = 0,   hi = 70,  grip20 = 1.00, drop = 0.02, wearOn = 100, dry0 = 1.00, wet0 = 0.85, crr = 0.014, wetF = 1.0, aqua = 22, loose = 1.15, snow = 0.9 },
+  mud         = { h0 = 15.0, margin = 0.6, k = 0.15, lo = 0,   hi = 60,  grip20 = 1.00, drop = 0.02, wearOn = 95,  dry0 = 0.98, wet0 = 0.85, crr = 0.016, wetF = 1.0, aqua = 22, loose = 1.25, snow = 0.95 },
+  winter      = { h0 = 9.0,  margin = 0.5, k = 0.12, lo = -25, hi = 15,  grip20 = 0.94, drop = 0.03, wearOn = 70,  dry0 = 1.00, wet0 = 0.80, crr = 0.011, wetF = 1.02, aqua = 22, loose = 1.0, snow = 1.3 },
+  intermediate = { h0 = 7.5, margin = 0.5, k = 0.20, lo = 25, hi = 70, grip20 = 0.90, drop = 0.04, wearOn = 85, dry0 = 0.95, dryF = 0.96, wet0 = 0.85, crr = 0.012, wetF = 1.20, aqua = 28, loose = 0.8, snow = 0.7 },
+  fullwet      = { h0 = 9.0, margin = 0.5, k = 0.30, lo = 15, hi = 55, grip20 = 0.92, drop = 0.06, wearOn = 70, dry0 = 0.85, dryF = 0.90, wet0 = 0.90, crr = 0.013, wetF = 1.30, aqua = 33, loose = 0.8, snow = 0.8 },
+  rally       = { h0 = 9.0,  margin = 0.5, k = 0.15, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012, wetF = 1.0, aqua = 22, loose = 1.1, snow = 0.85 },
 }
 
 function M.defaults()
@@ -193,16 +195,31 @@ function M.tempGrip(c, T, cfg)
   if T > c.hi then return math.max(0.6, 1 - c.drop * (T - c.hi) / 10 * hot) end
   return 1
 end
+-- wet = true/false or 0..1 (how wet the surface is). Dry: dry0 at 0 mm to dryF (default 1) at full tread. Wet: wet0 at 0 mm to wetF (the compound against a road tyre on the same wet road) at full tread.
 function M.wearGrip(c, h, wet)
-  local at0 = wet and c.wet0 or c.dry0
-  return at0 + (1 - at0) * clamp(h / c.h0, 0, 1)
+  local w = wet == true and 1 or (wet and wet ~= false and clamp(wet, 0, 1) or 0)
+  local f = clamp(h / c.h0, 0, 1)
+  local dry = c.dry0 + ((c.dryF or 1) - c.dry0) * f
+  if w <= 0 then return dry end
+  local wetG = c.wet0 + ((c.wetF or 1) - c.wet0) * f
+  return dry + (wetG - dry) * w
 end
+-- standing water: above the compound's aquaplaning speed (lower with less tread) the grip falls away, up to 80% at depth 1
+function M.aquaplane(c, h, water, v)
+  if (water or 0) <= 0 then return 1 end
+  local va = (c.aqua or 22) * (0.4 + 0.6 * clamp(h / c.h0, 0, 1))
+  return 1 - 0.8 * clamp(water, 0, 1) * clamp((math.abs(v or 0) - va) / 8, 0, 1)
+end
+-- loose ground and snow suit some compounds: surface = 'dirt' | 'gravel' | 'mud' | 'sand' | 'snow' | anything else (no change)
+local LOOSE = { dirt = 'loose', gravel = 'loose', mud = 'loose', sand = 'loose', snow = 'snow' }
+function M.surfaceGrip(c, surface) local f = LOOSE[surface or ''] return f and c[f] or 1 end
 -- the multipliers (static, sliding) for the node slot j, to be applied to its stock coefficients; wet = the contact is wet
-function M.nodeGrip(t, j, wet, cfg)
+function M.nodeGrip(t, j, wet, cfg, ctx)
   local c = t.c
   local fT = M.tempGrip(c, t.Ts + (t.flash[M.sectorOf(j)] or 0) * 0.5, cfg)
   if t.h[j] <= 0 then return cfg.beltGrip * fT, cfg.beltSliding * fT end
   local fw = M.wearGrip(c, t.h[j], wet)
+  if ctx then fw = fw * M.aquaplane(c, t.h[j], ctx.water, ctx.v) * M.surfaceGrip(c, ctx.surface) end
   local ff = 1
   if cfg.flat.enabled then
     local d = M.flatDepth(t, M.sectorOf(j))

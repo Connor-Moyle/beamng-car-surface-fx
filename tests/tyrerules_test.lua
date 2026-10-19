@@ -157,6 +157,35 @@ end
 near(R.shakeHz(27.8, 0.31), 14.3, 0.2, 'about 14 Hz at 100 km/h')
 near(R.shakeForce(1.5), 375, 1e-9, '1.5 mm of flat spot pulls 375 N')
 
+-- ---- wet performance by compound
+local C = R.COMPOUNDS
+local function wg(name, wet) return R.wearGrip(C[name], C[name].h0, wet) end
+assert(wg('slick', 1) < 0.6 * wg('fullwet', 1), 'a slick on wet is far below a rain tyre: ' .. wg('slick', 1) .. ' vs ' .. wg('fullwet', 1))
+assert(wg('road', 1) > wg('slick', 1) and wg('road', 1) < wg('intermediate', 1) and wg('intermediate', 1) < wg('fullwet', 1), 'road sits between slick and rain tyres')
+assert(wg('fullwet', 0) < wg('road', 0) and wg('intermediate', 0) < wg('road', 0), 'rain tyres give up grip on a dry road')
+near(wg('road', 0.5), (wg('road', 0) + wg('road', 1)) / 2, 1e-9, 'half wet is halfway')
+assert(R.wearGrip(C.road, 2, 1) < R.wearGrip(C.road, 8, 1), 'worn tread is worse in the wet')
+-- aquaplaning: a slick goes first, a bald tyre earlier than a new one, a dry puddle-free road never
+assert(R.aquaplane(C.slick, 3, 0, 40) == 1, 'no water, no aquaplaning')
+assert(R.aquaplane(C.slick, 3, 1, 25) < R.aquaplane(C.fullwet, 9, 1, 25), 'at 90 km/h in a puddle the slick floats first')
+assert(R.aquaplane(C.road, 2, 1, 20) < R.aquaplane(C.road, 8, 1, 20), 'less tread aquaplanes at lower speed')
+near(R.aquaplane(C.road, 8, 1, 5), 1, 1e-9, 'slow through a puddle is fine')
+-- loose ground and snow
+assert(R.surfaceGrip(C.mud, 'mud') > R.surfaceGrip(C.slick, 'mud'), 'mud tyres beat slicks in mud')
+assert(R.surfaceGrip(C.winter, 'snow') > R.surfaceGrip(C.road, 'snow'), 'winter tyres beat road tyres on snow')
+near(R.surfaceGrip(C.road, 'asphalt'), 1, 1e-9, 'tarmac: no change')
+-- a node in a puddle: the slick loses more than the rain tyre
+local sl, fwt = R.new('slick', 16, 0.3, 0.2, 80), R.new('fullwet', 16, 0.3, 0.2, 40)
+local gs = R.nodeGrip(sl, 5, 1, cfg, { water = 1, v = 30 })
+local gf = R.nodeGrip(fwt, 5, 1, cfg, { water = 1, v = 30 })
+assert(gs < 0.5 * gf, 'slick vs rain tyre in a puddle at 108 km/h: ' .. gs .. ' vs ' .. gf)
+-- a rain tyre on a dry road overheats: grip falls at a temperature a road tyre handles, and wears faster
+assert(R.tempGrip(C.fullwet, 80, cfg) < R.tempGrip(C.road, 80, cfg), 'a rain tyre at 80 C is past its window')
+assert(R.heatWear(C.fullwet, 100, cfg) > R.heatWear(C.road, 100, cfg), 'and wears faster there')
+-- rain cools a slick: same power, wet vs dry
+local function run(wet) local x = R.new('slick', 16, 0.3, 0.2, 20, 1) for _ = 1, 600 do R.tempStep(x, { dt = 0.05, power = 8000, v = 30, fz = 4000, ambient = 20, wet = wet }, cfg) end return x.Ts end
+assert(run(1) < run(0) - 5, 'rain cools the tyre: ' .. run(1) .. ' vs ' .. run(0))
+
 -- ---- debris, smoke, fire
 local d = R.new('road', 16) d.Ts = 60 d.shed = 1000
 local gCool = R.takeDebris(d, cfg)
