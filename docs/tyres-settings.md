@@ -7,6 +7,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | (top) | enabled | **false** (shipped off) | on/off | N | the whole tyre simulation |
 | Wear | wearRate | 1.0 | 0 - 20 | N | time scale of wear (real wear is invisible in play) |
 | Wear | surface.asphalt / concrete / wet / gravel / dirt / rock / snow / ice | 1 / 1.2 / 0.6 / 0.5 / 0.5 / 1.5 / 0.2 / 0.2 | 0 - 3 each | A | wear multiplier per surface |
+| Wear | spinWear | 4 | 1 - 10 | A | wheelspin and cornering wear this many times faster than a locked slide |
 | Wear | deadZone | 0.3 | 0 - 2 m/s | A | slip below this wears nothing |
 | Wear | heatWearScale | 60 | 10 - 200 C | A | C over the compound's wearOn that doubles wear |
 | Wear | heatWearMax | 4 | 1 - 10 | A | cap of the heat wear multiplier |

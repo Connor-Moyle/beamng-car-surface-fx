@@ -43,6 +43,7 @@ local ROWS = {
   row('wear', 'surface.rock', 'slider', 'Wear on rock', 'Wear on rock.', 0, 3, 0.1, 'x', true),
   row('wear', 'surface.snow', 'slider', 'Wear on snow', 'Wear on snow.', 0, 3, 0.1, 'x', true),
   row('wear', 'surface.ice', 'slider', 'Wear on ice', 'Wear on ice.', 0, 3, 0.1, 'x', true),
+  row('wear', 'spinWear', 'slider', 'Wheelspin wear', 'How much faster wheelspin, burnouts and hard cornering wear a tyre than a locked wheel sliding. A full burnout takes a road tyre to the belts in about two minutes.', 1, 10, 0.5, 'x', true),
   row('wear', 'deadZone', 'slider', 'Slip that wears nothing', 'Slip slower than this (metres per second) wears no rubber: it is the tiny slip of a rolling wheel.', 0, 2, 0.05, 'm/s', true),
   row('wear', 'heatWearScale', 'slider', 'Heat that doubles wear', 'Degrees over the compound\'s wear temperature that double the wear.', 10, 200, 5, 'C', true),
   row('wear', 'heatWearMax', 'slider', 'Most extra wear from heat', 'The most the heat can multiply the wear by.', 1, 10, 0.5, 'x', true),

@@ -43,12 +43,12 @@ near((8 - x10.h[5]) / (8 - x1.h[5]), 10, 0.001, 'the wear multiplier scales the 
 -- ---- the calibration target (62, live test): a 1 s lock from 46 km/h (~64 kJ) leaves 0.1 to 0.3 mm, 100 to 0 km/h locked (~190 kJ into one front tyre) about a millimetre
 local lock = R.new('road', 16, 0.305, 0.175, 20)
 -- the lock holds one patch of ~15,000 mm2, about one sector (both lanes); the stationary patch flashes hot (60 C over the tyre)
-R.addEnergy(lock, 9, 95000) R.addEnergy(lock, 10, 95000) lock.flash[5] = 60
+R.addEnergy(lock, 9, 95000, true) R.addEnergy(lock, 10, 95000, true) lock.flash[5] = 60
 lock.Ts = 150 R.wearStep(lock, {}, cfg)               -- (a long skid heats the tyre: about 150 C by the end)
 local w = R.worstFlat(lock)
 assert(w > 0.3 and w < 1.5, 'a long locked skid makes a flat spot of about a millimetre: ' .. w)
 local short = R.new('road', 16, 0.305, 0.175, 20)
-R.addEnergy(short, 9, 32000) R.addEnergy(short, 10, 32000) short.Ts = 40 short.flash[5] = 30 R.wearStep(short, {}, cfg)
+R.addEnergy(short, 9, 32000, true) R.addEnergy(short, 10, 32000, true) short.Ts = 40 short.flash[5] = 30 R.wearStep(short, {}, cfg)
 assert(R.worstFlat(short) > 0.05 and R.worstFlat(short) < 0.3, 'and a 1 s lock from 46 km/h a flat spot of 0.1 to 0.3 mm: ' .. R.worstFlat(short))
 -- the same energy spread over the whole ring does not
 local roll = R.new('road', 16, 0.305, 0.175, 20)
@@ -56,12 +56,27 @@ for j = 1, 32 do R.addEnergy(roll, j, 190000 / 32) end
 roll.Ts = 60 R.wearStep(roll, {}, cfg)
 assert(R.worstFlat(roll) < 0.001, 'rolling wears the ring evenly: no flat spot')
 assert(8 - roll.h[1] < 0.8, 'and not much, in one stop')
+-- three kinds of wear: a locked wheel's sliding stays low, wheelspin and cornering are spinWear times faster, and rolling micro-slip below the dead zone wears nothing
+local wl, ws, wn = R.new('road', 16), R.new('road', 16), R.new('road', 16)
+R.addEnergy(wl, 5, 50000, true) R.addEnergy(ws, 5, 50000, false)
+R.addEnergy(wn, 5, R.slipPower(0.1, 4000, 1, cfg.deadZone) * 10)
+for _, x in ipairs({ wl, ws, wn }) do R.wearStep(x, {}, cfg) end
+near((8 - ws.h[5]) / (8 - wl.h[5]), cfg.spinWear, 1e-9, 'wheelspin wears spinWear times faster than a locked slide')
+assert(cfg.spinWear == 4 and wn.h[5] == 8, 'rolling micro-slip wears nothing')
+-- a full burnout reaches the belts in about two minutes (live test: 0.1 mm/s on the worst slot): 40 kW into a few slots, the surface hot
+local burn = R.new('road', 16, 0.305, 0.175, 20) burn.Ts = 150
+local secs = 0
+while burn.h[1] > 0 and secs < 600 do
+  for j = 1, 6 do R.addEnergy(burn, j, 40000 / 6) end            -- (the slip power lands on a few slots of the ring, not evenly: the worst slot decides)
+  R.wearStep(burn, {}, cfg) R.clearEnergy(burn) secs = secs + 1
+end
+assert(secs > 60 and secs < 240, 'a full burnout wears an 8 mm road tyre to the belts in one to four minutes: ' .. secs .. ' s')
 -- a flat spot is a shallow sector among deeper neighbours
 local _, at = R.worstFlat(lock)
 assert(at == 5, 'the flat spot is where the energy went: ' .. tostring(at))
 assert(R.flatDepth(roll, 3) == 0, 'no flat depth on an even ring')
 -- wrap-around: the ring is closed
-local ring = R.new('road', 16) R.addEnergy(ring, 1, 500000) R.addEnergy(ring, 2, 500000) R.wearStep(ring, {}, cfg)
+local ring = R.new('road', 16) R.addEnergy(ring, 1, 500000, true) R.addEnergy(ring, 2, 500000, true) R.wearStep(ring, {}, cfg)
 assert(R.flatDepth(ring, 1) > 0.5 and R.flatDepth(ring, 16) < 0.001 + 0.5 * 1.1, 'sector 1 is next to sector 16')
 -- belts, cord and the blow-out
 local worn = R.new('road', 16)

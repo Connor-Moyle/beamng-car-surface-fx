@@ -10,6 +10,7 @@ local TICK = 0.1                    -- seconds between wear / temperature / grip
 local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
+local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
@@ -127,8 +128,10 @@ local function credit(e, dt)
   local j = e.slotOf[wd.lastTreadContactNode]
   if not j then return p end                       -- (power still heats the tyre, no node to wear)
   local mate = j % 2 == 1 and j + 1 or j - 1       -- the other lane of the sector
-  R.addEnergy(t, j, p * dt * 0.5)
-  R.addEnergy(t, mate, p * dt * 0.5)
+  local slip = abs(tonumber(wd.lastSlip) or 0)
+  local lock = abs(tonumber(wd.wheelSpeed) or 0) < LOCK_RATIO * slip       -- the wheel barely turns while the ground goes by: locked sliding (low flat-spot wear)
+  R.addEnergy(t, j, p * dt * 0.5, lock)
+  R.addEnergy(t, mate, p * dt * 0.5, lock)
   return p
 end
 

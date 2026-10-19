@@ -30,6 +30,7 @@ function M.defaults()
     enabled = false,
     wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
     surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
+    spinWear = 4,                                           -- wheelspin and cornering slip wear this many times faster than a locked wheel's sliding (a burnout reaches the belts in about 2 minutes)
     deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)
     heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
@@ -71,8 +72,8 @@ function M.laneOf(j) return j % 2 == 1 and 1 or 2 end                  -- 1 oute
 -- a new tyre: n = numRays (16 or 20), r = radius m, w = tread width m, ambient C. Starts at the ambient temperature, optionally warm (frac of the window).
 function M.new(compoundName, n, r, w, ambient, warm)
   local c = M.COMPOUNDS[compoundName] or M.COMPOUNDS.road
-  local t = { compound = compoundName, c = c, n = n, r = r or 0.305, w = w or 0.175, h = {}, E = {}, flash = {}, cord = 0, blown = false }
-  for j = 1, 2 * n do t.h[j] = c.h0 t.E[j] = 0 end
+  local t = { compound = compoundName, c = c, n = n, r = r or 0.305, w = w or 0.175, h = {}, E = {}, EL = {}, flash = {}, cord = 0, blown = false }
+  for j = 1, 2 * n do t.h[j] = c.h0 t.E[j] = 0 t.EL[j] = 0 end
   for i = 1, n do t.flash[i] = 0 end
   local T0 = (ambient or 20) + (warm or 0) * (c.lo + 0.5 * (c.hi - c.lo) - (ambient or 20))
   t.Ts, t.Tc = T0, T0
@@ -80,7 +81,10 @@ function M.new(compoundName, n, r, w, ambient, warm)
   return t
 end
 
-function M.addEnergy(t, j, joules) if t.E[j] then t.E[j] = t.E[j] + joules end end
+-- lock = the wheel is sliding locked (its slip energy wears at the low flat-spot rate); anything else (wheelspin, cornering) wears spinWear times faster
+function M.addEnergy(t, j, joules, lock)
+  if t.E[j] then t.E[j] = t.E[j] + joules if lock then t.EL[j] = t.EL[j] + joules end end
+end
 
 -- energy P*dt of a rolling or sliding wheel at the contact node j (research 8.2 B): the whole ring is fed round when it rolls, one slot when it is locked
 function M.slipPower(slipVel, normalForce, mu, deadZone)
@@ -111,6 +115,7 @@ function M.wearStep(t, ctx, cfg)
   for j = 1, 2 * t.n do
     local e = t.E[j]
     if e > 0 then
+      e = t.EL[j] + (e - t.EL[j]) * (cfg.spinWear or 1)
       local i = M.sectorOf(j)
       local g = M.heatWear(c, t.Ts + (t.flash[i] or 0), cfg)
       local dh = c.k * (e / t.slotArea) * g * ms * mp * cfg.wearRate
@@ -246,7 +251,7 @@ function M.tempStep(t, ctx, cfg)
 end
 
 -- clear the accumulators after the steps of a tick have used them
-function M.clearEnergy(t) for j = 1, 2 * t.n do t.E[j] = 0 end end
+function M.clearEnergy(t) for j = 1, 2 * t.n do t.E[j] = 0 t.EL[j] = 0 end end
 function M.totalEnergy(t) local s = 0 for j = 1, 2 * t.n do s = s + t.E[j] end return s end
 
 -- ---- grip (research 8.5): multipliers on the stock node friction

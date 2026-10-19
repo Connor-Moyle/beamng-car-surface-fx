@@ -196,4 +196,15 @@ assert(after[1].h[5] == 8.0 and after[0].h[5] == 8.0 and not after[1].blown, 'a 
 wheels.wheels[1] = nil
 T.setCompound(nil)
 T.setConfig({ heatRate = 1 })
+-- locked sliding wears at the low rate, wheelspin spinWear times faster
+local function wearOf(wheelSpeed)
+  T.setConfig({ enabled = true, wearRate = 50 })
+  T.repair()
+  wd.lastSlip, wd.wheelSpeed, wd.downForce, wd.lastTreadContactNode = 10, wheelSpeed, 4000, 105
+  for _ = 1, 50 do T.updateGFX(0.01) end
+  return 8 - T.snapshot()[0].h[5]
+end
+local locked, spinning = wearOf(0), wearOf(20)
+assert(locked > 0 and spinning / locked > 2.5 and spinning / locked < 5, 'a locked wheel wears less than a spinning one: ' .. locked .. ' vs ' .. spinning)
+T.setConfig({ wearRate = 1 })
 wheels, v, obj, log = nil, nil, nil, nil
