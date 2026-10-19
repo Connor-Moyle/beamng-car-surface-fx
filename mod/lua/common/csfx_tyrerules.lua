@@ -38,7 +38,7 @@ function M.defaults()
     beltGrip = 0.55, beltSliding = 0.50,
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
-    smokeOn = 150, smokeFull = 250, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
+    smokeOn = 90, smokeFull = 180, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
     blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },

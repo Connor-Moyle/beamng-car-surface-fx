@@ -242,7 +242,7 @@ local gCool = R.takeDebris(d, cfg)
 d.Ts = 250 d.shed = 1000
 local gHot, tHot = R.takeDebris(d, cfg)
 assert(gHot > gCool and d.shed == 0 and tHot == 250, 'hot rubber throws more debris: ' .. gCool .. ' ' .. gHot)
-near(R.smoke(150, cfg), 0, 1e-9, 'no smoke at 150') near(R.smoke(200, cfg), 0.5, 1e-9, 'half smoke at 200') near(R.smoke(300, cfg), 1, 1e-9, 'full smoke')
+near(R.smoke(90, cfg), 0, 1e-9, 'no smoke at 90') near(R.smoke(135, cfg), 0.5, 1e-9, 'half smoke at 135') near(R.smoke(300, cfg), 1, 1e-9, 'full smoke')
 local pile = { g = 50, T = 400 }
 assert(R.pileStep(pile, 0.1, 20, 0, cfg), 'a hot pile of 50 g catches')
 local cold = { g = 50, T = 100 } assert(not R.pileStep(cold, 0.1, 20, 0, cfg), 'a cool pile does not')

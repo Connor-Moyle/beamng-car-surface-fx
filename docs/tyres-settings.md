@@ -27,7 +27,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Fire & debris | fires | true | on/off | N | "Tyre fires" |
 | Fire & debris | fireSpread | **false** (unproven) | on/off | N | "Fires can spread to the car" |
 | Fire & debris | spreadAfter | 4 | 1 - 20 s | A | s of tyre fire before the car's nearest flammable node is lit |
-| Fire & debris | smokeOn / smokeFull | 150 / 250 | 80 - 400 C | A | smoke starts and is full |
+| Fire & debris | smokeOn / smokeFull | 90 / 180 | 80 - 400 C | A | smoke starts and is full |
 | Fire & debris | igniteT | 420 | 200 - 600 C | A | surface temperature that ignites |
 | Fire & debris | igniteHold | 4 | 0.5 - 10 s | A | seconds it must hold igniteT |
 | Fire & debris | burnT | 550 | 400 - 800 C | A | temperature of a burning tyre |
