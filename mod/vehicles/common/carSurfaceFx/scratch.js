@@ -110,11 +110,13 @@
   function drawReal(b, img) {
     var v = Math.floor(hash(b.x, b.y, 5) * 16), x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     var ang = (b.dx || b.dy) ? Math.atan2(b.dy, b.dx) + Math.PI / 2 + (hash(b.x, b.y, 6) - 0.5) * 0.6 : hash(b.x, b.y, 7) * 6.2832;
-    var size = r * (b.t === 'mud' ? 2.6 : 2.2), stretch = (b.dx || b.dy) ? 1.35 : 1;
+    var litDust = emis && b.t === 'dust';                                // lit dust: wide, faint and dim, so it is an even film on every paint and never a white dot
+    var size = r * (b.t === 'mud' ? 2.6 : litDust ? 3.4 : 2.2), stretch = (b.dx || b.dy) ? 1.35 : 1;
     sctx.save();
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
-    sctx.globalAlpha = Math.min(1, b.a * (emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
-    if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
+    sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
+    if (litDust) sctx.filter = 'brightness(0.45)';
+    else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
     sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
     sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
     sctx.restore();
