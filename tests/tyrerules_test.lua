@@ -287,4 +287,16 @@ local fw = R.new('road', 16) fw.Ts = 500 R.fireStep(fw, 5, 0, cfg)
 local out for _ = 1, 100 do out = R.fireStep(fw, 0.1, 1, cfg) or out if out then break end end
 assert(out == 'out', 'rain puts it out: ' .. tostring(out))
 
+-- ---- the switches and the look stages from the settings
+local nd = R.defaults() nd.debris.enabled = false
+local dd = R.new('road', 16) dd.Ts = 250 dd.shed = 1000
+local gOff = R.takeDebris(dd, nd)
+assert(gOff == 0 and dd.shed == 0, 'rubber debris can be switched off')
+local lk = R.defaults() lk.look.stage1, lk.look.stage2, lk.look.stage3, lk.look.stage4 = 0.95, 0.8, 0.6, 0.4
+local lx = R.new('road', 16) lx.h[9] = 8 * 0.75             -- 75% left: stage 1 by default, stage 2 with the set limits
+assert(R.stage(lx, cfg) == 1 and R.stage(lx, lk) == 2, 'the look stages follow the settings: ' .. R.stage(lx, lk))
+lk.look.baldBelow = 3
+local lb = R.new('road', 16) lb.h[9] = 2.5
+assert(R.stage(lb, lk) == 4, 'bald below the set depth')
+
 print('carSurfaceFx tyre rules: ok')

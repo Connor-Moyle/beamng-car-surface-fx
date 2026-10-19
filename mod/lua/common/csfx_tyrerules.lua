@@ -41,8 +41,9 @@ function M.defaults()
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 90, smokeFull = 180, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
     blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
+    look = { enabled = true, stage1 = 0.9, stage2 = 0.7, stage3 = 0.5, stage4 = 0.3, baldBelow = 0.5 },      -- how worn tyres look: the tread fraction left below which stages 1..4 start, and the mm under which it is bald
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
-    debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
+    debris = { enabled = true, density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
 end
 
@@ -132,6 +133,7 @@ end
 -- takeDebris returns the grams to drop since the last call and the surface temperature it leaves at (the temperature the pile starts at).
 function M.takeDebris(t, cfg)
   local d = cfg.debris
+  if d.enabled == false then t.shed = 0 return 0, t.Ts end
   local frac = d.minFrac + (d.maxFrac - d.minFrac) * clamp((t.Ts - d.hotFrom) / (d.hotTo - d.hotFrom), 0, 1)
   local g = (t.shed or 0) * d.density * frac
   t.shed = 0
@@ -310,8 +312,9 @@ function M.stage(t, cfg)
   for j = 1, 2 * t.n do if t.h[j] < minH then minH = t.h[j] end end
   if minH <= 0 then return 5 end
   local f, s = minH / t.c.h0, 0
-  for i, lim in ipairs(M.STAGE_FROM) do if f < lim then s = i end end
-  if minH <= (cfg and cfg.baldBelow or 0.5) then s = 4 end
+  local L = cfg and cfg.look or {}
+  for i, lim in ipairs({ L.stage1 or M.STAGE_FROM[1], L.stage2 or M.STAGE_FROM[2], L.stage3 or M.STAGE_FROM[3], L.stage4 or M.STAGE_FROM[4] }) do if f < lim then s = i end end
+  if minH <= (L.baldBelow or 0.5) then s = 4 end
   return s
 end
 

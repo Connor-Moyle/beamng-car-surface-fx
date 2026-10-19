@@ -51,6 +51,13 @@ local ROWS = {
   row('wear', 'flat.minDepth', 'slider', 'Flat spot that matters', 'The depth of flat spot where it starts to shake the car and cost grip.', 0, 2, 0.05, 'mm', true),
   row('wear', 'flat.gripLoss', 'slider', 'Grip lost per flat spot', 'Grip lost for each millimetre of flat spot.', 0, 0.2, 0.005, nil, true),
 
+  row('visuals', 'look.enabled', 'bool', 'Worn tyres look worn', 'The tyre changes look as the tread wears: worn rubber, then the belts showing. Off: the own tyre material of the car at all times.'),
+  row('visuals', 'look.stage1', 'slider', 'First wear stage', 'The tread left (as a fraction of the new tyre) below which the first sign of wear shows.', 0.1, 1, 0.05, nil, true),
+  row('visuals', 'look.stage2', 'slider', 'Second wear stage', 'The tread left below which the second stage shows.', 0.1, 1, 0.05, nil, true),
+  row('visuals', 'look.stage3', 'slider', 'Third wear stage', 'The tread left below which the third stage shows.', 0.1, 1, 0.05, nil, true),
+  row('visuals', 'look.stage4', 'slider', 'Worn-out stage', 'The tread left below which the tyre looks worn out.', 0.05, 1, 0.05, nil, true),
+  row('visuals', 'look.baldBelow', 'slider', 'Bald below', 'A tread under this many millimetres looks bald whatever the fraction.', 0, 3, 0.1, 'mm', true),
+
   row('temperature', 'heatRate', 'slider', 'How fast tyres heat up', 'How quickly slip heats the tyre (1 is normal).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'coolRate', 'slider', 'How fast tyres cool down', 'How quickly the tyre loses heat to the air and the road (1 is normal).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'sunRoad', 'slider', 'Sun-warmed road', 'How much warmer the road is than the air when the sun shines on it.', 0, 30, 1, 'C', true),
@@ -63,6 +70,7 @@ local ROWS = {
 
   row('wet', 'rainCool', 'slider', 'Cooling by rain', 'How much faster a tyre cools on a fully wet road.', 1, 10, 0.5, 'x', true),
 
+  row('fire', 'debris.enabled', 'bool', 'Rubber debris', 'Worn rubber is thrown off the tyre as debris on the road.'),
   row('fire', 'fires', 'bool', 'Tyre fires', 'A tyre that gets hot enough catches fire.'),
   row('fire', 'fireSpread', 'bool', 'Fires can spread to the car', 'A tyre fire that burns long enough lights the nearest part of the car.'),
   row('fire', 'spreadAfter', 'slider', 'Seconds before the car catches', 'How long a tyre fire burns before it lights the car.', 1, 20, 1, 's', true),
@@ -175,8 +183,6 @@ function M.build(S, opts)
         write(t)
       end } }
 
-  fields[#fields + 1] = { id = 'ty_visuals_note', tab = 'visuals', group = 'Worn tyres', type = 'note', label = 'Tread stages',
-    tooltip = 'The look of a tyre as the tread wears (the stages and the tread fade) has no settings yet. They come with the tyre visuals.' }
 
   -- the compounds: one at a time, picked in a selector (twelve compounds of sixteen values would be nearly two hundred rows)
   local selected = COMPOUND_ORDER[1]

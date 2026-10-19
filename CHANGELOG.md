@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Tyres page: switches and settings that were missing. **Rubber debris** has its own on/off switch, and the **worn tyre look** has one too (off: the car's own tyre material) with the four wear-stage limits and the bald depth as settings (they were fixed in the code). The page's note "no settings yet" is gone. Every value row on the page is read by the tyre rules.
+
 ## 0.3.0
 
 Proven in the game (connor-80, with screenshots):
