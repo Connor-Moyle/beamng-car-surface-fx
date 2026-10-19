@@ -27,11 +27,7 @@ local function surfaceTable()
   return t
 end
 
-local STAGES_FILE = '/art/surfacefx/tyres/stages.materials.json'      -- the wear look's materials: a mod's art folder is not scanned by the game, so the file is loaded here (once) before any tyre switches
-local stagesLoaded = false
-
 local function load_(id)
-  if not stagesLoaded and loadJsonMaterialsFile then stagesLoaded = pcall(loadJsonMaterialsFile, STAGES_FILE) end
   send(id, 'if not carSurfaceFxTyres then extensions.load("carSurfaceFxTyres") end carSurfaceFxTyres.setConfig(jsonDecode(' .. lit(cfg) .. ')) carSurfaceFxTyres.setSurfaces(jsonDecode(' .. lit(surfaceTable()) .. '))')
 end
 
@@ -77,7 +73,6 @@ function M.onVehicleSpawned(id) lookMsc[id] = nil if watched[id] then load_(id) 
 function M.look(id, wi, stage, list)
   local v = vehOf(id)
   if not v then return end
-  if not stagesLoaded and loadJsonMaterialsFile then stagesLoaded = pcall(loadJsonMaterialsFile, STAGES_FILE) end
   lookMsc[id] = lookMsc[id] or {}
   for _, p in ipairs(list or {}) do
     local key = p[1] .. '|' .. p[2]

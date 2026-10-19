@@ -1,5 +1,5 @@
 -- Car Surface FX, vehicle side: how worn each tyre of this car looks. The tyre module reports a stage per wheel (0 new .. 4 bald, 5 belts); here each wheel's own tyre mesh is switched to the
--- file-defined material csfx_<original>_s<stage> (art/surfacefx/tyres/stages.materials.json, made by tools/make_tyre_stage_materials.py) with the engine's per-mesh switch, the way the glowMap on/off
+-- file-defined material csfx_<original>_s<stage> (vehicles/common/carSurfaceFx/stages.materials.json, loaded by the game with the first car, made by tools/make_tyre_stage_materials.py) with the engine's per-mesh switch, the way the glowMap on/off
 -- materials switch. The switch itself is made on the game side (carSurfaceFx_tyres.look): called from the car's Lua it has no effect on the screen (found in game); here the meshes of each wheel are found. At the belts the tread nodes become METAL, so the engine's own spark and scrape rules (particles.json, METAL on asphalt) apply.
 local NAMES = require('csfx_tyrelook_names')
 local M = {}

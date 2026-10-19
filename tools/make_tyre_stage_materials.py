@@ -1,5 +1,5 @@
 """Tyre wear stage materials: python tools/make_tyre_stage_materials.py <path to BeamNG content/vehicles/common.zip>
-For every tyre material of the game's shared tyre folder it writes five worn variants, csfx_<name>_s1 .. _s5 (a material file the game loads like any other),
+For every tyre material of the game's shared tyre folder it writes five worn variants, csfx_<name>_s1 .. _s5 (a material file under vehicles/common, which the game loads with the first car like its own tyre materials: a runtime loadJsonMaterialsFile was not accepted as a switch target),
 and the list of the original names for the car side (mod/lua/common/csfx_tyrelook_names.lua). A variant is the car's own stage 0 (its textures are referenced by path, none are copied)
 with the tread normal faded and one of the detail normals of art/surfacefx/tyres laid over it. s1 slight .. s4 bald, s5 the belts (the rules' stage numbers).
 """
@@ -39,8 +39,8 @@ for name, m in sorted(src.items()):
         vn = 'csfx_%s_s%d' % (name, k)
         v.update(name=vn, mapTo=vn, persistentId=str(uuid.uuid5(uuid.NAMESPACE_URL, vn)), Stages=[s, {}, {}, {}])
         out[vn] = v
-os.makedirs(os.path.join(OUT, 'art/surfacefx/tyres'), exist_ok=True)
-with open(os.path.join(OUT, 'art/surfacefx/tyres/stages.materials.json'), 'w') as f:
+os.makedirs(os.path.join(OUT, 'vehicles/common/carSurfaceFx'), exist_ok=True)
+with open(os.path.join(OUT, 'vehicles/common/carSurfaceFx/stages.materials.json'), 'w') as f:
     json.dump(out, f, indent=1)
 names = sorted({k.rsplit('_s', 1)[0][5:] for k in out})
 with open(os.path.join(OUT, 'lua/common/csfx_tyrelook_names.lua'), 'w') as f:

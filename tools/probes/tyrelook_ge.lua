@@ -52,7 +52,7 @@ function D.reload(name)
   return 'reload ' .. name .. ' ' .. tostring(ok) .. ' ' .. tostring(e)
 end
 function D.load()
-  return 'loadJsonMaterialsFile -> ' .. tostring(loadJsonMaterialsFile('/art/surfacefx/tyres/stages.materials.json'))
+  return 'loadJsonMaterialsFile -> ' .. tostring(loadJsonMaterialsFile('/vehicles/common/carSurfaceFx/stages.materials.json'))
 end
 function D.commands() return 'list() | load() | try(k, material) | reset(k) | reload(material)' end
 return D
