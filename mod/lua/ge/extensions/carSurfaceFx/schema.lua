@@ -189,7 +189,7 @@ function M.build(S, owner)
   -- ---- Dirt & wear
   add({
     F('dirt', 'dirt', 'Dirt', 'bool', 'Dirt on the paint', 'Dust, mud, tyre rubber and road grime tint the paint and take its gloss. Rain, water and a car wash take it off. Off: the paint stays clean.', 'mud.enabled'),
-    F('dirt_glow', 'dirt', 'Dirt', 'bool', 'Lit dirt colour (test)', 'Adds the own colour of the dirt as light, so snow reads white and mud brown on any paint colour, including dark ones. Not proven yet. Applies to cars spawned afterwards.', 'scratch.dirtGlow'),
+    F('dirt_glow', 'dirt', 'Dirt', 'bool', 'Lit snow (test)', 'Adds snow as light so it reads white on any paint colour, including dark ones. Dust and mud are not lit (they showed bright dots on dark paint). Not proven yet. Applies to cars spawned afterwards.', 'scratch.dirtGlow'),
     F('dirt_build', 'dirt', 'Dirt', 'bool', 'Dirt builds up while you drive', 'Dust on dirt roads, mud when it is wet, rubber from skids, grime on tarmac. Off: dirt only appears when another mod or a command sets it.', 'mud.buildup'),
     F('snow_speed', 'dirt', 'Dirt', 'slider', 'Snow build-up speed', 'How fast snow settles on a car that stands (1 is the normal speed: a full coat in about 3 minutes of heavy snow).', 'weather.snowRate', { min = 0.25, max = 4, step = 0.25, unit = 'x' }),
     F('dirt_speed', 'dirt', 'Dirt', 'slider', 'Dirt build-up speed', 'How fast dirt builds up (1 is the normal speed).', 'mud.rate', { min = 0.1, max = 3, step = 0.1, unit = 'x' }),

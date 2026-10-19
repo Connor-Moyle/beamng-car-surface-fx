@@ -126,6 +126,7 @@
   }
 
   function drawBlob(b) {
+    if (emis && b.t !== 'snow') return;                                 // the lit page carries snow only: lit dust and mud made a pattern of bright dots on blue and black paint (80's black A/B, glow off was clean)
     if (b.t && SPLAT_KINDS[b.t] && b.k !== 'cake') { var at = atlasFor(b.t); if (at) { drawReal(b, at); return; } }
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
