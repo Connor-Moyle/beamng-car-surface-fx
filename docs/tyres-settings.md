@@ -28,10 +28,10 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Fire & debris | fireSpread | **false** (unproven) | on/off | N | "Fires can spread to the car" |
 | Fire & debris | spreadAfter | 4 | 1 - 20 s | A | s of tyre fire before the car's nearest flammable node is lit |
 | Fire & debris | smokeOn / smokeFull | 150 / 250 | 80 - 400 C | A | smoke starts and is full |
-| Fire & debris | igniteT | 350 | 200 - 600 C | A | surface temperature that ignites |
-| Fire & debris | igniteHold | 2 | 0.5 - 10 s | A | seconds it must hold igniteT |
+| Fire & debris | igniteT | 420 | 200 - 600 C | A | surface temperature that ignites |
+| Fire & debris | igniteHold | 4 | 0.5 - 10 s | A | seconds it must hold igniteT |
 | Fire & debris | burnT | 550 | 400 - 800 C | A | temperature of a burning tyre |
-| Fire & debris | popAfter | 8 | 2 - 60 s | A | burning tyre pops after this |
+| Fire & debris | popAfter | 12 | 2 - 60 s | A | burning tyre pops after this |
 | Fire & debris | douse | 0.6 | 0 - 3 | A | rain/water dousing strength |
 | Fire & debris | debris.density | 0.0011 | fixed | A | g per mm3 of rubber |
 | Fire & debris | debris.minFrac / maxFrac | 0.3 / 0.8 | 0 - 1 | N | share of worn rubber thrown as debris (cool / hot); a single "Debris amount" slider scales both |

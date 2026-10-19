@@ -249,23 +249,23 @@ local cold = { g = 50, T = 100 } assert(not R.pileStep(cold, 0.1, 20, 0, cfg), '
 local small = { g = 5, T = 400 } assert(not R.pileStep(small, 0.1, 20, 0, cfg), 'a few crumbs do not')
 local pl = { g = 50, T = 400 } for _ = 1, 400 do R.pileStep(pl, 0.1, 20, 0, cfg) end
 assert((pl.burn or 0) <= 0, 'the pile burns out')
-local ft = R.new('road', 16) ft.Ts = 400
-assert(R.fireStep(ft, 1, 0, cfg) == nil and R.fireStep(ft, 1.5, 0, cfg) == 'ignite' and ft.fire, 'sustained 400 C ignites after 2 s')
-local fl = R.new('road', 16) fl.Ts = 400 R.fireStep(fl, 1, 0, cfg) fl.Ts = 100 R.fireStep(fl, 1, 0, cfg)
+local ft = R.new('road', 16) ft.Ts = 500
+assert(R.fireStep(ft, 2, 0, cfg) == nil and R.fireStep(ft, 2.5, 0, cfg) == 'ignite' and ft.fire, 'sustained 500 C ignites after 4 s (igniteT 420, hold 4)')
+local fl = R.new('road', 16) fl.Ts = 500 R.fireStep(fl, 1, 0, cfg) fl.Ts = 100 R.fireStep(fl, 1, 0, cfg)
 assert(not fl.fire and fl.hold == 0, 'a dip resets the hold')
-local pop for _ = 1, 100 do pop = R.fireStep(ft, 0.1, 0, cfg) or pop end
+local pop for _ = 1, 200 do pop = R.fireStep(ft, 0.1, 0, cfg) or pop end
 assert(pop == 'pop' and ft.blown and not ft.fire, 'a tyre that burns long enough pops')
 assert(cfg.fireSpread == false, 'spread to the car is off by default (unproven)')
 local cs = R.defaults() cs.fireSpread = true
-local sp = R.new('road', 16) sp.Ts = 400 R.fireStep(sp, 3, 0, cs)
+local sp = R.new('road', 16) sp.Ts = 500 R.fireStep(sp, 5, 0, cs)
 local ev for _ = 1, 50 do ev = R.fireStep(sp, 0.1, 0, cs) or ev if ev then break end end
 assert(ev == 'spread', 'the fire reaches the car after spreadAfter s: ' .. tostring(ev))
 local nc = R.defaults() nc.fireSpread = false
-local ns = R.new('road', 16) ns.Ts = 400 R.fireStep(ns, 3, 0, nc) local nev for _ = 1, 50 do nev = R.fireStep(ns, 0.1, 0, nc) or nev end
+local ns = R.new('road', 16) ns.Ts = 500 R.fireStep(ns, 5, 0, nc) local nev for _ = 1, 50 do nev = R.fireStep(ns, 0.1, 0, nc) or nev end
 assert(nev ~= 'spread', 'no spread when the option is off')
 local nf2 = R.defaults() nf2.fires = false
 local no = R.new('road', 16) no.Ts = 500 assert(R.fireStep(no, 5, 0, nf2) == nil and not no.fire, 'no tyre fires when switched off')
-local fw = R.new('road', 16) fw.Ts = 400 R.fireStep(fw, 3, 0, cfg)
+local fw = R.new('road', 16) fw.Ts = 500 R.fireStep(fw, 5, 0, cfg)
 local out for _ = 1, 100 do out = R.fireStep(fw, 0.1, 1, cfg) or out if out then break end end
 assert(out == 'out', 'rain puts it out: ' .. tostring(out))
 
