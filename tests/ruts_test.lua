@@ -230,6 +230,19 @@ do
   U.clear()
 end
 
+-- the level ending drops our references and deletes nothing (the engine is destroying the scene); clear() takes the roads away properly
+U.clear()
+drive(0, 14) U.onUpdate(0.5)
+local aliveBefore = 0
+for _ in pairs(objects) do aliveBefore = aliveBefore + 1 end
+assert(U.roadCount() >= 1 and aliveBefore >= 1, 'roads exist before the level ends')
+U.onClientEndMission()
+local aliveAfter = 0
+for _ in pairs(objects) do aliveAfter = aliveAfter + 1 end
+assert(U.roadCount() == 0 and aliveAfter == aliveBefore, 'the end of a level forgets the roads without deleting objects')
+for id in pairs(objects) do objects[id] = nil end                  -- (the engine took them)
+U.clear()
+
 -- the budget
 U.clear()
 for k = 0, 9 do for i = 0, 6 do U.sample(1, 0, k * 20 + i * 0.6, 5, 0, 'mud', 4000, 0) end end

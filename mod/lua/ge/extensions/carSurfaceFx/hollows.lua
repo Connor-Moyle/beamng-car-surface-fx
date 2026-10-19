@@ -83,6 +83,9 @@ function M.restore()
   st, orig, timer, tb = rules.newState(), {}, 0, nil
 end
 
+-- the level is ending or new: its terrain block is being destroyed or is another one, so write nothing; forget the heights (the level unload discards the render copy)
+function M.forget() st, orig, timer, tb = rules.newState(), {}, 0, nil end
+
 -- the drawn ground height at a point, for the marks that must sit on the visible surface (berms, puddles); nil while no hollow is there or hollows are off
 function M.groundZ(x, y)
   if not tb or failed or st.n == 0 then return nil end

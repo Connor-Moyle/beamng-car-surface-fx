@@ -84,6 +84,13 @@ Hl.restore()
 assert(H(5, 7) == 100 and #grids >= 3 and Hl.count() == 0, 'restore puts the original heights back and tells the engine')
 assert(Hl.groundZ(0, 0) == nil, 'and offers nothing')
 assert(collisionCalls == 0, 'the physics copy is never rebuilt')
+-- a level that ends writes nothing to its terrain: forget() only drops the state
+Hl.stamp(on, -1018.5, -1016.5, 'mud', 1)
+Hl.update(on, 3.1)
+local setsBefore, gridsBefore = sets, #grids
+Hl.forget()
+assert(sets == setsBefore and #grids == gridsBefore and Hl.count() == 0 and Hl.groundZ(-1018.5, -1016.5) == nil, 'forget: no height writes, no updateGrid, nothing kept')
+heights = {}
 
 -- an engine call that fails switches hollows off, with a reason
 block.updateGrid = function() error('no updateGrid') end

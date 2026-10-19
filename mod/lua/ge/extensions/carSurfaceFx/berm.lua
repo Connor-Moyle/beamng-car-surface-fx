@@ -97,6 +97,9 @@ function M.update(cfg)
   end
 end
 
+-- the level is ending or new: the meshes are the engine's to destroy, drop our references only
+function M.drop() ring, head, n, pending, pendingN = {}, 0, 0, {}, 0 end
+
 function M.clear()
   for i = 1, n do delete(ring[i]) ring[i] = nil end
   ring, head, n, pending, pendingN = {}, 0, 0, {}, 0

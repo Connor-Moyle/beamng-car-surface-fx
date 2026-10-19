@@ -297,6 +297,17 @@ function M.gouge(vid, node, mat, force)
   end
 end
 
+-- forget everything WITHOUT touching the scene: for a level that is ending or has just begun, whose objects and terrain the engine is destroying or has already replaced (no deleteObject, no
+-- height writes on a dying terrain block); M.clear() is for a mid-level stop, where they are alive and are taken away properly
+function M.drop()
+  paths, pending, pendingN, ringRut, ringTrack, segs, segHead, segN = {}, {}, 0, newRing(), newRing(), {}, 0, 0
+  chains = rules.newChains()
+  grid = rules.newGrid()
+  made = { roads = 0, segments = 0, skipped = 0 }
+  berm.drop()
+  hollows.forget()
+end
+
 function M.clear()
   for slot = 1, ringRut.n do dropRoad(ringRut, slot) end
   for slot = 1, ringTrack.n do dropRoad(ringTrack, slot) end
@@ -418,15 +429,15 @@ end
 function M.onVehicleSpawned() pcall(injectAll) end
 function M.onVehicleSwitched() pcall(injectAll) end
 -- carSurfaceFx.lua loads this module only while its ruts switch is on, so being loaded is being on (the module's own `enabled` defaults to false and nothing else ever set it)
-function M.onExtensionLoaded() M.load() settings.enabled = true loadSizes() M.clear() pcall(injectAll) end
+function M.onExtensionLoaded() M.load() settings.enabled = true loadSizes() M.drop() pcall(injectAll) end
 function M.onExtensionUnloaded()
   M.clear()
   pcall(function()
     for _, v in ipairs(getAllVehicles()) do v:queueLuaCommand('if carSurfaceFxRuts then carSurfaceFxRuts.setConfig(false, 0.6, 150) end') end
   end)
 end
-function M.onClientStartMission() M.clear() pcall(injectAll) end
-function M.onClientEndMission() M.clear() end
+function M.onClientStartMission() M.drop() pcall(injectAll) end
+function M.onClientEndMission() M.drop() end
 function M.onEditorActivated() hollows.restore() end                -- the World Editor must never see (or save) our heights
 
 M.TAG = TAG
