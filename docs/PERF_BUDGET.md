@@ -14,7 +14,21 @@ Run (connor-80, driver camera, steady speed, heavy rain with traffic):
 4. Repeat the Max run twice more with Drivers `setDriverRig('flex')` and `setDriverRig('props')`, everything else equal. Reset to `'props'` afterwards.
 
 Steps the bench has today: paint canvases, rain drops on the paint, window canvases, cockpit overlay, dirt and mud, frost and snow, bugs and road spray.
-Steps it does not have, to add before the run: skid marks (with traffic), grass flattening, wheel-arch splats and the body map. Without them the table cannot name where a Max overrun comes from.
+Steps added since: skid marks and leaks. Still missing: grass flattening (off by default), wheel-arch splats and the body map. Without them the table cannot name where a Max overrun comes from.
+
+## Console step list for connor-80 (the full run)
+
+Setup: West Coast, the covet, traffic on, heavy rain. Lighting frozen at noon. Nothing else running on the GPU (no Ollama). Open an admin terminal beside the game for `nvidia-smi`.
+1. In the game console: `extensions.load('carSurfaceFx_bench')`, `carSurfaceFx.debug('rain', 1)`. Fill the puddle ring for the leak step: drive a leaking car or run `for i = 1, 100 do carSurfaceFx_fluids.puddleAhead('oil', 3 + i * 0.7, 0.6) end`, then check `carSurfaceFx_fluids.status()` shows about 100 puddles.
+2. Cockpit run: driver camera, drive the same straight at a steady 14 m/s (or the AI on the dirt circuit). `carSurfaceFx_bench.run()` (about 125 s, 10 steps of 5 s settle and 7 s measure). When it ends, `carSurfaceFx_bench.report()`. The table has avg ms per frame, p95, p99 ("1% low"), the mod's own Lua ms. Copy `settings/csfx_bench.txt` to the report.
+3. At the end of each run, in the admin terminal: `nvidia-smi --query-gpu=memory.used --format=csv`. Take it once at the start of step 2 (everything off) and once at the end (everything on), and report both.
+4. Chase camera run: the same, camera on chase (`be:getPlayerVehicle(0)` stays the same), repeat steps 2 and 3.
+5. Lit dirt: `carSurfaceFx.set('scratch.dirtGlow', true)`, respawn the car, repeat step 2 once (cockpit camera). Set it back to false and respawn afterwards.
+6. 512 against 1024 window canvas: `carSurfaceFx.set('windscreen.canvasSize', 512)`, respawn, repeat step 2; then `...canvasSize', 1024)`, respawn, repeat.
+7. Sky Light wet tarmac on and off (the Sky Light mod's own Mods-menu switch for wet tarmac): repeat step 2 once with each, everything else equal.
+8. Reset every setting you changed, and the game to the normal car, when done.
+
+The report to bring back: one table per run (avg, p95, p99, the Lua ms per step), the two VRAM numbers per run, and the camera and traffic count used.
 
 ## Budget table (Max preset)
 
