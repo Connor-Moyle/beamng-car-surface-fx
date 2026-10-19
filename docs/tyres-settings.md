@@ -1,6 +1,6 @@
 # Tyres settings: the cfg schema for the Mods "Tyres" page
 
-Source of truth: `M.defaults()` in `mod/lua/ge/extensions/carSurfaceFx/tyrerules.lua`. Keys are cfg paths. `N` = normal (always shown), `A` = under Show advanced. Ranges are the slider limits. Per-compound overrides (tab Compounds) edit fields of `M.COMPOUNDS[name]`.
+Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are cfg paths. `N` = normal (always shown), `A` = under Show advanced. Ranges are the slider limits. Per-compound overrides (tab Compounds) edit fields of `M.COMPOUNDS[name]`.
 
 | Tab | Key | Default | Range | Level | Meaning |
 |---|---|---|---|---|---|

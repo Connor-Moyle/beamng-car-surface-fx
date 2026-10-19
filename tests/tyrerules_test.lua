@@ -1,5 +1,5 @@
 -- Tyre rules (tyrerules.lua): sectors, Archard wear, flat spot from a locked skid, temperature heat and cool, the grip curve and the looks. No game calls.
-local R = require('carSurfaceFx/tyrerules')
+local R = require('csfx_tyrerules')
 local cfg = R.defaults()
 local function near(a, b, tol, msg) assert(math.abs(a - b) <= tol, (msg or 'near') .. ': ' .. tostring(a) .. ' vs ' .. tostring(b)) end
 
