@@ -29,6 +29,7 @@ local pool = {}
 local dirty, lastSave = false, 0
 local injectT, idleT = 0, 0
 local made = { roads = 0, segments = 0, skipped = 0 }
+local ticks = 0                                                   -- onUpdate calls (QA: 0 after a while means the engine is not calling the hook)
 local forceKind
 local sizes = {}                                                  -- kind -> { width, length } from the mark materials index
 local colorCache = {}
@@ -276,6 +277,8 @@ function M.onPreRender(dt)
 end
 
 function M.onUpdate(dt)
+  ticks = ticks + 1
+  if ticks == 1 then log('I', TAG, 'ruts: first update') end
   -- the chunks, within the budget
   while pendingN > 0 and rules.budget(bucket, 0, settings.maxPerSecond) do
     local chunk = table.remove(pending, 1)
@@ -309,8 +312,8 @@ function M.cells() return grid.n end
 function M.pendingCount() return pendingN end
 
 function M.status()
-  return string.format('routing %s roads %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s; %s', mode or '?', roadN, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
-    wetness(), tostring(fellBack), berm.status())
+  return string.format('routing %s roads %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s ticks %d; %s', mode or '?', roadN, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
+    wetness(), tostring(fellBack), ticks, berm.status())
 end
 
 -- a rut put down by hand ahead of the car: n samples along its heading on the given ground (to see how it is drawn)
