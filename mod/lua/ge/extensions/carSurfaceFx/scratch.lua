@@ -555,6 +555,13 @@ function M.nearestNode(id, worldPos, maxDist)
   return best, best and math.sqrt(bd) or nil
 end
 
+-- the node ids (cid) of car id that the paint map knows, in no particular order (for the probe)
+function M.mappedNodes(id)
+  local car, out = cars[id], {}
+  if car and car.lut then for cid in pairs(car.lut) do out[#out + 1] = cid end table.sort(out) end
+  return out
+end
+
 -- how many dents car id carries
 function M.dentCount(id) local m = memory[id] return m and m.dents and #m.dents or 0 end
 

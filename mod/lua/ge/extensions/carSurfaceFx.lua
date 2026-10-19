@@ -20,6 +20,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false, dirtGlow = false, dirtGlowNits = 45000 }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+DEFAULTS.paneldamage = { enabled = false, metal = true, amount = 1.0, minEnergy = 60, maxMarks = 40 }      -- panel damage decals (carSurfaceFx/paneldamage.lua, docs/PANEL_DAMAGE.md): dents, off until proven in the game
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -434,6 +435,19 @@ local function stopRuts()
   if rutsOn() then extensions.unload('carSurfaceFx_ruts') end
 end
 
+-- Panel damage (dents on the body from hits; carSurfaceFx/paneldamage.lua + the car module carSurfaceFxPanel): runs while settings.paneldamage.enabled. It draws through the scratch module's paint canvases.
+local function panelOn() return rawget(_G, 'carSurfaceFx_paneldamage') ~= nil end
+local function startPanel()
+  if panelOn() or not settings.paneldamage.enabled then return end
+  setExtensionUnloadMode('carSurfaceFx_paneldamage', 'manual')
+  extensions.load('carSurfaceFx_paneldamage')
+  carSurfaceFx_paneldamage.configure(settings.paneldamage)
+  log_('I', 'panel damage module started (dents)')
+end
+local function stopPanel()
+  if panelOn() then extensions.unload('carSurfaceFx_paneldamage') end
+end
+
 local function impactsOn() return rawget(_G, 'carSurfaceFx_impacts') ~= nil end
 local function startImpacts()
   if impactsOn() or not settings.impacts.enabled then return end
@@ -700,6 +714,7 @@ local function update(dtReal)
   if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
   if settings and settings.ruts and settings.ruts.enabled ~= rutsOn() then if settings.ruts.enabled then startRuts() else stopRuts() end end
   if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
+  if settings and settings.paneldamage and settings.paneldamage.enabled ~= panelOn() then if settings.paneldamage.enabled then startPanel() else stopPanel() end end
   if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
   if settings and tyresWanted ~= tyresOn() then if tyresWanted then startTyres() else stopTyres() end end
   if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
@@ -820,6 +835,7 @@ function M.reloadSettings()
   loadSettings()
   readTyresFlag()
   if scratchOn() then carSurfaceFx_scratch.configure(settings.scratch) end
+  if panelOn() then carSurfaceFx_paneldamage.configure(settings.paneldamage) end
 end
 M.onSettingsChanged = M.reloadSettings
 
