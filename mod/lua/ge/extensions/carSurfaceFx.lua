@@ -394,8 +394,8 @@ end
 local function startScratch()
   if scratchOn() or rawget(_G, 'surfaceFXHiFiScratch') ~= nil or not settings.scratch.enabled then return end
   for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch', 'carSurfaceFx_bodywear' }) do
-    extensions.load(name)
     setExtensionUnloadMode(name, 'manual')
+    extensions.load(name)
   end
   carSurfaceFx_scratch.configure(settings.scratch)
   log_('I', 'scratch module started')
@@ -404,8 +404,8 @@ end
 local function marksOn() return rawget(_G, 'carSurfaceFx_marks') ~= nil end
 local function startMarks()
   if marksOn() or not settings.marks.enabled then return end
-  extensions.load('carSurfaceFx_marks')
   setExtensionUnloadMode('carSurfaceFx_marks', 'manual')
+  extensions.load('carSurfaceFx_marks')
   log_('I', 'marks module started')
 end
 local function stopMarks()
@@ -415,8 +415,8 @@ end
 local function fluidsOn() return rawget(_G, 'carSurfaceFx_fluids') ~= nil end
 local function startFluids()
   if fluidsOn() or not settings.fluids.enabled then return end
-  extensions.load('carSurfaceFx_fluids')
   setExtensionUnloadMode('carSurfaceFx_fluids', 'manual')
+  extensions.load('carSurfaceFx_fluids')
   log_('I', 'leaking fluids module started')
 end
 local function stopFluids()
@@ -426,8 +426,8 @@ end
 local function rutsOn() return rawget(_G, 'carSurfaceFx_ruts') ~= nil end
 local function startRuts()
   if rutsOn() or not settings.ruts.enabled then return end
-  extensions.load('carSurfaceFx_ruts')
   setExtensionUnloadMode('carSurfaceFx_ruts', 'manual')
+  extensions.load('carSurfaceFx_ruts')
   log_('I', 'ruts module started')
 end
 local function stopRuts()
@@ -437,8 +437,8 @@ end
 local function impactsOn() return rawget(_G, 'carSurfaceFx_impacts') ~= nil end
 local function startImpacts()
   if impactsOn() or not settings.impacts.enabled then return end
-  extensions.load('carSurfaceFx_impacts')
   setExtensionUnloadMode('carSurfaceFx_impacts', 'manual')
+  extensions.load('carSurfaceFx_impacts')
   log_('I', 'crash effects module started (glass, debris, sparks)')
 end
 local function stopImpacts()
@@ -455,8 +455,8 @@ local function readTyresFlag()
 end
 local function startTyres()
   if tyresOn() or not tyresWanted then return end
-  extensions.load('carSurfaceFx_tyres')
   setExtensionUnloadMode('carSurfaceFx_tyres', 'manual')
+  extensions.load('carSurfaceFx_tyres')
   carSurfaceFx_tyres.reload()
   log_('I', 'tyre module started')
 end
@@ -467,8 +467,8 @@ end
 -- Grass that bends under the wheels (carSurfaceFx/grass.lua): the game's own surface mask, stamped from the wheels. Runs while settings.grass.enabled.
 local function startGrass()
   if grassOn() or not settings.grass.enabled then return end
-  extensions.load('carSurfaceFx_grass')
   setExtensionUnloadMode('carSurfaceFx_grass', 'manual')
+  extensions.load('carSurfaceFx_grass')
   if carSurfaceFx_grass then carSurfaceFx_grass.configure(settings.grass) end
   log_('I', 'grass module started')
 end
