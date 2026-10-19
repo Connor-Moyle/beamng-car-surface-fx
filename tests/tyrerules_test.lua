@@ -299,4 +299,19 @@ lk.look.baldBelow = 3
 local lb = R.new('road', 16) lb.h[9] = 2.5
 assert(R.stage(lb, lk) == 4, 'bald below the set depth')
 
+-- ---- wear, temperature and wet grip: each switch on its own
+local sw = R.defaults() sw.wearEnabled = false
+local sx = R.new('road', 16) sx.E[1] = 5000 sx.EL[1] = 5000
+local h0 = sx.h[1]
+R.wearStep(sx, { surface = 'asphalt', pressure = 1, pNom = 1 }, sw)
+assert(sx.h[1] == h0, 'wear off: the tread stays')
+local st = R.defaults() st.tempGripEnabled = false
+assert(R.tempGrip(R.COMPOUNDS.road, -10, st) == 1 and R.tempGrip(R.COMPOUNDS.road, 150, st) == 1 and R.tempGrip(R.COMPOUNDS.road, -10, cfg) < 1, 'temperature switch off: grip is the same at any temperature')
+local sg = R.defaults() sg.wetGripEnabled = false
+local tg = R.new('road', 16)
+local dryF = R.nodeGrip(tg, 1, false, cfg, { surface = 'asphalt', water = 0, v = 20 })
+local wetOn = R.nodeGrip(tg, 1, true, cfg, { surface = 'asphalt', water = 1, v = 40 })
+local wetOff = R.nodeGrip(tg, 1, true, sg, { surface = 'asphalt', water = 1, v = 40 })
+assert(wetOn < dryF and math.abs(wetOff - R.nodeGrip(tg, 1, false, sg, { surface = 'asphalt', water = 0, v = 40 })) < 1e-9, 'wet grip off: wet is as dry (also no aquaplaning)')
+
 print('carSurfaceFx tyre rules: ok')

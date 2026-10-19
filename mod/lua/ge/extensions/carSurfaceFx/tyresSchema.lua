@@ -33,6 +33,7 @@ end
 
 local ROWS = {
   row('wear', 'enabled', 'bool', 'Tyre simulation', 'Tyres wear, heat up and change their grip. Off: the game\'s own tyres, and nothing here runs.'),
+  row('wear', 'wearEnabled', 'bool', 'Tyres wear out', 'The tread wears away with slip. Off: tyres stay as new (the heat and grip effects still run).'),
   row('wear', 'wearRate', 'slider', 'Wear speed', 'How fast tyres wear compared with real life. 1 is the starting value; real wear is too slow to notice in play. 0 stops wear.', 0, 20, 0.1, 'x'),
   row('wear', 'flat.enabled', 'bool', 'Flat spots from locked wheels', 'A wheel that locks up and skids wears a flat spot into the tyre, which shakes the car.'),
   row('wear', 'surface.asphalt', 'slider', 'Wear on asphalt', 'How much a slip wears the tyre on asphalt (1 is normal).', 0, 3, 0.1, 'x', true),
@@ -62,12 +63,14 @@ local ROWS = {
   row('temperature', 'coolRate', 'slider', 'How fast tyres cool down', 'How quickly the tyre loses heat to the air and the road (1 is normal).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'sunRoad', 'slider', 'Sun-warmed road', 'How much warmer the road is than the air when the sun shines on it.', 0, 30, 1, 'C', true),
 
+  row('grip', 'tempGripEnabled', 'bool', 'Temperature changes grip', 'Cold and overheated tyres lose grip. Off: the tyre grips the same at any temperature.'),
   row('grip', 'coldGrip', 'slider', 'Grip lost when cold', 'How much grip a cold tyre loses (0 none, 1 normal, 2 twice as much).', 0, 2, 0.05, 'x'),
   row('grip', 'hotGrip', 'slider', 'Grip lost when overheated', 'How much grip an overheated tyre loses.', 0, 2, 0.05, 'x'),
   row('grip', 'pressureEffect', 'slider', 'Effect of tyre pressure', 'How much the pressure changes grip and wear (0 none, 1 normal).', 0, 2, 0.05, 'x', true),
   row('grip', 'beltGrip', 'slider', 'Grip with no tread (rolling)', 'The grip of a tyre worn down to its belts.', 0.2, 1, 0.01, nil, true),
   row('grip', 'beltSliding', 'slider', 'Grip with no tread (sliding)', 'The grip of a belt-worn tyre that is sliding.', 0.2, 1, 0.01, nil, true),
 
+  row('wet', 'wetGripEnabled', 'bool', 'Rain changes grip', 'A wet road changes the grip of each tyre type (its wet grip on the Compounds tab) and standing water can aquaplane it. Off: tyres grip the same wet or dry.'),
   row('wet', 'rainCool', 'slider', 'Cooling by rain', 'How much faster a tyre cools on a fully wet road.', 1, 10, 0.5, 'x', true),
 
   row('fire', 'debris.enabled', 'bool', 'Rubber debris', 'Worn rubber is thrown off the tyre as debris on the road.'),

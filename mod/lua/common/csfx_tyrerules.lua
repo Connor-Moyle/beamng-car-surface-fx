@@ -28,6 +28,7 @@ M.COMPOUNDS = {
 function M.defaults()
   return {
     enabled = false,
+    wearEnabled = true, tempGripEnabled = true, wetGripEnabled = true,       -- the parts of the simulation, each its own switch: tread wear, temperature changing grip, rain changing grip
     wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
     surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
     spinWear = 4,                                           -- wheelspin and cornering slip wear this many times faster than a locked wheel's sliding (a burnout reaches the belts in about 2 minutes)
@@ -107,7 +108,7 @@ local WEAR_ALIAS = { mud = 'dirt', sand = 'dirt', grass = 'dirt' }       -- surf
 -- one wear tick: the energy gathered since the last tick wears the slots (and heats their sector's flash temperature); ctx = { surface = 'asphalt'.., wet = bool, pressure, pNom }
 -- Returns the deepest wear of any slot this tick (mm).
 function M.wearStep(t, ctx, cfg)
-  if t.blown then return 0 end
+  if t.blown or cfg.wearEnabled == false then return 0 end
   local c, worst = t.c, 0
   local sk = ctx.wet and 'wet' or (ctx.surface or 'asphalt')
   local ms = cfg.surface[sk] or cfg.surface[WEAR_ALIAS[sk] or ''] or 1
@@ -258,6 +259,7 @@ function M.totalEnergy(t) local s = 0 for j = 1, 2 * t.n do s = s + t.E[j] end r
 
 -- ---- grip (research 8.5): multipliers on the stock node friction
 function M.tempGrip(c, T, cfg)
+  if cfg and cfg.tempGripEnabled == false then return 1 end
   local cold = cfg and cfg.coldGrip or 1
   local hot = cfg and cfg.hotGrip or 1
   if T < c.lo then return 1 - (1 - c.grip20) * clamp((c.lo - T) / math.max(1, c.lo - 20), 0, 1.5) * cold end
@@ -295,8 +297,9 @@ function M.nodeGrip(t, j, wet, cfg, ctx)
   local c = t.c
   local fT = M.tempGrip(c, t.Ts + (t.flash[M.sectorOf(j)] or 0) * 0.5, cfg)
   if t.h[j] <= 0 then return cfg.beltGrip * fT, cfg.beltSliding * fT end
-  local fw = M.wearGrip(c, t.h[j], wet)
-  if ctx then fw = fw * M.aquaplane(c, t.h[j], ctx.water, ctx.v) * M.surfaceGrip(c, ctx.surface) end
+  local wetOn = cfg.wetGripEnabled ~= false
+  local fw = M.wearGrip(c, t.h[j], wetOn and wet)
+  if ctx then fw = fw * (wetOn and M.aquaplane(c, t.h[j], ctx.water, ctx.v) or 1) * M.surfaceGrip(c, ctx.surface) end
   local ff = 1
   if cfg.flat.enabled then
     local d = M.flatDepth(t, M.sectorOf(j))
