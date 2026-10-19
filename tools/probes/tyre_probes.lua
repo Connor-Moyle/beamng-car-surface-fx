@@ -208,4 +208,59 @@ function P.sparksRestore(i)
   return 'rubber back on 4 nodes'
 end
 
+-- ---- 6. fire and smoke (docs: fire.lua in the game). fire.lua only burns nodes that have a flashPoint in the jbeam, and pops a tyre when its HUB nodes (node1/node2) pass tirePopTemp = 650 C.
+-- Tread nodes have no flashPoint, so a tyre fire is ours: the particles below on a tread node, then beamstate.deflateTire at the end. These probes check each piece.
+function P.fireInfo()
+  P.log = {}
+  try('fire module', function() return fire ~= nil end)
+  try('flammable nodes', function() local n = 0 for _ in pairs(fire.debugData.flammableNodes or {}) do n = n + 1 end return n end)
+  try('igniteNode exists', function() return type(fire.igniteNode) end)
+  try('deflateTire exists', function() return type(beamstate.deflateTire) end)
+  try('addParticleByNodesRelative exists', function() return type(obj.addParticleByNodesRelative) end)
+  return P.dump()
+end
+-- fire/smoke particles on one tread node for a moment: ids from fire.lua (25/27/29 flames, 51/52 smoke). Look at the wheel, then screenshot.
+function P.fireParticles(i, id, count)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  local cid = w.treadNodes[1]
+  try('particle ' .. tostring(id or 27), function() return obj:addParticleByNodesRelative(cid, w.node1, 0, id or 27, 0.5, count or 20) end)
+  say('call again (every 0.1 s from a loop) to keep it going; ids tried so far are in the log')
+  return P.dump()
+end
+-- is the fire table writable: inject a flammable entry for a tread node, so the game itself heats and burns it? (it is a hack: only worth it if particles alone look bad)
+function P.fireInject(i)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  local cid = w.treadNodes[1]
+  try('inject', function()
+    local fl = fire.debugData.flammableNodes
+    fl[cid] = { name = 'csfx_tread', flashPoint = 350, smokePoint = 200, burnRate = 0.05, staticBaseTemp = 20, useThermalsBaseTemp = false, conductionRadius = 0, selfIgnitionCoef = 0,
+      temperature = 20, intensity = 0, chemEnergy = 2000, originalChemEnergy = 2000, weightSpecHeatCoef = 0.2, lastUnderWaterValue = 0, flameTick = 0, smokeTick = 0, vaporState = 0,
+      isVapor = 0, containerBeamCache = nil, ignoreContainerBeamBreakMessage = true, containerBeamBroken = false, canIgnite = true }
+    return 'injected ' .. cid
+  end)
+  try('igniteNode', function() fire.igniteNode(cid, 400) return 'ignited at 400' end)
+  say('watch the wheel for flames/smoke for ~10 s. Tread nodes are not wheel hub nodes, so the tyre should NOT pop on its own. fireClear() puts it out and removes the entry')
+  P.fireCid = cid
+  return P.dump()
+end
+function P.fireClear()
+  local cid = P.fireCid
+  pcall(function() fire.debugData.flammableNodes[cid] = nil end)
+  pcall(function() fire.extinguishVehicle() end)
+  return 'cleared'
+end
+-- pop one tyre the way the rules would after a long fire (reset the car to undo it)
+function P.fireDeflate(i) return select(2, pcall(function() beamstate.deflateTire(i, 1) return 'deflated wheel ' .. i end)) end
+-- debris: which particle ids give small dark bits? Throws one id at a time from the rear tread node, backwards. Try 1..60 in turn and note the ones that look like rubber/dirt chunks.
+function P.debrisParticle(i, id)
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  local ok, err = pcall(function() obj:addParticleByNodesRelative(w.treadNodes[1], w.node1, -4, id, 0.5, 30) end)
+  return ok and ('id ' .. id .. ' sent') or ('ERR: ' .. tostring(err))
+end
+
 return P

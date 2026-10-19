@@ -35,6 +35,9 @@ function M.defaults()
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
     beltGrip = 0.55, beltSliding = 0.50,
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
+    -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
+    smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
+    debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
 end
 
@@ -87,11 +90,48 @@ function M.wearStep(t, ctx, cfg)
       local g = M.heatWear(c, t.Ts + (t.flash[i] or 0), cfg)
       local dh = c.k * (e / t.slotArea) * g * ms * mp * cfg.wearRate
       t.h[j] = math.max(-c.margin - cfg.cordLimit, t.h[j] - dh)
+      t.shed = (t.shed or 0) + dh * t.slotArea
       if dh > worst then worst = dh end
       if t.h[j] <= -cfg.cordLimit then t.blown = true end
     end
   end
   return worst
+end
+
+-- ---- debris, smoke and fire (Connor, 2026-10-19). Rubber worn off is thrown as chunks, more of it and more loose the hotter the surface (a burnout throws marbles, a cool wear is dust).
+-- takeDebris returns the grams to drop since the last call and the surface temperature it leaves at (the temperature the pile starts at).
+function M.takeDebris(t, cfg)
+  local d = cfg.debris
+  local frac = d.minFrac + (d.maxFrac - d.minFrac) * clamp((t.Ts - d.hotFrom) / (d.hotTo - d.hotFrom), 0, 1)
+  local g = (t.shed or 0) * d.density * frac
+  t.shed = 0
+  return g, t.Ts
+end
+-- a pile of hot debris on the road: { g, T, burn }. Cools to the ambient; a big enough pile still above pileIgniteT burns for pileBurnS s (burn counts down).
+function M.pileStep(p, dt, ambient, wet, cfg)
+  local d = cfg.debris
+  p.T = ambient + (p.T - ambient) * math.exp(-dt / (d.pileTau / (1 + 2 * clamp(wet or 0, 0, 1))))
+  if (p.burn or 0) > 0 then p.burn = p.burn - dt
+  elseif p.g >= d.pileMinG and p.T >= d.pileIgniteT then p.burn = d.pileBurnS end
+  return (p.burn or 0) > 0
+end
+-- smoke 0..1 from the surface temperature
+function M.smoke(Ts, cfg) return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
+-- one fire tick. Ignites after the hottest surface (Ts + the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
+-- (douse per s at wet 1) and it pops (blown) after popAfter s of fire. Returns 'ignite' / 'pop' / 'out' the tick it happens, else nil.
+function M.fireStep(t, dt, wet, cfg)
+  if t.blown then t.fire, t.hold = nil, 0 return end
+  local hot = t.Ts
+  for i = 1, t.n do if (t.flash[i] or 0) + t.Ts > hot then hot = t.Ts + t.flash[i] end end
+  if not t.fire then
+    t.hold = hot >= cfg.igniteT and (t.hold or 0) + dt or 0
+    if t.hold >= cfg.igniteHold then t.fire, t.hold = 0, 0 return 'ignite' end
+    return
+  end
+  t.fire = t.fire + dt
+  t.Ts = math.max(t.Ts, cfg.burnT)
+  if (wet or 0) * cfg.douse * t.fire > 1 then t.fire = nil t.Ts = t.Ts * 0.5 return 'out' end
+  if t.fire >= cfg.popAfter then t.fire, t.blown = nil, true return 'pop' end
 end
 
 -- how much shallower a sector is than its two neighbours, in mm (the flat spot), counting the shallower lane

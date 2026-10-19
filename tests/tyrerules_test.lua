@@ -157,4 +157,27 @@ end
 near(R.shakeHz(27.8, 0.31), 14.3, 0.2, 'about 14 Hz at 100 km/h')
 near(R.shakeForce(1.5), 375, 1e-9, '1.5 mm of flat spot pulls 375 N')
 
+-- ---- debris, smoke, fire
+local d = R.new('road', 16) d.Ts = 60 d.shed = 1000
+local gCool = R.takeDebris(d, cfg)
+d.Ts = 250 d.shed = 1000
+local gHot, tHot = R.takeDebris(d, cfg)
+assert(gHot > gCool and d.shed == 0 and tHot == 250, 'hot rubber throws more debris: ' .. gCool .. ' ' .. gHot)
+near(R.smoke(150, cfg), 0, 1e-9, 'no smoke at 150') near(R.smoke(200, cfg), 0.5, 1e-9, 'half smoke at 200') near(R.smoke(300, cfg), 1, 1e-9, 'full smoke')
+local pile = { g = 50, T = 400 }
+assert(R.pileStep(pile, 0.1, 20, 0, cfg), 'a hot pile of 50 g catches')
+local cold = { g = 50, T = 100 } assert(not R.pileStep(cold, 0.1, 20, 0, cfg), 'a cool pile does not')
+local small = { g = 5, T = 400 } assert(not R.pileStep(small, 0.1, 20, 0, cfg), 'a few crumbs do not')
+local pl = { g = 50, T = 400 } for _ = 1, 400 do R.pileStep(pl, 0.1, 20, 0, cfg) end
+assert((pl.burn or 0) <= 0, 'the pile burns out')
+local ft = R.new('road', 16) ft.Ts = 400
+assert(R.fireStep(ft, 1, 0, cfg) == nil and R.fireStep(ft, 1.5, 0, cfg) == 'ignite' and ft.fire, 'sustained 400 C ignites after 2 s')
+local fl = R.new('road', 16) fl.Ts = 400 R.fireStep(fl, 1, 0, cfg) fl.Ts = 100 R.fireStep(fl, 1, 0, cfg)
+assert(not fl.fire and fl.hold == 0, 'a dip resets the hold')
+local pop for _ = 1, 100 do pop = R.fireStep(ft, 0.1, 0, cfg) or pop end
+assert(pop == 'pop' and ft.blown and not ft.fire, 'a tyre that burns long enough pops')
+local fw = R.new('road', 16) fw.Ts = 400 R.fireStep(fw, 3, 0, cfg)
+local out for _ = 1, 100 do out = R.fireStep(fw, 0.1, 1, cfg) or out if out then break end end
+assert(out == 'out', 'rain puts it out: ' .. tostring(out))
+
 print('carSurfaceFx tyre rules: ok')

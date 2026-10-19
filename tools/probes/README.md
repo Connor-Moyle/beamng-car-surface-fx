@@ -17,3 +17,17 @@ Run on the player's car in a level (a flat road or a skidpad), through the MCP t
 | e | `CSFXP.thermal(2)` then a 10 s burnout, then `CSFXP.thermalRead(2)` every few seconds | | whether the native thermal can be turned on at runtime and what it reads (units), and whether `setFrictionThermalSensitivity` changes grip (compare a skid with and without) |
 
 Wheel indices are the keys of `wheels.wheels` (`info()` lists them). Stop and report if the car pops a tyre or the game stutters.
+
+## Fire, smoke and rubber debris (added 2026-10-19)
+
+Game facts (`lua/vehicle/fire.lua`): the fire system only burns nodes whose jbeam has a `flashPoint`; tread nodes do not. It pops a tyre when a wheel HUB node (`node1`/`node2`) passes `tirePopTemp = 650` C. So a tyre fire is ours: flame/smoke particles on a tread node (ids 25/27/29 flames, 51/52 smoke), then `beamstate.deflateTire`.
+Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the surface holds 350 C for 2 s, a burning tyre pops after 8 s, rain douses it. Hot debris on the road (50 g or more, still above 350 C) can burn for 12 s.
+
+| # | Call | What to do | What it tells us |
+|---|---|---|---|
+| f1 | `CSFXP.fireInfo()` | nothing | is the fire module there, how many flammable nodes, which calls exist |
+| f2 | `CSFXP.fireParticles(2, 27, 20)`; repeat with ids 25, 29, 51, 52 and a screenshot of each | stand next to the rear wheel | the flame/smoke particle looks right on a tread node |
+| f3 | `CSFXP.fireInject(2)`, watch 10 s, screenshot, then `CSFXP.fireClear()` | | can the game's own fire burn a tread node (the table is writable)? does the tyre stay un-popped? |
+| f4 | `CSFXP.fireDeflate(2)`, then reset the car | | the pop call works and looks right |
+| f5 | `CSFXP.debrisParticle(2, id)` for id 1..60, driving slowly, note the ids that look like rubber or dirt bits | | which particle we can use for flung rubber (otherwise CSFX adds its own) |
+
