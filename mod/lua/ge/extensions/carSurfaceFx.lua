@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 5, dropAmount = 1, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, snowRate = 1, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 512, overlayStrength = 1 }, weather = { snow = true, snowRate = 1, frost = true, bugs = true, spray = true, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = true }, ruts = { enabled = true }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS, tyres = { enabled = false } }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -439,6 +439,19 @@ local function stopImpacts()
   if impactsOn() then extensions.unload('carSurfaceFx_impacts') end
 end
 
+-- Tyre wear, temperature and grip (carSurfaceFx/tyres.lua + the car module). Runs while settings.tyres.enabled (off by default until shown in the game).
+local function tyresOn() return rawget(_G, 'carSurfaceFx_tyres') ~= nil end
+local function startTyres()
+  if tyresOn() or not (settings.tyres and settings.tyres.enabled) then return end
+  extensions.load('carSurfaceFx_tyres')
+  setExtensionUnloadMode('carSurfaceFx_tyres', 'manual')
+  carSurfaceFx_tyres.configure(settings.tyres)
+  log_('I', 'tyre module started')
+end
+local function stopTyres()
+  if tyresOn() then carSurfaceFx_tyres.configure({ enabled = false }) extensions.unload('carSurfaceFx_tyres') end
+end
+
 -- Grass that bends under the wheels (carSurfaceFx/grass.lua): the game's own surface mask, stamped from the wheels. Runs while settings.grass.enabled.
 local function startGrass()
   if grassOn() or not settings.grass.enabled then return end
@@ -673,6 +686,8 @@ local function update(dtReal)
   if settings and settings.ruts and settings.ruts.enabled ~= rutsOn() then if settings.ruts.enabled then startRuts() else stopRuts() end end
   if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
   if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
+  if settings and settings.tyres and settings.tyres.enabled ~= tyresOn() then if settings.tyres.enabled then startTyres() else stopTyres() end end
+  if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
   if not settings then loadSettings() end
   local q = queue[1]
   if q then                                         -- one material reload per frame

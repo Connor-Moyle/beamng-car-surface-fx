@@ -57,7 +57,7 @@ local function build()
     end
   end
   if pendingBlob then
-    for wi, blob in pairs(pendingBlob) do if tyres[wi] then R.restore(tyres[wi].t, blob) end end
+    for wi, blob in pairs(pendingBlob) do local k = tonumber(wi) if tyres[k] then R.restore(tyres[k].t, blob) end end
     pendingBlob = nil
   end
 end
@@ -181,7 +181,9 @@ function M.snapshot()                              -- wheel index -> JSON-safe s
   for wi, e in pairs(tyres or {}) do out[wi] = R.snapshot(e.t) end
   return out
 end
-function M.restoreSnapshot(blob) if tyres then for wi, b in pairs(blob or {}) do if tyres[wi] then R.restore(tyres[wi].t, b) end end else pendingBlob = blob end end
+function M.restoreSnapshot(blob)                   -- keys may be strings after a json round trip
+  if tyres then for wi, b in pairs(blob or {}) do local k = tonumber(wi) if tyres[k] then R.restore(tyres[k].t, b) end end else pendingBlob = blob end
+end
 function M.repair(wi)                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
     if wi == nil or wi == k then e.t = R.new(compound, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
