@@ -249,6 +249,8 @@ function P.fireInject(i)
 end
 function P.fireClear()
   local cid = P.fireCid
+  -- the game keeps a burning node in its own hot-node list too, which the flammable table does not reach: the node itself must be stopped, or it burns on and heats the car (it did: probe f10)
+  pcall(function() local n = fire.debugData.flammableNodes[cid] if n then n.chemEnergy, n.temperature, n.intensity = 0, 20, 0 end end)
   pcall(function() fire.debugData.flammableNodes[cid] = nil end)
   pcall(function() fire.extinguishVehicle() end)
   return 'cleared'

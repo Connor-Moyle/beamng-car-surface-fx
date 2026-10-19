@@ -147,7 +147,10 @@ T.setConfig({ enabled = true })
 T.repair()
 for _ = 1, 3 do T.updateGFX(0.01) end
 assert(T.lightTyre(0) and fire.lit and fire.lit[1] == 101 and fire.debugData.flammableNodes[101].burnRate >= 1, 'the tread node is given to the game fire with a real burn rate')
+local burning = fire.debugData.flammableNodes[101]
+burning.intensity, burning.temperature = 1, 900
 assert(T.putOut(0) and fire.debugData.flammableNodes[101] == nil, 'and taken out again')
+assert(burning.chemEnergy == 0 and burning.intensity == 0 and burning.temperature == 20, 'the node itself is stopped: the game keeps it in its hot list and it would burn on (probe f10)')
 assert(not T.putOut(0), 'nothing to put out twice')
 fire = nil
 assert(not T.lightTyre(0), 'no fire module: nothing happens')

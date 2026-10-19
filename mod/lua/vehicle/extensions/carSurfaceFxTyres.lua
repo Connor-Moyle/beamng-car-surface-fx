@@ -145,8 +145,15 @@ local function tick(dt)
       local ev = R.fireStep(t, dt, env.wet, cfg)
       if ev then
         events = events or {} events[#events + 1] = { wi, ev }
-        if ev == 'ignite' then pcall(M.lightTyre, wi) elseif ev == 'out' or ev == 'pop' then pcall(M.putOut, wi)
+        if ev == 'ignite' then if cfg.fireSpread then pcall(M.lightTyre, wi) end elseif ev == 'out' or ev == 'pop' then pcall(M.putOut, wi)
         elseif ev == 'spread' and cfg.fireSpread then pcall(M.igniteNearest, wi) end
+      end
+      if t.fire and not e.fireCid then                            -- without the game's fire (spread off): our own flames and smoke on the tread, nothing that can heat the car
+        pcall(function()
+          local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1]
+          obj:addParticleByNodesRelative(cid, wd.node1, -1, 29, 0, 1)
+          obj:addParticleByNodesRelative(cid, wd.node1, -1, 52, 0, 1)
+        end)
       end
       local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
       if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
@@ -240,7 +247,9 @@ function M.igniteNearest(wi)
   if best then fire.igniteNode(best, 600) end
   return best ~= nil
 end
--- a tyre fire: the game's own fire system is given one flammable node on the tread (probe f10: flames, smoke, sound; the tyre stays intact until our own pop). Needs a real burn rate: 0.05 gave nothing visible.
+-- a tyre fire with the setting "Fires can spread to the car" ON: the game's own fire system is given one flammable tread node (probe f10: flames, smoke, sound; the tyre stays intact until our
+-- own pop). Needs a real burn rate (0.05 gave nothing visible). The game radiates heat from a burning node to every flammable node around it (probe f10: the whole car burned), so this is only ever lit when
+-- the player asked for spread, and putOut stops the node itself (the game keeps it in a hot-node list the flammable table does not reach).
 local BURN_RATE, BURN_ENERGY, IGNITE_TEMP = 3, 5000, 900
 function M.lightTyre(wi)
   local e, fl = tyres and tyres[wi], fire and fire.debugData and fire.debugData.flammableNodes
@@ -271,7 +280,8 @@ end
 function M.restoreSnapshot(blob)                   -- keys may be strings after a json round trip
   if tyres then for wi, b in pairs(blob or {}) do local k = tonumber(wi) if tyres[k] then R.restore(tyres[k].t, b) end end else pendingBlob = blob end
 end
-function M.repair(wi)                              -- fresh tread (a garage tyre change): one wheel, or all
+function M.repair(wi)
+  for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
     if wi == nil or wi == k then e.t = R.new(compound or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
@@ -288,6 +298,7 @@ end
 
 -- every tread node back to its stock friction (the module is switched off, or unloaded)
 function M.restore()
+  for wi in pairs(tyres or {}) do pcall(M.putOut, wi) end
   for _, e in pairs(tyres or {}) do
     if not e.wd.isTireDeflated then
       for j, cid in ipairs(e.cids) do pcall(function() obj:setNodeFrictionSlidingCoefs(cid, e.base[j][1], e.base[j][2]) end) end
