@@ -73,7 +73,37 @@
   function hash(x, y, i) { var h = Math.sin(x * 12.9898 + y * 78.233 + i * 37.719) * 43758.5453; return h - Math.floor(h); }
   // On the palette page the same splat is punched out of the palette (the paint's tint goes where the dirt is, so the dirt shows in ITS colour, not multiplied with the paint:
   // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
+  // Real splat pictures (art/surfacefx/splats/<kind>.png, made by tools/make_real_splats.py from CC0 photographs, see docs/TEXTURE_CREDITS.md): 4 x 4 variants of 256 px, RGBA.
+  // Until a picture has loaded (or if it is missing) the splat is drawn the procedural way below, and the page redraws when it arrives.
+  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1 }, atlases = {};
+  function atlasFor(kind) {
+    var a = atlases[kind];
+    if (a === undefined) {
+      a = atlases[kind] = { img: new Image(), ok: false };
+      a.img.onload = function () { a.ok = true; dirty = true; redraw(); };
+      a.img.onerror = function () { a.bad = true; };
+      a.img.src = 'local://local/art/surfacefx/splats/' + kind + '.png?v=1';
+    }
+    return a.ok ? a.img : null;
+  }
+  // one real splat: a variant (by place, so a redraw gives the same splat), turned, drawn about r across. Base page: the picture's own colour; palette page: its alpha punches the palette;
+  // lit page: the colour at a fraction of its brightness, the lit mud and dust of the paint (snow stays white).
+  function drawReal(b, img) {
+    var v = Math.floor(hash(b.x, b.y, 5) * 16), x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
+    var ang = (b.dx || b.dy) ? Math.atan2(b.dy, b.dx) + Math.PI / 2 + (hash(b.x, b.y, 6) - 0.5) * 0.6 : hash(b.x, b.y, 7) * 6.2832;
+    var size = r * (b.t === 'mud' ? 2.6 : 2.2), stretch = (b.dx || b.dy) ? 1.35 : 1;
+    sctx.save();
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    sctx.globalAlpha = Math.min(1, b.a * (emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
+    if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
+    sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
+    sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
+    sctx.restore();
+    dirty = true;
+  }
+
   function drawBlob(b) {
+    if (b.t && SPLAT_KINDS[b.t] && b.k !== 'cake') { var at = atlasFor(b.t); if (at) { drawReal(b, at); return; } }
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     if (emis && b.k === 'dust') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a > 0.2 ? b.a * 0.25 : b.a * 1.8, k: 'dust' };      // lit dust: the patches stay faint so the whole-car haze makes a film, not spots of light
@@ -157,7 +187,7 @@
   window.csfxBlobs = function (o) {
     callCount++;
     for (var i = 0; i < o.l.length; i += 3) {
-      var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud' };
+      var b = { x: o.l[i], y: o.l[i + 1], r: o.l[i + 2], c: o.c, a: o.a, k: o.k || 'mud', t: o.t };
       if (o.d) { b.dx = o.d[(i / 3) * 2]; b.dy = o.d[(i / 3) * 2 + 1]; }                  // the direction of the spray on the texture, when there is one
       blobs.push(b);
       drawBlob(b);

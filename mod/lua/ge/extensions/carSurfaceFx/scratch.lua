@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 32                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 33                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -407,7 +407,7 @@ local function drawSplats(veh, list, dirs, props)
       l[#l + 1], l[#l + 2], l[#l + 3] = q(list[i], 10000), q(list[i + 1], 10000), q(list[i + 2], 100000)
       if dirs then local j = (i - 1) / 3 * 2 + 1 d[#d + 1], d[#d + 2] = q(dirs[j], 1000), q(dirs[j + 1], 1000) end
     end
-    draw(veh, 'csfxBlobs', { l = l, d = dirs and d or nil, c = props.c, a = props.a, k = props.k })
+    draw(veh, 'csfxBlobs', { l = l, d = dirs and d or nil, c = props.c, a = props.a, k = props.k, t = props.t })
   end
 end
 function M.useMap(id, map) cars[id] = cars[id] or {} cars[id].map = map end                    -- (for the tests: a car's body map without the mesh reading)
@@ -443,7 +443,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local m = mem(id)
   dd.sent, dd.clods, dd.last = dd.sent + #blobs / 3, dd.clods + #cakes / 3, string.format('%s: %d splats, %d clods, wheel %s', kind, #blobs / 3, #cakes / 3, tostring(wi))
   if #blobs > 0 then
-    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft })
+    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft, t = kind })
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
   end
   if #cakes > 0 then
