@@ -62,14 +62,32 @@ function M.reload()
 end
 function M.getConfig() return cfg end
 
+local lookMsc = {}                                -- vehicle id -> { 'material|mesh' -> switch id } (see M.look)
 function M.attach(id)
   if watched[id] then return end
   watched[id] = true
   load_(id)
 end
-function M.forget(id) watched[id], states[id], snaps[id] = nil, nil, nil end
+function M.forget(id) watched[id], states[id], snaps[id], lookMsc[id] = nil, nil, nil, nil end
 M.onVehicleDestroyed = M.forget
-function M.onVehicleSpawned(id) if watched[id] then load_(id) end end          -- a respawn: new car VM, give it the module again (state comes back with restore)
+function M.onVehicleSpawned(id) lookMsc[id] = nil if watched[id] then load_(id) end end          -- a respawn: new car VM, give it the module again (state comes back with restore)
+
+-- The wear look: the engine's material switch only reaches the screen from the game side (the car's own Lua binds it without effect), so the car module sends up a wheel's stage and its tyre meshes
+-- as { {original material, mesh}, ... } and the switch is made here, one per mesh, kept for the car's life. Stage 0 gives the car's own material back.
+function M.look(id, wi, stage, list)
+  local v = vehOf(id)
+  if not v then return end
+  if not stagesLoaded and loadJsonMaterialsFile then stagesLoaded = pcall(loadJsonMaterialsFile, STAGES_FILE) end
+  lookMsc[id] = lookMsc[id] or {}
+  for _, p in ipairs(list or {}) do
+    local key = p[1] .. '|' .. p[2]
+    local msc = lookMsc[id][key]
+    if not msc then msc = v:getSwitchableMaterial(p[1], p[1], p[2]) lookMsc[id][key] = msc end
+    if msc and msc >= 0 then
+      if stage == 0 then v:resetMaterials(msc) else v:switchMaterial(msc, 'csfx_' .. p[1] .. '_s' .. stage) end
+    end
+  end
+end
 
 -- called by carSurfaceFx every frame: the weather to the cars once a second, a snapshot of each car every 5 s (for the career save)
 function M.update(dt, wet)

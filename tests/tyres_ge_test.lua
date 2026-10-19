@@ -60,4 +60,12 @@ T.state(7, { { 1, 2, 60, 45, 0, false, false } }, { { 1, 'ignite' } })        --
 T.setEmitters({})
 T.forget(7)
 assert(T.getTyres(7) == nil, 'forgotten when the car is destroyed')
+-- the wear look: one switch per mesh, made on the game side, kept; stage 0 gives the material back
+local sw, calls = 0, {}
+veh.getSwitchableMaterial = function(_, o, _, m) sw = sw + 1 return 40 + sw end
+veh.switchMaterial = function(_, msc, m) calls[#calls + 1] = msc .. '=' .. m end
+veh.resetMaterials = function(_, msc) calls[#calls + 1] = msc .. '=reset' end
+T.look(7, 0, 3, { { 'tire_01a', 'tire_01a_x' } })
+T.look(7, 0, 0, { { 'tire_01a', 'tire_01a_x' } })
+assert(sw == 1 and calls[1] == '41=csfx_tire_01a_s3' and calls[2] == '41=reset', 'one switch per mesh, stage 3 then back: ' .. table.concat(calls, ' '))
 print('carSurfaceFx tyres (game side): ok')
