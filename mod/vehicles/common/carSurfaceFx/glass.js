@@ -41,6 +41,8 @@
   // One drop as a bead, the way the body drops are drawn: a clear body, a thin dark edge (heavier low right) and one sharp glint up-left; no bright rim, which made the drops look
   // like bubbles. The colour map is drawn over the tinted glass image (it can lighten or darken it): the dark edge, the glint and a faint light spot low right that the drop
   // focuses (it lifts a dark tint). The emissive map ADDS light to the inside pane, which is clear: only light parts there, the glint and a narrow lit edge up-left.
+  var dotImg = document.createElement('canvas'); dotImg.width = dotImg.height = 16;        // a small lit drop on the light map: a soft round dot (a square sprite reads as a pixel speck)
+  (function () { var c = dotImg.getContext('2d'), g = c.createRadialGradient(8, 8, 0, 8, 8, 8); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 16, 16); })();
   var S = 64, sprite = document.createElement('canvas');
   sprite.width = sprite.height = S;
   (function () {
@@ -149,7 +151,7 @@
       }
     }
     if (tiny) ctx.stroke();
-    if (dots.length) { ctx.fillStyle = 'rgba(255,255,255,1)'; for (var di = 0; di < dots.length; di += 3) ctx.fillRect(dots[di], dots[di + 1], dots[di + 2], dots[di + 2]); }
+    if (dots.length) { for (var di = 0; di < dots.length; di += 3) ctx.drawImage(dotImg, dots[di] - dots[di + 2] * 0.2, dots[di + 1] - dots[di + 2] * 0.2, dots[di + 2] * 1.4, dots[di + 2] * 1.4); }
     if (glints.length && !emissive) {      // the inside light map has no glints: at 4 mm a texel any lit mark of a drop reads as a white dot up close; the disc and the ring carry it
       ctx.fillStyle = 'rgba(255,255,255,' + (emissive ? 0.7 : 0.85) + ')';
       for (var gi = 0; gi < glints.length; gi += 2) ctx.fillRect(glints[gi], glints[gi + 1], 1.2, 1.2);
