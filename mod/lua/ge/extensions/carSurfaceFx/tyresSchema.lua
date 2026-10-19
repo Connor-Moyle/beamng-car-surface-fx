@@ -6,6 +6,8 @@
 local M = {}
 
 M.FILE = '/settings/carSurfaceFx_tyres.json'
+-- the tyre simulation is off until the player switches it on (no file means off), whatever the rules' own default is
+M.ENABLED_DEFAULT = false
 
 M.TABS = {
   { id = 'wear', title = 'Wear', description = 'The tyre simulation, its presets, and how fast tread wears away. Real tyres wear far too slowly to see in play, so the wear rate speeds time up.' },
@@ -138,6 +140,7 @@ function M.build(S, opts)
   for _, r in ipairs(ROWS) do
     local f = { id = 'ty_' .. r.path:gsub('%.', '_'), tab = r.tab, group = groupOf(r), type = r.type, label = r.label, tooltip = r.tooltip, default = d(r.path), store = json(r.path),
       apply = 'live', onChange = reload, advanced = r.advanced }
+    if r.path == 'enabled' then f.default = M.ENABLED_DEFAULT end
     if r.type == 'slider' or r.type == 'int' then f.min, f.max, f.step, f.unit = r.min, r.max, r.step, r.unit end
     if r.type == 'slider' and r.unit == '%' then f.scale = 100 end
     if r.type == 'bool' then f.feature = true end
