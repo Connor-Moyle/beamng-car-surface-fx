@@ -300,7 +300,7 @@ function P.blowout(i, newtons)
   local centre = v.data.nodes[w.node1].pos
   local list = {}
   for cid, n in pairs(v.data.nodes) do
-    if not skip[cid] and n.pos then
+    if not skip[cid] and n.pos and not n.fixed and not n.couplerTag and not tostring(n.group or ''):lower():find('wheel') and not tostring(n.group or ''):lower():find('susp') and not tostring(n.group or ''):lower():find('hub') then
       local dx, dy, dz = n.pos.x - centre.x, n.pos.y - centre.y, n.pos.z - centre.z
       local d = math.sqrt(dx * dx + dy * dy + dz * dz)
       if d <= 0.55 then list[#list + 1] = { cid = cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end
@@ -317,12 +317,13 @@ end
 -- call this from updateGFX-like ticks; here: a one-off helper that applies one step. Call it 3 times in a row (3 run_lua_vehicle calls, or loop with CSFXP.blowoutApply(3))
 function P.blowoutApply(times)
   local n = 0
-  for _ = 1, math.min(times or 1, 3) do
+  for _ = 1, math.min(times or 1, P.blowSteps or 0) do
     for _, t in ipairs(P.blowTargets or {}) do
-      pcall(function() obj:applyForceVector(t.cid, vec3(t.dx * P.blowForce, t.dy * P.blowForce, t.dz * P.blowForce)) end)
-      n = n + 1
+      if pcall(function() obj:applyForceVector(t.cid, vec3(t.dx * P.blowForce, t.dy * P.blowForce, t.dz * P.blowForce)) end) then n = n + 1 end
     end
+    P.blowSteps = P.blowSteps - 1
   end
+  if (P.blowSteps or 0) <= 0 then P.blowTargets = {} end
   return 'applied ' .. n .. ' pushes'
 end
 

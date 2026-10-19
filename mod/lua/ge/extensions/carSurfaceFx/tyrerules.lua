@@ -39,7 +39,7 @@ function M.defaults()
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
-    blowout = { enabled = true, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 6000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
+    blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
     fires = true, fireSpread = true, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
@@ -130,12 +130,24 @@ function M.blowoutHit(speed, pressure, roll, cfg)
   local force = math.min(b.maxForce, 800 * b.strength * (0.3 + 1.7 * k) * (0.5 + 0.5 * clamp(pressure or 1, 0, 1.5)))
   return { n = math.max(1, math.floor(b.maxNodes * (0.4 + 0.6 * k) + 0.5)), force = force, steps = b.steps }
 end
--- which nodes to push: body nodes within radius of the wheel centre, never the wheel's own (skip[cid]) nor anything in the skipped list; nearest first, at most n.
+-- a plain body-panel node: not fixed, not a coupler, hub or special node, and not in a wheel, suspension, hub, axle, brake or coupler group (forces on those bent cars before)
+local BAD_GROUP = { 'wheel', 'susp', 'hub', 'axle', 'brake', 'coupl', 'tow', 'steer', 'engine', 'trans' }
+function M.panelNode(nd)
+  if nd.fixed or nd.coupler or nd.couplerTag or nd.hub or nd.wheel or nd.special then return false end
+  local g = nd.group
+  if type(g) == 'table' then g = table.concat(g, ' ') end
+  if type(g) == 'string' then
+    g = g:lower()
+    for _, bad in ipairs(BAD_GROUP) do if g:find(bad, 1, true) then return false end end
+  end
+  return true
+end
+-- which nodes to push: plain body-panel nodes (panelNode) within radius of the wheel centre, never the wheel's own (skip[cid]); nearest first, at most n.
 -- nodes = { {cid=, x=, y=, z=}, .. }; returns the cids with a unit direction away from the wheel centre (flat on the vertical a little, so panels bulge out and up)
 function M.blowoutTargets(nodes, centre, radius, skip, n)
   local list = {}
   for _, nd in ipairs(nodes) do
-    if not skip[nd.cid] then
+    if not skip[nd.cid] and M.panelNode(nd) then
       local dx, dy, dz = nd.x - centre.x, nd.y - centre.y, nd.z - centre.z
       local d = math.sqrt(dx * dx + dy * dy + dz * dz)
       if d <= radius and d > 1e-6 then list[#list + 1] = { cid = nd.cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end

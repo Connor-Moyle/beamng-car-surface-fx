@@ -187,19 +187,32 @@ local function run(wet) local x = R.new('slick', 16, 0.3, 0.2, 20, 1) for _ = 1,
 assert(run(1) < run(0) - 5, 'rain cools the tyre: ' .. run(1) .. ' vs ' .. run(0))
 
 -- ---- blowout damage
+assert(cfg.blowout.enabled == false and cfg.blowout.maxForce == 3000, 'unproven: off by default, 3000 N')
+assert(R.blowoutHit(30, 1, 0, cfg) == nil, 'off by default: never')
+cfg = R.defaults() cfg.blowout.enabled = true
 assert(R.blowoutHit(30, 1, 0.99, cfg) == nil and R.blowoutHit(30, 1, 0.5, cfg), 'a roll above the chance misses, below it hits')
 assert(R.blowoutHit(0, 1, 0.5, cfg) == nil and R.blowoutHit(30, 1, 0.5, cfg) ~= nil, 'a stationary tyre rarely hurts the panels')
 local hs, hf = R.blowoutHit(5, 1, 0.01, cfg), R.blowoutHit(30, 1, 0.01, cfg)
 assert(hf.force > hs.force and hf.n >= hs.n, 'faster blows harder')
 assert(R.blowoutHit(30, 0.3, 0.01, cfg).force < hf.force, 'a flat-ish tyre has less burst')
-local big = R.defaults() big.blowout.strength = 100
+local big = R.defaults() big.blowout.enabled = true big.blowout.strength = 100
 assert(R.blowoutHit(40, 1.5, 0.01, big).force <= big.blowout.maxForce, 'the force is capped')
-local off = R.defaults() off.blowout.enabled = false
+local off = R.defaults()
 assert(R.blowoutHit(30, 1, 0, off) == nil, 'switched off: never')
 local bn = { { cid = 1, x = 0.1, y = 0, z = 0 }, { cid = 2, x = 0.3, y = 0, z = 0 }, { cid = 3, x = 2, y = 0, z = 0 }, { cid = 4, x = 0.2, y = 0.1, z = 0 }, { cid = 9, x = 0.05, y = 0, z = 0 } }
 local tg = R.blowoutTargets(bn, { x = 0, y = 0, z = 0 }, 0.5, { [9] = true }, 2)
 assert(#tg == 2 and tg[1].cid == 1 and tg[2].cid == 4, 'nearest first, the wheel own node 9 and the far node 3 are left out')
 near(tg[1].dx, 1, 1e-9, 'directed away from the wheel')
+-- only plain body panels are targets
+local bad = { { cid = 20, x = 0.1, y = 0, z = 0, fixed = true }, { cid = 21, x = 0.1, y = 0, z = 0, couplerTag = 'tow' }, { cid = 22, x = 0.1, y = 0, z = 0, group = 'fl_hub' },
+  { cid = 23, x = 0.1, y = 0, z = 0, group = { 'body', 'frontsusp' } }, { cid = 24, x = 0.1, y = 0, z = 0, special = true }, { cid = 25, x = 0.1, y = 0, z = 0, wheel = true }, { cid = 26, x = 0.1, y = 0, z = 0, group = 'fender_FL' } }
+local tb = R.blowoutTargets(bad, { x = 0, y = 0, z = 0 }, 0.5, {}, 10)
+assert(#tb == 1 and tb[1].cid == 26, 'fixed, coupler, hub, suspension, special and wheel nodes are rejected; the fender stays: ' .. #tb)
+-- the force never exceeds maxForce, over a sweep
+for sp = 0, 80, 5 do for pr = 0, 1.5, 0.25 do for _, st in ipairs({ 0.5, 1, 5, 100 }) do
+  local c2 = R.defaults() c2.blowout.enabled = true c2.blowout.strength = st
+  local h = R.blowoutHit(sp, pr, 0, c2)
+  assert(not h or h.force <= c2.blowout.maxForce, 'force within the cap') end end end
 
 -- ---- debris, smoke, fire
 local d = R.new('road', 16) d.Ts = 60 d.shed = 1000
