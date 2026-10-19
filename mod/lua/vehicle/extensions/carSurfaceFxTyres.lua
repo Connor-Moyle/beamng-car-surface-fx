@@ -13,7 +13,7 @@ local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the cal
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
 local cfg = R.defaults()
-local compound = 'road'
+local compound = nil                -- nil: every tyre keeps its stock class (what the car's own friction already is); a name fits that compound on all of them
 local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil }
 local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
 local external = {}                 -- kind -> { wheel index -> multiplier }
@@ -21,6 +21,16 @@ local pendingBlob = nil             -- a saved state waiting for the tyres to be
 local timer, report, reapply = 0, 0, 0
 local enabled = false
 local failed
+
+-- the class of the stock tyre, from the numbers of its jbeam (research 7.1: a standard tyre has noLoadCoef 1.35 and treadCoef 0.7, a race tyre 2.07 and 0). Starting values to tune in game.
+local function classify(wd)
+  local nl, tc, r = tonumber(wd.noLoadCoef) or 1.35, tonumber(wd.treadCoef) or 0.7, tonumber(wd.radius) or 0.3
+  if nl >= 2.5 then return 'drag' end
+  if nl >= 1.9 and tc < 0.2 then return 'semislick' end
+  if r >= 0.38 and tc >= 0.9 then return 'offroad' end
+  return 'road'
+end
+M.classify = classify
 
 local function pcalls(f, ...) local ok, a = pcall(f, ...) return ok and a or nil end
 
@@ -50,7 +60,9 @@ local function build()
         e.base[j] = { nd.frictionCoef, nd.slidingFrictionCoef or nd.frictionCoef }
       end
       if ok then
-        e.t = R.new(compound, #tn / 2, tonumber(wd.radius), tonumber(wd.tireWidth), ambientC())
+        e.stock = classify(wd)
+        e.t = R.new(compound or e.stock, #tn / 2, tonumber(wd.radius), tonumber(wd.tireWidth), ambientC())
+        e.ratio = R.swapRatio(e.stock, e.t.compound)     -- the stock friction already is the stock class: a slick on a road jbeam gains, a road tyre on a slick jbeam loses
         e.pNom = pressureOf(wd)
         tyres[wi] = e
       end
@@ -76,6 +88,7 @@ local function applyGrip(wi, e, force)
   local wet = env.wet
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
+    fs, fk = fs * e.ratio, fk * e.ratio
     local f = (fs + fk) * 0.5 * ext          -- (one factor per node: the rules give equal static and sliding multipliers)
     local last = e.applied[j]
     if force or not last or abs(f - last) > APPLY_EPS * last then
@@ -124,11 +137,20 @@ local function tick(dt)
   return events
 end
 
+-- the flat-spot shake of a wheel: how often it comes round (Hz), and the radial force (N) the worst flat spot pulls on the tyre (the game side shakes the camera / the wheel with it)
+function M.shake(wi)
+  local e = tyres and tyres[wi]
+  if not e or e.wd.isTireDeflated then return 0, 0 end
+  local d = R.worstFlat(e.t)
+  if d < cfg.flat.minDepth then return 0, 0 end
+  return R.shakeHz(tonumber(e.wd.angularVelocity) and (tonumber(e.wd.angularVelocity) * e.t.r) or tonumber(e.wd.wheelSpeed), e.t.r), R.shakeForce(d)
+end
+
 local function sendState(events)
   local parts = {}
   for wi, e in pairs(tyres) do
     local worst = R.worstFlat(e.t)
-    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil))
+    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), M.shake(wi))
   end
   local ev = {}
   for _, x in ipairs(events or {}) do ev[#ev + 1] = string.format('{%d,%q}', x[1], x[2]) end
@@ -159,12 +181,13 @@ function M.setConfig(tbl)                          -- fields of csfx_tyrerules.d
     elseif type(val) == 'table' and type(cfg[k]) == 'table' then for k2, v2 in pairs(val) do cfg[k][k2] = v2 end
     else cfg[k] = val end
   end
-  if tbl.enabled == nil and next(tbl) then enabled = enabled or false end
   if tyres then for wi, e in pairs(tyres) do e.applied = {} end end
   if not enabled and tyres then M.restore() end
 end
-function M.setCompound(name)                       -- before the tyres are built (a later change rebuilds them, state lost)
-  if not R.COMPOUNDS[name] or name == compound then return end
+function M.setCompound(name)                       -- nil: the stock class again. Fitting rebuilds the tyres (new tyres: wear and temperature start over)
+  if name ~= nil and not R.COMPOUNDS[name] then return end
+  if name == compound then return end
+  M.restore()
   compound = name
   tyres = nil
 end
@@ -184,7 +207,7 @@ end
 function M.restoreSnapshot(blob) if tyres then for wi, b in pairs(blob or {}) do if tyres[wi] then R.restore(tyres[wi].t, b) end end else pendingBlob = blob end end
 function M.repair(wi)                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then e.t = R.new(compound, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
+    if wi == nil or wi == k then e.t = R.new(compound or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
 end
 function M.status()
