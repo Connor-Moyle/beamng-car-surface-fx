@@ -1,4 +1,4 @@
--- Car Surface FX: how worn a tyre looks (a first test, loaded by hand, nothing starts it). The car's own tyre materials keep their tread; at a wear amount above 0.3 a detail normal map is laid over
+-- Car Surface FX: how worn a tyre looks (a first test, loaded by hand, nothing starts it). Tyre materials are shared by every car that uses them, so set() changes all of those cars. The car's own tyre materials keep their tread; at a wear amount above 0.3 a detail normal map is laid over
 -- them (worn rubber, then the cord weave of the belts as the tread is gone, and a damage map over the top for a blown or gouged tyre), by editing the material's own stage fields the way the wet
 -- paint does, and put back exactly by clear().
 --   extensions.load('carSurfaceFx_tyrevisual')
@@ -8,9 +8,17 @@
 local M = {}
 
 local PATH = '/art/surfacefx/tyres/'
-local WORN, BELTS, DAMAGE = PATH .. 'tyre_worn.normal.png', PATH .. 'tyre_belts.normal.png', PATH .. 'tyre_damage.normal.png'
+local function variants(kind, n) local t = {} for i = 1, n do t[i] = PATH .. 'tyre_' .. kind .. '_' .. i .. '.normal.png' end return t end
+local WORN, BELTS, DAMAGE = variants('worn', 3), variants('belts', 3), variants('blown', 2)      -- connor-19's flat detail normals, a few of each so the tyres do not all look alike
 local FIELDS = { 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local saved = {}                                   -- material name -> { field -> original }
+
+-- a material fetched by name needs Sim.upcast for the renderer to see the edit (Street Legal's wetworld found this); without Sim (the tests) the plain object
+local function reload(mat)
+  local ok, m = pcall(function() return Sim.upcast(mat) end)
+  local target = ok and m or mat
+  target:reload()
+end
 
 local function field(mat, name) return tostring(mat:getField(name, 0) or '') end
 
@@ -35,7 +43,7 @@ local function put(name, values)
     for _, f in ipairs(FIELDS) do saved[name][f] = field(mat, f) end
   end
   for f, v in pairs(values) do mat:setField(f, 0, v) end
-  mat:reload()
+  reload(mat)
   return true
 end
 
@@ -43,13 +51,14 @@ end
 function M.set(wear, damage)
   wear = math.max(0, math.min(1, tonumber(wear) or 0))
   if wear <= 0.3 and not damage then return M.clear() end
-  local map = damage and DAMAGE or (wear >= 0.75 and BELTS or WORN)
+  local set = damage and DAMAGE or (wear >= 0.75 and BELTS or WORN)
   local strength = damage and 1 or math.min(1, (wear - 0.3) * 1.6)
   local n = 0
   for _, name in ipairs(tyreMaterials()) do
+    local map = set[1 + (#name + (name:byte(-1) or 0)) % #set]                          -- the variant by the material's name
     if put(name, { detailNormalMap = map, detailNormalMapStrength = string.format('%.2f', strength), detailScale = '3 3' }) then n = n + 1 end
   end
-  return string.format('wear %.2f on %d tyre materials (%s)', wear, n, map:match('[^/]+$'))
+  return string.format('wear %.2f on %d tyre materials (%s)', wear, n, (set[1]:match('[^/]+$'):gsub('_%d', '')))
 end
 
 function M.clear()
@@ -58,7 +67,7 @@ function M.clear()
     local mat = scenetree.findObject(name)
     if mat then
       for f, v in pairs(orig) do mat:setField(f, 0, v) end
-      mat:reload()
+      reload(mat)
       n = n + 1
     end
   end
@@ -67,5 +76,7 @@ function M.clear()
 end
 
 function M.onExtensionUnloaded() pcall(M.clear) end
+-- the level is ending: its materials go with it, so nothing is reloaded while the engine takes the cars down; only the state is dropped
+function M.onClientEndMission() saved = {} end
 
 return M
