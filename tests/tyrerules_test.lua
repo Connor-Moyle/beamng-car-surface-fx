@@ -186,6 +186,16 @@ assert(R.heatWear(C.fullwet, 100, cfg) > R.heatWear(C.road, 100, cfg), 'and wear
 local function run(wet) local x = R.new('slick', 16, 0.3, 0.2, 20, 1) for _ = 1, 600 do R.tempStep(x, { dt = 0.05, power = 8000, v = 30, fz = 4000, ambient = 20, wet = wet }, cfg) end return x.Ts end
 assert(run(1) < run(0) - 5, 'rain cools the tyre: ' .. run(1) .. ' vs ' .. run(0))
 
+-- ---- fitting another compound, saving
+near(R.swapRatio('road', 'slick'), 1.2, 1e-9, 'a slick on a road jbeam: +20%')
+near(R.swapRatio('slick', 'road') * R.swapRatio('road', 'slick'), 1, 1e-9, 'and back')
+near(R.swapRatio('road', 'road'), 1, 1e-9, 'same class: nothing')
+local sv = R.new('road', 16) sv.h[3] = 4.123456 sv.blown = true
+local blob = R.snapshot(sv)
+assert(blob.h[3] == 4.12 and blob.compound == 'road' and blob.blown, 'snapshot rounds to 0.01 mm')
+local sr = R.new('road', 16) assert(R.restore(sr, blob) and sr.h[3] == 4.12 and sr.blown, 'restore round-trips')
+assert(not R.restore(R.new('road', 20), blob), 'a blob from another ring size is refused')
+
 -- ---- blowout damage
 assert(cfg.blowout.enabled == false and cfg.blowout.maxForce == 3000, 'unproven: off by default, 3000 N')
 assert(R.blowoutHit(30, 1, 0, cfg) == nil, 'off by default: never')
