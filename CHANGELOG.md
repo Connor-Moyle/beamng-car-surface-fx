@@ -12,13 +12,13 @@ Proven in the game (connor-80, with screenshots):
 
 Built, not seen in the game (these look or behave unconfirmed; the new defaults are below):
 
-- Window drops at the new size and amount (glass amount 4, drop size 10 mm); the dirt film on the rear glass was fogging it and is now faint. A recheck is open.
+- Window drops (the side and rear glass canvases): the haze is gone but the drops were not clearly visible at real size, so they are off by default (Mods menu, Rain & glass, Windows). The driver's-view drops are separate and stay on.
 - Wiper sweep (the blades move; the clearing is only weakly visible), drop trails at speed, impact rings, bead animation.
 - Falling leak drops are only simulated (invisible: the oil pan is 20 cm above the ground); the sky is not reflected in puddles (engine limit).
 
 Off by default (switch on in the Mods menu once you have tried them):
 
-- Grass bending (the counters run, the picture was not seen), ruts, snow, frost, bugs, road spray from the car ahead, and crash effects (shards, debris, sparks). Saved profiles keep what they had.
+- Window drops, grass bending (the counters run, the picture was not seen), ruts, snow, frost, bugs, road spray from the car ahead, and crash effects (shards, debris, sparks). Saved profiles keep what they had.
 
 Notes:
 

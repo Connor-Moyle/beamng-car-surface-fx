@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 4, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
 local GLASS_KEYS = { 'baseColorMap', 'emissiveMap', 'emissiveFactor', 'emissiveIntensityNits' }
@@ -736,7 +736,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.enabled and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.windows and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
