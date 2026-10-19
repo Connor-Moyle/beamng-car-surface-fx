@@ -263,9 +263,9 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { mud = { 0.55, 0.38, 0.22 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 3000, 0.9, 0.03 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 600, 0.9, 0.02 }, snow = { 200, 0.95, 0.10 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 3000, 0.9, 0.03 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 200, 0.95, 0.10 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
@@ -281,7 +281,7 @@ local function bodyDirt(id, kind, amount, wi)
   if pc and sc.setPaintLum then sc.setPaintLum(id, 0.2126 * (pc[1] or 0) + 0.7152 * (pc[2] or 0) + 0.0722 * (pc[3] or 0)) end
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
   if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
-    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, math.floor(n / 3)), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(2, n), nil, COL.dust, 0.10, 0.30, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
     return
   end
   local f = FALL[kind]
@@ -330,11 +330,11 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   if grassOn() then carSurfaceFx_grass.noteGround(id, loose, mud, slip, speed) end
   if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
-    local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate
+    local x = (loose * 0.8 + mud * 1.6) * settings.scratch.dirtRate * 0.4
     local n = math.floor(x + math.random())
     if n > 0 then
       local muddy = mud > 0.2 or wet > 0.3
-      carSurfaceFx_scratch.splat(id, muddy and { 0.20, 0.14, 0.09 } or { 0.50, 0.42, 0.30 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
+      carSurfaceFx_scratch.splat(id, muddy and { 0.42, 0.30, 0.20 } or { 0.55, 0.48, 0.36 }, settings.scratch.dirtOpacity, n, muddy and 'mud' or 'dust')
     end
   end
   if not (settings and settings.mud.enabled) then return end

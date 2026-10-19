@@ -78,8 +78,8 @@
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     if (emis && b.k === 'dust') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a > 0.2 ? b.a * 0.25 : b.a * 1.8, k: 'dust' };      // lit dust: the patches stay faint so the whole-car haze makes a film, not spots of light
     if (emis && b.k !== 'dust') {                                        // lit mud: as light the earth colours are far too bright and saturated (orange): darker and browner, every splat a little different, soft edges
-      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3, tone = 0.8 + 0.4 * hash(b.y, b.x, 77), thick = (0.6 + 0.75 * hash(b.x, b.y, 91)) * (0.8 + 0.8 * (1 - paintLum)), kk = 0.3 * tone * (1 + 0.9 * (1 - paintLum));
-      b = { x: b.x, y: b.y, r: b.r, dx: b.dx, dy: b.dy, k: b.k, a: Math.min(1, b.a * thick * (b.k === 'cake' ? 0.8 : 1)), c: [(mean + (b.c[0] - mean) * 0.85) * kk, (mean + (b.c[1] - mean) * 0.85) * kk, (mean + (b.c[2] - mean) * 0.85) * kk] };
+      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3, tone = 0.8 + 0.4 * hash(b.y, b.x, 77), thick = (0.6 + 0.75 * hash(b.x, b.y, 91)) * (0.8 + 0.8 * (1 - paintLum)), kk = 0.26 * tone * (1 + 0.9 * (1 - paintLum));
+      b = { x: b.x, y: b.y, r: b.r, dx: b.dx, dy: b.dy, k: b.k, a: Math.min(1, b.a * thick * (b.k === 'cake' ? 0.8 : 1)), c: [(mean + (b.c[0] - mean) * 0.55) * kk, (mean + (b.c[1] - mean) * 0.55) * kk, (mean + (b.c[2] - mean) * 0.55) * kk] };
       sctx.filter = 'blur(1.3px)';
     }
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
