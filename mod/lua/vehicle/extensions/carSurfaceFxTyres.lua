@@ -10,6 +10,7 @@ local TICK = 0.1                    -- seconds between wear / temperature / grip
 local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
+local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
 local cfg = R.defaults()
@@ -31,6 +32,26 @@ local function classify(wd)
   return 'road'
 end
 M.classify = classify
+
+-- the ground under each wheel, from the wheel's own contact material (the other one than the rubber): material name -> the surface keys of cfg.surface / the compound rules.
+-- The ids are resolved by name once (a name this build does not know is skipped); an unknown ground keeps the surface the game side sent.
+local GROUND = { ASPHALT = 'asphalt', ASPHALT_WET = 'wet', CONCRETE = 'concrete', DIRT = 'dirt', DIRT_DUSTY = 'dirt', GRAVEL = 'gravel', SAND = 'dirt', MUD = 'mud', GRASS = 'dirt',
+  ROCK = 'rock', SNOW = 'snow', ICE = 'ice' }
+local groundOf = nil
+local WATER_DEPTH = 0.4             -- how deep a wheel in water counts for aquaplaning (0..1); the car cannot see the puddle's depth
+local function ground(id)
+  if not groundOf then
+    local p = rawget(_G, 'particles')
+    local mats = p and (p.materials or (v and v.data and v.data.materials))
+    if not (p and p.getMaterialIDByName and mats) then return nil end     -- (not there yet: asked again next time)
+    groundOf = {}
+    for name, key in pairs(GROUND) do
+      local ok, mid = pcall(p.getMaterialIDByName, mats, name)
+      if ok and type(mid) == 'number' and mid >= 0 then groundOf[mid] = key end
+    end
+  end
+  return groundOf[id]
+end
 
 local function pcalls(f, ...) local ok, a = pcall(f, ...) return ok and a or nil end
 
@@ -84,8 +105,8 @@ end
 local function applyGrip(wi, e, force)
   if e.wd.isTireDeflated then e.applied = {} return end
   local t, ext = e.t, extMult(wi)
-  local ctx = { water = env.water, v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = env.surface }
-  local wet = env.wet
+  local ctx = { water = max(env.water, e.water or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
+  local wet = max(env.wet, e.surface == 'wet' and 1 or 0)
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
     fs, fk = fs * e.ratio, fk * e.ratio
@@ -122,7 +143,12 @@ local function tick(dt)
     local wd, t = e.wd, e.t
     if not wd.isTireDeflated then
       local pr = pressureOf(wd)
-      local ctx = { surface = env.surface, wet = env.wet > 0.3, pressure = pr, pNom = e.pNom }
+      local id = tonumber(wd.contactMaterialID1)
+      if id == RUBBER_MAT then id = tonumber(wd.contactMaterialID2) end
+      e.surface = id and ground(id) or nil
+      e.water = (wd.node1 and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and pcalls(obj.inWater, obj, wd.node1)) and WATER_DEPTH or 0
+      local wetNow = env.wet > 0.3 or e.surface == 'wet' or e.water > 0
+      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
       R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = abs(tonumber(wd.wheelSpeed) or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
