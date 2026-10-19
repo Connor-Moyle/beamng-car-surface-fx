@@ -1,0 +1,307 @@
+-- Car Surface FX: the rules of tyre wear, temperature and flat spots (research: docs/TYRE_WEAR_RESEARCH.md in the control repo, sections 4 and 8). Pure: no game calls, so the
+-- vehicle side and the game side can both load it, and tests/tyrerules_test.lua runs it outside the game. Every constant is a starting value to be tuned in the game.
+--
+-- A tyre is a ring of N sectors x 2 lanes (outer/inner shoulder). Node slot j (1..2N) is the tread node treadNodes[j]: odd = outer lane, even = inner lane, sector = ceil(j/2)
+-- (the order of a pressureWheel's tread nodes). Energy goes in per slot (J), wear and temperature are stepped at a low rate, grip comes out per slot.
+local M = {}
+
+local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
+M.clamp = clamp
+
+-- ---- compounds (research section 4). h0 tread mm, margin = how far below zero the belts/cord go before the blow-out, k mm3/J, lo/hi the grip window (C), grip20 the grip at 20 C,
+-- drop the grip lost per 10 C over hi, wearOn the temperature wear starts to climb, dry0/wet0 the grip at 0 mm, crr rolling resistance
+M.COMPOUNDS = {
+  road        = { base = 1.0, h0 = 8.0,  margin = 0.5, k = 0.10, lo = 20,  hi = 85,  grip20 = 0.98, drop = 0.02, wearOn = 110, dry0 = 1.02, wet0 = 0.80, crr = 0.010, wetF = 1.0, aqua = 22, loose = 0.9, snow = 0.7 },
+  performance = { base = 1.05, h0 = 7.0,  margin = 0.5, k = 0.14, lo = 40,  hi = 90,  grip20 = 0.93, drop = 0.03, wearOn = 110, dry0 = 1.03, wet0 = 0.75, crr = 0.011, wetF = 0.95, aqua = 20, loose = 0.85, snow = 0.65 },
+  semislick   = { base = 1.12, h0 = 5.0,  margin = 0.4, k = 0.25, lo = 70,  hi = 104, grip20 = 0.85, drop = 0.04, wearOn = 120, dry0 = 1.04, wet0 = 0.60, crr = 0.013, wetF = 0.75, aqua = 16, loose = 0.8, snow = 0.6 },
+  slick       = { base = 1.2, h0 = 3.0,  margin = 0.3, k = 0.40, lo = 80,  hi = 105, grip20 = 0.75, drop = 0.05, wearOn = 125, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  slicksoft   = { base = 1.25, h0 = 3.0,  margin = 0.3, k = 0.60, lo = 85,  hi = 110, grip20 = 0.72, drop = 0.06, wearOn = 120, dry0 = 1.00, wet0 = 0.45, crr = 0.015, wetF = 0.55, aqua = 12, loose = 0.7, snow = 0.5 },
+  drag        = { base = 1.15, h0 = 3.0,  margin = 0.3, k = 0.50, lo = 60,  hi = 100, grip20 = 0.80, drop = 0.04, wearOn = 130, dry0 = 1.00, wet0 = 0.40, crr = 0.015, wetF = 0.5, aqua = 11, loose = 0.65, snow = 0.45 },
+  offroad     = { base = 0.9, h0 = 11.0, margin = 0.6, k = 0.12, lo = 0,   hi = 70,  grip20 = 1.00, drop = 0.02, wearOn = 100, dry0 = 1.00, wet0 = 0.85, crr = 0.014, wetF = 1.0, aqua = 22, loose = 1.15, snow = 0.9 },
+  mud         = { base = 0.85, h0 = 15.0, margin = 0.6, k = 0.15, lo = 0,   hi = 60,  grip20 = 1.00, drop = 0.02, wearOn = 95,  dry0 = 0.98, wet0 = 0.85, crr = 0.016, wetF = 1.0, aqua = 22, loose = 1.25, snow = 0.95 },
+  winter      = { base = 0.92, h0 = 9.0,  margin = 0.5, k = 0.12, lo = -25, hi = 15,  grip20 = 0.94, drop = 0.03, wearOn = 70,  dry0 = 1.00, wet0 = 0.80, crr = 0.011, wetF = 1.02, aqua = 22, loose = 1.0, snow = 1.3 },
+  intermediate = { base = 0.95, h0 = 7.5, margin = 0.5, k = 0.20, lo = 25, hi = 70, grip20 = 0.90, drop = 0.04, wearOn = 85, dry0 = 0.95, dryF = 0.96, wet0 = 0.85, crr = 0.012, wetF = 1.20, aqua = 28, loose = 0.8, snow = 0.7 },
+  fullwet      = { base = 0.9, h0 = 9.0, margin = 0.5, k = 0.30, lo = 15, hi = 55, grip20 = 0.92, drop = 0.06, wearOn = 70, dry0 = 0.85, dryF = 0.90, wet0 = 0.90, crr = 0.013, wetF = 1.30, aqua = 33, loose = 0.8, snow = 0.8 },
+  rally       = { base = 0.97, h0 = 9.0,  margin = 0.5, k = 0.15, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012, wetF = 1.0, aqua = 22, loose = 1.1, snow = 0.85 },
+}
+
+function M.defaults()
+  return {
+    enabled = false,
+    wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
+    surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
+    deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)
+    heatWearScale = 60, heatWearMax = 4,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
+    cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
+    heatRate = 1.0, coolRate = 1.0, rainCool = 4, sunRoad = 8,
+    coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
+    beltGrip = 0.55, beltSliding = 0.50,
+    flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
+    -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
+    smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
+    blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
+    fires = true, fireSpread = true, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
+    debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
+  }
+end
+
+-- ---- fitting a compound on a car whose stock tyre is another class: grip is relative to the stock jbeam friction, so a swap multiplies by base(new) / base(stock class)
+-- (base = dry grip against a road tyre = 1). A slick on a road jbeam gains 20%, a road tyre on a slick jbeam loses 17%.
+function M.swapRatio(stock, new)
+  local a, b = M.COMPOUNDS[stock or 'road'], M.COMPOUNDS[new or stock or 'road']
+  return (a and b) and b.base / a.base or 1
+end
+-- save and load of a tyre's state (JSON-safe: numbers rounded to 0.01 mm). Flat spots follow from the depths, so only the depths are kept.
+function M.snapshot(t)
+  local h = {}
+  for j = 1, 2 * t.n do h[j] = math.floor(t.h[j] * 100 + 0.5) / 100 end
+  return { compound = t.compound, n = t.n, h = h, cord = t.cord, blown = t.blown or false }
+end
+function M.restore(t, blob)
+  if type(blob) ~= 'table' or blob.n ~= t.n or type(blob.h) ~= 'table' then return false end
+  for j = 1, 2 * t.n do if type(blob.h[j]) == 'number' then t.h[j] = blob.h[j] end end
+  t.cord, t.blown = blob.cord or 0, blob.blown and true or false
+  return true
+end
+
+-- ---- the tyre ring
+function M.sectorOf(j) return math.ceil(j / 2) end
+function M.laneOf(j) return j % 2 == 1 and 1 or 2 end                  -- 1 outer, 2 inner
+
+-- a new tyre: n = numRays (16 or 20), r = radius m, w = tread width m, ambient C. Starts at the ambient temperature, optionally warm (frac of the window).
+function M.new(compoundName, n, r, w, ambient, warm)
+  local c = M.COMPOUNDS[compoundName] or M.COMPOUNDS.road
+  local t = { compound = compoundName, c = c, n = n, r = r or 0.305, w = w or 0.175, h = {}, E = {}, flash = {}, cord = 0, blown = false }
+  for j = 1, 2 * n do t.h[j] = c.h0 t.E[j] = 0 end
+  for i = 1, n do t.flash[i] = 0 end
+  local T0 = (ambient or 20) + (warm or 0) * (c.lo + 0.5 * (c.hi - c.lo) - (ambient or 20))
+  t.Ts, t.Tc = T0, T0
+  t.slotArea = 2 * math.pi * (t.r * 1000) * (t.w * 1000) / (2 * n)     -- mm2 of tread one node slot stands for
+  return t
+end
+
+function M.addEnergy(t, j, joules) if t.E[j] then t.E[j] = t.E[j] + joules end end
+
+-- energy P*dt of a rolling or sliding wheel at the contact node j (research 8.2 B): the whole ring is fed round when it rolls, one slot when it is locked
+function M.slipPower(slipVel, normalForce, mu, deadZone)
+  local v = math.max(0, (slipVel or 0) - (deadZone or 0.3))
+  return v * (normalForce or 0) * (mu or 1)
+end
+
+-- ---- wear (research 8.3)
+function M.pressureWear(p, pNom, cfg)
+  if not (p and pNom and pNom > 0) then return 1 end
+  local e = cfg and cfg.pressureEffect or 1
+  return 1 + e * (1.5 * math.max(0, (pNom - p) / pNom) + 0.8 * math.max(0, (p - pNom) / pNom))
+end
+function M.heatWear(c, Teff, cfg)
+  return clamp(1 + math.max(0, Teff - c.wearOn) / cfg.heatWearScale, 1, cfg.heatWearMax)
+end
+
+-- one wear tick: the energy gathered since the last tick wears the slots (and heats their sector's flash temperature); ctx = { surface = 'asphalt'.., wet = bool, pressure, pNom }
+-- Returns the deepest wear of any slot this tick (mm).
+function M.wearStep(t, ctx, cfg)
+  if t.blown then return 0 end
+  local c, worst = t.c, 0
+  local ms = cfg.surface[ctx.wet and 'wet' or (ctx.surface or 'asphalt')] or 1
+  if ctx.surface == 'rock' and (t.compound == 'mud' or t.compound == 'offroad') then ms = ms * 2 end
+  local mp = M.pressureWear(ctx.pressure, ctx.pNom, cfg)
+  for j = 1, 2 * t.n do
+    local e = t.E[j]
+    if e > 0 then
+      local i = M.sectorOf(j)
+      local g = M.heatWear(c, t.Ts + (t.flash[i] or 0), cfg)
+      local dh = c.k * (e / t.slotArea) * g * ms * mp * cfg.wearRate
+      t.h[j] = math.max(-c.margin - cfg.cordLimit, t.h[j] - dh)
+      t.shed = (t.shed or 0) + dh * t.slotArea
+      if dh > worst then worst = dh end
+      if t.h[j] <= -cfg.cordLimit then t.blown = true end
+    end
+  end
+  return worst
+end
+
+-- ---- debris, smoke and fire (Connor, 2026-10-19). Rubber worn off is thrown as chunks, more of it and more loose the hotter the surface (a burnout throws marbles, a cool wear is dust).
+-- takeDebris returns the grams to drop since the last call and the surface temperature it leaves at (the temperature the pile starts at).
+function M.takeDebris(t, cfg)
+  local d = cfg.debris
+  local frac = d.minFrac + (d.maxFrac - d.minFrac) * clamp((t.Ts - d.hotFrom) / (d.hotTo - d.hotFrom), 0, 1)
+  local g = (t.shed or 0) * d.density * frac
+  t.shed = 0
+  return g, t.Ts
+end
+-- a pile of hot debris on the road: { g, T, burn }. Cools to the ambient; a big enough pile still above pileIgniteT burns for pileBurnS s (burn counts down).
+function M.pileStep(p, dt, ambient, wet, cfg)
+  local d = cfg.debris
+  p.T = ambient + (p.T - ambient) * math.exp(-dt / (d.pileTau / (1 + 2 * clamp(wet or 0, 0, 1))))
+  if (p.burn or 0) > 0 then p.burn = p.burn - dt
+  elseif p.g >= d.pileMinG and p.T >= d.pileIgniteT then p.burn = d.pileBurnS end
+  return (p.burn or 0) > 0
+end
+-- ---- a blowout hitting the panels near it (Connor, 2026-10-19). The vehicle side applies the result with obj:applyForceVector over `steps` physics steps, so the soft body deforms the panel for real.
+-- speed m/s, pressure 0..1 of nominal; roll is a 0..1 random number (a parameter, so tests are exact). Returns nil (no hit) or { n nodes, force N each, steps }.
+-- The chance climbs with speed (chance0 at a stand to chance100 at 100 km/h and above); the force is capped by maxForce whatever the strength setting says.
+function M.blowoutHit(speed, pressure, roll, cfg)
+  local b = cfg.blowout
+  if not b.enabled or b.strength <= 0 then return nil end
+  local k = clamp((speed or 0) / 27.8, 0, 1)
+  if roll >= b.chance0 + (b.chance100 - b.chance0) * k then return nil end
+  local force = math.min(b.maxForce, 800 * b.strength * (0.3 + 1.7 * k) * (0.5 + 0.5 * clamp(pressure or 1, 0, 1.5)))
+  return { n = math.max(1, math.floor(b.maxNodes * (0.4 + 0.6 * k) + 0.5)), force = force, steps = b.steps }
+end
+-- a plain body-panel node: not fixed, not a coupler, hub or special node, and not in a wheel, suspension, hub, axle, brake or coupler group (forces on those bent cars before)
+local BAD_GROUP = { 'wheel', 'susp', 'hub', 'axle', 'brake', 'coupl', 'tow', 'steer', 'engine', 'trans' }
+function M.panelNode(nd)
+  if nd.fixed or nd.coupler or nd.couplerTag or nd.hub or nd.wheel or nd.special then return false end
+  local g = nd.group
+  if type(g) == 'table' then g = table.concat(g, ' ') end
+  if type(g) == 'string' then
+    g = g:lower()
+    for _, bad in ipairs(BAD_GROUP) do if g:find(bad, 1, true) then return false end end
+  end
+  return true
+end
+-- which nodes to push: plain body-panel nodes (panelNode) within radius of the wheel centre, never the wheel's own (skip[cid]); nearest first, at most n.
+-- nodes = { {cid=, x=, y=, z=}, .. }; returns the cids with a unit direction away from the wheel centre (flat on the vertical a little, so panels bulge out and up)
+function M.blowoutTargets(nodes, centre, radius, skip, n)
+  local list = {}
+  for _, nd in ipairs(nodes) do
+    if not skip[nd.cid] and M.panelNode(nd) then
+      local dx, dy, dz = nd.x - centre.x, nd.y - centre.y, nd.z - centre.z
+      local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+      if d <= radius and d > 1e-6 then list[#list + 1] = { cid = nd.cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end
+    end
+  end
+  table.sort(list, function(a, b) return a.d < b.d end)
+  local out = {}
+  for i = 1, math.min(n, #list) do out[i] = list[i] end
+  return out
+end
+
+-- smoke 0..1 from the surface temperature
+function M.smoke(Ts, cfg) return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
+-- one fire tick. Ignites after the hottest surface (Ts + the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
+-- (douse per s at wet 1) and it pops (blown) after popAfter s of fire. Returns 'ignite' / 'pop' / 'out' the tick it happens, else nil.
+function M.fireStep(t, dt, wet, cfg)
+  if t.blown then t.fire, t.hold = nil, 0 return end
+  local hot = t.Ts
+  for i = 1, t.n do if (t.flash[i] or 0) + t.Ts > hot then hot = t.Ts + t.flash[i] end end
+  if not t.fire then
+    if cfg.fires == false then t.hold = 0 return end
+    t.hold = hot >= cfg.igniteT and (t.hold or 0) + dt or 0
+    if t.hold >= cfg.igniteHold then t.fire, t.hold = 0, 0 return 'ignite' end
+    return
+  end
+  t.fire = t.fire + dt
+  t.Ts = math.max(t.Ts, cfg.burnT)
+  if (wet or 0) * cfg.douse * t.fire > 1 then t.fire, t.spread = nil, nil t.Ts = t.Ts * 0.5 return 'out' end
+  if cfg.fireSpread and not t.spread and t.fire >= cfg.spreadAfter then t.spread = true return 'spread' end
+  if t.fire >= cfg.popAfter then t.fire, t.blown, t.spread = nil, true, nil return 'pop' end
+end
+
+-- how much shallower a sector is than its two neighbours, in mm (the flat spot), counting the shallower lane
+function M.flatDepth(t, i)
+  local n = t.n
+  local function dep(s) s = (s - 1) % n + 1 return math.min(t.h[2 * s - 1], t.h[2 * s]) end
+  return ((dep(i - 1) + dep(i + 1)) / 2) - dep(i)
+end
+function M.worstFlat(t)
+  local w, at = 0, nil
+  for i = 1, t.n do local d = M.flatDepth(t, i) if d > w then w, at = d, i end end
+  return w, at
+end
+
+-- ---- temperature (research 8.4). Lumped surface + core temperature per tyre, a flash temperature per sector.
+-- ctx = { dt, power (W of slip power into the tyre this tick, all slots), v (m/s), fz (N), ambient, road (C), wet (0..1), brake (C or nil), pressure, pNom }
+-- Cs: the surface is a thin layer (~0.7 mm of rubber over the contact ring), so a burnout spikes it in seconds while the carcass (Cc) lags; Gsc is the slow link between them
+local P = { Cs = 500, Cc = 10000, as = 0.5, bs = 0.3, h0 = 10, h1 = 5, Aout = 0.6, Groad = 30, Gsc = 30, Gin = 15, Gbrake = 5, tauFlash = 2 }
+M.THERMAL = P
+function M.tempStep(t, ctx, cfg)
+  local dt = clamp(ctx.dt or 0.05, 0, 0.1)
+  if dt <= 0 then return end
+  local c, v = t.c, math.abs(ctx.v or 0)
+  local amb = ctx.ambient or 20
+  local road = ctx.road or amb + (cfg.sunRoad or 0)
+  local pr = ctx.pressure and ctx.pNom and ctx.pressure > 0 and math.sqrt(ctx.pNom / ctx.pressure) or 1
+  local Pslip = (ctx.power or 0) * (cfg.heatRate or 1)
+  local Proll = c.crr * (ctx.fz or 0) * v * pr
+  local rain = 1 + (cfg.rainCool - 1) * clamp(ctx.wet or 0, 0, 1)
+  local cool = (cfg.coolRate or 1)
+  local hconv = (P.h0 + P.h1 * v ^ 0.8) * P.Aout * rain * cool
+  local inContact = (ctx.fz or 0) > 100 and 1 or 0
+  local Ts, Tc = t.Ts, t.Tc
+  local dTs = (P.as * Pslip + P.bs * Proll - hconv * (Ts - amb) - P.Groad * inContact * cool * (Ts - road) - P.Gsc * (Ts - Tc)) / P.Cs
+  local dTc = ((1 - P.bs) * Proll + P.Gsc * (Ts - Tc) - P.Gin * cool * (Tc - amb) + (ctx.brake and P.Gbrake * (ctx.brake - Tc) or 0)) / P.Cc
+  t.Ts, t.Tc = Ts + dTs * dt, Tc + dTc * dt
+  -- the flash temperature of each sector: its share of the slip power in, fast decay out
+  local csec = P.Cs / t.n
+  local share = (ctx.power or 0) > 0 and 1 or 0
+  for i = 1, t.n do
+    local e = t.E[2 * i - 1] + t.E[2 * i]
+    local ps = (dt > 0 and e / dt or 0) * share
+    t.flash[i] = clamp((t.flash[i] or 0) + dt * (P.as * ps * (cfg.heatRate or 1) / csec) - (t.flash[i] or 0) * dt / P.tauFlash, 0, 400)
+  end
+end
+
+-- clear the accumulators after the steps of a tick have used them
+function M.clearEnergy(t) for j = 1, 2 * t.n do t.E[j] = 0 end end
+function M.totalEnergy(t) local s = 0 for j = 1, 2 * t.n do s = s + t.E[j] end return s end
+
+-- ---- grip (research 8.5): multipliers on the stock node friction
+function M.tempGrip(c, T, cfg)
+  local cold = cfg and cfg.coldGrip or 1
+  local hot = cfg and cfg.hotGrip or 1
+  if T < c.lo then return 1 - (1 - c.grip20) * clamp((c.lo - T) / math.max(1, c.lo - 20), 0, 1.5) * cold end
+  if T > c.hi then return math.max(0.6, 1 - c.drop * (T - c.hi) / 10 * hot) end
+  return 1
+end
+-- wet = true/false or 0..1 (how wet the surface is). Dry: dry0 at 0 mm to dryF (default 1) at full tread. Wet: wet0 at 0 mm to wetF (the compound against a road tyre on the same wet road) at full tread.
+function M.wearGrip(c, h, wet)
+  local w = wet == true and 1 or (wet and wet ~= false and clamp(wet, 0, 1) or 0)
+  local f = clamp(h / c.h0, 0, 1)
+  local dry = c.dry0 + ((c.dryF or 1) - c.dry0) * f
+  if w <= 0 then return dry end
+  local wetG = c.wet0 + ((c.wetF or 1) - c.wet0) * f
+  return dry + (wetG - dry) * w
+end
+-- standing water: above the compound's aquaplaning speed (lower with less tread) the grip falls away, up to 80% at depth 1
+function M.aquaplane(c, h, water, v)
+  if (water or 0) <= 0 then return 1 end
+  local va = (c.aqua or 22) * (0.4 + 0.6 * clamp(h / c.h0, 0, 1))
+  return 1 - 0.8 * clamp(water, 0, 1) * clamp((math.abs(v or 0) - va) / 8, 0, 1)
+end
+-- loose ground and snow suit some compounds: surface = 'dirt' | 'gravel' | 'mud' | 'sand' | 'snow' | anything else (no change)
+local LOOSE = { dirt = 'loose', gravel = 'loose', mud = 'loose', sand = 'loose', snow = 'snow' }
+function M.surfaceGrip(c, surface) local f = LOOSE[surface or ''] return f and c[f] or 1 end
+-- the multipliers (static, sliding) for the node slot j, to be applied to its stock coefficients; wet = the contact is wet
+function M.nodeGrip(t, j, wet, cfg, ctx)
+  local c = t.c
+  local fT = M.tempGrip(c, t.Ts + (t.flash[M.sectorOf(j)] or 0) * 0.5, cfg)
+  if t.h[j] <= 0 then return cfg.beltGrip * fT, cfg.beltSliding * fT end
+  local fw = M.wearGrip(c, t.h[j], wet)
+  if ctx then fw = fw * M.aquaplane(c, t.h[j], ctx.water, ctx.v) * M.surfaceGrip(c, ctx.surface) end
+  local ff = 1
+  if cfg.flat.enabled then
+    local d = M.flatDepth(t, M.sectorOf(j))
+    if d > cfg.flat.minDepth then ff = 1 - cfg.flat.gripLoss * clamp(d, 0, 1) end
+  end
+  return fT * fw * ff, fT * fw * ff
+end
+
+-- ---- looks (research 8.7): 0 new .. 4 bald, 5 belts; the stage of the worst slot, by its fraction of the tread left
+M.STAGE_FROM = { 0.9, 0.7, 0.5, 0.3 }                  -- the fraction of tread left below which stages 1..4 start
+function M.stage(t, cfg)
+  local minH = math.huge
+  for j = 1, 2 * t.n do if t.h[j] < minH then minH = t.h[j] end end
+  if minH <= 0 then return 5 end
+  local f, s = minH / t.c.h0, 0
+  for i, lim in ipairs(M.STAGE_FROM) do if f < lim then s = i end end
+  if minH <= (cfg and cfg.baldBelow or 0.5) then s = 4 end
+  return s
+end
+
+-- ---- the flat-spot shake (research 2.3, 8.6): the rate (Hz) once per revolution, and the radial force it pulls on the tyre
+function M.shakeHz(wheelSpeed, radius) return math.abs(wheelSpeed or 0) / (2 * math.pi * (radius or 0.31)) end
+function M.shakeForce(depthMm, kRad) return (kRad or 250) * (depthMm or 0) end         -- N, 250 N/mm
+
+return M

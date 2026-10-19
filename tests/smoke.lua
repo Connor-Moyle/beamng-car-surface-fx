@@ -245,6 +245,7 @@ local nPresets = 0
 for _, f in ipairs(registered.fields) do
   if f.presets then
     nPresets = nPresets + 1
+    assert(not tostring(f.id):lower():find('tyre', 1, true) and not tostring(f.id):lower():find('tire', 1, true), f.id .. ': no Quick setup level touches a tyre value (the tyre simulation ships off)')
     for _, level in ipairs({ 'performance', 'balanced', 'quality', 'max' }) do
       local v = f.presets[level]
       assert(v ~= nil and type(v) == type(f.default), f.id .. ': preset ' .. level .. ' has the type of the field')

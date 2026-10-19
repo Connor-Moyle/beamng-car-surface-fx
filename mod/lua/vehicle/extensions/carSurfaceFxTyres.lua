@@ -1,0 +1,218 @@
+-- Car Surface FX, vehicle side: tyre wear, temperature and grip (rules: csfx_tyrerules, research: docs/TYRE_WEAR_RESEARCH.md in the control repo).
+-- Per wheel, every frame, the slip power of the wheel (slip speed x load) is credited to the tread node that touches the ground (and the other lane of its sector); ten times a
+-- second the energy wears the tread, heats the tyre and sets the grip of every tread node (obj:setNodeFrictionSlidingCoefs, the call the game's own deflation uses) from the
+-- node's own stock friction. This module is the only writer of tread friction on the car: other modules (the fluids) give it their multiplier with setExternal.
+local R = require('csfx_tyrerules')
+local M = {}
+local abs, max, min = math.abs, math.max, math.min
+
+local TICK = 0.1                    -- seconds between wear / temperature / grip steps
+local REPORT = 0.5                  -- seconds between reports to the game side
+local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
+local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
+local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
+
+local cfg = R.defaults()
+local compound = 'road'
+local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil }
+local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
+local external = {}                 -- kind -> { wheel index -> multiplier }
+local pendingBlob = nil             -- a saved state waiting for the tyres to be built
+local timer, report, reapply = 0, 0, 0
+local enabled = false
+local failed
+
+local function pcalls(f, ...) local ok, a = pcall(f, ...) return ok and a or nil end
+
+local function ambientC()
+  if env.ambient then return env.ambient end
+  local k = obj.getEnvTemperature and pcalls(obj.getEnvTemperature, obj)
+  return k and (k - 273.15) or 20
+end
+
+local function pressureOf(wd)
+  if not (obj.getGroupPressure and wd.pressureGroupId) then return nil end
+  return pcalls(obj.getGroupPressure, obj, wd.pressureGroupId)
+end
+
+local function build()
+  if tyres or not (wheels and wheels.wheels and next(wheels.wheels) and v and v.data and v.data.nodes) then return end
+  tyres = {}
+  for wi, wd in pairs(wheels.wheels) do
+    local tn = wd.treadNodes
+    if tn and #tn >= 16 and #tn % 2 == 0 then
+      local e = { wd = wd, cids = {}, slotOf = {}, base = {}, applied = {} }
+      local ok = true
+      for j, cid in ipairs(tn) do
+        local nd = v.data.nodes[cid]
+        if not (nd and nd.frictionCoef) then ok = false break end
+        e.cids[j], e.slotOf[cid] = cid, j
+        e.base[j] = { nd.frictionCoef, nd.slidingFrictionCoef or nd.frictionCoef }
+      end
+      if ok then
+        e.t = R.new(compound, #tn / 2, tonumber(wd.radius), tonumber(wd.tireWidth), ambientC())
+        e.pNom = pressureOf(wd)
+        tyres[wi] = e
+      end
+    end
+  end
+  if pendingBlob then
+    for wi, blob in pairs(pendingBlob) do if tyres[wi] then R.restore(tyres[wi].t, blob) end end
+    pendingBlob = nil
+  end
+end
+
+local function extMult(wi)
+  local m = 1
+  for _, byWheel in pairs(external) do m = m * (byWheel[wi] or 1) end
+  return m
+end
+
+-- write the grip of every tread node of one tyre: stock friction x the rules x the external multipliers. Never on a deflated tyre (the game owns those nodes then).
+local function applyGrip(wi, e, force)
+  if e.wd.isTireDeflated then e.applied = {} return end
+  local t, ext = e.t, extMult(wi)
+  local ctx = { water = env.water, v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = env.surface }
+  local wet = env.wet
+  for j = 1, 2 * t.n do
+    local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
+    local f = (fs + fk) * 0.5 * ext          -- (one factor per node: the rules give equal static and sliding multipliers)
+    local last = e.applied[j]
+    if force or not last or abs(f - last) > APPLY_EPS * last then
+      local b = e.base[j]
+      pcall(function() obj:setNodeFrictionSlidingCoefs(e.cids[j], b[1] * fs * ext, b[2] * fk * ext) end)
+      e.applied[j] = f
+    end
+  end
+end
+
+local function credit(e, dt)
+  local wd, t = e.wd, e.t
+  if e.wd.isTireDeflated or t.blown then return 0 end
+  local fz = tonumber(wd.downForce) or 0
+  if fz < MIN_DOWNFORCE then return 0 end
+  local p = R.slipPower(abs(tonumber(wd.lastSlip) or 0), fz, 1, cfg.deadZone)
+  if p <= 0 then return 0 end
+  local j = e.slotOf[wd.lastTreadContactNode]
+  if not j then return p end                       -- (power still heats the tyre, no node to wear)
+  local mate = j % 2 == 1 and j + 1 or j - 1       -- the other lane of the sector
+  R.addEnergy(t, j, p * dt * 0.5)
+  R.addEnergy(t, mate, p * dt * 0.5)
+  return p
+end
+
+local powerSum = {}                                -- wheel index -> W integrated over the tick (J)
+
+local function tick(dt)
+  local events
+  for wi, e in pairs(tyres) do
+    local wd, t = e.wd, e.t
+    if not wd.isTireDeflated then
+      local pr = pressureOf(wd)
+      local ctx = { surface = env.surface, wet = env.wet > 0.3, pressure = pr, pNom = e.pNom }
+      R.wearStep(t, ctx, cfg)
+      R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = abs(tonumber(wd.wheelSpeed) or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
+        road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
+      local ev = R.fireStep(t, dt, env.wet, cfg)
+      if ev then events = events or {} events[#events + 1] = { wi, ev } end
+      if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
+    end
+    R.clearEnergy(t)
+    powerSum[wi] = 0
+    applyGrip(wi, e, false)
+  end
+  return events
+end
+
+local function sendState(events)
+  local parts = {}
+  for wi, e in pairs(tyres) do
+    local worst = R.worstFlat(e.t)
+    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil))
+  end
+  local ev = {}
+  for _, x in ipairs(events or {}) do ev[#ev + 1] = string.format('{%d,%q}', x[1], x[2]) end
+  obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.state(%d,{%s},{%s}) end', obj:getId(), table.concat(parts, ','), table.concat(ev, ',')))
+end
+
+local function frame(dt)
+  if not enabled then return end
+  if not tyres then build() if not tyres then return end end
+  for wi, e in pairs(tyres) do powerSum[wi] = (powerSum[wi] or 0) + credit(e, dt) * dt end
+  if reapply > 0 then
+    reapply = reapply - 1
+    if reapply == 0 then for wi, e in pairs(tyres) do e.applied = {} applyGrip(wi, e, true) end end
+  end
+  timer, report = timer + dt, report + dt
+  if timer >= TICK then
+    local events = tick(timer)
+    timer = 0
+    if report >= REPORT then report = 0 sendState(events) elseif events then sendState(events) end
+  end
+end
+
+-- ---- interface to the game side and the other car modules
+function M.setConfig(tbl)                          -- fields of csfx_tyrerules.defaults(); a table of fields to change
+  if type(tbl) ~= 'table' then return end
+  for k, val in pairs(tbl) do
+    if k == 'enabled' then enabled = val and true or false
+    elseif type(val) == 'table' and type(cfg[k]) == 'table' then for k2, v2 in pairs(val) do cfg[k][k2] = v2 end
+    else cfg[k] = val end
+  end
+  if tbl.enabled == nil and next(tbl) then enabled = enabled or false end
+  if tyres then for wi, e in pairs(tyres) do e.applied = {} end end
+  if not enabled and tyres then M.restore() end
+end
+function M.setCompound(name)                       -- before the tyres are built (a later change rebuilds them, state lost)
+  if not R.COMPOUNDS[name] or name == compound then return end
+  compound = name
+  tyres = nil
+end
+function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
+function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
+  external[kind] = external[kind] or {}
+  external[kind][wi] = m ~= 1 and m or nil
+  local e = tyres and tyres[wi]
+  if e and enabled then applyGrip(wi, e, false) end
+end
+function M.active() return enabled and tyres ~= nil end
+function M.snapshot()                              -- wheel index -> JSON-safe state (rules snapshot)
+  local out = {}
+  for wi, e in pairs(tyres or {}) do out[wi] = R.snapshot(e.t) end
+  return out
+end
+function M.restoreSnapshot(blob) if tyres then for wi, b in pairs(blob or {}) do if tyres[wi] then R.restore(tyres[wi].t, b) end end else pendingBlob = blob end end
+function M.repair(wi)                              -- fresh tread (a garage tyre change): one wheel, or all
+  for k, e in pairs(tyres or {}) do
+    if wi == nil or wi == k then e.t = R.new(compound, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
+  end
+end
+function M.status()
+  local n, worst, hot = 0, math.huge, 0
+  for _, e in pairs(tyres or {}) do
+    n = n + 1
+    for j = 1, 2 * e.t.n do worst = min(worst, e.t.h[j]) end
+    hot = max(hot, e.t.Ts)
+  end
+  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and worst or 0, hot, compound)
+end
+
+-- every tread node back to its stock friction (the module is switched off, or unloaded)
+function M.restore()
+  for _, e in pairs(tyres or {}) do
+    if not e.wd.isTireDeflated then
+      for j, cid in ipairs(e.cids) do pcall(function() obj:setNodeFrictionSlidingCoefs(cid, e.base[j][1], e.base[j][2]) end) end
+    end
+    e.applied = {}
+  end
+end
+
+function M.updateGFX(dt)                           -- our code never gets to disable the vehicle: one error switches the tyres of this car off, logged once
+  if failed then return end
+  local ok, err = pcall(frame, dt or 0)
+  if not ok then failed = tostring(err) pcall(M.restore) log('E', 'carSurfaceFxTyres', 'switched off after an error: ' .. failed) end
+end
+function M.onReset() reapply = REAPPLY_FRAMES if tyres then for _, e in pairs(tyres) do e.applied = {} end end timer, report = 0, 0 end
+function M.onExtensionUnloaded() pcall(M.restore) end
+
+return M

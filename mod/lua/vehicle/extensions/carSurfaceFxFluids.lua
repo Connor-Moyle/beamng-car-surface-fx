@@ -103,6 +103,8 @@ end
 local function applyWheel(wi, m)
   local list = wheelTread and wheelTread[wi]
   if not list then return end
+  local tyres = rawget(_G, 'carSurfaceFxTyres')
+  if tyres and tyres.active and tyres.active() then tyres.setExternal('fluids', wi, m) applied[wi] = m return end   -- the tyre module is the one writer of tread friction: it takes this as a factor
   for _, e in ipairs(list) do
     pcall(function() obj:setNodeFrictionSlidingCoefs(e.nid, e.fc * m, e.sfc * m) end)
   end
