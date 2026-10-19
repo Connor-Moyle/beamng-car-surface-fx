@@ -31,7 +31,8 @@ local function load_(id)
   send(id, 'if not carSurfaceFxTyres then extensions.load("carSurfaceFxTyres") end carSurfaceFxTyres.setConfig(jsonDecode(' .. lit(cfg) .. ')) carSurfaceFxTyres.setSurfaces(jsonDecode(' .. lit(surfaceTable()) .. '))')
 end
 
--- the visuals are drawn by emitters that carSurfaceFx's visuals (ba) set: flame(vehId, wheelIdx, on), smoke(vehId, wheelIdx, level 0..1), pop(vehId, wheelIdx), debris(vehId, wheelIdx, grams, tempC).
+-- the visuals are drawn by emitters that carSurfaceFx's visuals (ba) set: flame(vehId, wheelIdx, on), smoke(vehId, wheelIdx, level 0..1), pop(vehId, wheelIdx), debris(vehId, wheelIdx, grams, tempC), bang(vehId, wheelIdx), panel(vehId, wheelIdx, strength)
+-- (panel = the crack or scuff decal on the arch and bumper beside a blown tyre, ba's panel damage; visual only, no force is applied to the car).
 -- Without them the events are dropped; an error in one never reaches the car.
 local emitters = {}
 function M.setEmitters(t) emitters = type(t) == 'table' and t or {} end
@@ -99,7 +100,7 @@ function M.state(id, ws, events)
   for _, e in ipairs(events or {}) do
     if extensions and extensions.hook then extensions.hook('onCsfxTyreEvent', id, e[1], e[2]) end
     if e[2] == 'ignite' then emit('flame', id, e[1], true)
-    elseif e[2] == 'out' or e[2] == 'pop' then emit('flame', id, e[1], false) if e[2] == 'pop' then emit('pop', id, e[1]) end
+    elseif e[2] == 'out' or e[2] == 'pop' then emit('flame', id, e[1], false) if e[2] == 'pop' then emit('pop', id, e[1]) emit('bang', id, e[1]) if cfg.blowout.enabled then emit('panel', id, e[1], cfg.blowout.strength) end end
     elseif e[2] == 'debris' then emit('debris', id, e[1], e[3], e[4]) end
   end
 end

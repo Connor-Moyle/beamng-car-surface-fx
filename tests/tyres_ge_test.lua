@@ -45,12 +45,12 @@ assert(not T.restore(7, 'x'), 'a bad blob is refused')
 -- the visuals: the events and the smoke level reach the emitters
 local log = {}
 T.setEmitters({ flame = function(id, wi, on) log[#log + 1] = 'flame' .. wi .. tostring(on) end, smoke = function(id, wi, l) log[#log + 1] = string.format('smoke%d:%.2f', wi, l) end,
-  pop = function(id, wi) log[#log + 1] = 'pop' .. wi end, debris = function(id, wi, g, t) log[#log + 1] = string.format('debris%d:%.1f:%.0f', wi, g, t) end })
+  pop = function(id, wi) log[#log + 1] = 'pop' .. wi end, bang = function(id, wi) log[#log + 1] = 'bang' .. wi end, panel = function(id, wi, st) log[#log + 1] = 'panel' .. wi .. ':' .. st end, debris = function(id, wi, g, t) log[#log + 1] = string.format('debris%d:%.1f:%.0f', wi, g, t) end })
 T.state(7, { { 1, 2, 200, 45, 0, false, false } }, { { 1, 'ignite' }, { 1, 'debris', 2.5, 180 } })
 assert(table.concat(log, ' ') == 'smoke1:0.50 flame1true debris1:2.5:180', 'smoke at 200 C is half, the ignite and the debris arrive: ' .. table.concat(log, ' '))
 log = {}
 T.state(7, { { 1, 2, 90, 45, 0, false, false } }, { { 1, 'pop' } })
-assert(table.concat(log, ' ') == 'smoke1:0.00 flame1false pop1', 'the smoke is told once when it stops, a pop puts the flame out: ' .. table.concat(log, ' '))
+assert(table.concat(log, ' ') == 'smoke1:0.00 flame1false pop1 bang1 panel1:1.0', 'the smoke is told once when it stops, a pop puts the flame out and bangs, and (setting on) marks the panel: ' .. table.concat(log, ' '))
 T.setEmitters({ flame = function() error('boom') end })
 T.state(7, { { 1, 2, 90, 45, 0, false, false } }, { { 1, 'ignite' } })        -- an emitter that fails changes nothing
 T.setEmitters({})
