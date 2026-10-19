@@ -39,7 +39,7 @@ local function marksStore(path, kind, dir)
     if v == nil then v = defaultAt(path) end
     return v
   end
-  return { kind = 'custom',
+  return { kind = 'custom', module = 'marks', path = path,
     get = function()
       local v = raw()
       if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
@@ -66,7 +66,7 @@ local function rutDefaultAt(path)
   return t
 end
 local function rutStore(path)
-  return { kind = 'custom',
+  return { kind = 'custom', module = 'ruts', path = path,
     get = function()
       local m = rutsModule()
       local v = m and m.get and m.get(path)
@@ -96,7 +96,7 @@ local function impactStore(path, kind)
     if v == nil then v = impactDefaultAt(path) end
     return v
   end
-  return { kind = 'custom',
+  return { kind = 'custom', module = 'impacts', path = path,
     get = function()
       local v = raw()
       if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
@@ -129,7 +129,7 @@ local function fluidStore(path, kind)
     if v == nil then v = fluidDefaultAt(path) end
     return v
   end
-  return { kind = 'custom',
+  return { kind = 'custom', module = 'fluids', path = path,
     get = function()
       local v = raw()
       if kind == 'color' and type(v) == 'table' then return { r = v[1], g = v[2], b = v[3] } end
@@ -173,7 +173,7 @@ function M.build(S, owner)
     F('glass', 'rain', 'Windows', 'bool', 'Water drops on the windows', 'Drops land on the glass, merge and run down; speed and braking push them around and the wipers sweep them off. Off: the glass stays clear.', 'windscreen.windows'),
     F('glass_strength', 'rain', 'Windows', 'slider', 'Window drops amount', 'How much rain lands on the windows. 0 is none, 100% is full.', 'windscreen.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
     { id = 'glass_fine', tab = 'rain', group = 'Water drops', type = 'bool', label = 'Fine window canvas on your car', tooltip = 'Draws the water on the windows of your car at twice the detail, so the drops are smaller and sharper. It costs frame rate. Applies to cars spawned afterwards. Other cars always use the normal detail.',
-      default = true, apply = 'spawn', store = { kind = 'custom', get = function() return (owner.getSettings().windscreen.canvasSize or 1024) >= 1024 end, set = function(v) owner.set('windscreen.canvasSize', v and 1024 or 512) end } },
+      default = true, apply = 'spawn', store = { kind = 'custom', path = 'windscreen.canvasSize', get = function() return (owner.getSettings().windscreen.canvasSize or 1024) >= 1024 end, set = function(v) owner.set('windscreen.canvasSize', v and 1024 or 512) end } },
     F('body_drop_mm', 'rain', 'Water drops', 'slider', 'Body drop size', 'How big the water drops on the paint are, in real millimetres across, the same on every car. It is a look choice, not a cost one.', 'rain.bodyDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
     F('glass_drop_mm', 'rain', 'Water drops', 'slider', 'Glass drop size', 'How big the water drops on the windows are, in real millimetres across.', 'rain.glassDropMm', { min = 1, max = 10, step = 0.5, unit = 'mm' }),
     F('drop_amount', 'rain', 'Water drops', 'slider', 'Drop amount', 'How many drops there are on the paint and the windows (1 is the normal amount).', 'rain.dropAmount', { min = 0.2, max = 3, step = 0.1, unit = 'x' }),
@@ -199,7 +199,7 @@ function M.build(S, owner)
     F('scratch_opacity', 'dirt', 'Scratches', 'slider', 'Scratch strength', 'How strongly the scratches show.', 'scratch.opacity', { min = 0.1, max = 1, step = 0.05, unit = '%', scale = 100, advanced = true }),
     { id = 'scratch_colour', tab = 'dirt', group = 'Scratches', type = 'color', label = 'Scratch colour', tooltip = 'The colour of bare metal in a scratch.', advanced = true, apply = 'live',
       default = { r = d('scratch.colour')[1], g = d('scratch.colour')[2], b = d('scratch.colour')[3] },
-      store = { kind = 'custom', get = function() local c = owner.getSettings().scratch.colour return { r = c[1], g = c[2], b = c[3] } end,
+      store = { kind = 'custom', path = 'scratch.colour', get = function() local c = owner.getSettings().scratch.colour return { r = c[1], g = c[2], b = c[3] } end,
         set = function(v) owner.set('scratch.colour', { v.r, v.g, v.b }) end } },
     B('repair', 'dirt', 'Scratches', 'Buff out the scratches', 'Removes the scratches of your car. The dirt stays.', function() return tostring(owner.repair()) end),
     F('splats', 'dirt', 'Wheel-arch splats', 'bool', 'Dirt splats around the wheels', 'Splats of mud and dust gather on the body around the wheel that kicks them up.', 'scratch.dirtEnabled'),
@@ -369,6 +369,50 @@ function M.build(S, owner)
     ic('crash_sparks_amount', 'Sparks', 'slider', 'Amount of sparks', 'How many sparks a scrape throws (1 is normal).', 'sparks.amount', { min = 0.25, max = 4, step = 0.25, unit = 'x' }),
     ic('crash_sparks_speed', 'Sparks', 'slider', 'Sliding speed for sparks', 'How fast the metal must slide on the surface before it throws sparks.', 'sparks.minSpeed', { min = 1, max = 15, step = 0.5, unit = 'm/s', advanced = true }),
   })
+
+  -- ---- the settings that were only in the mod's files: advanced rows, so a player can reach every value from the menu
+  add({
+    F('scratch_all', 'dirt', 'Scratches', 'bool', 'Scratches on every vehicle', 'Scratches and wheel-arch splats on traffic and other cars as well as yours. Off: only the car you drive. It costs frame rate.', 'scratch.allVehicles', { advanced = true }),
+    F('scratch_strength', 'dirt', 'Scratches', 'slider', 'Scratch intensity', 'How many scratches a scrape leaves (1 is normal).', 'scratch.intensity', { min = 0.2, max = 3, step = 0.1, unit = 'x', advanced = true }),
+    { id = 'dirt_splat_colour', tab = 'dirt', group = 'Dirt', type = 'color', label = 'Splat colour', tooltip = 'The colour of the dirt splats round the wheel arches.', advanced = true, apply = 'live',
+      default = { r = d('scratch.dirtColour')[1], g = d('scratch.dirtColour')[2], b = d('scratch.dirtColour')[3] },
+      store = { kind = 'custom', path = 'scratch.dirtColour', get = function() local c = owner.getSettings().scratch.dirtColour return { r = c[1], g = c[2], b = c[3] } end,
+        set = function(v) owner.set('scratch.dirtColour', { v.r, v.g, v.b }) end } },
+    F('dirt_glow_nits', 'dirt', 'Dirt', 'slider', 'Brightness of the dirt glow view', 'How bright the dirt glow test view is, in nits. It only matters when the dirt glow option is on.', 'scratch.dirtGlowNits', { min = 5000, max = 100000, step = 1000, unit = 'nits', advanced = true }),
+    F('glass_drop_size', 'rain', 'Windows', 'slider', 'Window drop size', 'How big the drops on the windows are.', 'windscreen.dropSize', { min = 1, max = 8, step = 0.5, advanced = true }),
+  })
+  add(S.each(rules_fluid_kinds, function(k)
+    local g = title(k)
+    local p = 'kinds.' .. k .. '.'
+    return {
+      lk('leaks_' .. k .. '_drip', g, 'slider', g .. ' drip size', 'The radius of a single ' .. k .. ' drip spot, in metres.', p .. 'dripSize', { min = 0.02, max = 0.3, step = 0.01, unit = 'm', advanced = true }),
+      lk('leaks_' .. k .. '_gripr', g, 'slider', g .. ' slippery zone', 'How far round the puddle the tyres still lose grip, in metres.', p .. 'gripRadius', { min = 0, max = 1.5, step = 0.05, unit = 'm', advanced = true }),
+    }
+  end))
+  add({
+    lk('leaks_others_range', 'Other cars', 'slider', 'How near a car must be to leak', 'Cars further away than this do not leak.', 'others.range', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
+    lk('leaks_max_drops', 'Leaks', 'int', 'Most falling drops followed', 'A cap on the falling drops followed to where they land, for the frame rate.', 'maxDrops', { min = 4, max = 200, advanced = true }),
+    lk('leaks_max_meshes', 'Leaks', 'int', 'Most glossy puddles at once', 'The glossy puddle planes drawn at once; the rest stay as flat decals.', 'maxMeshes', { min = 0, max = 200, advanced = true }),
+    rt('ruts_chunk', 'Ruts', 'int', 'Samples in a rut piece', 'How many wheel positions make one rut piece. More is smoother and slower to appear.', 'chunkPoints', { min = 2, max = 20, advanced = true }),
+    rt('ruts_dry', 'Ruts', 'slider', 'Dry look below', 'The ground goes back to its dry rut look below this wetness (a little under the wet look level, so it does not flicker).', 'dryBelow', { min = 0.05, max = 0.8, step = 0.05, advanced = true }),
+    rt('ruts_step', 'Ruts', 'slider', 'Distance between samples', 'Metres a wheel travels between two samples of its path.', 'step', { min = 0.2, max = 2, step = 0.1, unit = 'm', advanced = true }),
+    rt('ruts_others_cars', 'Other cars', 'int', 'Most other cars that rut', 'The nearest cars up to this number leave ruts, for the frame rate.', 'others.maxCars', { min = 0, max = 12, advanced = true }),
+    rt('ruts_others_range', 'Other cars', 'slider', 'How near a car must be to rut', 'Cars further away than this leave no ruts.', 'others.range', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
+    ic('crash_cull', 'Crash effects', 'slider', 'Draw distance', 'Glass piles and pieces further than this from the camera are not drawn.', 'cullRadius', { min = 30, max = 300, step = 10, unit = 'm', advanced = true }),
+    ic('crash_others_cars', 'Crash effects', 'int', 'Most other cars with crash effects', 'The nearest cars up to this number leave glass, pieces and sparks.', 'others.maxCars', { min = 0, max = 12, advanced = true }),
+    ic('crash_others_range', 'Crash effects', 'slider', 'How near a car must be', 'Cars further away than this leave no glass, pieces or sparks.', 'others.range', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
+    ic('crash_glass_energy', 'Glass', 'slider', 'Hit energy that breaks glass', 'How hard a hit must be before it leaves a pile of shards.', 'glass.minEnergy', { min = 0, max = 50, step = 1, advanced = true }),
+    ic('crash_glass_cluster', 'Glass', 'slider', 'Shards that count as one pile', 'Broken glass closer together than this makes one pile, in metres.', 'glass.clusterRadius', { min = 0.2, max = 3, step = 0.1, unit = 'm', advanced = true }),
+    ic('crash_glass_idle', 'Glass', 'slider', 'Wait before a pile forms', 'Seconds without new shards before the pile is placed.', 'glass.idle', { min = 0.05, max = 2, step = 0.05, unit = 's', advanced = true }),
+    ic('crash_debris_bolt', 'Debris', 'slider', 'Chance a piece is a bolt', 'How often a small piece is a bolt or a nut rather than another kind.', 'debris.boltChance', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100, advanced = true }),
+    ic('crash_debris_bounce', 'Debris', 'slider', 'Bounce', 'How much a piece bounces off the road.', 'debris.bounce', { min = 0, max = 0.9, step = 0.05, advanced = true }),
+    ic('crash_debris_friction', 'Debris', 'slider', 'Slide friction', 'How fast a piece loses speed sliding on the road.', 'debris.friction', { min = 0.05, max = 1.5, step = 0.05, advanced = true }),
+    ic('crash_debris_flying', 'Debris', 'int', 'Most pieces in the air', 'The number of flying pieces followed at once, for the frame rate.', 'debris.maxFlying', { min = 10, max = 300, advanced = true }),
+    ic('crash_sparks_force', 'Sparks', 'slider', 'Force needed for sparks', 'How hard the metal must press on the ground before it throws sparks, in newtons.', 'sparks.minForce', { min = 0, max = 5000, step = 50, unit = 'N', advanced = true }),
+  })
+  add(S.each({ 'metal', 'bolt', 'plastic', 'glass', 'wood', 'rock' }, function(k)
+    return { ic('crash_debris_colour_' .. k, 'Debris', 'color', title(k) .. ' piece colour', 'The colour of the ' .. k .. ' pieces, multiplied over the piece picture.', 'debris.colors.' .. k, { advanced = true }) }
+  end))
 
   -- ---- Textures: one tile grid per surface and kind, read from the surface's own folder
   add(S.each(marks.TYPES, function(t)

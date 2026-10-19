@@ -327,6 +327,8 @@ function M.fields(file)
       tooltip = 'Cars near you leave tracks as well. Off: only your car does.' },
     { id = 'grass_distance', tab = 'grass', group = 'Other cars', type = 'slider', label = 'Other cars: how far from you', min = 20, max = 120, step = 10, default = D.distance, unit = 'm', store = store('distance'), onChange = onChange,
       tooltip = 'Other cars further away than this leave no tracks. Shorter costs less.', advanced = true },
+    { id = 'grass_cars', tab = 'grass', group = 'Other cars', type = 'int', label = 'Most other cars that bend grass', min = 0, max = 20, default = D.maxCars, store = store('maxCars'), onChange = onChange,
+      tooltip = 'At most this many of the nearest other cars leave tracks, for the frame rate.', advanced = true },
     { id = 'grass_clear_level', tab = 'grass', group = 'Trails', type = 'bool', label = 'Clear the trails when a level loads', default = D.clearOnLevel, store = store('clearOnLevel'), onChange = onChange,
       tooltip = 'Trails otherwise stay on the map between visits.' },
     { id = 'grass_clear_after', tab = 'grass', group = 'Trails', type = 'int', label = 'Let trails go after (minutes, 0 = never)', min = 0, max = 60, default = D.clearAfterMin, store = store('clearAfterMin'), onChange = onChange,

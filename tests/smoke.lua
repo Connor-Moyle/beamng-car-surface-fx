@@ -253,6 +253,33 @@ for _, f in ipairs(registered.fields) do
   end
 end
 assert(nPresets >= 12, 'the frame-costing settings have presets: ' .. nPresets)
+-- coverage: every value of the mod's defaults has a field in the Mods menu, or is listed here as one that is not a setting for players
+do
+  local covered = {}
+  for _, f in ipairs(registered.fields) do
+    local st = f.store
+    if st and st.path then covered[(st.module or 'main') .. ':' .. st.path] = true end
+  end
+  local function isColour(t) return #t == 3 and type(t[1]) == 'number' and type(t[2]) == 'number' and type(t[3]) == 'number' end
+  local function walk(module, t, prefix, out)
+    for k, v in pairs(t) do
+      local path = prefix == '' and tostring(k) or (prefix .. '.' .. tostring(k))
+      if type(v) == 'table' and not isColour(v) and next(v) ~= nil and v[1] == nil then walk(module, v, path, out)
+      else out[#out + 1] = module .. ':' .. path end
+    end
+  end
+  local all = {}
+  walk('main', M.defaults(), '', all)
+  walk('marks', require('carSurfaceFx/marks').defaults(), '', all)
+  walk('ruts', require('carSurfaceFx/rutrules').defaults(), '', all)
+  walk('impacts', require('carSurfaceFx/impactrules').defaults(), '', all)
+  walk('fluids', require('carSurfaceFx/fluidrules').defaults(), '', all)
+  table.sort(all)
+  local NOT_SETTINGS = { ['main:settingsVersion'] = true, ['main:windscreen.enabled'] = true }       -- a file version; the windscreen switch is the 'Water drops on the windows' pair
+  local missing = {}
+  for _, key in ipairs(all) do if not covered[key] and not NOT_SETTINGS[key] and not key:match(':enabled$') then missing[#missing + 1] = key end end
+  assert(#missing == 0, 'every value of the mod has a field in the Mods menu; without: ' .. table.concat(missing, ', '))
+end
 assert(seen.dirt_build and seen.takeover and seen.dirt_skid_w and seen.mud_skid_tex, 'the surfaces and the main tabs are there')
 slrr_settings = nil
 
