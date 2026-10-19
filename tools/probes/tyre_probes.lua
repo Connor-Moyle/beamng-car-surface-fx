@@ -286,4 +286,44 @@ function P.fireNearest(i)
   return P.dump()
 end
 
+-- ---- 7. blowout damages the panels near it (f7). Pops wheel i, then (if hit) pushes the nearest body nodes outward over 3 physics steps. Drive at 0 / 50 / 100 km/h, run it, screenshot the arch before and after.
+-- Safe by construction: force capped at 3000 N per node, never the wheel's own nodes, 3 nodes. Reset the car afterwards (R).
+function P.blowout(i, newtons)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  local f = math.min(newtons or 1500, 3000)
+  local skip = {}
+  for _, cid in ipairs(w.treadNodes) do skip[cid] = true end
+  skip[w.node1], skip[w.node2] = true, true
+  for _, wd2 in pairs(wheels.wheels) do skip[wd2.node1], skip[wd2.node2] = true, true for _, c in ipairs(wd2.treadNodes or {}) do skip[c] = true end end
+  local centre = v.data.nodes[w.node1].pos
+  local list = {}
+  for cid, n in pairs(v.data.nodes) do
+    if not skip[cid] and n.pos then
+      local dx, dy, dz = n.pos.x - centre.x, n.pos.y - centre.y, n.pos.z - centre.z
+      local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+      if d <= 0.55 then list[#list + 1] = { cid = cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end
+    end
+  end
+  table.sort(list, function(a, b) return a.d < b.d end)
+  say('body nodes in 0.55 m of the wheel (not wheel nodes):', #list)
+  P.blowTargets = {}
+  for k = 1, math.min(3, #list) do P.blowTargets[k] = list[k] end
+  P.blowSteps = 3 P.blowForce = f
+  try('deflateTire', function() beamstate.deflateTire(i) return 'popped' end)
+  return P.dump()
+end
+-- call this from updateGFX-like ticks; here: a one-off helper that applies one step. Call it 3 times in a row (3 run_lua_vehicle calls, or loop with CSFXP.blowoutApply(3))
+function P.blowoutApply(times)
+  local n = 0
+  for _ = 1, math.min(times or 1, 3) do
+    for _, t in ipairs(P.blowTargets or {}) do
+      pcall(function() obj:applyForceVector(t.cid, vec3(t.dx * P.blowForce, t.dy * P.blowForce, t.dz * P.blowForce)) end)
+      n = n + 1
+    end
+  end
+  return 'applied ' .. n .. ' pushes'
+end
+
 return P

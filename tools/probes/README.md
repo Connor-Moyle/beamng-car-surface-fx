@@ -31,3 +31,5 @@ Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the
 | f4 | `CSFXP.fireDeflate(2)`, then reset the car | | the pop call works and looks right |
 | f5 | `CSFXP.debrisParticle(2, id)` for id 1..60, driving slowly, note the ids that look like rubber or dirt bits | | which particle we can use for flung rubber (otherwise CSFX adds its own) |
 | f6 | `CSFXP.fireNearest(2)`, watch 20 s, then reset the car | run only if f3 fails or burns nothing | lights the car's flammable node nearest the wheel: does the game's fire spread through the wheel arch and body? |
+| f7 | `CSFXP.blowout(0)` (front-left; the `0` is the wheel index from `info()`) then `CSFXP.blowoutApply(1)` three times; screenshot the arch before and after. Repeat at 50 and 100 km/h (apply right after the pop, while moving), reset the car (R) between runs | do not exceed the cap (3000 N, 3 nodes) | do panels near the wheel deform from outward pushes, does Wrench Works see it as damage, does the car stay stable? Also say how many nodes were in range |
+

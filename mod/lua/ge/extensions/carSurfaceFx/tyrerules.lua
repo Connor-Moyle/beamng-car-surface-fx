@@ -39,6 +39,7 @@ function M.defaults()
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
+    blowout = { enabled = true, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 6000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
     fires = true, fireSpread = true, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
@@ -118,6 +119,34 @@ function M.pileStep(p, dt, ambient, wet, cfg)
   elseif p.g >= d.pileMinG and p.T >= d.pileIgniteT then p.burn = d.pileBurnS end
   return (p.burn or 0) > 0
 end
+-- ---- a blowout hitting the panels near it (Connor, 2026-10-19). The vehicle side applies the result with obj:applyForceVector over `steps` physics steps, so the soft body deforms the panel for real.
+-- speed m/s, pressure 0..1 of nominal; roll is a 0..1 random number (a parameter, so tests are exact). Returns nil (no hit) or { n nodes, force N each, steps }.
+-- The chance climbs with speed (chance0 at a stand to chance100 at 100 km/h and above); the force is capped by maxForce whatever the strength setting says.
+function M.blowoutHit(speed, pressure, roll, cfg)
+  local b = cfg.blowout
+  if not b.enabled or b.strength <= 0 then return nil end
+  local k = clamp((speed or 0) / 27.8, 0, 1)
+  if roll >= b.chance0 + (b.chance100 - b.chance0) * k then return nil end
+  local force = math.min(b.maxForce, 800 * b.strength * (0.3 + 1.7 * k) * (0.5 + 0.5 * clamp(pressure or 1, 0, 1.5)))
+  return { n = math.max(1, math.floor(b.maxNodes * (0.4 + 0.6 * k) + 0.5)), force = force, steps = b.steps }
+end
+-- which nodes to push: body nodes within radius of the wheel centre, never the wheel's own (skip[cid]) nor anything in the skipped list; nearest first, at most n.
+-- nodes = { {cid=, x=, y=, z=}, .. }; returns the cids with a unit direction away from the wheel centre (flat on the vertical a little, so panels bulge out and up)
+function M.blowoutTargets(nodes, centre, radius, skip, n)
+  local list = {}
+  for _, nd in ipairs(nodes) do
+    if not skip[nd.cid] then
+      local dx, dy, dz = nd.x - centre.x, nd.y - centre.y, nd.z - centre.z
+      local d = math.sqrt(dx * dx + dy * dy + dz * dz)
+      if d <= radius and d > 1e-6 then list[#list + 1] = { cid = nd.cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end
+    end
+  end
+  table.sort(list, function(a, b) return a.d < b.d end)
+  local out = {}
+  for i = 1, math.min(n, #list) do out[i] = list[i] end
+  return out
+end
+
 -- smoke 0..1 from the surface temperature
 function M.smoke(Ts, cfg) return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
 -- one fire tick. Ignites after the hottest surface (Ts + the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it

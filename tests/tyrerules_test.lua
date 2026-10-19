@@ -186,6 +186,21 @@ assert(R.heatWear(C.fullwet, 100, cfg) > R.heatWear(C.road, 100, cfg), 'and wear
 local function run(wet) local x = R.new('slick', 16, 0.3, 0.2, 20, 1) for _ = 1, 600 do R.tempStep(x, { dt = 0.05, power = 8000, v = 30, fz = 4000, ambient = 20, wet = wet }, cfg) end return x.Ts end
 assert(run(1) < run(0) - 5, 'rain cools the tyre: ' .. run(1) .. ' vs ' .. run(0))
 
+-- ---- blowout damage
+assert(R.blowoutHit(30, 1, 0.99, cfg) == nil and R.blowoutHit(30, 1, 0.5, cfg), 'a roll above the chance misses, below it hits')
+assert(R.blowoutHit(0, 1, 0.5, cfg) == nil and R.blowoutHit(30, 1, 0.5, cfg) ~= nil, 'a stationary tyre rarely hurts the panels')
+local hs, hf = R.blowoutHit(5, 1, 0.01, cfg), R.blowoutHit(30, 1, 0.01, cfg)
+assert(hf.force > hs.force and hf.n >= hs.n, 'faster blows harder')
+assert(R.blowoutHit(30, 0.3, 0.01, cfg).force < hf.force, 'a flat-ish tyre has less burst')
+local big = R.defaults() big.blowout.strength = 100
+assert(R.blowoutHit(40, 1.5, 0.01, big).force <= big.blowout.maxForce, 'the force is capped')
+local off = R.defaults() off.blowout.enabled = false
+assert(R.blowoutHit(30, 1, 0, off) == nil, 'switched off: never')
+local bn = { { cid = 1, x = 0.1, y = 0, z = 0 }, { cid = 2, x = 0.3, y = 0, z = 0 }, { cid = 3, x = 2, y = 0, z = 0 }, { cid = 4, x = 0.2, y = 0.1, z = 0 }, { cid = 9, x = 0.05, y = 0, z = 0 } }
+local tg = R.blowoutTargets(bn, { x = 0, y = 0, z = 0 }, 0.5, { [9] = true }, 2)
+assert(#tg == 2 and tg[1].cid == 1 and tg[2].cid == 4, 'nearest first, the wheel own node 9 and the far node 3 are left out')
+near(tg[1].dx, 1, 1e-9, 'directed away from the wheel')
+
 -- ---- debris, smoke, fire
 local d = R.new('road', 16) d.Ts = 60 d.shed = 1000
 local gCool = R.takeDebris(d, cfg)
