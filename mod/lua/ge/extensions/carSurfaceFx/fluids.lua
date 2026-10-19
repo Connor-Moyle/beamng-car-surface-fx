@@ -315,6 +315,21 @@ function M.puddleAhead(kind, metres, radius)
   return string.format('%s puddle at %.1f, %.1f r %.2f', kind or 'oil', x, y, puddle and puddle.r or 0)
 end
 
+-- a test (the quiet bench): n puddles of one kind in a square grid round the player's car, `spacing` metres apart (puddleAhead's puddles run together when they are close)
+function M.fillRing(n, spacing, kind, radius)
+  local veh = be:getPlayerVehicle(0)
+  if not veh then return 'no player vehicle' end
+  n, spacing, kind = n or 100, spacing or 4, kind or 'oil'
+  local p, side, put = veh:getPosition(), math.ceil(math.sqrt(n)), 0
+  for i = 0, n - 1 do
+    local x, y = p.x + (i % side - side / 2) * spacing, p.y + (math.floor(i / side) - side / 2) * spacing
+    local z = groundZ(x, y, p.z) or p.z
+    local puddle = rules.drip(store, x, y, z, kind, 1, settings, false, 0.5)
+    if puddle then puddle.r = clamp(radius or 0.6, 0.1, settings.kinds[kind].size) put = put + 1 end
+  end
+  return string.format('%d %s puddles in a grid of %d, %.0f m apart', put, kind, side, spacing)
+end
+
 -- a test: the free camera straight above the biggest puddle (height in metres), so a puddle under or beside a car can be shot from the top
 function M.look(height)
   local best

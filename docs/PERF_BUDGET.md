@@ -41,7 +41,7 @@ The report to bring back: one table per run (avg, p95, p99, the Lua ms per step)
 ## Quiet A/B bench (carSurfaceFx_benchab)
 
 One feature at a time, the car parked, no traffic, a fixed camera: `extensions.load('carSurfaceFx_benchab')`, then `carSurfaceFx_benchab.run('leaks')` (about 150 s: off, on, off, on, off, on, each 4 s settle and 20 s measured), `carSurfaceFx_benchab.report()` (also `settings/csfx_benchab.txt`). The report gives the median of the off windows and of the on windows, the delta in ms and in p99, and every window's number. Names: `carSurfaceFx_benchab.features()` (leaks, glass, overlay, dirt, marks, paintwater, paint, weather).
-Run leaks first, on its own. Before it, fill the puddle ring with the camera looking along the line: `for i = 1, 60 do carSurfaceFx_fluids.puddleAhead('oil', 3 + i * 0.4, 0.6) end`, then check `carSurfaceFx_fluids.status()`. Then the others, with rain forced (`carSurfaceFx.debug('rain', 1)`) in every run, the Max preset, and the same camera.
+Run leaks first, on its own. Before it, fill the puddle ring with the camera looking along the line: `carSurfaceFx_fluids.fillRing(100, 4, 'oil', 0.6)`, then check `carSurfaceFx_fluids.status()`. Then the others, with rain forced (`carSurfaceFx.debug('rain', 1)`) in every run, the Max preset, and the same camera.
 
 ## Quiet A/B bench, first result (connor-80, cee4aba, Max preset, parked covet, no traffic, fixed camera, heavy rain forced)
 
