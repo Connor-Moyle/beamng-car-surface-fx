@@ -384,4 +384,30 @@ function P.fireStrong(i, burnRate)
   return P.dump()
 end
 
+-- ---- 11. wheels with NO tread nodes (the career's starter cars, e.g. the autobello: radius 0.18, treadNodes empty): what does such a wheel have to write friction on?
+-- Lists the wheel's own fields (names only) and every node of the car that belongs to the wheel (node.wheelID or the wheel's cid), with friction and material, so we can pick a ring of contact nodes.
+function P.ringNodes(i)
+  P.log = {}
+  local w = wd(i)
+  if not w then return 'no wheel' end
+  local keys = {}
+  for k, val in pairs(w) do if type(val) ~= 'function' and type(val) ~= 'table' then keys[#keys + 1] = k .. '=' .. tostring(val) end end
+  table.sort(keys)
+  say('wheel ' .. tostring(i) .. ' fields: ' .. table.concat(keys, ' '))
+  say('treadNodes ' .. tostring(w.treadNodes and #w.treadNodes) .. ' node1 ' .. tostring(w.node1) .. ' node2 ' .. tostring(w.node2) .. ' wheelID ' .. tostring(w.wheelID) .. ' cid ' .. tostring(w.cid))
+  local n, sample, byMat = 0, {}, {}
+  for cid, nd in pairs(v.data.nodes) do
+    if nd.wheelID == w.wheelID or nd.wheelID == w.cid or nd.wheelID == i then
+      n = n + 1
+      local m = tostring(nd.nodeMaterial or nd.nodeMaterialId)
+      byMat[m] = (byMat[m] or 0) + 1
+      if #sample < 10 then sample[#sample + 1] = cid .. ':' .. tostring(nd.name) .. ' fc=' .. tostring(nd.frictionCoef) .. ' mat=' .. m end
+    end
+  end
+  say('nodes with this wheelID: ' .. n)
+  for m, c in pairs(byMat) do say('  material ' .. m .. ': ' .. c) end
+  say('sample: ' .. table.concat(sample, ' | '))
+  return P.dump()
+end
+
 return P
