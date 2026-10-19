@@ -141,9 +141,9 @@ function RULES.dust(map, c, wi, opts)
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)
-  if d > 0.95 then return 0 end
+  if d > 0.5 then return 0 end                                          -- a band at the arch edge, not the whole quarter panel
   local dy = behind(map, c, wi or select(2, nearWheel(map, c)))
-  return exp(-d / 0.4) * (dy > -0.15 and 1 or 0.25)                       -- the arch lip and the panel behind the spinning wheel
+  return exp(-d / 0.22) * (dy > -0.15 and 1 or 0.25)                       -- the arch lip and the panel behind the spinning wheel
 end
 function RULES.bugs(map, c)
   if c.ny > -0.4 then return 0 end                                        -- forward-facing: the nose, the front of the bonnet, the base of the windscreen
