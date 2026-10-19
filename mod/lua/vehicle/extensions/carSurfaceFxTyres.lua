@@ -312,7 +312,11 @@ function M.updateGFX(dt)                           -- our code never gets to dis
   local ok, err = pcall(frame, dt or 0)
   if not ok then failed = tostring(err) pcall(M.restore) log('E', 'carSurfaceFxTyres', 'switched off after an error: ' .. failed) end
 end
-function M.onReset() reapply = REAPPLY_FRAMES if tyres then for _, e in pairs(tyres) do e.applied = {} end end timer, report = 0, 0 end
+function M.onReset()                               -- the game gives the car back with new tyres (inflated, no damage): so do we (the career restores its own saved wear after a respawn)
+  reapply = REAPPLY_FRAMES
+  M.repair()
+  timer, report = 0, 0
+end
 function M.onExtensionUnloaded() pcall(M.restore) end
 
 return M

@@ -55,6 +55,16 @@ assert(got and got[1] == 'fluids' and got[2] == 0 and got[3] < 1, 'with the tyre
 assert(#writes == 0, 'and write nothing themselves')
 _G.carSurfaceFxTyres = nil
 
+-- a reset gives new tyres: the wear and the blown state are gone
+T.setConfig({ enabled = true, wearRate = 400 })
+wd.lastSlip, wd.downForce = 30, 8000
+for _ = 1, 100 do T.updateGFX(0.01) end
+assert(T.snapshot()[0].h[5] < 8.0, 'worn before the reset')
+T.onReset()
+assert(T.snapshot()[0].h[5] == 8.0 and not T.snapshot()[0].blown, 'a reset gives new tyres')
+wd.lastSlip = 8
+T.setConfig({ wearRate = 1 })
+
 -- a reset: the engine restores stock friction, ours comes back two frames later
 writes = {}
 T.onReset()
