@@ -2,6 +2,8 @@
 -- how repeated passes along the same track deepen it, and how the wheel path is cut into chunks. Pure (no game calls), tested by tests/ruts_test.lua.
 local M = {}
 
+local hollowrules = require('carSurfaceFx/hollowrules')
+
 local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
 M.clamp = clamp
 
@@ -21,6 +23,7 @@ function M.defaults()
     wetAbove = 0.3, dryBelow = 0.2,                                    -- the wet material from this wetness, the dry one again below the other (a little hysteresis)
     cullRadius = 120,
     others = { enabled = false, maxCars = 3, range = 50 },
+    hollows = hollowrules.defaults(),                                  -- visual terrain hollows under the wheels (hollows.lua); off until seen in game
     tracks = { enabled = false, maxRoads = 150, step = 0.5, chunkPoints = 5, widthScale = 0.5 },            -- the faint tyre tracks on soft ground as lit road decals (ruts.trackSegment, from marks.lua)
     gouges = { enabled = false, step = 0.3, chunkPoints = 4, minForce = 400, widthMin = 0.25, widthMax = 0.7 },      -- the body scraping the ground (ruts.gouge, from the body wear hits)
     berms = { enabled = false, maxBerms = 120, heightScale = 1.0, lift = 0.01 },      -- soil lips beside the track (berm.lua, bermrules.lua); off until seen in game

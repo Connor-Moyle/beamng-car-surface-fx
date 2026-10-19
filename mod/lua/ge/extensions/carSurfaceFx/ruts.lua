@@ -8,6 +8,7 @@ local M = {}
 
 local rules = require('carSurfaceFx/rutrules')
 local berm = require('carSurfaceFx/berm')
+local hollows = require('carSurfaceFx/hollows')
 
 local TAG = 'carSurfaceFx_ruts'
 local SETTINGS_FILE = 'settings/carSurfaceFx_ruts.json'
@@ -105,6 +106,7 @@ function M.configure(s)
   if type(s) == 'table' then mergeInto(settings, s) end
   if not fellBack then mode = settings.routing == 'decal' and 'decal' or 'road' end
   dirty = true
+  if not settings.hollows.enabled then hollows.restore() end
   pcall(injectAll)
 end
 function M.set(path, value)
@@ -256,6 +258,7 @@ function M.sample(vid, wheel, x, y, z, kind, load, slip)
     return
   end
   path.depth = depth
+  if settings.hollows.enabled then hollows.stamp(settings.hollows, x, y, kind, depth) end
   local chunk = rules.feed(path, x, y, z, kind, settings)
   if chunk then
     chunk.depth = depth
@@ -302,6 +305,7 @@ function M.clear()
   grid = rules.newGrid()
   made = { roads = 0, segments = 0, skipped = 0 }
   berm.clear()
+  hollows.restore()
 end
 
 -- ---- drawing the fallback
@@ -344,6 +348,7 @@ function M.onUpdate(dt)
   end
   rules.refill(bucket, dt, settings.maxPerSecond)                 -- (not budget: that would spend a token every frame, and the bucket would never hold one for a chunk)
   if settings.berms.enabled then berm.update(settings.berms) end
+  if settings.hollows.enabled then hollows.update(settings.hollows, dt) end
   idleT = idleT + dt
   if idleT >= 0.5 then
     idleT = 0
@@ -373,8 +378,8 @@ function M.cells() return grid.n end
 function M.pendingCount() return pendingN end
 
 function M.status()
-  return string.format('routing %s roads %d tracks %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s ticks %d; %s', mode or '?', ringRut.n, ringTrack.n, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
-    wetness(), tostring(fellBack), ticks, berm.status())
+  return string.format('routing %s roads %d tracks %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s ticks %d; %s; %s', mode or '?', ringRut.n, ringTrack.n, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
+    wetness(), tostring(fellBack), ticks, berm.status(), hollows.status())
 end
 
 -- a rut put down by hand ahead of the car: n samples along its heading on the given ground (to see how it is drawn)
@@ -422,6 +427,7 @@ function M.onExtensionUnloaded()
 end
 function M.onClientStartMission() M.clear() pcall(injectAll) end
 function M.onClientEndMission() M.clear() end
+function M.onEditorActivated() hollows.restore() end                -- the World Editor must never see (or save) our heights
 
 M.TAG = TAG
 require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_ruts', { 'onPreRender', 'onUpdate' })
