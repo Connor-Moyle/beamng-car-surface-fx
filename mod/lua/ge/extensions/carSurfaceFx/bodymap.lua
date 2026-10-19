@@ -128,7 +128,7 @@ function RULES.mud(map, c, wi)
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w + 0.6 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
+  return w + 1.8 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -137,7 +137,7 @@ function RULES.grime(map, c)
 end
 function RULES.dust(map, c, wi, opts)
   if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
-  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 1.2 * wake(c)
+  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 2.0 * wake(c)
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)

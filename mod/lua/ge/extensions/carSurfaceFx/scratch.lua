@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 30                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 31                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -466,6 +466,15 @@ function M.glowTune(nits)
     end
   end
   return 'lit dirt ' .. nits .. ' nits on ' .. n .. ' paint layers'
+end
+
+-- the car's paint lightness 0..1 (the lit dirt page makes mud stronger on a dark paint); sent when it changed
+local lumSent = {}
+function M.setPaintLum(id, lum)
+  if lumSent[id] and math.abs(lumSent[id] - lum) < 0.04 then return end
+  lumSent[id] = lum
+  local veh = getObjectByID(id)
+  if veh then send(veh, ('csfxPaintLum(%.3f)'):format(lum)) end
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.

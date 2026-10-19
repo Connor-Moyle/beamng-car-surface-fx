@@ -275,6 +275,10 @@ local function bodyDirt(id, kind, amount, wi)
   local n = math.floor(amount * pl[1] * (settings.scratch.dirtRate or 1) + math.random())      -- (the Splat rate setting: fewer splats for a slower machine)
   if n <= 0 then return end
   local sc = carSurfaceFx_scratch
+  local vd = core_vehicle_manager and core_vehicle_manager.getVehicleData(id)
+  local pp = vd and vd.config and vd.config.paints
+  local pc = pp and pp[1] and pp[1].baseColor
+  if pc and sc.setPaintLum then sc.setPaintLum(id, 0.2126 * (pc[1] or 0) + 0.7152 * (pc[2] or 0) + 0.0722 * (pc[3] or 0)) end
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
   if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
     if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(1, math.floor(n / 3)), nil, COL.dust, 0.10, 0.18, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too

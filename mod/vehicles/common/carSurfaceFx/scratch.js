@@ -15,6 +15,7 @@
   var canvas = document.getElementById('csfxScratchCanvas');
   var ctx = canvas.getContext('2d');
   var palette = /[?&]m=p/.test(location.search);
+  var paintLum = 0.5;                               // how light the car's paint is (0 black .. 1 white): the lit mud is stronger on dark paint, where it is lighter than the paint
   var emis = /[?&]m=e/.test(location.search);       // the emissive page: only the dirt's own colour on black, added to the paint as light (the colour map can only darken)
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
@@ -77,7 +78,7 @@
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     if (emis && b.k === 'dust') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a > 0.2 ? b.a * 0.25 : b.a * 1.8, k: 'dust' };      // lit dust: the patches stay faint so the whole-car haze makes a film, not spots of light
     if (emis && b.k !== 'dust') {                                        // lit mud: as light the earth colours are far too bright and saturated (orange): darker and browner, every splat a little different, soft edges
-      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3, tone = 0.8 + 0.4 * hash(b.y, b.x, 77), thick = 0.6 + 0.75 * hash(b.x, b.y, 91), kk = 0.3 * tone;
+      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3, tone = 0.8 + 0.4 * hash(b.y, b.x, 77), thick = (0.6 + 0.75 * hash(b.x, b.y, 91)) * (0.8 + 0.8 * (1 - paintLum)), kk = 0.3 * tone * (1 + 0.9 * (1 - paintLum));
       b = { x: b.x, y: b.y, r: b.r, dx: b.dx, dy: b.dy, k: b.k, a: Math.min(1, b.a * thick * (b.k === 'cake' ? 0.8 : 1)), c: [(mean + (b.c[0] - mean) * 0.85) * kk, (mean + (b.c[1] - mean) * 0.85) * kk, (mean + (b.c[2] - mean) * 0.85) * kk] };
       sctx.filter = 'blur(1.3px)';
     }
@@ -180,6 +181,8 @@
   window.csfxRepair = function () { lines = []; redraw(); };
 
   // everything gone
+  window.csfxPaintLum = function (v) { v = Number(v); if (isFinite(v) && Math.abs(v - paintLum) > 0.04) { paintLum = Math.max(0, Math.min(1, v)); if (emis) redraw(); } };
+
   window.csfxClear = function () { lines = []; blobs = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
