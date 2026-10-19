@@ -3,7 +3,7 @@ local switched, reset, metal = {}, {}, {}
 local names = dofile('mod/lua/common/csfx_tyrelook_names.lua')
 assert(#names >= 40 and names[1], 'the list of tyre materials is generated')
 wheels = { wheels = { [0] = { name = 'FL', treadNodes = { 1, 2 } }, [1] = { name = 'FR', treadNodes = { 3, 4 } } } }
-v = { data = { flexbodies = { { mesh = 'tire_01a_15x7_24', group = { 'wheel_FL', 'tire_FL' } }, { mesh = 'tire_01a_15x7_24_2', group = { 'wheel_FR', 'tire_FR' } }, { mesh = 'body', group = { 'covet_body' } } } } }
+v = { data = { flexbodies = { { mesh = 'tire_01a_15x7_24' }, { mesh = 'tire_01a_15x7_24_2' }, { mesh = 'body', group = { 'covet_body' } } } } }
 particles = { materials = {}, getMaterialIDByName = function() return 2 end }
 obj = { getMeshesContainingMaterial = function(_, m) return m == 'tire_01a' and 'tire_01a_15x7_24 tire_01a_15x7_24_2 other' or '' end,
   getSwitchableMaterial = function(_, o, _, mesh) return mesh:find('_2$') and 11 or 10 end,

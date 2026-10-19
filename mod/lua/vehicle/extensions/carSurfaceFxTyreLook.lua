@@ -10,21 +10,48 @@ local stageOf = {}                  -- wheel index -> the stage on show
 local metalOf = {}                  -- wheel index -> true while its tread nodes are METAL
 local disabled = false
 
-local function tyreMeshes(wd)       -- the tyre flexbody meshes of one wheel: groups like tire_FL, ending in the wheel's name
-  local out, name = {}, tostring(wd.name or '')
-  for _, fb in pairs(v.data.flexbodies or {}) do
-    for _, g in ipairs(type(fb.group) == 'table' and fb.group or { fb.group }) do
-      g = tostring(g)
-      if fb.mesh and g:find('tire', 1, true) and name ~= '' and g:sub(-#name) == name then out[fb.mesh] = true end
-    end
+-- The tyre flexbodies carry no group in the vehicle data (the Covet's are tire_01a_13x5_23, ..D, ..DD, ..DDD with group = nil), so a wheel's tyre mesh is found, in turn, by: a group
+-- ending in the wheel's name; node lists that hold the wheel's hub node; or, as the last resort, the order (the k-th tyre mesh of the list belongs to the k-th wheel by index: the order the
+-- jbeam lists them, FR FL RR RL, checked on the Covet). shortcut: the order is a guess when no group or nodes exist, check the look on a new car.
+local function tyreList()
+  local out = {}
+  for k, fb in ipairs(v.data.flexbodies or {}) do if fb.mesh and tostring(fb.mesh):find('tire', 1, true) then out[#out + 1] = fb end end
+  return out
+end
+
+local function hasNode(fb, id)
+  for _, key in ipairs({ 'nodes', 'cids' }) do
+    if type(fb[key]) == 'table' then for _, n in pairs(fb[key]) do if n == id then return true end end end
   end
+  return false
+end
+
+local function wheelOrder()
+  local ks = {}
+  for wi in pairs(wheels.wheels or {}) do ks[#ks + 1] = wi end
+  table.sort(ks)
+  return ks
+end
+
+local function tyreMeshes(wd, wi)
+  local out, name, tl = {}, tostring(wd.name or ''), tyreList()
+  for _, fb in ipairs(tl) do
+    for _, g in ipairs(type(fb.group) == 'table' and fb.group or { fb.group or false }) do
+      g = tostring(g)
+      if g:find('tire', 1, true) and name ~= '' and g:sub(-#name) == name then out[fb.mesh] = true end
+    end
+    if wd.node1 and hasNode(fb, wd.node1) then out[fb.mesh] = true end
+  end
+  if next(out) then return out end
+  local ks = wheelOrder()
+  if #ks == #tl then for k, key in ipairs(ks) do if key == wi then out[tl[k].mesh] = true end end end
   return out
 end
 
 local function build()
   sw = {}
   for wi, wd in pairs(wheels.wheels or {}) do
-    local want, list = tyreMeshes(wd), {}
+    local want, list = tyreMeshes(wd, wi), {}
     if next(want) then
       for _, orig in ipairs(NAMES) do
         for mesh in tostring(obj:getMeshesContainingMaterial(orig) or ''):gmatch('%S+') do
@@ -70,8 +97,9 @@ function M.info()       -- for game tests: per wheel the switches found (origina
   if not out:find('#', 1, true) then       -- nothing matched: show what the matching saw
     local seen = {}
     for wi, wd in pairs(wheels.wheels or {}) do seen[#seen + 1] = 'wheel ' .. wi .. ' name=' .. tostring(wd.name) end
-    for _, fb in pairs(v.data.flexbodies or {}) do
-      if tostring(fb.mesh):find('tire', 1, true) then seen[#seen + 1] = 'fb ' .. tostring(fb.mesh) .. ' group=' .. (type(fb.group) == 'table' and table.concat(fb.group, '/') or tostring(fb.group)) end
+    for _, fb in ipairs(tyreList()) do
+      local keys = {} for k in pairs(fb) do keys[#keys + 1] = tostring(k) end table.sort(keys)
+      seen[#seen + 1] = 'fb ' .. tostring(fb.mesh) .. ' keys=' .. table.concat(keys, '/')
     end
     out = out .. ' | ' .. table.concat(seen, '; ')
   end
