@@ -387,7 +387,7 @@ function M.build(S, owner)
   local PRESETS = {
     all_cars = { false, false, false, true }, glass_fine = { false, false, true, true }, overlay_size = { 2.4, 1.6, 1.3, 1.1 },
     cull = { 60, 100, 140, 200 }, max_drawn = { 300, 800, 1200, 2000 }, skid_count = { 800, 2000, 3000, 5000 }, track_count = { 1000, 3000, 5000, 8000 },
-    others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 120, 180, 300 }, leaks_cull = { 40, 80, 120, 160 },
+    others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 100, 150, 200 }, leaks_cull = { 40, 70, 100, 120 },
     leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
   }
   local SCALED = { crash_glass_max = 1, crash_debris_flying = 1, crash_debris_resting = 1, crash_sparks_max = 1 }   -- no fixed numbers: the default times 0.4, 1, 1.5 and 2.5

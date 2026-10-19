@@ -30,6 +30,14 @@ Setup: West Coast, the covet, traffic on, heavy rain. Lighting frozen at noon. N
 
 The report to bring back: one table per run (avg, p95, p99, the Lua ms per step), the two VRAM numbers per run, and the camera and traffic count used.
 
+## First measured run (connor-80, 6caef4f, Max preset, covet, heavy rain, traffic 6 cars)
+
+- The mod's own Lua is 0.13 to 0.5 ms per frame in every run. The rest is GPU and page uploads, which the bench can only see as frame time.
+- The noise is too large to read single numbers: the same settings gave +5.5 ms and +13.6 ms against "everything off" (the baseline frame itself moved between 19 and 26 ms in heavy rain with traffic). Differences of a few ms between runs mean nothing; only repeated steps are comparable.
+- In the one cumulative run, the biggest steps were leaks (+11.5 ms, p99 43), dirt and mud, and the cockpit overlay. 512 against 1024 window canvas and Sky Light wet tarmac on/off showed no difference beyond the noise. VRAM moved less than 130 MiB over a run in every case (no growth), at about 7.7 GB used of 12 GB.
+- Actions taken: at most 60 glossy leak planes at once (`maxMeshes`), and the Max preset now has 200 puddles (was 300) with a 120 m cull (was 160).
+- A quieter bench is needed to set real budgets: the car parked, no traffic, rain frozen, a fixed camera, 20 s windows, each feature switched on and off in alternation three times, and the median taken.
+
 ## Budget table (Max preset)
 
 | Feature | Proposed cap (ms) | Measured by 80 (ms) | Main knobs |

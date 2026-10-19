@@ -130,7 +130,7 @@ function M.sync(store, cfg, camX, camY, fade)
       local r = p.r * (fade and fade(i) or 1)
       if near and r >= 0.04 then
         if rec and rec.built < p.r * 0.95 then drop(p, rec) rec = nil end             -- outgrew the corners it was sampled for
-        if not rec and builds < MAX_BUILDS and os.clock() - t0 < BUDGET then
+        if not rec and builds < MAX_BUILDS and os.clock() - t0 < BUDGET and M.count() < (cfg.maxMeshes or 60) then
           rec = build(p, math.max(p.r * 1.5, 0.3), p.kind == 'oil' and cfg.sheen ~= false)
           if rec then recs[p] = rec builds = builds + 1 end
         end
