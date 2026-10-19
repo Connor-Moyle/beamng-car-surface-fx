@@ -18,7 +18,9 @@ local COLORS = { mud = { 0.10, 0.07, 0.05 }, snow = { 0.55, 0.60, 0.68 }, sand =
 local settings = rules.defaults()
 local paths = {}                                                  -- 'vid:wheel' -> a collected path
 local pending, pendingN = {}, 0                                   -- chunks waiting for the budget
-local roads, roadHead, roadN = {}, 0, 0                           -- the DecalRoads made (a ring of object ids)
+local function newRing() return { ids = {}, head = 0, n = 0 } end
+local ringRut, ringTrack = newRing(), newRing()                    -- the DecalRoads made (rings of object ids): ruts and gouges, and the tyre tracks
+local chains = rules.newChains()
 local segs, segHead, segN = {}, 0, 0                              -- the fallback: decal segments (a ring)
 local grid = rules.newGrid()
 local bucket = {}
@@ -124,6 +126,8 @@ local function loadSizes()
     if kind then sizes[kind] = { width = t.width or 0.9, length = t.textureLength or 4 } end
     local gk = tostring(t.type):match('^gouge_(%a+)$')
     if gk then sizes['gouge_' .. gk] = { width = t.width or 0.45, length = t.textureLength or 3 } end
+    local tk = tostring(t.type):match('^track_(%a+)$')
+    if tk then sizes['track_' .. tk] = { width = t.width or 0.5, length = t.textureLength or 3 } end
   end
 end
 local function colorFor(kind, layer)
@@ -152,16 +156,16 @@ local function useFallback(why)
   log('W', TAG, 'ruts: a DecalRoad could not be made (' .. tostring(why) .. '); drawing ruts as ground decals instead')
 end
 
-local function dropRoad(slot)
-  local id = roads[slot]
+local function dropRoad(ring, slot)
+  local id = ring.ids[slot]
   if id then
     local o = scenetree and scenetree.findObjectById(id)
     if o then pcall(function() o:deleteObject() end) end
-    roads[slot] = nil
+    ring.ids[slot] = nil
   end
 end
 
-local function makeRoad(chunk, material, width, layer)
+local function makeRoad(chunk, material, width, layer, ring, maxN)
   local markMaterials = require('carSurfaceFx/markMaterials')
   local okM, why = markMaterials.ensure(material)
   if not okM then return false, why end
@@ -176,11 +180,11 @@ local function makeRoad(chunk, material, width, layer)
     r:registerObject('')
     if scenetree and scenetree.MissionGroup then scenetree.MissionGroup:add(r) end
     for i, p in ipairs(chunk.points) do r:insertNode(vec3(p[1], p[2], p[3] + 0.02), width, i - 1) end
-    local maxN = math.max(8, math.floor(settings.maxRoads))
-    roadHead = (roadHead % maxN) + 1
-    dropRoad(roadHead)
-    roads[roadHead] = r:getID()
-    if roadN < maxN then roadN = roadN + 1 end
+    maxN = math.max(8, math.floor(maxN))
+    ring.head = (ring.head % maxN) + 1
+    dropRoad(ring, ring.head)
+    ring.ids[ring.head] = r:getID()
+    if ring.n < maxN then ring.n = ring.n + 1 end
   end)
   if not ok then return false, err end
   made.roads = made.roads + 1
@@ -208,12 +212,21 @@ local function makeGouge(chunk)
   local material
   material, wasWet = rules.gougeMaterial(chunk.kind, wetness(), wasWet, settings)
   local sz = sizeOf('gouge_' .. chunk.kind)
-  local ok, why = makeRoad({ points = chunk.points, kind = 'gouge_' .. chunk.kind }, material, chunk.width or sz.width, 5)
+  local ok, why = makeRoad({ points = chunk.points, kind = 'gouge_' .. chunk.kind }, material, chunk.width or sz.width, 5, ringRut, settings.maxRoads)
   if not ok then useFallback(why) end                               -- no decal fallback for gouges: they simply stop (the ruts fall back on their own)
+end
+
+local function makeTrack(chunk)
+  local material
+  material, wasWet = rules.trackMaterial(chunk.kind, wetness(), wasWet, settings)
+  local width = sizeOf('track_' .. chunk.kind).width * settings.tracks.widthScale
+  local ok, why = makeRoad({ points = chunk.points, kind = 'track_' .. chunk.kind }, material, width, 0, ringTrack, settings.tracks.maxRoads)
+  if not ok then useFallback(why) end                               -- no decal fallback: marks.lua draws the plain decal when tracks.enabled is off
 end
 
 local function makeChunk(chunk)
   if chunk.gouge then makeGouge(chunk) return end
+  if chunk.track then makeTrack(chunk) return end
   local layer = rules.layerFor(grid, chunk.kind, chunk.points, settings)
   if layer > settings.maxLayers then made.skipped = made.skipped + 1 return end            -- the track is as deep as it gets
   local material
@@ -221,7 +234,7 @@ local function makeChunk(chunk)
   local width = rules.width(sizeOf(chunk.kind).width, chunk.depth or 0.6, layer, settings)
   local done = false
   if mode == 'road' then
-    local ok, why = makeRoad(chunk, material, width, layer)
+    local ok, why = makeRoad(chunk, material, width, layer, ringRut, settings.maxRoads)
     if ok then done = true else useFallback(why) end
   end
   if not done then makeSegments(chunk, width, layer) end
@@ -250,6 +263,15 @@ function M.sample(vid, wheel, x, y, z, kind, load, slip)
   end
 end
 
+-- one wheel step of a tyre track from marks.lua (typ = the ground, a..b the step); true when this module draws it (the plain decal is then skipped)
+function M.trackSegment(typ, ax, ay, az, bx, by, bz)
+  local t = settings.tracks
+  if not (settings.enabled and t.enabled) or not rules.TRACK_KINDS[typ] or not settings.kinds[typ] then return false end
+  local chunk = rules.chain(chains, typ, ax, ay, az, bx, by, bz, os.clock(), t)
+  if chunk and pendingN < 40 then pendingN = pendingN + 1 pending[pendingN] = chunk end
+  return true
+end
+
 -- a body panel dragging over the ground (from carSurfaceFx_bodywear: a 'ground' hit): the node's path becomes gouge chunks. mat = the game's material id of the ground
 function M.gouge(vid, node, mat, force)
   local g = settings.gouges
@@ -273,8 +295,10 @@ function M.gouge(vid, node, mat, force)
 end
 
 function M.clear()
-  for slot = 1, roadN do dropRoad(slot) end
-  paths, pending, pendingN, roads, roadHead, roadN, segs, segHead, segN = {}, {}, 0, {}, 0, 0, {}, 0, 0
+  for slot = 1, ringRut.n do dropRoad(ringRut, slot) end
+  for slot = 1, ringTrack.n do dropRoad(ringTrack, slot) end
+  paths, pending, pendingN, ringRut, ringTrack, segs, segHead, segN = {}, {}, 0, newRing(), newRing(), {}, 0, 0
+  chains = rules.newChains()
   grid = rules.newGrid()
   made = { roads = 0, segments = 0, skipped = 0 }
   berm.clear()
@@ -332,6 +356,9 @@ function M.onUpdate(dt)
       end
     end
   end
+  if settings.tracks.enabled then
+    for _, chunk in ipairs(rules.chainFlush(chains, os.clock(), 0.6)) do if pendingN < 40 then pendingN = pendingN + 1 pending[pendingN] = chunk end end
+  end
   injectT = injectT + dt
   if injectT >= 2 then injectT = 0 pcall(injectAll) end
   if dirty and os.clock() - lastSave > 1 then M.save() end
@@ -339,13 +366,14 @@ end
 
 -- ---- QA
 function M.mode() return mode end
-function M.roadCount() return roadN end
+function M.roadCount() return ringRut.n end
+function M.trackCount() return ringTrack.n end
 function M.segmentCount() return segN end
 function M.cells() return grid.n end
 function M.pendingCount() return pendingN end
 
 function M.status()
-  return string.format('routing %s roads %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s ticks %d; %s', mode or '?', roadN, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
+  return string.format('routing %s roads %d tracks %d segments %d made %d/%d skipped %d cells %d pending %d wet %.2f fellBack %s ticks %d; %s', mode or '?', ringRut.n, ringTrack.n, segN, made.roads, made.segments, made.skipped, grid.n, pendingN,
     wetness(), tostring(fellBack), ticks, berm.status())
 end
 

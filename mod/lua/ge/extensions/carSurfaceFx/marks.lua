@@ -122,6 +122,10 @@ local function maxN(kind) return math.max(10, math.floor(kind == 'skid' and sett
 function M.addSegment(ax, ay, az, bx, by, bz, typ, isSkid, inten)
   if not settings.enabled or not colors[typ] then return end
   local kind = (isSkid == 1 or isSkid == true) and 'skid' or 'track'
+  if kind == 'track' then                                        -- soft ground: the ruts module draws the track as a lit road decal when its tracks switch is on
+    local ruts = rawget(_G, 'carSurfaceFx_ruts')
+    if ruts and ruts.trackSegment and ruts.trackSegment(typ, ax, ay, az, bx, by, bz) then return end
+  end
   local b, n = buf[kind], maxN(kind)
   local dx, dy = bx - ax, by - ay
   local len = math.sqrt(dx * dx + dy * dy)

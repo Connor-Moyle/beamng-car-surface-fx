@@ -59,6 +59,15 @@ assert(M.count('skid') == 10, 'the ring holds skidCount marks: ' .. M.count('ski
 M.clear()
 M.addSegment(1, 1, 1, 1, 1, 1, 'dirt', 1, 0.5)
 assert(M.count('skid') == 0, 'no zero-length marks')
+-- the ruts module can take a tyre track (lit road decals): then the plain decal is not stored
+local taken, t0 = 0, M.count('track')
+_G.carSurfaceFx_ruts = { trackSegment = function(typ) taken = taken + 1 return typ == 'mud' end }
+M.addSegment(1, 5, 0, 1.5, 5, 0, 'mud', 0, 0.5)
+M.addSegment(1, 6, 0, 1.5, 6, 0, 'dirt', 0, 0.5)
+M.addSegment(1, 7, 0, 1.5, 7, 0, 'mud', 1, 0.5)
+_G.carSurfaceFx_ruts = nil
+assert(taken == 2 and M.count('track') == t0 + 1 and M.count('skid') == 1, 'a taken track is not stored, a skid is never offered, other grounds stay: ' .. taken .. ' ' .. M.count('track'))
+M.clear()
 
 -- the cars that mark: the player's and the nearest ones within range (car 3 is 500 m away)
 sent = {}
