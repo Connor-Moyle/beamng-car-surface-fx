@@ -110,9 +110,12 @@ function M.material(kind, wet, wasWet, cfg)
   return 'csfx_rut_' .. kind .. (isWet and '_wet' or '_dry'), isWet
 end
 
--- ---- the budget: chunks per second (a token bucket); returns true when one may be made now
-function M.budget(state, dt, perSecond)
+-- ---- the budget: chunks per second (a token bucket). refill adds the time's tokens (never spends); budget(state) returns true and spends one when a chunk may be made now.
+function M.refill(state, dt, perSecond)
   state.tokens = math.min(perSecond, (state.tokens or perSecond) + dt * perSecond)
+end
+function M.budget(state, dt, perSecond)
+  M.refill(state, dt, perSecond)
   if state.tokens >= 1 then state.tokens = state.tokens - 1 return true end
   return false
 end

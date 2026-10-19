@@ -58,6 +58,16 @@ local b = {}
 local got = 0
 for _ = 1, 20 do if R.budget(b, 0, 6) then got = got + 1 end end
 assert(got == 6, 'a bucket of six: ' .. got)
+
+-- the module's loop: 120 frames at 60 fps with 24 chunks waiting and 6 a second drains steadily (about 12 in two seconds), also after a long quiet spell
+local bk = {}
+for _ = 1, 600 do R.refill(bk, 0.016, 6) end                         -- ten quiet seconds
+local waiting, made2 = 24, 0
+for _ = 1, 120 do
+  while waiting > 0 and R.budget(bk, 0, 6) do waiting = waiting - 1 made2 = made2 + 1 end
+  R.refill(bk, 0.016, 6)
+end
+assert(made2 >= 12 and made2 <= 19, 'steady draining, not a burst and then nothing: ' .. made2)
 assert(R.budget(b, 0.5, 6) and R.budget(b, 0, 6) and R.budget(b, 0, 6) and not R.budget(b, 0, 6), 'and it refills over time: three after half a second')
 
 -- ---- the GE module against a mocked game
