@@ -453,6 +453,9 @@ function M.build(S, owner)
     end
   end
 
+  -- every on/off switch is a feature toggle: the Active features page lists them (grouped by the tab they are on)
+  for _, f in ipairs(fields) do if f.type == 'bool' then f.feature = true end end
+
   return { mod = 'car_surface_fx', title = 'Car Surface FX', icon = 'wrench', order = 40, tabs = M.TABS, fields = fields }
 end
 

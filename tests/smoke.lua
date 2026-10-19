@@ -252,6 +252,7 @@ for _, f in ipairs(registered.fields) do
     end
   end
 end
+for _, f in ipairs(registered.fields) do if f.type == 'bool' then assert(f.feature == true, f.id .. ': an on/off switch is tagged as a feature') end end
 assert(nPresets >= 12, 'the frame-costing settings have presets: ' .. nPresets)
 -- coverage: every value of the mod's defaults has a field in the Mods menu, or is listed here as one that is not a setting for players
 do
