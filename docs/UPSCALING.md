@@ -1,6 +1,10 @@
 # DLSS / FSR as a mod: feasibility
 
-Short answer: not possible as a mod in BeamNG.drive 0.39. What a mod can do is better anti-aliasing and sharpening.
+**BeamNG 0.40 update:** 0.40 ships DLSS, FSR 3/4, XeSS and PSSR itself (`core/settings/graphic.lua`: `GraphicAntialiasType`, `GraphicUpscalingQuality` render scale 0.33-1, `GraphicUpscalingSharpness`). A mod cannot add an upscaler, but it can set these settings: Wrench Works' Mods page does ("Upscaling" group) and switches its own anti-aliasing off while a temporal upscaler is on. Frame Generation and Reflex are not in 0.40's Lua. The rest of this note is the 0.39 analysis.
+
+What it means for Car Surface FX: the temporal upscalers reproject the picture with motion vectors, so effects drawn as post effects or flat decals can smear or ghost (drops, dirt and skid marks); the in-game check is DLSS Quality in rain against Off.
+
+Original answer (0.39): not possible as a mod in BeamNG.drive 0.39. What a mod can do is better anti-aliasing and sharpening.
 
 Why:
 - The game has no render-scale or upscaler setting for gameplay. `core/settings/graphic.lua` only has `uiUpscaling` (the web UI) and photo-mode supersampling (`ui/photomode/capture.lua`, stills only).
