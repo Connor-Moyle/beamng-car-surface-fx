@@ -143,7 +143,13 @@ local function tick(dt)
       R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = abs(tonumber(wd.wheelSpeed) or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
-      if ev then events = events or {} events[#events + 1] = { wi, ev } if ev == 'spread' and cfg.fireSpread then pcall(M.igniteNearest, wi) end end
+      if ev then
+        events = events or {} events[#events + 1] = { wi, ev }
+        if ev == 'ignite' then pcall(M.lightTyre, wi) elseif ev == 'out' or ev == 'pop' then pcall(M.putOut, wi)
+        elseif ev == 'spread' and cfg.fireSpread then pcall(M.igniteNearest, wi) end
+      end
+      local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
+      if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
     end
     R.clearEnergy(t)
@@ -233,6 +239,28 @@ function M.igniteNearest(wi)
   end
   if best then fire.igniteNode(best, 600) end
   return best ~= nil
+end
+-- a tyre fire: the game's own fire system is given one flammable node on the tread (probe f10: flames, smoke, sound; the tyre stays intact until our own pop). Needs a real burn rate: 0.05 gave nothing visible.
+local BURN_RATE, BURN_ENERGY, IGNITE_TEMP = 3, 5000, 900
+function M.lightTyre(wi)
+  local e, fl = tyres and tyres[wi], fire and fire.debugData and fire.debugData.flammableNodes
+  if not (e and fl and fire.igniteNode) then return false end
+  local cid = e.cids[1]
+  fl[cid] = { name = 'csfx_tread', flashPoint = 350, smokePoint = 200, burnRate = BURN_RATE, staticBaseTemp = 20, useThermalsBaseTemp = false, conductionRadius = 0, selfIgnitionCoef = 0,
+    temperature = 20, intensity = 0, chemEnergy = BURN_ENERGY, originalChemEnergy = BURN_ENERGY, weightSpecHeatCoef = 0.2, lastUnderWaterValue = 0, flameTick = 0, smokeTick = 0,
+    vaporState = 0, isVapor = 0, ignoreContainerBeamBreakMessage = true, containerBeamBroken = false, canIgnite = true }
+  fire.igniteNode(cid, IGNITE_TEMP)
+  e.fireCid = cid
+  return true
+end
+function M.putOut(wi)
+  local e, fl = tyres and tyres[wi], fire and fire.debugData and fire.debugData.flammableNodes
+  if not (e and e.fireCid and fl) then return false end
+  local node = fl[e.fireCid]
+  if node then node.chemEnergy, node.temperature, node.intensity = 0, 20, 0 end
+  fl[e.fireCid] = nil
+  e.fireCid = nil
+  return true
 end
 function M.active() return enabled and tyres ~= nil end
 function M.snapshot()                              -- wheel index -> JSON-safe state (rules snapshot)

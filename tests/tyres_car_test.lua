@@ -141,4 +141,14 @@ for _ = 1, 300 do T.updateGFX(0.01) end
 local sawDebris
 for k = sentBefore + 1, #sent do if sent[k]:find('"debris"', 1, true) then sawDebris = true end end
 assert(sawDebris, 'worn rubber goes to the game side as debris events')
+-- a tyre fire goes to the game's own fire system as one flammable tread node, and is taken out again
+fire = { debugData = { flammableNodes = {} }, igniteNode = function(cid, temp) fire.lit = { cid, temp } end }
+T.setConfig({ enabled = true })
+T.repair()
+for _ = 1, 3 do T.updateGFX(0.01) end
+assert(T.lightTyre(0) and fire.lit and fire.lit[1] == 101 and fire.debugData.flammableNodes[101].burnRate >= 1, 'the tread node is given to the game fire with a real burn rate')
+assert(T.putOut(0) and fire.debugData.flammableNodes[101] == nil, 'and taken out again')
+assert(not T.putOut(0), 'nothing to put out twice')
+fire = nil
+assert(not T.lightTyre(0), 'no fire module: nothing happens')
 wheels, v, obj, log = nil, nil, nil, nil
