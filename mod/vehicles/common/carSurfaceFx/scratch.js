@@ -75,7 +75,10 @@
   function drawBlob(b) {
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
-    if (emis && b.k === 'cake') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a * 0.7, k: 'cake' };
+    if (emis && b.k !== 'dust') {                                        // lit mud: as light the earth colours are far too bright and saturated (orange): darker and greyer
+      var mean = (b.c[0] + b.c[1] + b.c[2]) / 3;
+      b = { x: b.x, y: b.y, r: b.r, dx: b.dx, dy: b.dy, k: b.k, a: b.k === 'cake' ? b.a * 0.7 : b.a, c: [(mean + (b.c[0] - mean) * 0.5) * 0.55, (mean + (b.c[1] - mean) * 0.5) * 0.55, (mean + (b.c[2] - mean) * 0.5) * 0.55] };
+    }
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     if (b.k === 'dust') {                                             // dust and snow: soft patches
       var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);

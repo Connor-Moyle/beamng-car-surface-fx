@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 26                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 27                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -66,7 +66,7 @@ local function defaults()
     water       = true,                             -- rain drops running over the paint
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
     dirtGlow    = false,                            -- a third canvas in the paint's emissive slot: the dirt's own colour added as light (the colour map can only darken)
-    dirtGlowNits = 60000,
+    dirtGlowNits = 45000,
   }
 end
 local settings = defaults()
