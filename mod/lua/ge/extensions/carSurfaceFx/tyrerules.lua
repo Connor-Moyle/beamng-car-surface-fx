@@ -37,6 +37,7 @@ function M.defaults()
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
+    fires = true, fireSpread = true, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
 end
@@ -124,14 +125,16 @@ function M.fireStep(t, dt, wet, cfg)
   local hot = t.Ts
   for i = 1, t.n do if (t.flash[i] or 0) + t.Ts > hot then hot = t.Ts + t.flash[i] end end
   if not t.fire then
+    if cfg.fires == false then t.hold = 0 return end
     t.hold = hot >= cfg.igniteT and (t.hold or 0) + dt or 0
     if t.hold >= cfg.igniteHold then t.fire, t.hold = 0, 0 return 'ignite' end
     return
   end
   t.fire = t.fire + dt
   t.Ts = math.max(t.Ts, cfg.burnT)
-  if (wet or 0) * cfg.douse * t.fire > 1 then t.fire = nil t.Ts = t.Ts * 0.5 return 'out' end
-  if t.fire >= cfg.popAfter then t.fire, t.blown = nil, true return 'pop' end
+  if (wet or 0) * cfg.douse * t.fire > 1 then t.fire, t.spread = nil, nil t.Ts = t.Ts * 0.5 return 'out' end
+  if cfg.fireSpread and not t.spread and t.fire >= cfg.spreadAfter then t.spread = true return 'spread' end
+  if t.fire >= cfg.popAfter then t.fire, t.blown, t.spread = nil, true, nil return 'pop' end
 end
 
 -- how much shallower a sector is than its two neighbours, in mm (the flat spot), counting the shallower lane

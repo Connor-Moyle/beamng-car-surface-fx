@@ -263,4 +263,27 @@ function P.debrisParticle(i, id)
   return ok and ('id ' .. id .. ' sent') or ('ERR: ' .. tostring(err))
 end
 
+-- the fallback if fireInject does not work: light the flammable car node nearest to the wheel (the game's fire then spreads from it)
+function P.fireNearest(i)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.node1) then return 'no wheel' end
+  try('nearest flammable', function()
+    local p0 = v.data.nodes[w.node1].pos
+    local best, bd
+    for cid in pairs(fire.debugData.flammableNodes or {}) do
+      local n = v.data.nodes[cid]
+      if n and not (w.treadNodes and cid == w.treadNodes[1]) then
+        local d = (n.pos.x - p0.x) ^ 2 + (n.pos.y - p0.y) ^ 2 + (n.pos.z - p0.z) ^ 2
+        if not bd or d < bd then best, bd = cid, d end
+      end
+    end
+    if not best then return 'no flammable car nodes' end
+    fire.igniteNode(best, 600)
+    return 'lit node ' .. best .. ' at ' .. string.format('%.2f m', math.sqrt(bd))
+  end)
+  say('watch 20 s: does it spread through the car? fireClear() / reset the car to put it out')
+  return P.dump()
+end
+
 return P

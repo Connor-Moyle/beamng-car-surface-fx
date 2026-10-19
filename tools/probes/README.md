@@ -30,4 +30,4 @@ Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the
 | f3 | `CSFXP.fireInject(2)`, watch 10 s, screenshot, then `CSFXP.fireClear()` | | can the game's own fire burn a tread node (the table is writable)? does the tyre stay un-popped? |
 | f4 | `CSFXP.fireDeflate(2)`, then reset the car | | the pop call works and looks right |
 | f5 | `CSFXP.debrisParticle(2, id)` for id 1..60, driving slowly, note the ids that look like rubber or dirt bits | | which particle we can use for flung rubber (otherwise CSFX adds its own) |
-
+| f6 | `CSFXP.fireNearest(2)`, watch 20 s, then reset the car | run only if f3 fails or burns nothing | lights the car's flammable node nearest the wheel: does the game's fire spread through the wheel arch and body? |
