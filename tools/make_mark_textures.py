@@ -271,7 +271,6 @@ TYPES['wall_metal'] = (lambda f: make_wall('metal', 71, f), 3.0, 0.5, 'scrape st
 TYPES['oil'] = (lambda f: make_fluid('oil', 80, f), 1.0, 1.0, 'oil stain')
 TYPES['coolant'] = (lambda f: make_fluid('coolant', 81, f), 1.0, 1.0, 'coolant stain')
 TYPES['fuel'] = (lambda f: make_fluid('fuel', 82, f), 1.0, 1.0, 'fuel stain with a faint sheen')
-TYPES['test_bump'] = (lambda f: make_bump(90, f), 4.0, 1.0, 'TEST: domes on the left, pits on the right, to see which way the normal map is read')
 FLUIDS = ('oil', 'coolant', 'fuel')
 
 

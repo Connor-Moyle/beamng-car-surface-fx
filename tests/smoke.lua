@@ -93,8 +93,9 @@ tick(40)
 fileData = { mud = { buildup = true, rate = 1.5 }, scratch = { markSize = 2 }, windscreen = { enabled = false } }
 M.reloadSettings()
 assert(M.getSettings().mud.buildup and M.getSettings().mud.rate == 1.5 and M.getSettings().scratch.markSize == 2 and not M.getSettings().windscreen.enabled, 'a change of the settings file is taken over at once')
-fileData = { mud = { buildup = true } }
+fileData = { mud = { buildup = true }, windscreen = { windows = true }, weather = { snow = true, frost = true, bugs = true, spray = true }, impacts = { enabled = true } }   -- the features that ship off, on for the test
 M.reloadSettings()                                                     -- rain climbs, glass and paint get their rungs, one reload per tick
+tick(40)
 assert(mats.vivace_main.fields[0].detailNormalMap:find('droplets', 1, true), 'paint got its beads')
 assert(mats.vivace_glass.fields[0].baseColorMap == '@csfx_vivace_glass', 'glass is bound to the water canvas')
 assert(tags['@csfx_vivace_glass'], 'the car has the canvas')
