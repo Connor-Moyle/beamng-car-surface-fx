@@ -15,6 +15,7 @@
   var canvas = document.getElementById('csfxScratchCanvas');
   var ctx = canvas.getContext('2d');
   var palette = /[?&]m=p/.test(location.search);
+  var emis = /[?&]m=e/.test(location.search);       // the emissive page: only the dirt's own colour on black, added to the paint as light (the colour map can only darken)
   var dark = /[?&]dark=1/.test(location.search);   // this car has no palette to punch through: marks can only darken
   var W = canvas.width = canvas.height = 1024;
   var MAX_LINES = 300, MAX_BLOBS = 6000;
@@ -41,13 +42,14 @@
 
   function blank() {
     sctx.globalCompositeOperation = 'source-over';
-    sctx.fillStyle = palette ? '#f00' : '#fff';
+    sctx.fillStyle = palette ? '#f00' : (emis ? '#000' : '#fff');
     sctx.fillRect(0, 0, W, W);
     dirty = true;
   }
 
   // each scratch is a dark soft edge with the real colour down the middle, so it reads on light AND dark paint.
   function drawLines(o) {
+    if (emis) return;
     sctx.lineCap = 'round';
     for (var pass = 0; pass < 2; pass++) {
       var edge = pass === 0;
@@ -73,6 +75,7 @@
   function drawBlob(b) {
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
+    if (emis && b.k === 'cake') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a * 0.7, k: 'cake' };
     var x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     if (b.k === 'dust') {                                             // dust and snow: soft patches
       var g = sctx.createRadialGradient(x, y, r * 0.2, x, y, r);
@@ -183,7 +186,7 @@
   };
 
   // ---- rain drops running over the paint (base page only: the palette page just shows the marks) ----
-  var water = (typeof CsfxPaintWater !== 'undefined') ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
+  var water = (typeof CsfxPaintWater !== 'undefined' && !emis) ? CsfxPaintWater.create() : null;     // paintwater.js missing: scratches and splats still work
   var wp = { rain: 0, wet: 0, fx: 0, fy: 0, fz: -9.8 };
   var live = 0, last = performance.now(), rate = 0;
   // One drop, for the base colour map (which MULTIPLIES the paint colour: it can only darken): water is clear, so the body is left alone; what shows is the thin dark edge of

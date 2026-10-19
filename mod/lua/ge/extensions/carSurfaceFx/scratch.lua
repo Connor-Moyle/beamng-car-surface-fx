@@ -44,9 +44,9 @@ local M = {}
 local bodymap = require('carSurfaceFx/bodymap')
 local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the .dae's v runs up, the canvas runs down
 local logTag = 'carSurfaceFx_scratch'
-local TAG_B, TAG_P = '@csfx_base', '@csfx_palette'
+local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 25                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 26                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -65,6 +65,8 @@ local function defaults()
     dirtRate    = 1.0,
     water       = true,                             -- rain drops running over the paint
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
+    dirtGlow    = false,                            -- a third canvas in the paint's emissive slot: the dirt's own colour added as light (the colour map can only darken)
+    dirtGlowNits = 60000,
   }
 end
 local settings = defaults()
@@ -135,7 +137,7 @@ local function paintLayers(veh)
   return out
 end
 
-local FIELDS = { 'baseColorMap', 'diffuseMapUseUV', 'colorPaletteMap', 'colorPaletteMapUseUV', 'paletteBaseColor' }
+local FIELDS = { 'baseColorMap', 'diffuseMapUseUV', 'colorPaletteMap', 'colorPaletteMapUseUV', 'paletteBaseColor', 'emissiveMap', 'emissiveMapUseUV', 'emissiveFactor', 'emissiveIntensityNits' }
 local function bind(l)
   local b = bound[l.name] or {}
   if b[l.layer] then return end
@@ -149,6 +151,13 @@ local function bind(l)
     l.mat:setField('colorPaletteMap', l.layer, TAG_P)
     l.mat:setField('colorPaletteMapUseUV', l.layer, '1')
     l.mat:setField('paletteBaseColor', l.layer, '1')
+  end
+  if settings.dirtGlow and orig.emissiveMap == '' then                  -- a paint with its own emissive map keeps it
+    l.mat:setField('emissiveMap', l.layer, TAG_E)
+    l.mat:setField('emissiveMapUseUV', l.layer, '1')
+    l.mat:setField('emissiveFactor', l.layer, '1 1 1')
+    l.mat:setField('emissiveIntensityNits', l.layer, tostring(settings.dirtGlowNits))
+    b.glow = true
   end
   b[l.layer] = orig; bound[l.name] = b
   if l.pal then b.pal = true end
@@ -164,14 +173,15 @@ local function ensureCanvases()
   if not next(bound) then return end
   for _, veh in ipairs(getAllVehicles()) do
     if not hasCanvas(veh) then
-      local any, pal = false, false
+      local any, pal, glow = false, false, false
       for _, nm in ipairs(veh:getMaterialNames() or {}) do
-        if bound[nm] then any = true; pal = pal or bound[nm].pal end
+        if bound[nm] then any = true; pal = pal or bound[nm].pal glow = glow or bound[nm].glow end
       end
       if any then
         -- no palette to punch through on this car = marks can only darken the paint: tell the page to draw them dark
         veh:createUITexture(TAG_B, PAGE .. (pal and '?m=b' or '?m=b&dark=1') .. '&v=' .. PAGE_V, SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
         veh:createUITexture(TAG_P, PAGE .. '?m=p&v=' .. PAGE_V, SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS)
+        if glow then veh:createUITexture(TAG_E, PAGE .. '?m=e&v=' .. PAGE_V, SIZE, SIZE, UI_TEXTURE_USAGE_AUTOMATIC, FPS) end
       end
     end
   end
@@ -193,7 +203,7 @@ local function restoreAll()
   bound = {}; cars = {}
   local okV, vehs = pcall(getAllVehicles)
   for _, veh in ipairs(okV and vehs or {}) do
-    pcall(function() if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P) end end)
+    pcall(function() if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P); pcall(function() veh:destroyUITexture(TAG_E) end) end end)
   end
 end
 
@@ -249,7 +259,7 @@ local function flush(dt)
     outHead = outHead + 1
     local veh = getObjectByID(e[1])
     local ok, has = pcall(function() return veh and hasCanvas(veh) end)
-    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]) sendT = 0 break end
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]); if settings.dirtGlow then pcall(function() veh:queueJSUITexture(TAG_E, e[2]) end) end sendT = 0 break end
   end
   if outHead > #outq then outq, outHead = {}, 1 end
 end
@@ -441,6 +451,21 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
     for i = 1, #cakes, 3 do remember(m.splats, { q(cakes[i]), q(cakes[i + 1]), q(cakes[i + 2], 10000), q(a), 2 }) end
   end
   return true
+end
+
+-- carSurfaceFx_scratch.glowTune(nits): the brightness of the lit dirt colour on the cars already bound (a test: how strong it must be to read as the dirt's own colour by day)
+function M.glowTune(nits)
+  nits = tonumber(nits) or settings.dirtGlowNits
+  settings.dirtGlowNits = nits
+  local n = 0
+  for name, layers in pairs(bound) do
+    local mat = scenetree.findObject(name)
+    if mat and layers.glow then
+      for layer, orig in pairs(layers) do if type(orig) == 'table' and orig.emissiveMap == '' then mat:setField('emissiveIntensityNits', layer, tostring(nits)) n = n + 1 end end
+      mat:reload()
+    end
+  end
+  return 'lit dirt ' .. nits .. ' nits on ' .. n .. ' paint layers'
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
