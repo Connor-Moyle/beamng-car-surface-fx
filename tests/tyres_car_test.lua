@@ -77,6 +77,27 @@ assert(T.snapshot()[0].h[5] == 8.0, 'a garage tyre change gives fresh tread')
 T.restoreSnapshot({ [0] = blob })
 assert(T.snapshot()[0].h[5] == blob.h[5], 'the saved wear comes back')
 
+-- the stock class from the jbeam numbers, and a fitted compound
+assert(T.classify({ noLoadCoef = 1.35, treadCoef = 0.7, radius = 0.305 }) == 'road', 'a standard tyre is a road tyre')
+assert(T.classify({ noLoadCoef = 2.07, treadCoef = 0, radius = 0.31 }) == 'semislick', 'a race tyre is a semi-slick')
+assert(T.classify({ noLoadCoef = 1.3, treadCoef = 1.0, radius = 0.42 }) == 'offroad', 'a big blocky tyre is an off-road tyre')
+T.setCompound('slick')
+for _ = 1, 3 do T.updateGFX(0.01) end
+assert(T.snapshot()[0].compound == 'slick', 'fitted: the tyres are rebuilt as slicks')
+T.setCompound(nil)
+T.updateGFX(0.01)
+assert(T.snapshot()[0].compound == 'road', 'back to the stock class')
+
+-- the flat-spot shake: nothing on a round tyre; after a lock-up (energy on one sector) the rate follows the wheel and the force the depth
+T.setConfig({ enabled = true, wearRate = 400 })
+local hz0, f0 = T.shake(0)
+assert(hz0 == 0 and f0 == 0, 'a round tyre does not shake')
+wd.lastSlip, wd.wheelSpeed, wd.angularVelocity = 30, 0, 0
+for _ = 1, 300 do T.updateGFX(0.01) end
+wd.lastSlip, wd.wheelSpeed, wd.angularVelocity = 0, 20, 20 / 0.305
+local hz, f = T.shake(0)
+assert(hz > 8 and hz < 12 and f > 0, 'a flat spot shakes once a revolution (about ' .. 20 / (2 * math.pi * 0.305) .. ' Hz): ' .. hz .. ', ' .. f)
+
 -- the state goes to the game side
 sent = {}
 for _ = 1, 60 do T.updateGFX(0.01) end
