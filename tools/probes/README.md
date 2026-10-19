@@ -38,3 +38,6 @@ Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the
 | f10 | `CSFXP.fireStrong(2, 3)`, watch 10 s, screenshots at 3 s and 8 s, `CSFXP.fireClear()` | parked | the game's own fire on a tread node with a real burn rate: flames and smoke, does the tyre stay intact |
 | f11 | `CSFXP.ringNodes(0)` on a car whose `status()` shows `tyres 0` (the starter autobello) | send the whole text | what a wheel without tread nodes has to write friction on (nodes of the wheel, their materials and friction) |
 
+
+| g1 | `CSFXP.flexList()` | nothing | which flexmesh material calls exist and what `getFlexmeshMaterial(i)` returns for each tyre mesh (the plain switch of probe c changes nothing on screen) |
+| g2 | `CSFXP.flexSet('setFlexmeshMaterialByIndex', 2, 'tire_01a_old')`, then `('setFlexmeshMaterial', 2, 'tire_01a_old')`, then `('switchMaterialByIdx', 2, 'tire_01a_old')`; the index is 0-based and 1-based in turn (try 2 and 3) | a screenshot of the tyre after each; reset the car (R) afterwards | which call takes effect on the screen, and on which tyre |

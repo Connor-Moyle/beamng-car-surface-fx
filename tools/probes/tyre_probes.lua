@@ -20,7 +20,7 @@ local function wheelList() local out = {} for i, w in pairs(wheels.wheels) do ou
 local function nodeData(cid) return v and v.data and v.data.nodes and v.data.nodes[cid] end
 
 function P.commands()
-  return 'info() | api() | friction(wheelIdx) | frictionRestore() | thermal(wheelIdx) | thermalRead(wheelIdx) | collisionStart() | collisionRead() | materials() | switchWheelMaterial(wheelIdx, matName) | resetMaterials() | sparks(wheelIdx) | sparksRestore(wheelIdx) | forceTry(wheelIdx, N) | forceRead() | clearLog() | dump()'
+  return 'info() | api() | friction(wheelIdx) | frictionRestore() | thermal(wheelIdx) | thermalRead(wheelIdx) | collisionStart() | collisionRead() | materials() | switchWheelMaterial(wheelIdx, matName) | flexList() | flexSet(fn, a, b, c) | resetMaterials() | sparks(wheelIdx) | sparksRestore(wheelIdx) | forceTry(wheelIdx, N) | forceRead() | clearLog() | dump()'
 end
 function P.clearLog() P.log = {} return 'cleared' end
 function P.dump() return table.concat(P.log, '\n') end
@@ -180,6 +180,29 @@ end
 function P.resetMaterials()
   P.log = {}
   try('resetMaterials', function() return obj:resetMaterials(0) end)
+  return P.dump()
+end
+
+-- ---- 4b. the engine's other flexmesh material calls (the switch of probe c changes nothing on screen): which exist, what they return, and whether one of them changes ONE tyre
+function P.flexList()
+  P.log = {}
+  for _, fn in ipairs({ 'getFlexmeshCount', 'getFlexmesh', 'getFlexmeshMaterial', 'setFlexmeshMaterial', 'setFlexmeshMaterialByIndex', 'switchMaterialByIdx', 'getMeshMaterialNames', 'getMeshMaterials', 'getMeshsMaterialsTbl', 'setMaterialRemap', 'setMeshAlpha' }) do
+    say(fn, type(obj[fn]))
+  end
+  local n
+  try('getFlexmeshCount', function() n = obj:getFlexmeshCount() return n end)
+  for i = 0, math.min((tonumber(n) or 0), 24) do
+    try('getFlexmeshMaterial(' .. i .. ')', function() return obj:getFlexmeshMaterial(i) end)
+  end
+  for _, fb in ipairs(v.data.flexbodies or {}) do
+    if tostring(fb.mesh):find('tire', 1, true) then try('getMeshsMaterialsTbl ' .. fb.mesh, function() return dumps(obj:getMeshsMaterialsTbl(fb.mesh)) end) end
+  end
+  return P.dump()
+end
+-- fn is one of the names above; a and b are its arguments after the object (e.g. flexSet('setFlexmeshMaterialByIndex', 2, 'tire_01a_old')); then look at the car; flexSet('resetMaterials', 0) is not enough, reset the car (R)
+function P.flexSet(fn, a, b, c)
+  P.log = {}
+  try(fn .. '(' .. tostring(a) .. ',' .. tostring(b) .. ',' .. tostring(c) .. ')', function() return obj[fn](obj, a, b, c) end)
   return P.dump()
 end
 
