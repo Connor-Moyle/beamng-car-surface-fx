@@ -325,6 +325,16 @@ function M.repair(wi)
     if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
 end
+function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
+  local out = {}
+  for wi, e in pairs(tyres or {}) do
+    local minH = math.huge
+    for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    out[#out + 1] = string.format('%s %s Ts %.0f fire %s h %.2f blown %s deflated %s', tostring(wi), tostring(e.wd.name), e.t.Ts, tostring(e.t.fire), minH, tostring(e.t.blown), tostring(e.wd.isTireDeflated))
+  end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
 function M.status()
   local n, worst, hot = 0, math.huge, 0
   for _, e in pairs(tyres or {}) do
@@ -354,6 +364,8 @@ end
 function M.onReset()                               -- the game gives the car back with new tyres (inflated, no damage): so do we (the career restores its own saved wear after a respawn)
   reapply = REAPPLY_FRAMES
   M.repair()
+  local n = 0 for _ in pairs(tyres or {}) do n = n + 1 end
+  log('D', 'carSurfaceFxTyres', 'reset: ' .. n .. ' tyres renewed')
   timer, report = 0, 0
 end
 function M.onExtensionUnloaded() pcall(M.restore) end

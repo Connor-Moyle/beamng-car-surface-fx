@@ -177,4 +177,23 @@ local half = T.snapshot()[0]
 assert(math.abs(half.h[5] - 1.5) < 0.01 and math.abs(half.h[20] - 1.5) < 0.01 and not half.blown, 'a half-worn tread: 1.5 mm of a slick 3.0 everywhere')
 T.setCompound(nil)
 wd.name = nil
+-- two wheels, one burning: a reset clears both
+local tread2 = {}
+for j = 1, 32 do tread2[j] = 200 + j nodes[200 + j] = { frictionCoef = 1.0, slidingFrictionCoef = 0.9 } end
+local wd2 = { treadNodes = tread2, radius = 0.305, downForce = 4000, lastSlip = 0, lastTreadContactNode = 205, wheelSpeed = 20, name = 'FR' }
+wheels.wheels[1] = wd2
+T.setConfig({ enabled = true, heatRate = 6, wearRate = 1 })
+T.setCompound(nil)
+for _ = 1, 3 do T.updateGFX(0.01) end
+wd.lastSlip, wd2.lastSlip = 0, 30
+local burning
+for _ = 1, 2000 do T.updateGFX(0.01) end
+local st = T.status()
+T.onReset()
+for _ = 1, 5 do T.updateGFX(0.01) end
+local after = T.snapshot()
+assert(after[1].h[5] == 8.0 and after[0].h[5] == 8.0 and not after[1].blown, 'a reset gives new tyres on every wheel: ' .. tostring(after[1].h[5]))
+wheels.wheels[1] = nil
+T.setCompound(nil)
+T.setConfig({ heatRate = 1 })
 wheels, v, obj, log = nil, nil, nil, nil
