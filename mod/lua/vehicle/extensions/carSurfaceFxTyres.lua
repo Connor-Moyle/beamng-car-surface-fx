@@ -203,8 +203,34 @@ local function sendState(events)
   obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.state(%d,{%s},{%s}) end', obj:getId(), table.concat(parts, ','), table.concat(ev, ',')))
 end
 
+-- ---- visuals, thrown with the game's own particles from the tread node of a wheel, away from its hub (so the plume starts at the tyre, not above it)
+local SMOKE_SMALL, SMOKE_MEDIUM, CHUNK = 51, 52, 56      -- BNGP_<n> of lua/vehicle/fire.lua; the chunk is the game's plastic piece (the colour is baked in the emitter)
+local smoke, smokeT = {}, 0                                 -- wheel index -> level 0..1
+local function treadNode(wi) local e = tyres and tyres[wi] return e and e.wd.node1, e and e.wd.node2 end
+function M.fx(kind, wi, a)
+  local n, hub = treadNode(wi)
+  if not (n and hub) then return false end
+  if kind == 'smoke' then smoke[wi] = (tonumber(a) or 0) > 0 and a or nil return true end
+  if kind == 'debris' or kind == 'pop' then
+    local v3 = obj:getNodeVelocityVector(n)
+    pcall(function() obj:addParticleVelWidthTypeCount(n, vec3(0, 0, 1), v3, 2.0, 0.15, CHUNK, kind == 'pop' and 6 or math.max(1, math.min(4, math.floor((tonumber(a) or 5) / 5)))) end)
+    return true
+  end
+  return false
+end
+local function smokeFrame(dt)
+  smokeT = smokeT + dt
+  if smokeT < 0.1 then return end
+  smokeT = 0
+  for wi, lvl in pairs(smoke) do
+    local n, hub = treadNode(wi)
+    if n and hub then pcall(function() obj:addParticleByNodesRelative(n, hub, -1.5, lvl > 0.6 and SMOKE_MEDIUM or SMOKE_SMALL, 0, 1) end) end
+  end
+end
+
 local function frame(dt)
   if not enabled then return end
+  smokeFrame(dt)
   if not tyres then build() if not tyres then return end pcall(function() extensions.load('carSurfaceFxTyreLook') end) end
   for wi, e in pairs(tyres) do powerSum[wi] = (powerSum[wi] or 0) + credit(e, dt) * dt end
   if reapply > 0 then

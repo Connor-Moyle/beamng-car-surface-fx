@@ -34,7 +34,9 @@ end
 -- the visuals are drawn by emitters that carSurfaceFx's visuals (ba) set: flame(vehId, wheelIdx, on), smoke(vehId, wheelIdx, level 0..1), pop(vehId, wheelIdx), debris(vehId, wheelIdx, grams, tempC), bang(vehId, wheelIdx), panel(vehId, wheelIdx, strength)
 -- (panel = the crack or scuff decal on the arch and bumper beside a blown tyre, ba's panel damage; visual only, no force is applied to the car).
 -- Without them the events are dropped; an error in one never reaches the car.
-local emitters = {}
+-- the default visuals: the car module throws the game's own smoke and rubber chunks; fire is the game's (lightTyre). carSurfaceFx may replace any of these through setEmitters
+local function fx(kind) return function(id, wi, a) send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.fx("%s", %d, %s) end', kind, wi, tostring(tonumber(a) or 0))) end end
+local emitters = { smoke = fx('smoke'), pop = fx('pop'), debris = fx('debris') }
 function M.setEmitters(t) emitters = type(t) == 'table' and t or {} end
 local function emit(name, ...) local f = emitters[name] if f then pcall(f, ...) end end
 
