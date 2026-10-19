@@ -12,7 +12,7 @@ Proven in the game (connor-80, with screenshots):
 
 Built, not seen in the game (these look or behave unconfirmed; the new defaults are below):
 
-- Window drops at the new size and amount (glass amount 2.5, drop size 10 mm); the dirt film on the rear glass was fogging it and is now faint. A recheck is open.
+- Window drops at the new size and amount (glass amount 4, drop size 10 mm); the dirt film on the rear glass was fogging it and is now faint. A recheck is open.
 - Wiper sweep (the blades move; the clearing is only weakly visible), drop trails at speed, impact rings, bead animation.
 - Falling leak drops are only simulated (invisible: the oil pan is 20 cm above the ground); the sky is not reflected in puddles (engine limit).
 

@@ -18,7 +18,7 @@ local grassRules = require('carSurfaceFx/grassRules')
 local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 2.5, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 4, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false }, windscreen = { enabled = true, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
@@ -56,7 +56,7 @@ local cars = {}                               -- vehicle id -> { veh, mats = { i
 local mats = {}                               -- material name -> { name, stages (as first read: the originals), rung, pending }
 local motion = {}                             -- vehicle id -> { vx, vy, vz, aLong, aLat } smoothed, from the car's velocity
 local GLASS_PAGE = 'local://local/vehicles/common/carSurfaceFx/glass.html'
-local GLASS_PAGE_V = 38                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
+local GLASS_PAGE_V = 39                    -- bumped with every change of glass.html/.js/sim.js (the browser caches pages by address)
 local GLASS_SIZE, GLASS_FPS = 512, 12
 local queue = {}                              -- material edits still to do, one per frame
 
@@ -551,7 +551,7 @@ function M.pushGlass(car, mo)
     local clear = inside and tostring(info.name or info.tag):find('_int', 1, true)
     if info.glass and info.rung > 0 and hasCanvas(car.veh, info.tag) then                    -- (a new car's canvases are made over the next ticks: nothing is sent before they exist)
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
-      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount * (settings.rain.glassAmount or 2.5), imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = clear and 0 or rain * settings.windscreen.intensity, wet = clear and 0 or wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
+      js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount * (settings.rain.glassAmount or 4), imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = clear and 0 or rain * settings.windscreen.intensity, wet = clear and 0 or wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
         wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
