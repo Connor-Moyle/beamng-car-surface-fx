@@ -1,0 +1,86 @@
+-- The car side of the tyres (carSurfaceFxTyres.lua) with a mocked car: energy from the wheel, wear, grip writes, one writer with the fluids, reset, deflation.
+local writes = {}
+local sent = {}
+local tread = {}
+for j = 1, 32 do tread[j] = 100 + j end
+local nodes = {}
+for _, cid in ipairs(tread) do nodes[cid] = { frictionCoef = 1.0, slidingFrictionCoef = 0.9 } end
+local wd = { treadNodes = tread, radius = 0.305, downForce = 4000, lastSlip = 8, lastTreadContactNode = 105, wheelSpeed = 20, pressureGroupId = 1, isTireDeflated = false }
+wheels = { wheels = { [0] = wd } }
+v = { data = { nodes = nodes } }
+obj = { setNodeFrictionSlidingCoefs = function(_, cid, a, b) writes[#writes + 1] = { cid, a, b } end, getEnvTemperature = function() return 293.15 end,
+  getGroupPressure = function() return 200000 end, queueGameEngineLua = function(_, c) sent[#sent + 1] = c end, getId = function() return 7 end }
+log = function() end
+local T = dofile('mod/lua/vehicle/extensions/carSurfaceFxTyres.lua')
+
+T.updateGFX(0.01)
+assert(not T.active(), 'off until the game side switches it on')
+T.setConfig({ enabled = true, wearRate = 200 })
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(T.active(), 'built on the first frame it is on')
+local lastW = {}
+for _, w in ipairs(writes) do lastW[w[1]] = w end
+-- 8 m/s slip at 4000 N for 0.2 s on one contact node wore its slot and its lane mate; the rest is untouched
+local blob = T.snapshot()[0]
+assert(blob.h[5] < 8.0 and blob.h[6] < 8.0, 'the contact node and its lane mate wore: ' .. tostring(blob.h[5]))
+assert(blob.h[5] == blob.h[6] and blob.h[1] == 8.0 and blob.h[20] == 8.0, 'only that sector wore')
+assert(lastW[105] and lastW[105][2] < 1.0 and math.abs(lastW[105][3] / lastW[105][2] - 0.9) < 1e-6, 'the worn node has less grip, written from the stock 1.0 / 0.9')
+assert(lastW[101] == nil or lastW[101][2] <= 1.001, 'a node nothing touched is not weakened')
+
+-- a deflated tyre is the game's: nothing is written
+writes = {}
+wd.isTireDeflated = true
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(#writes == 0, 'a deflated tyre is not touched')
+wd.isTireDeflated = false
+
+-- one writer: the fluids' multiplier is a factor on top of the tyre's
+local before = {}
+T.setExternal('fluids', 0, 0.5)
+local w105
+for _, w in ipairs(writes) do if w[1] == 105 then w105 = w end end
+assert(w105 and w105[2] < 0.6, 'the fluids factor goes through the tyre module: ' .. tostring(w105 and w105[2]))
+local F = dofile('mod/lua/vehicle/extensions/carSurfaceFxFluids.lua')
+local got
+wd.node1 = 1
+obj.getAbsNodePosition = function() return { x = 0, y = 0, z = 0 } end
+obj.getPosition = function() return { x = 0, y = 0, z = 0 } end
+obj.getVelocity = function() return { x = 0, y = 0, z = 0 } end
+_G.carSurfaceFxTyres = { active = function() return true end, setExternal = function(kind, wi, m) got = { kind, wi, m } end }
+writes = {}
+F.setConfig(false, false, true)
+F.setPuddles({ { 0, 0, 1, 0.5, 0.2 } })
+for _ = 1, 20 do F.updateGFX(0.1) end
+assert(got and got[1] == 'fluids' and got[2] == 0 and got[3] < 1, 'with the tyre module active the fluids hand over their factor')
+assert(#writes == 0, 'and write nothing themselves')
+_G.carSurfaceFxTyres = nil
+
+-- a reset: the engine restores stock friction, ours comes back two frames later
+writes = {}
+T.onReset()
+T.updateGFX(0.01)
+assert(#writes == 0, 'nothing on the first frame after a reset (the engine is still restoring its own values)')
+T.updateGFX(0.01)
+assert(#writes >= 32, 'every tread node is written again on the second frame: ' .. #writes)
+
+-- a restore puts the stock friction back; switching off does it
+writes = {}
+T.setConfig({ enabled = false })
+local stock = 0
+for _, w in ipairs(writes) do if w[2] == 1.0 and w[3] == 0.9 then stock = stock + 1 end end
+assert(stock == 32, 'switched off: stock friction everywhere: ' .. stock)
+
+-- a saved state is restored onto a fresh car
+T.setConfig({ enabled = true })
+T.repair()
+assert(T.snapshot()[0].h[5] == 8.0, 'a garage tyre change gives fresh tread')
+T.restoreSnapshot({ [0] = blob })
+assert(T.snapshot()[0].h[5] == blob.h[5], 'the saved wear comes back')
+
+-- the state goes to the game side
+sent = {}
+for _ = 1, 60 do T.updateGFX(0.01) end
+assert(sent[1] and sent[1]:find('carSurfaceFx_tyres.state%(7,'), 'the state goes to the game side: ' .. tostring(sent[1]))
+
+wheels, v, obj, log = nil, nil, nil, nil
+print('carSurfaceFx tyres (car side): ok')
