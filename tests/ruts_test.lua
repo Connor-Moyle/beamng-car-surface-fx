@@ -150,6 +150,99 @@ local roadsNow = U.roadCount()
 for i = 0, 12 do U.sample(1, 1, 60 + i * 0.6, 5, 0, 'gravel', 1000, 0) end
 U.onUpdate(0.5)
 assert(U.roadCount() == roadsNow, 'a light wheel on gravel leaves no rut')
+-- gouges: a body panel dragged over the ground leaves a scrape (tarmac) or a furrow (soft ground) when its switch is on
+do
+  local mt = { __add = function(p, q) return setmetatable({ x = p.x + q.x, y = p.y + q.y, z = p.z + q.z }, getmetatable(p)) end }
+  local oldPos, oldNode = pv.getPosition, pv.getNodePosition
+  pv.getPosition = function() return setmetatable({ x = 0, y = 0, z = 0 }, mt) end
+  local slide = 0
+  pv.getNodePosition = function() return setmetatable({ x = 100 + slide, y = 0, z = 0.1 }, mt) end
+  local oldSurf = package.loaded['carSurfaceFx/surfaces']
+  package.loaded['carSurfaceFx/surfaces'] = { idTable = function() return { [7] = 'tarmac', [8] = 'dirt', [9] = 'ice' } end }
+  local function slideOver(mat, force, n)
+    for i = 1, n do slide = slide + 0.4 U.gouge(1, 5, mat, force) end
+  end
+  U.clear()
+  local n0 = U.roadCount()
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'gouges are off by default')
+  U.set('gouges.enabled', true)
+  slideOver(9, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'ice takes no gouge')
+  slideOver(7, 100, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'a light touch leaves nothing')
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local tar
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_asphalt_dry' then tar = o end end
+  assert(tar and #tar.nodes == 4 and tar.nodes[1].w >= 0.25 and tar.nodes[1].w <= 0.7, 'a scrape on tarmac: a gouge road of chunkPoints nodes, 0.25-0.7 m wide')
+  slide = slide + 50
+  slideOver(8, 6000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local dirt
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_dirt_dry' then dirt = o end end
+  assert(dirt and dirt.nodes[1].w > tar.nodes[1].w, 'a furrow in dirt, wider with a harder hit')
+  wetValue = 0.8
+  slide = slide + 50
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local wet
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_asphalt_wet' then wet = o end end
+  assert(wet, 'in the rain the wet gouge material')
+  wetValue = 0
+  U.set('gouges.enabled', false)
+  pv.getPosition, pv.getNodePosition = oldPos, oldNode
+  package.loaded['carSurfaceFx/surfaces'] = oldSurf
+  U.clear()
+end
+
+-- tyre tracks: wheel steps from marks.lua join into paths and become lit track roads on soft ground when the tracks switch is on
+do
+  local steps = function(x0, n, kind, y)
+    local drew = 0
+    for i = 0, n - 1 do if U.trackSegment(kind, x0 + i * 0.2, y or 40, 0, x0 + (i + 1) * 0.2, y or 40, 0) then drew = drew + 1 end end
+    return drew
+  end
+  U.clear()
+  assert(steps(0, 20, 'mud') == 0, 'tracks are drawn by marks.lua while the switch is off')
+  U.set('tracks.enabled', true)
+  assert(steps(0, 5, 'tarmac') == 0 and steps(0, 5, 'grass') == 0, 'tarmac and grass tracks stay with marks.lua')
+  assert(steps(0, 20, 'mud') == 20, 'soft ground is taken over')
+  U.onUpdate(0.5) U.onUpdate(0.5) U.onUpdate(0.5)
+  local trackRoad
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_track_mud_dry' then trackRoad = o end end
+  assert(trackRoad and #trackRoad.nodes == 5 and trackRoad.nodes[1].w > 0.1, 'a lit track road with chunkPoints nodes: ' .. U.status())
+  assert(U.trackCount() >= 1 and U.roadCount() == 0, 'tracks have a ring of their own')
+  steps(100, 3, 'sand', 60)
+  local before = U.trackCount()
+  local realClock = os.clock
+  os.clock = function() return realClock() + 5 end                     -- 5 s later: the short path has gone quiet
+  U.onUpdate(0.5)
+  os.clock = realClock
+  U.onUpdate(0.5) U.onUpdate(0.5)
+  local sand
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_track_sand_dry' then sand = o end end
+  assert(sand, 'a path that goes quiet is made too: ' .. U.status())
+  wetValue = 0.8
+  steps(200, 20, 'snow', 80) for _ = 1, 4 do U.onUpdate(0.5) end
+  local wet
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_track_snow_wet' then wet = o end end
+  assert(wet, 'in the rain the wet track material')
+  wetValue = 0
+  U.set('tracks.enabled', false)
+  U.clear()
+end
+
+-- the level ending drops our references and deletes nothing (the engine is destroying the scene); clear() takes the roads away properly
+U.clear()
+drive(0, 14) U.onUpdate(0.5)
+local aliveBefore = 0
+for _ in pairs(objects) do aliveBefore = aliveBefore + 1 end
+assert(U.roadCount() >= 1 and aliveBefore >= 1, 'roads exist before the level ends')
+U.onClientEndMission()
+local aliveAfter = 0
+for _ in pairs(objects) do aliveAfter = aliveAfter + 1 end
+assert(U.roadCount() == 0 and aliveAfter == aliveBefore, 'the end of a level forgets the roads without deleting objects')
+for id in pairs(objects) do objects[id] = nil end                  -- (the engine took them)
+U.clear()
+
 -- the budget
 U.clear()
 for k = 0, 9 do for i = 0, 6 do U.sample(1, 0, k * 20 + i * 0.6, 5, 0, 'mud', 4000, 0) end end

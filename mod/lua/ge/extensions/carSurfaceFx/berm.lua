@@ -5,6 +5,7 @@ local M = {}
 
 local rules = require('carSurfaceFx/bermrules')
 local mm = require('carSurfaceFx/markMaterials')
+local hollows = require('carSurfaceFx/hollows')
 
 local FILE = '/art/surfacefx/marks/berm.materials.json'
 local MAX_BUILDS, BUDGET = 2, 0.006
@@ -20,7 +21,12 @@ local function delete(o) if o then pcall(function() o:delete() end) end end
 
 local function groundZ(x, y, zTop)
   local ok, d = pcall(function() return castRayStatic(vec3(x, y, zTop), vec3(0, 0, -1), 6) end)
-  if ok and type(d) == 'number' and d < 6 then return zTop - d end
+  if ok and type(d) == 'number' and d < 6 then
+    local gz = zTop - d
+    local hz = hollows.groundZ(x, y)                                  -- a lowered (drawn) ground: sit on what is seen, not on the physics height
+    if hz and gz - hz > 0.002 and gz - hz < 0.3 then return hz end
+    return gz
+  end
 end
 
 local ensured = {}
@@ -90,6 +96,9 @@ function M.update(cfg)
     if not build(job, cfg) then break end
   end
 end
+
+-- the level is ending or new: the meshes are the engine's to destroy, drop our references only
+function M.drop() ring, head, n, pending, pendingN = {}, 0, 0, {}, 0 end
 
 function M.clear()
   for i = 1, n do delete(ring[i]) ring[i] = nil end

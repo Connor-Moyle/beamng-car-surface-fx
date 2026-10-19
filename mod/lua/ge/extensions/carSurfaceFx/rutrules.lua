@@ -2,6 +2,8 @@
 -- how repeated passes along the same track deepen it, and how the wheel path is cut into chunks. Pure (no game calls), tested by tests/ruts_test.lua.
 local M = {}
 
+local hollowrules = require('carSurfaceFx/hollowrules')
+
 local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
 M.clamp = clamp
 
@@ -21,6 +23,9 @@ function M.defaults()
     wetAbove = 0.3, dryBelow = 0.2,                                    -- the wet material from this wetness, the dry one again below the other (a little hysteresis)
     cullRadius = 120,
     others = { enabled = false, maxCars = 3, range = 50 },
+    hollows = hollowrules.defaults(),                                  -- visual terrain hollows under the wheels (hollows.lua); off until seen in game
+    tracks = { enabled = false, maxRoads = 150, step = 0.5, chunkPoints = 5, widthScale = 0.5 },            -- the faint tyre tracks on soft ground as lit road decals (ruts.trackSegment, from marks.lua)
+    gouges = { enabled = false, step = 0.3, chunkPoints = 4, minForce = 400, widthMin = 0.25, widthMax = 0.7 },      -- the body scraping the ground (ruts.gouge, from the body wear hits)
     berms = { enabled = false, maxBerms = 120, heightScale = 1.0, lift = 0.01 },      -- soil lips beside the track (berm.lua, bermrules.lua); off until seen in game
     kinds = {
       mud = { enabled = true, soft = 1.00 }, snow = { enabled = true, soft = 0.85 }, sand = { enabled = true, soft = 0.75 },
@@ -108,6 +113,59 @@ function M.material(kind, wet, wasWet, cfg)
   local isWet = wasWet
   if wet >= cfg.wetAbove then isWet = true elseif wet <= cfg.dryBelow then isWet = false end
   return 'csfx_rut_' .. kind .. (isWet and '_wet' or '_dry'), isWet
+end
+
+-- ---- gouges: a body panel dragged over the ground. The ground is tarmac (a scrape: gouge_asphalt) or soft (gouge_dirt); anything else leaves nothing.
+M.GOUGE_GROUND = { tarmac = 'asphalt', dirt = 'dirt', sand = 'dirt', gravel = 'dirt', mud = 'dirt', grass = 'dirt', snow = 'dirt' }
+function M.gougeKind(surface) return M.GOUGE_GROUND[surface] end
+-- the gouge's width for a force in N: wider with a harder hit
+function M.gougeWidth(force, g) return clamp(g.widthMin + (g.widthMax - g.widthMin) * clamp((force or 0) / 6000, 0, 1), g.widthMin, g.widthMax) end
+function M.gougeMaterial(kind, wet, wasWet, cfg)
+  local isWet = wasWet
+  if wet >= cfg.wetAbove then isWet = true elseif wet <= cfg.dryBelow then isWet = false end
+  return 'csfx_gouge_' .. kind .. (isWet and '_wet' or '_dry'), isWet
+end
+
+-- ---- tracks: marks.lua sends one short segment per wheel step; here they are joined into paths (a segment that starts where an open path ends continues it) and cut into chunks.
+M.TRACK_KINDS = { mud = true, snow = true, sand = true, dirt = true, gravel = true }          -- the grounds that have a lit track material (csfx_track_<kind>_dry / _wet)
+local CHAINS, JOIN = 8, 0.15
+function M.newChains() return { list = {} } end
+-- one segment a -> b over the ground `kind` at time `now`: returns a chunk { kind, points, track = true } when a path is long enough, else nil
+function M.chain(ch, kind, ax, ay, az, bx, by, bz, now, cfg)
+  local c
+  for _, o in ipairs(ch.list) do
+    if o.kind == kind and (o.ex - ax) ^ 2 + (o.ey - ay) ^ 2 <= JOIN * JOIN then c = o break end
+  end
+  if not c then
+    c = { kind = kind, points = { { ax, ay, az } }, ex = ax, ey = ay }
+    ch.list[#ch.list + 1] = c
+    if #ch.list > CHAINS then table.remove(ch.list, 1) end
+  end
+  c.ex, c.ey, c.at = bx, by, now
+  local last = c.points[#c.points]
+  if (bx - last[1]) ^ 2 + (by - last[2]) ^ 2 < (cfg.step * 0.9) ^ 2 then return nil end
+  c.points[#c.points + 1] = { bx, by, bz }
+  if #c.points >= cfg.chunkPoints then
+    local out = { kind = kind, points = c.points, track = true }
+    c.points = { { bx, by, bz } }                                        -- the next chunk starts where this one ended
+    return out
+  end
+end
+-- paths quiet for `idle` seconds end: their points are chunks too (when there are two or more)
+function M.chainFlush(ch, now, idle)
+  local out, keep = {}, {}
+  for _, c in ipairs(ch.list) do
+    if now - (c.at or now) >= idle then
+      if #c.points >= 2 then out[#out + 1] = { kind = c.kind, points = c.points, track = true } end
+    else keep[#keep + 1] = c end
+  end
+  ch.list = keep
+  return out
+end
+function M.trackMaterial(kind, wet, wasWet, cfg)
+  local isWet = wasWet
+  if wet >= cfg.wetAbove then isWet = true elseif wet <= cfg.dryBelow then isWet = false end
+  return 'csfx_track_' .. kind .. (isWet and '_wet' or '_dry'), isWet
 end
 
 -- ---- the budget: chunks per second (a token bucket). refill adds the time's tokens (never spends); budget(state) returns true and spends one when a chunk may be made now.
