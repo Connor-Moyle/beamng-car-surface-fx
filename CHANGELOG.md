@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased (after 0.2.0)
+## 0.3.0
+
+Proven in the game (connor-80, with screenshots):
+
+- Leaking fluids: oil (black, glossy, faint marbled rainbow sheen), coolant (green) and fuel (amber) as glossy puddles on the ground, growing over time (r 0.32 to 0.56 m in 120 s), real leaks from a hard crash, tyre grip loss in oil, the oldest puddle shrinks away at the cap (default 100). Drip spots of a moving leak are decals.
+- Driver's view rain: lens drops and streaks clipped to the windscreen, about 1 ms a frame.
+- Wet paint look: darker, with beads; plastic trim gets a softer version (no chrome look).
+- Dirt: dust film, tyre rubber splatter near the arches, mud, skid marks on dirt, car wash.
+- Window drops seen wet from 4 m.
+
+Built, not seen in the game (these look or behave unconfirmed; the new defaults are below):
+
+- Window drops at the new size and amount (glass amount 2.5, drop size 10 mm); the dirt film on the rear glass was fogging it and is now faint. A recheck is open.
+- Wiper sweep (the blades move; the clearing is only weakly visible), drop trails at speed, impact rings, bead animation.
+- Falling leak drops are only simulated (invisible: the oil pan is 20 cm above the ground); the sky is not reflected in puddles (engine limit).
+
+Off by default (switch on in the Mods menu once you have tried them):
+
+- Grass bending (the counters run, the picture was not seen), ruts, snow, frost, bugs, road spray from the car ahead, and crash effects (shards, debris, sparks). Saved profiles keep what they had.
+
+Notes:
+
+- The ring size default is now 100 puddles; a saved profile keeps its old value (60).
+- New Mods-menu rows: glass amount, leak planes, oil sheen, grip loss.
+
+## Not yet tested (older notes)
 
 ### Built, not yet tested in game
 
