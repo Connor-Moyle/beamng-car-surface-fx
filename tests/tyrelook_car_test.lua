@@ -21,3 +21,4 @@ assert(reset[10] and metal[1] == 4, 'new again: the car\'s material and rubber n
 L.set(0, 3) L.restore()
 assert(reset[10] and L.stages() == '', 'restore puts everything back')
 print('carSurfaceFxTyreLook: ok')
+assert(L.info() == '0:tire_01a#10 1:tire_01a#11', 'info lists the switches: ' .. L.info())

@@ -61,6 +61,13 @@ function M.set(wi, stage)
 end
 
 function M.stages() local t = {} for wi, s in pairs(stageOf) do t[#t + 1] = wi .. '=' .. s end table.sort(t) return table.concat(t, ' ') end
+function M.info()       -- for game tests: per wheel the switches found (original material, switch id); empty means no tyre mesh was matched
+  if not sw then build() end
+  local t = {}
+  for wi, l in pairs(sw) do local p = {} for _, s in ipairs(l) do p[#p + 1] = s.orig .. '#' .. s.msc end t[#t + 1] = wi .. ':' .. table.concat(p, ',') end
+  table.sort(t)
+  return table.concat(t, ' ')
+end
 function M.setEnabled(on) disabled = not on if disabled then M.restore() end end
 
 function M.restore()
