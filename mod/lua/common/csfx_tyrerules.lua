@@ -40,7 +40,7 @@ function M.defaults()
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 150, smokeFull = 250, igniteT = 350, igniteHold = 2, burnT = 550, popAfter = 8, douse = 0.6,
     blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
-    fires = true, fireSpread = true, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
+    fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
 end
@@ -98,12 +98,14 @@ function M.heatWear(c, Teff, cfg)
   return clamp(1 + math.max(0, Teff - c.wearOn) / cfg.heatWearScale, 1, cfg.heatWearMax)
 end
 
+local WEAR_ALIAS = { mud = 'dirt', sand = 'dirt', grass = 'dirt' }       -- surfaces the wear table has no key for
 -- one wear tick: the energy gathered since the last tick wears the slots (and heats their sector's flash temperature); ctx = { surface = 'asphalt'.., wet = bool, pressure, pNom }
 -- Returns the deepest wear of any slot this tick (mm).
 function M.wearStep(t, ctx, cfg)
   if t.blown then return 0 end
   local c, worst = t.c, 0
-  local ms = cfg.surface[ctx.wet and 'wet' or (ctx.surface or 'asphalt')] or 1
+  local sk = ctx.wet and 'wet' or (ctx.surface or 'asphalt')
+  local ms = cfg.surface[sk] or cfg.surface[WEAR_ALIAS[sk] or ''] or 1
   if ctx.surface == 'rock' and (t.compound == 'mud' or t.compound == 'offroad') then ms = ms * 2 end
   local mp = M.pressureWear(ctx.pressure, ctx.pNom, cfg)
   for j = 1, 2 * t.n do
@@ -271,7 +273,15 @@ function M.aquaplane(c, h, water, v)
   return 1 - 0.8 * clamp(water, 0, 1) * clamp((math.abs(v or 0) - va) / 8, 0, 1)
 end
 -- loose ground and snow suit some compounds: surface = 'dirt' | 'gravel' | 'mud' | 'sand' | 'snow' | anything else (no change)
-local LOOSE = { dirt = 'loose', gravel = 'loose', mud = 'loose', sand = 'loose', snow = 'snow' }
+local LOOSE = { dirt = 'loose', gravel = 'loose', mud = 'loose', sand = 'loose', grass = 'loose', snow = 'snow' }
+-- the game's ground model name (e.g. 'DIRT_DUSTY', 'ASPHALT_WET') -> a surface key (mud, sand and grass wear like dirt: WEAR_ALIAS above)
+local GROUND_KEYS = { 'ice', 'snow', 'mud', 'sand', 'grass', 'gravel', 'rock', 'dirt', 'concrete', 'asphalt' }      -- first match wins (a snowy road is snow)
+function M.surfaceOfGround(name)
+  local n = tostring(name or ''):lower()
+  for _, k in ipairs(GROUND_KEYS) do if n:find(k, 1, true) then return k end end
+  if n:find('tarmac', 1, true) or n:find('road', 1, true) or n:find('cobble', 1, true) or n:find('brick', 1, true) or n:find('paved', 1, true) then return 'asphalt' end
+  return nil
+end
 function M.surfaceGrip(c, surface) local f = LOOSE[surface or ''] return f and c[f] or 1 end
 -- the multipliers (static, sliding) for the node slot j, to be applied to its stock coefficients; wet = the contact is wet
 function M.nodeGrip(t, j, wet, cfg, ctx)

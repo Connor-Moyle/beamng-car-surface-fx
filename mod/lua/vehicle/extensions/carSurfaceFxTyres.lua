@@ -9,6 +9,7 @@ local abs, max, min = math.abs, math.max, math.min
 local TICK = 0.1                    -- seconds between wear / temperature / grip steps
 local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
+local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
@@ -17,6 +18,8 @@ local compound = nil                -- nil: every tyre keeps its stock class (wh
 local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil }
 local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
 local external = {}                 -- kind -> { wheel index -> multiplier }
+local surfaceOf = {}                 -- collision material id -> surface key of the rules (the game side sends it from the level's ground models)
+local RUBBER_MAT = 4                -- the tyre's own material id; the ground is the other one
 local pendingBlob = nil             -- a saved state waiting for the tyres to be built
 local timer, report, reapply = 0, 0, 0
 local enabled = false
@@ -31,6 +34,12 @@ local function classify(wd)
   return 'road'
 end
 M.classify = classify
+
+local function groundOf(wd)
+  local id = wd.contactMaterialID1 or -1
+  if id == RUBBER_MAT then id = wd.contactMaterialID2 or -1 end
+  return surfaceOf[id]
+end
 
 local function pcalls(f, ...) local ok, a = pcall(f, ...) return ok and a or nil end
 
@@ -84,7 +93,7 @@ end
 local function applyGrip(wi, e, force)
   if e.wd.isTireDeflated then e.applied = {} return end
   local t, ext = e.t, extMult(wi)
-  local ctx = { water = env.water, v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = env.surface }
+  local ctx = { water = e.water or env.water, v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
   local wet = env.wet
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
@@ -122,12 +131,17 @@ local function tick(dt)
     local wd, t = e.wd, e.t
     if not wd.isTireDeflated then
       local pr = pressureOf(wd)
-      local ctx = { surface = env.surface, wet = env.wet > 0.3, pressure = pr, pNom = e.pNom }
+      e.surface = groundOf(wd) or e.surface                         -- (kept while the wheel is in the air)
+      e.water = max(env.water or 0, (obj.inWater and wd.node1 and pcalls(obj.inWater, obj, wd.node1)) and 1 or 0)
+      local ctx = { surface = e.surface or env.surface, wet = env.wet > 0.3, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
+      local dg, dT = R.takeDebris(t, cfg)
+      e.debrisG = (e.debrisG or 0) + dg
+      if e.debrisG >= DEBRIS_FLUSH_G then events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT } e.debrisG = 0 end
       R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = abs(tonumber(wd.wheelSpeed) or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
-      if ev then events = events or {} events[#events + 1] = { wi, ev } end
+      if ev then events = events or {} events[#events + 1] = { wi, ev } if ev == 'spread' and cfg.fireSpread then pcall(M.igniteNearest, wi) end end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
     end
     R.clearEnergy(t)
@@ -153,7 +167,7 @@ local function sendState(events)
     parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), M.shake(wi))
   end
   local ev = {}
-  for _, x in ipairs(events or {}) do ev[#ev + 1] = string.format('{%d,%q}', x[1], x[2]) end
+  for _, x in ipairs(events or {}) do ev[#ev + 1] = x[3] and string.format('{%d,%q,%.2f,%.0f}', x[1], x[2], x[3], x[4] or 0) or string.format('{%d,%q}', x[1], x[2]) end
   obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.state(%d,{%s},{%s}) end', obj:getId(), table.concat(parts, ','), table.concat(ev, ',')))
 end
 
@@ -201,6 +215,22 @@ function M.setExternal(kind, wi, m)                -- another module's multiplie
   external[kind][wi] = m ~= 1 and m or nil
   local e = tyres and tyres[wi]
   if e and enabled then applyGrip(wi, e, false) end
+end
+function M.setSurfaces(tbl) surfaceOf = {} for id, name in pairs(type(tbl) == 'table' and tbl or {}) do surfaceOf[tonumber(id)] = name end end
+-- a tyre fire reaches the car (only with the setting on): the flammable node of the car nearest to the wheel is lit; the game's own fire system takes it from there
+function M.igniteNearest(wi)
+  local e, fl = tyres and tyres[wi], fire and fire.debugData and fire.debugData.flammableNodes
+  if not (e and fl and fire.igniteNode and e.wd.node1 and v.data.nodes[e.wd.node1]) then return false end
+  local p, best, bd = v.data.nodes[e.wd.node1].pos
+  for cid in pairs(fl) do
+    local n = v.data.nodes[cid]
+    if n and n.pos and not e.slotOf[cid] then
+      local d = (n.pos.x - p.x) ^ 2 + (n.pos.y - p.y) ^ 2 + (n.pos.z - p.z) ^ 2
+      if not bd or d < bd then best, bd = cid, d end
+    end
+  end
+  if best then fire.igniteNode(best, 600) end
+  return best ~= nil
 end
 function M.active() return enabled and tyres ~= nil end
 function M.snapshot()                              -- wheel index -> JSON-safe state (rules snapshot)

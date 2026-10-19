@@ -196,6 +196,18 @@ assert(blob.h[3] == 4.12 and blob.compound == 'road' and blob.blown, 'snapshot r
 local sr = R.new('road', 16) assert(R.restore(sr, blob) and sr.h[3] == 4.12 and sr.blown, 'restore round-trips')
 assert(not R.restore(R.new('road', 20), blob), 'a blob from another ring size is refused')
 
+-- ---- ground names
+for _, c in ipairs({ { 'ASPHALT', 'asphalt' }, { 'asphalt_wet', 'asphalt' }, { 'DIRT_DUSTY', 'dirt' }, { 'GRAVEL', 'gravel' }, { 'MUD', 'mud' }, { 'SAND', 'sand' }, { 'GRASS2', 'grass' }, { 'SNOW_ICE', 'ice' },
+  { 'snowy_road', 'snow' }, { 'ROCK_SMOOTH', 'rock' }, { 'concrete', 'concrete' }, { 'COBBLESTONE', 'asphalt' } }) do
+  assert(R.surfaceOfGround(c[1]) == c[2], c[1] .. ' is ' .. c[2] .. ', got ' .. tostring(R.surfaceOfGround(c[1])))
+end
+assert(R.surfaceOfGround('METAL') == nil and R.surfaceOfGround(nil) == nil, 'unknown ground: nil (no change)')
+local wm, wd = R.new('road', 16), R.new('road', 16)
+wm.E[3], wd.E[3] = 100, 100
+R.wearStep(wm, { surface = 'mud' }, cfg) R.wearStep(wd, { surface = 'dirt' }, cfg)
+near(wm.h[3], wd.h[3], 1e-12, 'mud wears like dirt')
+assert(R.surfaceGrip(R.COMPOUNDS.offroad, 'grass') > 1, 'grass is loose ground for the grip')
+
 -- ---- blowout damage
 assert(cfg.blowout.enabled == false and cfg.blowout.maxForce == 3000, 'unproven: off by default, 3000 N')
 assert(R.blowoutHit(30, 1, 0, cfg) == nil, 'off by default: never')
@@ -243,8 +255,10 @@ local fl = R.new('road', 16) fl.Ts = 400 R.fireStep(fl, 1, 0, cfg) fl.Ts = 100 R
 assert(not fl.fire and fl.hold == 0, 'a dip resets the hold')
 local pop for _ = 1, 100 do pop = R.fireStep(ft, 0.1, 0, cfg) or pop end
 assert(pop == 'pop' and ft.blown and not ft.fire, 'a tyre that burns long enough pops')
-local sp = R.new('road', 16) sp.Ts = 400 R.fireStep(sp, 3, 0, cfg)
-local ev for _ = 1, 50 do ev = R.fireStep(sp, 0.1, 0, cfg) or ev if ev then break end end
+assert(cfg.fireSpread == false, 'spread to the car is off by default (unproven)')
+local cs = R.defaults() cs.fireSpread = true
+local sp = R.new('road', 16) sp.Ts = 400 R.fireStep(sp, 3, 0, cs)
+local ev for _ = 1, 50 do ev = R.fireStep(sp, 0.1, 0, cs) or ev if ev then break end end
 assert(ev == 'spread', 'the fire reaches the car after spreadAfter s: ' .. tostring(ev))
 local nc = R.defaults() nc.fireSpread = false
 local ns = R.new('road', 16) ns.Ts = 400 R.fireStep(ns, 3, 0, nc) local nev for _ = 1, 50 do nev = R.fireStep(ns, 0.1, 0, nc) or nev end

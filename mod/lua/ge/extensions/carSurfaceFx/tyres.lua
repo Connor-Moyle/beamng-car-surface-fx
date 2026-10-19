@@ -16,9 +16,27 @@ local function vehOf(id) return be and be:getObjectByID(id) end
 local function lit(s) return '[==[' .. jsonEncode(s) .. ']==]' end            -- a json string as a Lua long string for queueLuaCommand
 local function send(id, code) local v = vehOf(id) if v then v:queueLuaCommand(code) end end
 
-local function load_(id)
-  send(id, 'if not carSurfaceFxTyres then extensions.load("carSurfaceFxTyres") end carSurfaceFxTyres.setConfig(jsonDecode(' .. lit(cfg) .. '))')
+-- collision-type id -> surface key of the rules, for the level's ground models (the car looks up the ground under each wheel with it)
+local function surfaceTable()
+  local t = {}
+  for name, gm in pairs(core_environment and core_environment.groundModels or {}) do
+    local key = R.surfaceOfGround(name)
+    local id = gm.cdata and gm.cdata.collisiontype
+    if key and id then t[id] = key end
+  end
+  return t
 end
+
+local function load_(id)
+  send(id, 'if not carSurfaceFxTyres then extensions.load("carSurfaceFxTyres") end carSurfaceFxTyres.setConfig(jsonDecode(' .. lit(cfg) .. ')) carSurfaceFxTyres.setSurfaces(jsonDecode(' .. lit(surfaceTable()) .. '))')
+end
+
+-- the visuals are drawn by emitters that carSurfaceFx's visuals (ba) set: flame(vehId, wheelIdx, on), smoke(vehId, wheelIdx, level 0..1), pop(vehId, wheelIdx), debris(vehId, wheelIdx, grams, tempC).
+-- Without them the events are dropped; an error in one never reaches the car.
+local emitters = {}
+function M.setEmitters(t) emitters = type(t) == 'table' and t or {} end
+local function emit(name, ...) local f = emitters[name] if f then pcall(f, ...) end end
+
 
 -- the settings (fields of csfx_tyrerules.defaults(), `enabled` switches the simulation on); pushed to every watched car
 function M.configure(t)
@@ -73,9 +91,15 @@ function M.state(id, ws, events)
     local wasBlown = s[w[1]] and s[w[1]].blown
     s[w[1]] = { stage = w[2], Ts = w[3], Tc = w[4], worstFlat = w[5], blown = w[6], onFire = w[7] }
     if w[6] and not wasBlown and extensions and extensions.hook then extensions.hook('onCsfxTyreBlown', id, w[1]) end
+    local sm = cfg.fires ~= false and not w[6] and R.smoke(w[3] or 0, cfg) or 0
+    if sm > 0 or (s[w[1]].smoking) then emit('smoke', id, w[1], sm) end
+    s[w[1]].smoking = sm > 0
   end
   for _, e in ipairs(events or {}) do
     if extensions and extensions.hook then extensions.hook('onCsfxTyreEvent', id, e[1], e[2]) end
+    if e[2] == 'ignite' then emit('flame', id, e[1], true)
+    elseif e[2] == 'out' or e[2] == 'pop' then emit('flame', id, e[1], false) if e[2] == 'pop' then emit('pop', id, e[1]) end
+    elseif e[2] == 'debris' then emit('debris', id, e[1], e[3], e[4]) end
   end
 end
 function M.gotSnapshot(id, json) local ok, t = pcall(jsonDecode, json) if ok and type(t) == 'table' then snaps[id] = t end end

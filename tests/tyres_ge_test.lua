@@ -3,8 +3,9 @@ local sent, hooks = {}, {}
 local veh = { queueLuaCommand = function(_, c) sent[#sent + 1] = c end }
 be = { getObjectByID = function(_, id) return id == 7 and veh or nil end, getPlayerVehicleID = function() return 7 end }
 extensions = { hook = function(name, ...) hooks[#hooks + 1] = { name, ... } end }
-function jsonEncode(t) return 'J' end
+function jsonEncode(t) local o = {} for k, v in pairs(t) do o[#o + 1] = tostring(k) .. '=' .. tostring(v) end table.sort(o) return 'J' .. table.concat(o, ',') end
 function jsonDecode(s) return { [0] = { compound = 'road' } } end
+core_environment = { groundModels = { ASPHALT = { cdata = { collisiontype = 3 } }, DIRT_DUSTY = { cdata = { collisiontype = 9 } }, METAL = { cdata = { collisiontype = 5 } } } }
 local T = dofile('mod/lua/ge/extensions/carSurfaceFx/tyres.lua')
 
 T.update(0.1, 0.4)
@@ -13,6 +14,7 @@ T.configure({ enabled = true, wearRate = 5, blowout = { enabled = true } })
 assert(T.getConfig().wearRate == 5 and T.getConfig().blowout.enabled and T.getConfig().blowout.maxForce == 3000, 'settings merge, nested too')
 T.update(0.1, 0.4)
 assert(#sent == 1 and sent[1]:find('extensions.load("carSurfaceFxTyres")', 1, true) and sent[1]:find('setConfig', 1, true), 'the player car gets the module and the settings')
+assert(sent[1]:find('setSurfaces', 1, true) and sent[1]:find('3=asphalt', 1, true) and sent[1]:find('9=dirt', 1, true) and not sent[1]:find('5=', 1, true), 'the ground models become a surface table, unknown ones left out')
 T.update(1.0, 0.4)
 assert(sent[#sent]:find('setEnv({wet=0.40})', 1, true), 'the weather reaches the car once a second')
 
@@ -40,6 +42,18 @@ assert(T.snapshot(7)[0].compound == 'road', 'a snapshot from the car is kept')
 local n = #sent
 assert(T.restore(7, { [0] = {} }) and #sent == n + 1 and sent[#sent]:find('restoreSnapshot', 1, true), 'restore goes to the car')
 assert(not T.restore(7, 'x'), 'a bad blob is refused')
+-- the visuals: the events and the smoke level reach the emitters
+local log = {}
+T.setEmitters({ flame = function(id, wi, on) log[#log + 1] = 'flame' .. wi .. tostring(on) end, smoke = function(id, wi, l) log[#log + 1] = string.format('smoke%d:%.2f', wi, l) end,
+  pop = function(id, wi) log[#log + 1] = 'pop' .. wi end, debris = function(id, wi, g, t) log[#log + 1] = string.format('debris%d:%.1f:%.0f', wi, g, t) end })
+T.state(7, { { 1, 2, 200, 45, 0, false, false } }, { { 1, 'ignite' }, { 1, 'debris', 2.5, 180 } })
+assert(table.concat(log, ' ') == 'smoke1:0.50 flame1true debris1:2.5:180', 'smoke at 200 C is half, the ignite and the debris arrive: ' .. table.concat(log, ' '))
+log = {}
+T.state(7, { { 1, 2, 90, 45, 0, false, false } }, { { 1, 'pop' } })
+assert(table.concat(log, ' ') == 'smoke1:0.00 flame1false pop1', 'the smoke is told once when it stops, a pop puts the flame out: ' .. table.concat(log, ' '))
+T.setEmitters({ flame = function() error('boom') end })
+T.state(7, { { 1, 2, 90, 45, 0, false, false } }, { { 1, 'ignite' } })        -- an emitter that fails changes nothing
+T.setEmitters({})
 T.forget(7)
 assert(T.getTyres(7) == nil, 'forgotten when the car is destroyed')
 print('carSurfaceFx tyres (game side): ok')

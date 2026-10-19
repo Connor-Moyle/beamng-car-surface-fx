@@ -105,3 +105,19 @@ assert(sent[1] and sent[1]:find('carSurfaceFx_tyres.state%(7,'), 'the state goes
 
 wheels, v, obj, log = nil, nil, nil, nil
 print('carSurfaceFx tyres (car side): ok')
+
+-- the ground under the wheel and the water: surfaces by material id, debris events, the spread to the car
+T.setConfig({ enabled = true })
+T.repair()
+T.setSurfaces({ ['9'] = 'dirt', ['3'] = 'asphalt' })
+wd.contactMaterialID1, wd.contactMaterialID2 = 4, 9
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(T.status():find('enabled true'), 'still running')
+local sentBefore = #sent
+T.setConfig({ wearRate = 5000 })
+wd.lastSlip, wd.downForce = 20, 8000
+for _ = 1, 300 do T.updateGFX(0.01) end
+local sawDebris
+for k = sentBefore + 1, #sent do if sent[k]:find('"debris"', 1, true) then sawDebris = true end end
+assert(sawDebris, 'worn rubber goes to the game side as debris events')
+
