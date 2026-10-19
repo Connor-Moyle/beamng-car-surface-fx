@@ -207,4 +207,18 @@ end
 local locked, spinning = wearOf(0), wearOf(20)
 assert(locked > 0 and spinning / locked > 2.5 and spinning / locked < 5, 'a locked wheel wears less than a spinning one: ' .. locked .. ' vs ' .. spinning)
 T.setConfig({ wearRate = 1 })
+-- grip() reads the factor written on the tyres: a slick in the rain far below a rain tyre, and above a road tyre in the dry
+local function gripNow(name, wet)
+  T.setConfig({ enabled = true })
+  T.setCompound(name)
+  T.setEnv({ wet = wet, water = 0 })
+  wd.lastSlip, wd.wheelSpeed, wd.downForce = 0, 20, 4000
+  for _ = 1, 30 do T.updateGFX(0.01) end
+  return tonumber(T.grip():match('([%d.]+)$'))
+end
+local gDry, gSlickWet, gRoadWet, gRainWet = gripNow('slick', 0), gripNow('slick', 1), gripNow('road', 1), gripNow('fullwet', 1)
+assert(gSlickWet < 0.7 * gRoadWet and gRoadWet < gRainWet, 'in heavy rain: slick ' .. gSlickWet .. ' < 0.7 x road ' .. gRoadWet .. ' < full wet ' .. gRainWet)
+assert(gDry > gSlickWet, 'and the slick is better dry than wet: ' .. gDry .. ' vs ' .. gSlickWet)
+T.setEnv({ wet = 0, water = 0 })
+T.setCompound(nil)
 wheels, v, obj, log = nil, nil, nil, nil

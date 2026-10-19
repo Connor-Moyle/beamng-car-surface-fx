@@ -328,6 +328,16 @@ function M.repair(wi)
     if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
 end
+function M.grip()                                  -- the mean friction factor written on each tyre (1 = the car's own stock friction): a grip check that needs no driving
+  local out = {}
+  for wi, e in pairs(tyres or {}) do
+    local sum, n = 0, 0
+    for _, f in pairs(e.applied) do sum, n = sum + f, n + 1 end
+    out[#out + 1] = string.format('%s %s %s %.3f', tostring(wi), tostring(e.wd.name), e.t.compound, n > 0 and sum / n or 1)
+  end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
 function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
   local out = {}
   for wi, e in pairs(tyres or {}) do
