@@ -48,11 +48,29 @@
     dirty = true;
   }
 
+  // a scratch stamp (4 columns x 8 rows of 256 x 128, the scratch runs along x) along every segment of a mark: the variant by place, thickness by the mark's width
+  function drawStamps(o, img) {
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    for (var i = 0; i < o.l.length; i += 5) {
+      var x1 = o.l[i] * W, y1 = o.l[i + 1] * W, x2 = o.l[i + 2] * W, y2 = o.l[i + 3] * W, len = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+      if (len < 2) continue;
+      var v = Math.floor(hash(o.l[i], o.l[i + 1], 3) * 32), th = Math.max(6, o.l[i + 4] * W * 5);
+      sctx.save();
+      sctx.globalAlpha = Math.min(1, o.a);
+      sctx.translate((x1 + x2) / 2, (y1 + y2) / 2); sctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+      sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 128, 256, 128, -len * 0.6, -th / 2, len * 1.2, th);
+      sctx.restore();
+    }
+    dirty = true;
+  }
+
   // each scratch is a dark soft edge with the real colour down the middle, so it reads on light AND dark paint.
   function drawLines(o) {
     if (emis) return;
     sctx.lineCap = 'round';
+    var stamps = atlasFor('scratch', 1);                           // real scratches (art/surfacefx/splats/scratch.png): a stamp along each segment instead of a plain line
     for (var pass = 0; pass < 2; pass++) {
+      if (pass === 1 && stamps) { drawStamps(o, stamps); continue; }
       var edge = pass === 0;
       var k = dark ? 0.12 : (edge ? 0.3 : 1);
       ink([o.c[0] * k, o.c[1] * k, o.c[2] * k], edge ? o.a * 0.5 : o.a);
@@ -75,9 +93,10 @@
   // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
   // Real splat pictures (art/surfacefx/splats/<kind>.png, made by tools/make_real_splats.py from CC0 photographs, see docs/TEXTURE_CREDITS.md): 4 x 4 variants of 256 px, RGBA.
   // Until a picture has loaded (or if it is missing) the splat is drawn the procedural way below, and the page redraws when it arrives.
-  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1 }, atlases = {};
+  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1, grime: 1, rubber: 1 }, atlases = {};
   function atlasFor(kind) {
     var a = atlases[kind];
+    if (a === undefined && typeof Image === 'undefined') return null;
     if (a === undefined) {
       a = atlases[kind] = { img: new Image(), ok: false };
       a.img.onload = function () { a.ok = true; dirty = true; redraw(); };

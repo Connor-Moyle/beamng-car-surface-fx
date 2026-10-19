@@ -110,6 +110,59 @@ def snow_cell(rng, img):
     return np.dstack([c, a])
 
 
+def grime_cell(rng, img):
+    r = radial(CELL)
+    n = fbm(rng, CELL, 2, 5)
+    grain = rng.random((CELL, CELL)).astype(np.float32)
+    a = smooth(1 - r, 0.0, 0.9) * (0.3 + 0.7 * n) * (0.85 + 0.15 * grain) * 0.95      # a soft film of road dirt
+    c = grade(crop(rng, img), (0.25, 0.24, 0.22), 0.85, 1.0)
+    return np.dstack([c, np.clip(a, 0, 1)])
+
+
+def rubber_cell(rng, img):
+    r = radial(CELL)
+    n = fbm(rng, CELL, 4, 5)
+    body = smooth(n * 0.95 + (1 - r ** 1.1) * 0.6 - 0.8, 0.0, 0.1)                   # smaller, crisper than mud: flecks and smears
+    drops = droplets(rng, CELL, int(rng.integers(30, 60)), 1.5, 5, (0.15, 0.95)) * smooth(n, 0.2, 0.5)
+    a = np.clip(np.maximum(body, drops), 0, 1) * 0.95
+    c = grade(crop(rng, img), (0.045, 0.045, 0.05), 0.9, 1.0)
+    return np.dstack([c, a])
+
+
+SC_W, SC_H, SC_COLS, SC_ROWS = 256, 128, 4, 8
+
+
+def scratch_cell(rng, gray):
+    """a scratch along x: the real fine scratches of a metal photograph (high-pass, kept where they are strong) around one longer wobbling scratch"""
+    h, w = gray.shape
+    y0, x0 = int(rng.integers(0, h - SC_H + 1)), int(rng.integers(0, w - SC_W + 1))
+    g = gray[y0:y0 + SC_H, x0:x0 + SC_W]
+    blur = np.asarray(Image.fromarray((g * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.5)), np.float32) / 255.0
+    hp = np.abs(g - blur)
+    micro = np.clip(hp / max(float(np.percentile(hp, 99)), 1e-4), 0, 1) ** 1.6
+    yy, xx = np.mgrid[0:SC_H, 0:SC_W].astype(np.float32)
+    wob = (fbm(rng, SC_W, 2, 3)[0] - 0.5) * 18                                        # a wobble along x
+    cy = SC_H / 2 + wob[None, :] + (rng.random() - 0.5) * 20
+    d = np.abs(yy - cy)
+    main = np.exp(-(d / rng.uniform(0.9, 1.8)) ** 2) * rng.uniform(0.55, 1.0)
+    env = smooth(xx, 0, 40) * smooth(SC_W - 1 - xx, 0, 40) * (0.65 + 0.35 * fbm(rng, SC_W, 5, 2)[0][None, :])
+    a = np.clip(np.maximum(main * env, micro * np.exp(-(d / 26) ** 2) * env * 0.7), 0, 1)
+    c = np.clip(0.80 + 0.2 * g[..., None] * np.ones((1, 1, 3), np.float32), 0, 1) * np.array([1.0, 0.99, 0.96], np.float32)
+    return np.dstack([c, a])
+
+
+def scratch_atlas(name, grays, seed):
+    rng = np.random.default_rng(seed)
+    im = Image.new('RGBA', (SC_W * SC_COLS, SC_H * SC_ROWS))
+    for i in range(SC_COLS * SC_ROWS):
+        c = scratch_cell(rng, grays[i % len(grays)])
+        im.paste(Image.fromarray((np.clip(c, 0, 1) * 255).astype(np.uint8), 'RGBA'), ((i % SC_COLS) * SC_W, (i // SC_COLS) * SC_H))
+    os.makedirs(OUT, exist_ok=True)
+    p = os.path.join(OUT, name + '.png')
+    im.save(p, optimize=True)
+    print(p, os.path.getsize(p) // 1024, 'KB')
+
+
 def atlas(name, cells):
     im = Image.new('RGBA', (CELL * GRID, CELL * GRID))
     for i, c in enumerate(cells):
@@ -121,7 +174,7 @@ def atlas(name, cells):
 
 
 def main():
-    jobs = {'mud': (['mud'], mud_cell, 11), 'dust': (['dirt'], dust_cell, 22), 'snow': (['snow'], snow_cell, 33)}
+    jobs = {'mud': (['mud'], mud_cell, 11), 'dust': (['dirt'], dust_cell, 22), 'snow': (['snow'], snow_cell, 33), 'grime': (['grime'], grime_cell, 44), 'rubber': (['rubber'], rubber_cell, 55)}
     for name, (dirs, fn, seed) in jobs.items():
         maps = colour_maps(dirs)
         if not maps:
@@ -132,6 +185,10 @@ def main():
         cells = [fn(rng, imgs[i % len(imgs)]) for i in range(GRID * GRID)]       # every source texture is used, round and round
         atlas(name, cells)
         print(name, 'from', len(maps), 'textures')
+    metals = [np.asarray(Image.open(p).convert('L'), np.float32) / 255.0 for d in ('Metal003', 'Metal009', 'Metal010', 'Metal011') for p in glob.glob(os.path.join(RAW, 'scratches', d, '*_Color.jpg'))]
+    if metals:
+        scratch_atlas('scratch', metals, 66)
+        print('scratch from', len(metals), 'textures')
 
 
 main()

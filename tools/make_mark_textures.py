@@ -93,6 +93,7 @@ def make_skid(seed, flip):
     col = np.stack([0.035 + 0.01 * grain, 0.035 + 0.01 * grain, 0.04 + 0.01 * grain], -1)
     hgt = 0.04 * streak + 0.015 * grain
     rough = 0.55 - 0.1 * (1 - np.abs(u)) + 0.05 * grain
+    col, hgt, rough = apply_real(real_detail('asphalt', seed, H, W), col, hgt, rough, a, 0.55)      # the grain of real tarmac under the rubber
     return dict(color=col, opacity=a * 0.95, normal=normal_from_height(hgt, 1.0, flip), rough=rough, size=(W, H))
 
 
@@ -115,6 +116,7 @@ REAL_SRC = {   # surface -> ambientCG assets (in <raw>/<group>/<asset>/)
     'gravel': ('dirt', ['Ground108', 'Ground110']),
     'sand': ('dirt', ['Ground080']),
     'snow': ('snow', ['Snow001', 'Snow003', 'Snow004', 'Snow013']),
+    'asphalt': ('grime', ['Asphalt031', 'Asphalt033', 'Asphalt023S', 'Asphalt025C', 'Asphalt026C', 'Road012A', 'Road013A']),
 }
 
 
@@ -136,7 +138,10 @@ def real_detail(name, seed, H, W):
     y, x = (int(rng.integers(0, col.shape[0] - W + 1)), int(rng.integers(0, col.shape[1] - W + 1)))
     def tile(a):
         c = a[y:y + W, x:x + W]
-        return np.concatenate([c, c[::-1]], 0)[:H]         # mirrored along the road: loops
+        parts = [c]
+        while sum(p.shape[0] for p in parts) < H:
+            parts.append(parts[-1][::-1])
+        return np.concatenate(parts, 0)[:H]         # mirrored along the road: loops
     c, dp, r = tile(col), tile(disp), tile(rough)
     shade = np.clip(c / max(float(c.mean()), 1e-3), 0.4, 1.8)
     return dict(shade=shade, disp=dp - float(dp.mean()), rough=r / max(float(r.mean()), 1e-3), asset=asset)
@@ -222,6 +227,7 @@ def make_gouge(name, seed, flip):
     col = edge_col[None, None, :] * (1 - mix) + base[None, None, :] * (0.85 + 0.2 * streak[..., None]) * mix
     rough = rough0 - 0.15 * core + 0.05 * chips
     ao = 1.0 - 0.5 * core
+    col, hgt, rough = apply_real(real_detail('asphalt' if name == 'asphalt' else 'dirt', seed, H, W), col, hgt, rough, core, rough0)
     return dict(color=np.clip(col, 0, 1), opacity=a, normal=normal_from_height(hgt, 3.0, flip), rough=rough, ao=ao, size=(W, H))
 
 
