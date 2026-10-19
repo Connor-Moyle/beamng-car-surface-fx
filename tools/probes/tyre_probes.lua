@@ -346,4 +346,40 @@ function P.blowoutApply(newtons, seconds, sign)       -- f7 again: applyForceTim
   return 'applied ' .. n .. ' timed pushes of ' .. f .. ' N for ' .. tostring(seconds or 0.05) .. ' s (sign -1 reverses the direction if the panel was pulled inwards)'
 end
 
+-- ---- 8. the particles again, the way fire.lua emits them: ONE particle every 0.1 s for `seconds` (count 1, lifetime 0), from a loop hooked into wheels.updateGFX (a vehicle reset removes it).
+-- Smoke 51 and 52 showed up as dark smoke in the first run; flames 25/27/29 did not, called once with count 40. Use this for both (id, seconds, a speed like fire.lua's -2*sqrt(intensity)).
+function P.pump(i, id, seconds, speed)
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  P.unpump()
+  local cid, left, acc = w.treadNodes[1], seconds or 5, 0
+  P.pumpOld = wheels.updateGFX
+  local old = wheels.updateGFX
+  wheels.updateGFX = function(dt, ...)
+    old(dt, ...)
+    left, acc = left - dt, acc + dt
+    if acc >= 0.1 then acc = 0 pcall(function() obj:addParticleByNodesRelative(cid, w.node1, speed or -1, id, 0, 1) end) end
+    if left <= 0 then wheels.updateGFX = old P.pumpOld = nil end
+  end
+  return 'pumping particle ' .. tostring(id) .. ' for ' .. tostring(seconds or 5) .. ' s: screenshot now'
+end
+function P.unpump() if P.pumpOld then wheels.updateGFX = P.pumpOld P.pumpOld = nil end return 'stopped' end
+-- the game's own fire on a tread node with a strong burn (the first try, burnRate 0.05, gave intensity ~0.01: too weak to emit flames). intensity = 2*chem ratio capped at 1 * (T/1950) * burnRate.
+function P.fireStrong(i, burnRate)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.treadNodes) then return 'no wheel' end
+  local cid = w.treadNodes[1]
+  try('inject strong', function()
+    fire.debugData.flammableNodes[cid] = { name = 'csfx_tread', flashPoint = 350, smokePoint = 200, burnRate = burnRate or 3, staticBaseTemp = 20, useThermalsBaseTemp = false, conductionRadius = 0,
+      selfIgnitionCoef = 0, temperature = 20, intensity = 0, chemEnergy = 5000, originalChemEnergy = 5000, weightSpecHeatCoef = 0.2, lastUnderWaterValue = 0, flameTick = 0, smokeTick = 0,
+      vaporState = 0, isVapor = 0, ignoreContainerBeamBreakMessage = true, containerBeamBroken = false, canIgnite = true }
+    fire.igniteNode(cid, 900)
+    return 'node ' .. cid .. ' burnRate ' .. tostring(burnRate or 3) .. ', lit at 900'
+  end)
+  P.fireCid = cid
+  say('watch 10 s; the game walks one flammable node per frame, so it can take a second to start. fireClear() puts it out')
+  return P.dump()
+end
+
 return P
