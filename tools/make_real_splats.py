@@ -128,9 +128,6 @@ def main():
             print('no textures for', name, 'in', RAW)
             continue
         imgs = [load(m) for m in maps]
-        if name == 'snow':                                                       # wet snow with the ground showing through is not a snow splat
-            imgs = [i for i in imgs if np.percentile(i @ np.array([0.2126, 0.7152, 0.0722], np.float32), 12) > 0.6]
-            print('clean snow textures:', len(imgs))
         rng = np.random.default_rng(seed)
         cells = [fn(rng, imgs[i % len(imgs)]) for i in range(GRID * GRID)]       # every source texture is used, round and round
         atlas(name, cells)
