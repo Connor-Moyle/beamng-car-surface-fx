@@ -136,8 +136,10 @@ function RULES.grime(map, c)
   return w
 end
 function RULES.dust(map, c, wi, opts)
-  if opts and (c.h > opts.maxH or c.h > opts.washH) then return 0 end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
-  return (exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 2.0 * wake(c)
+  local edge = 1                                                              -- the film only reaches so high and the rain has taken the top of it: a soft edge over 0.15 of the height, not a cut
+  if opts then edge = max(0, min(1, (opts.maxH - c.h) / 0.15, (opts.washH - c.h) / 0.15)) if edge <= 0 then return 0 end end        -- the film only reaches so high (it climbs with the amount) and the rain has taken the top of it
+  if opts and opts.film then return ((1.05 - 0.6 * c.h) * (c.nz > 0.7 and 0.6 or 1) + 2.0 * wake(c)) * edge end      -- the whole-car film: spread over the body with only a soft fade upward (a steep low band of weights showed as a hard-edged stripe)
+  return ((exp(-c.h / 0.55) * (c.nz > 0.7 and 0.4 or 1)) + 2.0 * wake(c)) * edge
 end
 function RULES.rubber(map, c, wi)
   local d = nearWheel(map, c, wi)
@@ -157,7 +159,7 @@ M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)
 local function table_for(map, kind, wi, opts)
-  local key = kind .. ':' .. tostring(wi) .. (opts and string.format(':%d:%d', floor(opts.maxH * 10), floor(opts.washH * 10)) or '')
+  local key = kind .. ':' .. tostring(wi) .. (opts and string.format(':%d:%d%s', floor(opts.maxH * 10), floor(opts.washH * 10), opts.film and 'f' or '') or '')
   local t = map.cache[key]
   if t then return t end
   local rule = RULES[kind]

@@ -281,7 +281,7 @@ local function bodyDirt(id, kind, amount, wi)
   if pc and sc.setPaintLum then sc.setPaintLum(id, 0.2126 * (pc[1] or 0) + 0.7152 * (pc[2] or 0) + 0.0722 * (pc[3] or 0)) end
   local opts = kind == 'dust' and { maxH = rules.dustHeight(dirtBy[id] and dirtBy[id].dust or amount), washH = rules.dustWashHeight(wetSecs) } or nil       -- the film climbs with the amount, rain takes the top of it
   if sc.dirtAt(id, kind, n, wi, COL[kind], pl[2], pl[3], opts) then
-    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(2, n), nil, COL.dust, 0.10, 0.30, { maxH = 1, washH = opts.washH }) end      -- and a faint haze over the whole body, the roof and bonnet too
+    if kind == 'dust' then sc.dirtAt(id, 'dust', math.max(2, n), nil, COL.dust, 0.10, 0.30, { maxH = 1, washH = opts.washH, film = true }) end      -- and a faint haze over the whole body, the roof and bonnet too
     return
   end
   local f = FALL[kind]
