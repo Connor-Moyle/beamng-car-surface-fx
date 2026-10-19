@@ -38,6 +38,11 @@ The report to bring back: one table per run (avg, p95, p99, the Lua ms per step)
 - Actions taken: at most 60 glossy leak planes at once (`maxMeshes`), and the Max preset now has 200 puddles (was 300) with a 120 m cull (was 160).
 - A quieter bench is needed to set real budgets: the car parked, no traffic, rain frozen, a fixed camera, 20 s windows, each feature switched on and off in alternation three times, and the median taken.
 
+## Quiet A/B bench (carSurfaceFx_benchab)
+
+One feature at a time, the car parked, no traffic, a fixed camera: `extensions.load('carSurfaceFx_benchab')`, then `carSurfaceFx_benchab.run('leaks')` (about 150 s: off, on, off, on, off, on, each 4 s settle and 20 s measured), `carSurfaceFx_benchab.report()` (also `settings/csfx_benchab.txt`). The report gives the median of the off windows and of the on windows, the delta in ms and in p99, and every window's number. Names: `carSurfaceFx_benchab.features()` (leaks, glass, overlay, dirt, marks, paintwater, paint, weather).
+Run leaks first, on its own. Before it, fill the puddle ring with the camera looking along the line: `for i = 1, 60 do carSurfaceFx_fluids.puddleAhead('oil', 3 + i * 0.4, 0.6) end`, then check `carSurfaceFx_fluids.status()`. Then the others, with rain forced (`carSurfaceFx.debug('rain', 1)`) in every run, the Max preset, and the same camera.
+
 ## Budget table (Max preset)
 
 | Feature | Proposed cap (ms) | Measured by 80 (ms) | Main knobs |
