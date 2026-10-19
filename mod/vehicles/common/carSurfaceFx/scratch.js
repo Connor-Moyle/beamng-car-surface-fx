@@ -118,7 +118,9 @@
     if (litDust) sctx.filter = 'brightness(0.45)';
     else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
     sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
-    sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
+    // the base page is drawn heavier than the palette's punch (as ink() does for the plain splats): under a part-erased palette any white left in the base reads as a pale ring or dot, worst on dark paint
+    var passes = (palette || emis) ? 1 : 3;
+    for (var q = 0; q < passes; q++) sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
     sctx.restore();
     dirty = true;
   }
