@@ -150,6 +150,49 @@ local roadsNow = U.roadCount()
 for i = 0, 12 do U.sample(1, 1, 60 + i * 0.6, 5, 0, 'gravel', 1000, 0) end
 U.onUpdate(0.5)
 assert(U.roadCount() == roadsNow, 'a light wheel on gravel leaves no rut')
+-- gouges: a body panel dragged over the ground leaves a scrape (tarmac) or a furrow (soft ground) when its switch is on
+do
+  local mt = { __add = function(p, q) return setmetatable({ x = p.x + q.x, y = p.y + q.y, z = p.z + q.z }, getmetatable(p)) end }
+  local oldPos, oldNode = pv.getPosition, pv.getNodePosition
+  pv.getPosition = function() return setmetatable({ x = 0, y = 0, z = 0 }, mt) end
+  local slide = 0
+  pv.getNodePosition = function() return setmetatable({ x = 100 + slide, y = 0, z = 0.1 }, mt) end
+  local oldSurf = package.loaded['carSurfaceFx/surfaces']
+  package.loaded['carSurfaceFx/surfaces'] = { idTable = function() return { [7] = 'tarmac', [8] = 'dirt', [9] = 'ice' } end }
+  local function slideOver(mat, force, n)
+    for i = 1, n do slide = slide + 0.4 U.gouge(1, 5, mat, force) end
+  end
+  U.clear()
+  local n0 = U.roadCount()
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'gouges are off by default')
+  U.set('gouges.enabled', true)
+  slideOver(9, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'ice takes no gouge')
+  slideOver(7, 100, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == n0, 'a light touch leaves nothing')
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local tar
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_asphalt_dry' then tar = o end end
+  assert(tar and #tar.nodes == 4 and tar.nodes[1].w >= 0.25 and tar.nodes[1].w <= 0.7, 'a scrape on tarmac: a gouge road of chunkPoints nodes, 0.25-0.7 m wide')
+  slide = slide + 50
+  slideOver(8, 6000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local dirt
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_dirt_dry' then dirt = o end end
+  assert(dirt and dirt.nodes[1].w > tar.nodes[1].w, 'a furrow in dirt, wider with a harder hit')
+  wetValue = 0.8
+  slide = slide + 50
+  slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)
+  local wet
+  for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_asphalt_wet' then wet = o end end
+  assert(wet, 'in the rain the wet gouge material')
+  wetValue = 0
+  U.set('gouges.enabled', false)
+  pv.getPosition, pv.getNodePosition = oldPos, oldNode
+  package.loaded['carSurfaceFx/surfaces'] = oldSurf
+  U.clear()
+end
+
 -- the budget
 U.clear()
 for k = 0, 9 do for i = 0, 6 do U.sample(1, 0, k * 20 + i * 0.6, 5, 0, 'mud', 4000, 0) end end

@@ -1,5 +1,5 @@
 -- Car Surface FX: body wear, game side. The car side (vehicle/extensions/carSurfaceFxWear.lua) sorts every contact and sends the hits; this module turns hits into marks
--- (scratches and scuffs through the paint canvases of carSurfaceFx/scratch.lua) and keeps the counts of everything the car saw, so carSurfaceFx.status() and the QA run can say why a
+-- (scratches and scuffs through the paint canvases of carSurfaceFx/scratch.lua; gouges in the ground through carSurfaceFx_ruts) and keeps the counts of everything the car saw, so carSurfaceFx.status() and the QA run can say why a
 -- scrape left nothing: no contact at all, contacts too light, not sliding, only tyres, or a hit that was drawn.
 --   carSurfaceFx_bodywear.hit(id, node, kind, mat, force, slip, speed, a, b, c)   a hit: kind 'ground' | 'wall' | 'vehicle' | 'unknown'; a, b, c = its sliding direction along the car's left / back / up lines
 --   carSurfaceFx_bodywear.report(id, seen, hits, light, still, tyre, wheel, cool, maxForce, maxSlip)   the counts of the last second
@@ -19,6 +19,10 @@ function M.hit(id, node, kind, mat, force, slip, speed, a, b, c)
   last[#last + 1] = string.format('%s n%d F%.0f s%.1f m%d', kind, node, force, slip, mat)
   if #last > LAST_N then table.remove(last, 1) end
   if debugOn then log('I', TAG, string.format('hit car %d node %d %s force %.0f slip %.1f speed %.1f mat %d dir %.2f %.2f %.2f', id, node, kind, force, slip, speed, mat, a, b, c)) end
+  if kind == 'ground' then
+    local ruts = rawget(_G, 'carSurfaceFx_ruts')                  -- a panel on the ground gouges it (the ruts module draws it, when its gouges switch is on)
+    if ruts and ruts.gouge then ruts.gouge(id, node, mat, force) totals.drawn = totals.drawn + 1 end
+  end
   local scratch = rawget(_G, 'carSurfaceFx_scratch')
   if scratch and kind ~= 'ground' then                          -- a body panel against a wall or another car leaves scratches; the ground is for gouges (to come)
     scratch.hit(id, node, force, slip, a, b, c)

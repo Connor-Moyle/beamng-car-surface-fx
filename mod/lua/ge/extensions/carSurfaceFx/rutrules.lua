@@ -21,6 +21,7 @@ function M.defaults()
     wetAbove = 0.3, dryBelow = 0.2,                                    -- the wet material from this wetness, the dry one again below the other (a little hysteresis)
     cullRadius = 120,
     others = { enabled = false, maxCars = 3, range = 50 },
+    gouges = { enabled = false, step = 0.3, chunkPoints = 4, minForce = 400, widthMin = 0.25, widthMax = 0.7 },      -- the body scraping the ground (ruts.gouge, from the body wear hits)
     berms = { enabled = false, maxBerms = 120, heightScale = 1.0, lift = 0.01 },      -- soil lips beside the track (berm.lua, bermrules.lua); off until seen in game
     kinds = {
       mud = { enabled = true, soft = 1.00 }, snow = { enabled = true, soft = 0.85 }, sand = { enabled = true, soft = 0.75 },
@@ -108,6 +109,17 @@ function M.material(kind, wet, wasWet, cfg)
   local isWet = wasWet
   if wet >= cfg.wetAbove then isWet = true elseif wet <= cfg.dryBelow then isWet = false end
   return 'csfx_rut_' .. kind .. (isWet and '_wet' or '_dry'), isWet
+end
+
+-- ---- gouges: a body panel dragged over the ground. The ground is tarmac (a scrape: gouge_asphalt) or soft (gouge_dirt); anything else leaves nothing.
+M.GOUGE_GROUND = { tarmac = 'asphalt', dirt = 'dirt', sand = 'dirt', gravel = 'dirt', mud = 'dirt', grass = 'dirt', snow = 'dirt' }
+function M.gougeKind(surface) return M.GOUGE_GROUND[surface] end
+-- the gouge's width for a force in N: wider with a harder hit
+function M.gougeWidth(force, g) return clamp(g.widthMin + (g.widthMax - g.widthMin) * clamp((force or 0) / 6000, 0, 1), g.widthMin, g.widthMax) end
+function M.gougeMaterial(kind, wet, wasWet, cfg)
+  local isWet = wasWet
+  if wet >= cfg.wetAbove then isWet = true elseif wet <= cfg.dryBelow then isWet = false end
+  return 'csfx_gouge_' .. kind .. (isWet and '_wet' or '_dry'), isWet
 end
 
 -- ---- the budget: chunks per second (a token bucket). refill adds the time's tokens (never spends); budget(state) returns true and spends one when a chunk may be made now.

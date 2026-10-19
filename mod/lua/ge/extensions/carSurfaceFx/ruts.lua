@@ -122,6 +122,8 @@ local function loadSizes()
   for _, t in ipairs(markMaterials.index()) do
     local kind = tostring(t.type):match('^rut_(%a+)$')
     if kind then sizes[kind] = { width = t.width or 0.9, length = t.textureLength or 4 } end
+    local gk = tostring(t.type):match('^gouge_(%a+)$')
+    if gk then sizes['gouge_' .. gk] = { width = t.width or 0.45, length = t.textureLength or 3 } end
   end
 end
 local function colorFor(kind, layer)
@@ -202,7 +204,16 @@ local function makeSegments(chunk, width, layer)
   end
 end
 
+local function makeGouge(chunk)
+  local material
+  material, wasWet = rules.gougeMaterial(chunk.kind, wetness(), wasWet, settings)
+  local sz = sizeOf('gouge_' .. chunk.kind)
+  local ok, why = makeRoad({ points = chunk.points, kind = 'gouge_' .. chunk.kind }, material, chunk.width or sz.width, 5)
+  if not ok then useFallback(why) end                               -- no decal fallback for gouges: they simply stop (the ruts fall back on their own)
+end
+
 local function makeChunk(chunk)
+  if chunk.gouge then makeGouge(chunk) return end
   local layer = rules.layerFor(grid, chunk.kind, chunk.points, settings)
   if layer > settings.maxLayers then made.skipped = made.skipped + 1 return end            -- the track is as deep as it gets
   local material
@@ -235,6 +246,28 @@ function M.sample(vid, wheel, x, y, z, kind, load, slip)
   local chunk = rules.feed(path, x, y, z, kind, settings)
   if chunk then
     chunk.depth = depth
+    if pendingN < 40 then pendingN = pendingN + 1 pending[pendingN] = chunk end
+  end
+end
+
+-- a body panel dragging over the ground (from carSurfaceFx_bodywear: a 'ground' hit): the node's path becomes gouge chunks. mat = the game's material id of the ground
+function M.gouge(vid, node, mat, force)
+  local g = settings.gouges
+  if not (settings.enabled and g.enabled) or (force or 0) < g.minForce then return end
+  local kind
+  pcall(function() kind = rules.gougeKind(require('carSurfaceFx/surfaces').idTable()[mat]) end)
+  if not kind then return end
+  local veh = be:getObjectByID(vid)
+  if not veh then return end
+  local ok, pos = pcall(function() return veh:getPosition() + veh:getNodePosition(node) end)
+  if not ok or not pos then return end
+  local key = 'g' .. vid .. ':' .. node
+  local path = paths[key]
+  if not path then path = rules.newPath() paths[key] = path end
+  path.at, path.gouge, path.width = os.clock(), true, rules.gougeWidth(force, g)
+  local chunk = rules.feed(path, pos.x, pos.y, pos.z, kind, g)
+  if chunk then
+    chunk.gouge, chunk.width = true, path.width
     if pendingN < 40 then pendingN = pendingN + 1 pending[pendingN] = chunk end
   end
 end
@@ -294,7 +327,7 @@ function M.onUpdate(dt)
     for key, path in pairs(paths) do
       if path.at and now - path.at > 0.6 then
         local chunk = rules.flush(path)
-        if chunk and pendingN < 40 then chunk.depth = path.depth or 0.6 pendingN = pendingN + 1 pending[pendingN] = chunk end
+        if chunk and pendingN < 40 then chunk.depth = path.depth or 0.6 chunk.gouge, chunk.width = path.gouge, path.width pendingN = pendingN + 1 pending[pendingN] = chunk end
         paths[key] = nil
       end
     end
