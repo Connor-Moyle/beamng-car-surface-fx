@@ -44,3 +44,5 @@ The downloads were kept outside the mod and only the colour, displacement and ro
 | snow splats, snow ruts and tracks | Snow013 | https://ambientcg.com/view?id=Snow013 | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-19 |
 
 Tyre wear normal maps (mod/art/surfacefx/tyres/, tools/make_tyre_textures.py): the tread, wear and belt weave are procedural (no photographs); the fine rubber grain in the roughness maps, which are not shipped yet, comes from ambientCG Rubber001, Rubber002 and Rubber004 (CC0).
+
+Tyre wear stage materials (mod/art/surfacefx/tyres/stages.materials.json, tools/make_tyre_stage_materials.py): no new textures; each variant references the car's own tyre textures and lays the procedural worn and belt detail normals above over them.

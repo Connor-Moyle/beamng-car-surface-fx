@@ -191,9 +191,11 @@ local function sendState(events)
   for wi, e in pairs(tyres) do
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
+    local stage = e.t.blown and 5 or R.stage(e.t, cfg)
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage) end
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
-    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,
+    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, stage, e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,
       minH, e.t.c.h0, e.t.compound, tostring(e.wd.name or ''))
   end
   local ev = {}
@@ -203,7 +205,7 @@ end
 
 local function frame(dt)
   if not enabled then return end
-  if not tyres then build() if not tyres then return end end
+  if not tyres then build() if not tyres then return end pcall(function() extensions.load('carSurfaceFxTyreLook') end) end
   for wi, e in pairs(tyres) do powerSum[wi] = (powerSum[wi] or 0) + credit(e, dt) * dt end
   if reapply > 0 then
     reapply = reapply - 1
@@ -360,6 +362,7 @@ end
 
 -- every tread node back to its stock friction (the module is switched off, or unloaded)
 function M.restore()
+  if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.restore) end
   for wi in pairs(tyres or {}) do pcall(M.putOut, wi) end
   for _, e in pairs(tyres or {}) do
     if not e.wd.isTireDeflated then
