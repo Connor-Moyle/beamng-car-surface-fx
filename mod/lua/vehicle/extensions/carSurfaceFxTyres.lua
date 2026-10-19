@@ -15,6 +15,7 @@ local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
 local cfg = R.defaults()
+local fitAxle = {}                  -- axle ('front' / 'rear') -> a compound fitted to that axle alone (staggered setups)
 local compound = nil                -- nil: every tyre keeps its stock class (what the car's own friction already is); a name fits that compound on all of them
 local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil }
 local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
@@ -34,6 +35,13 @@ local function classify(wd)
   return 'road'
 end
 M.classify = classify
+
+-- the axle of a wheel from the car's own name (FL, FR, RL, RR), and the compound fitted to it: an axle's set, else the whole car's, else nil (the stock class)
+local function axleOf(wd)
+  local c = tostring(wd.name or ''):upper():sub(1, 1)
+  return c == 'F' and 'front' or (c == 'R' and 'rear' or nil)
+end
+local function fittedTo(wd) return fitAxle[axleOf(wd) or ''] or compound end
 
 local WATER_DEPTH = 0.4             -- how deep a wheel in water counts for aquaplaning (0..1); the car cannot see the puddle's depth
 local function groundOf(wd)         -- the ground under a wheel: its contact material that is not the rubber, looked up in the table the game side sent (setSurfaces)
@@ -71,7 +79,7 @@ local function build()
       end
       if ok then
         e.stock = classify(wd)
-        e.t = R.new(compound or e.stock, #tn / 2, tonumber(wd.radius), tonumber(wd.tireWidth), ambientC())
+        e.t = R.new(fittedTo(wd) or e.stock, #tn / 2, tonumber(wd.radius), tonumber(wd.tireWidth), ambientC())
         e.ratio = R.swapRatio(e.stock, e.t.compound)     -- the stock friction already is the stock class: a slick on a road jbeam gains, a road tyre on a slick jbeam loses
         e.pNom = pressureOf(wd)
         tyres[wi] = e
@@ -179,7 +187,11 @@ local function sendState(events)
   local parts = {}
   for wi, e in pairs(tyres) do
     local worst = R.worstFlat(e.t)
-    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), M.shake(wi))
+    local hz, sn = M.shake(wi)
+    local minH = math.huge
+    for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, R.stage(e.t, cfg), e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,
+      minH, e.t.c.h0, e.t.compound, tostring(e.wd.name or ''))
   end
   local ev = {}
   for _, x in ipairs(events or {}) do ev[#ev + 1] = x[3] and string.format('{%d,%q,%.2f,%.0f}', x[1], x[2], x[3], x[4] or 0) or string.format('{%d,%q}', x[1], x[2]) end
@@ -217,12 +229,39 @@ function M.setConfig(tbl)                          -- fields of csfx_tyrerules.d
   if tyres then for wi, e in pairs(tyres) do e.applied = {} end end
   if not enabled and tyres then M.restore() end
 end
-function M.setCompound(name)                       -- nil: the stock class again. Fitting rebuilds the tyres (new tyres: wear and temperature start over)
+-- nil: the stock class again. axle 'front' | 'rear' fits that axle only (its tyres are new: wear and temperature start over), nil fits the whole car and rebuilds every tyre.
+function M.setCompound(name, axle)
   if name ~= nil and not R.COMPOUNDS[name] then return end
-  if name == compound then return end
+  if axle == 'front' or axle == 'rear' then
+    fitAxle[axle] = name
+    for wi, e in pairs(tyres or {}) do
+      if axleOf(e.wd) == axle then
+        pcall(M.putOut, wi)
+        e.t = R.new(name or compound or e.stock, e.t.n, e.t.r, e.t.w, ambientC())
+        e.ratio = R.swapRatio(e.stock, e.t.compound)
+        e.applied = {}
+      end
+    end
+    return
+  end
+  if name == compound and next(fitAxle) == nil then return end
   M.restore()
-  compound = name
+  compound, fitAxle = name, {}
   tyres = nil
+end
+-- a tread left as a fraction of new (1 new .. 0 at the belts), the same on every slot: a part-worn used tyre or a garage tyre change. One wheel, or all. Clears flat spots and the blown state.
+function M.setTread(frac, wi)
+  frac = min(1, max(0, tonumber(frac) or 1))
+  for k, e in pairs(tyres or {}) do
+    if wi == nil or wi == k then
+      pcall(M.putOut, k)
+      for j = 1, 2 * e.t.n do e.t.h[j] = frac * e.t.c.h0 end
+      e.t.blown, e.t.cord, e.t.fire, e.t.hold = false, 0, nil, 0
+      R.clearEnergy(e.t)
+      for i = 1, e.t.n do e.t.flash[i] = 0 end
+      e.applied = {}
+    end
+  end
 end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
 function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
@@ -283,7 +322,7 @@ end
 function M.repair(wi)
   for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then e.t = R.new(compound or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
+    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
 end
 function M.status()
@@ -293,7 +332,7 @@ function M.status()
     for j = 1, 2 * e.t.n do worst = min(worst, e.t.h[j]) end
     hot = max(hot, e.t.Ts)
   end
-  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and worst or 0, hot, compound)
+  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and worst or 0, hot, tostring(compound))
 end
 
 -- every tread node back to its stock friction (the module is switched off, or unloaded)

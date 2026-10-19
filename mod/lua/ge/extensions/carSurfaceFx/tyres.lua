@@ -91,7 +91,7 @@ function M.state(id, ws, events)
   for _, w in ipairs(ws or {}) do
     local wasBlown = s[w[1]] and s[w[1]].blown
     local wasSmoking = s[w[1]] and s[w[1]].smoking
-    s[w[1]] = { stage = w[2], Ts = w[3], Tc = w[4], worstFlat = w[5], blown = w[6], onFire = w[7] }
+    s[w[1]] = { stage = w[2], Ts = w[3], Tc = w[4], worstFlat = w[5], blown = w[6], onFire = w[7], shakeHz = w[8], shakeN = w[9], tread = w[10], h0 = w[11], compound = w[12], name = w[13] }
     if w[6] and not wasBlown and extensions and extensions.hook then extensions.hook('onCsfxTyreBlown', id, w[1]) end
     local sm = cfg.fires ~= false and not w[6] and R.smoke(w[3] or 0, cfg) or 0
     if sm > 0 or wasSmoking then emit('smoke', id, w[1], sm) end
@@ -112,20 +112,30 @@ function M.getTyres(id)
   local s = states[id]
   if not s then return nil end
   local out = { compound = nil, wheels = {} }
-  for wi, w in pairs(s) do out.wheels[#out.wheels + 1] = { idx = wi, stage = w.stage, Ts = w.Ts, Tc = w.Tc, flat = w.worstFlat, blown = w.blown, onFire = w.onFire } end
+  for wi, w in pairs(s) do
+    local nm = tostring(w.name or ''):upper()                  -- FL FR RL RR: the car's own wheel names
+    local ax = nm:sub(1, 1) == 'F' and 'front' or (nm:sub(1, 1) == 'R' and 'rear' or nil)
+    local sd = nm:sub(-1) == 'L' and 'left' or (nm:sub(-1) == 'R' and 'right' or nil)
+    local frac = w.tread and w.h0 and w.h0 > 0 and R.clamp(w.tread / w.h0, 0, 1) or nil       -- 1 new .. 0 at the belts
+    out.compound = out.compound or w.compound
+    out.wheels[#out.wheels + 1] = { idx = wi, stage = w.stage, Ts = w.Ts, Tc = w.Tc, flat = w.worstFlat, blown = w.blown, onFire = w.onFire, tread = w.tread, h0 = w.h0, frac = frac,
+      compound = w.compound, axle = ax, side = sd, shakeHz = w.shakeHz, shakeN = w.shakeN }
+  end
   table.sort(out.wheels, function(a, b) return a.idx < b.idx end)
   return out
 end
--- a compound for the whole car (the car module does not split axles yet: axle is ignored); the car's tyres are rebuilt as a new set
+-- a compound for 'front', 'rear' or (nil) the whole car; those tyres are a new set
 function M.setCompound(id, axle, name)
   if not R.COMPOUNDS[name] then return false end
-  send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.setCompound(%q) carSurfaceFxTyres.repair() end', name))
+  if axle ~= nil and axle ~= 'front' and axle ~= 'rear' then return false end
+  send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.setCompound(%q, %s) end', name, axle and string.format('%q', axle) or 'nil'))
   return true
 end
--- fresh tread: frac 1 = new on every wheel (or the wheel index). Partial wear is not supported by the car module yet.
+-- the tread of a wheel (or all) set to a fraction of new, 0..1 (1 = new; a used tyre sold part-worn): clears flat spots and the blown state
 function M.setTread(id, wheelIdx, frac)
-  if (frac or 1) < 1 then return false end
-  send(id, wheelIdx and string.format('if carSurfaceFxTyres then carSurfaceFxTyres.repair(%d) end', wheelIdx) or 'if carSurfaceFxTyres then carSurfaceFxTyres.repair() end')
+  frac = tonumber(frac)
+  if not frac or frac < 0 or frac > 1 then return false end
+  send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.setTread(%.3f, %s) end', frac, wheelIdx and string.format('%d', wheelIdx) or 'nil'))
   return true
 end
 function M.snapshot(id) return snaps[id] end                    -- up to 5 s old; nil when the car has not sent one

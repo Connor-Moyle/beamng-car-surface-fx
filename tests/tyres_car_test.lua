@@ -164,4 +164,17 @@ assert(burning.chemEnergy == 0 and burning.intensity == 0 and burning.temperatur
 assert(not T.putOut(0), 'nothing to put out twice')
 fire = nil
 assert(not T.lightTyre(0), 'no fire module: nothing happens')
+-- a compound for one axle, and a part-worn tread
+wd.name = 'FL'
+T.setConfig({ enabled = true })
+T.setCompound(nil)
+T.setCompound('slick', 'front')
+assert(T.snapshot()[0].compound == 'slick', 'the front axle got slicks')
+T.setCompound('fullwet', 'rear')
+assert(T.snapshot()[0].compound == 'slick', 'and the rear set leaves it alone')
+T.setTread(0.5)
+local half = T.snapshot()[0]
+assert(math.abs(half.h[5] - 1.5) < 0.01 and math.abs(half.h[20] - 1.5) < 0.01 and not half.blown, 'a half-worn tread: 1.5 mm of a slick 3.0 everywhere')
+T.setCompound(nil)
+wd.name = nil
 wheels, v, obj, log = nil, nil, nil, nil
