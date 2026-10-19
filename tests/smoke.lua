@@ -276,7 +276,7 @@ do
   walk('impacts', require('carSurfaceFx/impactrules').defaults(), '', all)
   walk('fluids', require('carSurfaceFx/fluidrules').defaults(), '', all)
   table.sort(all)
-  local NOT_SETTINGS = { ['main:settingsVersion'] = true, ['main:windscreen.enabled'] = true }       -- a file version; the windscreen switch is the 'Water drops on the windows' pair
+  local NOT_SETTINGS = { ['main:settingsVersion'] = true }       -- a file version
   local missing = {}
   for _, key in ipairs(all) do if not covered[key] and not NOT_SETTINGS[key] and not key:match(':enabled$') then missing[#missing + 1] = key end end
   assert(#missing == 0, 'every value of the mod has a field in the Mods menu; without: ' .. table.concat(missing, ', '))
