@@ -4,7 +4,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 
 | Tab | Key | Default | Range | Level | Meaning |
 |---|---|---|---|---|---|
-| (top) | enabled | true | on/off | N | the whole tyre simulation |
+| (top) | enabled | **false** (shipped off) | on/off | N | the whole tyre simulation |
 | Wear | wearRate | 1.0 | 0 - 20 | N | time scale of wear (real wear is invisible in play) |
 | Wear | surface.asphalt / concrete / wet / gravel / dirt / rock / snow / ice | 1 / 1.2 / 0.6 / 0.5 / 0.5 / 1.5 / 0.2 / 0.2 | 0 - 3 each | A | wear multiplier per surface |
 | Wear | deadZone | 0.3 | 0 - 2 m/s | A | slip below this wears nothing |
@@ -25,7 +25,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Grip | baldBelow | 0.5 | 0 - 2 mm | A | tread under which it looks bald |
 | Wet | rainCool | (see Temperature) | | | |
 | Fire & debris | fires | true | on/off | N | "Tyre fires" |
-| Fire & debris | fireSpread | true | on/off | N | "Fires can spread to the car" |
+| Fire & debris | fireSpread | **false** (unproven) | on/off | N | "Fires can spread to the car" |
 | Fire & debris | spreadAfter | 4 | 1 - 20 s | A | s of tyre fire before the car's nearest flammable node is lit |
 | Fire & debris | smokeOn / smokeFull | 150 / 250 | 80 - 400 C | A | smoke starts and is full |
 | Fire & debris | igniteT | 350 | 200 - 600 C | A | surface temperature that ignites |

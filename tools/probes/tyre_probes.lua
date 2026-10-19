@@ -20,7 +20,7 @@ local function wheelList() local out = {} for i, w in pairs(wheels.wheels) do ou
 local function nodeData(cid) return v and v.data and v.data.nodes and v.data.nodes[cid] end
 
 function P.commands()
-  return 'info() | api() | friction(wheelIdx) | frictionRestore() | thermal(wheelIdx) | thermalRead(wheelIdx) | collisionStart() | collisionRead() | materials() | switchWheelMaterial(wheelIdx, matName) | resetMaterials() | sparks(wheelIdx) | sparksRestore(wheelIdx) | clearLog() | dump()'
+  return 'info() | api() | friction(wheelIdx) | frictionRestore() | thermal(wheelIdx) | thermalRead(wheelIdx) | collisionStart() | collisionRead() | materials() | switchWheelMaterial(wheelIdx, matName) | resetMaterials() | sparks(wheelIdx) | sparksRestore(wheelIdx) | forceTry(wheelIdx, N) | forceRead() | clearLog() | dump()'
 end
 function P.clearLog() P.log = {} return 'cleared' end
 function P.dump() return table.concat(P.log, '\n') end
@@ -284,6 +284,28 @@ function P.fireNearest(i)
   end)
   say('watch 20 s: does it spread through the car? fireClear() / reset the car to put it out')
   return P.dump()
+end
+
+-- ---- f8. the signature of the force calls, for the physical flat-spot shake (research 8.6, level 3). Each variant is tried in its own pcall and the car is asked to say whether it moved:
+-- applyForce(n1, n2, F) is the one stock code uses (playerController: a force along the line between two nodes); applyForceTime and applyForceVector are the others.
+-- Run on a car standing still on a flat road: forceTry(wheelIdx, N) pulls the first tread node toward its hub for ONE physics step per call, forceBurst(wheelIdx, N, steps) repeats it
+-- for `steps` calls in a row from the vehicle's updateGFX (so: a frame each). Read the node's position before and after with forceRead. A reset (R) undoes any damage.
+function P.forceTry(i, newtons)
+  P.log = {}
+  local w = wd(i)
+  if not (w and w.treadNodes and w.node1) then return 'no wheel ' .. tostring(i) end
+  local cid, hub, F = w.treadNodes[1], w.node1, newtons or 200
+  P.fPos0 = obj:getNodePosition(cid)
+  try('applyForce(treadCid, hubCid, F)', function() return obj:applyForce(cid, hub, F) end)
+  try('applyForceTime(treadCid, hubCid, F, 0.05)', function() return obj:applyForceTime(cid, hub, F, 0.05) end)
+  try('applyForceVector(treadCid, vec3)', function() return obj:applyForceVector(cid, vec3(0, 0, -F)) end)
+  say('node', cid, 'before', tostring(P.fPos0), '-> forceRead() after a second')
+  return P.dump()
+end
+function P.forceRead()
+  local cid = nil
+  for _, i in ipairs(wheelList()) do cid = wd(i).treadNodes[1] break end
+  return 'node moved ' .. tostring(P.fPos0 and cid and (obj:getNodePosition(cid) - P.fPos0):length()) .. ' m (before ' .. tostring(P.fPos0) .. ')'
 end
 
 -- ---- 7. blowout damages the panels near it (f7). Pops wheel i, then (if hit) pushes the nearest body nodes outward over 3 physics steps. Drive at 0 / 50 / 100 km/h, run it, screenshot the arch before and after.

@@ -98,12 +98,33 @@ wd.lastSlip, wd.wheelSpeed, wd.angularVelocity = 0, 20, 20 / 0.305
 local hz, f = T.shake(0)
 assert(hz > 8 and hz < 12 and f > 0, 'a flat spot shakes once a revolution (about ' .. 20 / (2 * math.pi * 0.305) .. ' Hz): ' .. hz .. ', ' .. f)
 
+-- the ground and the water come from the wheel's own contact material and the water check
+T.setSurfaces({ ['10'] = 'asphalt', ['11'] = 'asphalt', ['13'] = 'gravel' })      -- (what the game side sends from the ground models)
+obj.inWater = function() return false end
+T.setConfig({ enabled = true })
+T.setExternal('fluids', 0, 1)
+T.repair()
+writes = {}
+wd.contactMaterialID1, wd.contactMaterialID2, wd.node1, wd.lastSlip = 4, 13, 1, 0
+for _ = 1, 20 do T.updateGFX(0.01) end
+local g101
+for _, w in ipairs(writes) do if w[1] == 101 then g101 = w end end
+assert(g101 and g101[2] < 0.95 * 1.0 and g101[2] > 0.5, 'on gravel a road tyre has less grip than the stock friction: ' .. tostring(g101 and g101[2]))
+writes = {}
+wd.contactMaterialID1, wd.contactMaterialID2 = 4, 11
+T.setConfig({ wearRate = 1 })
+for _ = 1, 20 do T.updateGFX(0.01) end
+obj.inWater = function() return true end
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(#sent > 0, 'runs with ground and water readings')
+obj.inWater = nil
+wd.contactMaterialID1, wd.contactMaterialID2 = nil, nil
+
 -- the state goes to the game side
 sent = {}
 for _ = 1, 60 do T.updateGFX(0.01) end
 assert(sent[1] and sent[1]:find('carSurfaceFx_tyres.state%(7,'), 'the state goes to the game side: ' .. tostring(sent[1]))
 
-wheels, v, obj, log = nil, nil, nil, nil
 print('carSurfaceFx tyres (car side): ok')
 
 -- the ground under the wheel and the water: surfaces by material id, debris events, the spread to the car
@@ -120,4 +141,4 @@ for _ = 1, 300 do T.updateGFX(0.01) end
 local sawDebris
 for k = sentBefore + 1, #sent do if sent[k]:find('"debris"', 1, true) then sawDebris = true end end
 assert(sawDebris, 'worn rubber goes to the game side as debris events')
-
+wheels, v, obj, log = nil, nil, nil, nil

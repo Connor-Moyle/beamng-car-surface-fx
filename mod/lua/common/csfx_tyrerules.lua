@@ -27,7 +27,7 @@ M.COMPOUNDS = {
 
 function M.defaults()
   return {
-    enabled = true,
+    enabled = false,                                        -- shipped off until it has been shown in the game; the Mods page switch turns it on
     wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
     surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
     deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)

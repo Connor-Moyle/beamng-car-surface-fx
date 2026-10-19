@@ -89,10 +89,11 @@ function M.state(id, ws, events)
   states[id] = s
   for _, w in ipairs(ws or {}) do
     local wasBlown = s[w[1]] and s[w[1]].blown
+    local wasSmoking = s[w[1]] and s[w[1]].smoking
     s[w[1]] = { stage = w[2], Ts = w[3], Tc = w[4], worstFlat = w[5], blown = w[6], onFire = w[7] }
     if w[6] and not wasBlown and extensions and extensions.hook then extensions.hook('onCsfxTyreBlown', id, w[1]) end
     local sm = cfg.fires ~= false and not w[6] and R.smoke(w[3] or 0, cfg) or 0
-    if sm > 0 or (s[w[1]].smoking) then emit('smoke', id, w[1], sm) end
+    if sm > 0 or wasSmoking then emit('smoke', id, w[1], sm) end
     s[w[1]].smoking = sm > 0
   end
   for _, e in ipairs(events or {}) do

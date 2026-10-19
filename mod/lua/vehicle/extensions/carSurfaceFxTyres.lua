@@ -11,6 +11,7 @@ local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
+local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
 local cfg = R.defaults()
@@ -19,7 +20,6 @@ local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil
 local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
 local external = {}                 -- kind -> { wheel index -> multiplier }
 local surfaceOf = {}                 -- collision material id -> surface key of the rules (the game side sends it from the level's ground models)
-local RUBBER_MAT = 4                -- the tyre's own material id; the ground is the other one
 local pendingBlob = nil             -- a saved state waiting for the tyres to be built
 local timer, report, reapply = 0, 0, 0
 local enabled = false
@@ -35,9 +35,10 @@ local function classify(wd)
 end
 M.classify = classify
 
-local function groundOf(wd)
-  local id = wd.contactMaterialID1 or -1
-  if id == RUBBER_MAT then id = wd.contactMaterialID2 or -1 end
+local WATER_DEPTH = 0.4             -- how deep a wheel in water counts for aquaplaning (0..1); the car cannot see the puddle's depth
+local function groundOf(wd)         -- the ground under a wheel: its contact material that is not the rubber, looked up in the table the game side sent (setSurfaces)
+  local id = tonumber(wd.contactMaterialID1) or -1
+  if id == RUBBER_MAT then id = tonumber(wd.contactMaterialID2) or -1 end
   return surfaceOf[id]
 end
 
@@ -93,8 +94,8 @@ end
 local function applyGrip(wi, e, force)
   if e.wd.isTireDeflated then e.applied = {} return end
   local t, ext = e.t, extMult(wi)
-  local ctx = { water = e.water or env.water, v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
-  local wet = env.wet
+  local ctx = { water = max(env.water, e.water or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
+  local wet = max(env.wet, e.surface == 'wet' and 1 or 0)
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
     fs, fk = fs * e.ratio, fk * e.ratio
@@ -132,8 +133,9 @@ local function tick(dt)
     if not wd.isTireDeflated then
       local pr = pressureOf(wd)
       e.surface = groundOf(wd) or e.surface                         -- (kept while the wheel is in the air)
-      e.water = max(env.water or 0, (obj.inWater and wd.node1 and pcalls(obj.inWater, obj, wd.node1)) and 1 or 0)
-      local ctx = { surface = e.surface or env.surface, wet = env.wet > 0.3, pressure = pr, pNom = e.pNom }
+      e.water = (wd.node1 and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and pcalls(obj.inWater, obj, wd.node1)) and WATER_DEPTH or 0
+      local wetNow = env.wet > 0.3 or e.surface == 'wet' or e.water > 0
+      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
       e.debrisG = (e.debrisG or 0) + dg

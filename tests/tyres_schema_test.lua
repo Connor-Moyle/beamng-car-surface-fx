@@ -64,7 +64,7 @@ assert(store.deadZone == R.defaults().deadZone and store.flat.minDepth == R.defa
 preset.store.set('off')
 assert(store.enabled == false and store.wearRate == 1.0 and preset.store.get() == 'off', 'Off')
 preset.store.set('realistic')
-assert(store.enabled == true and store.fires == true and store.blowout.enabled == false and store.wearRate == 1.0, 'Realistic is the defaults')
+assert(store.enabled == false and store.fires == true and store.blowout.enabled == false and store.wearRate == 1.0, 'Realistic is the defaults')
 assert(reloads == 3, 'a preset reloads the settings')
 preset.store.set('nonsense')
 assert(preset.store.get() == 'realistic' and reloads == 3, 'an unknown preset is ignored')
