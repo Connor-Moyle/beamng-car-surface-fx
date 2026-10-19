@@ -474,6 +474,15 @@ function M.build(S, owner)
     end
   end
 
+  -- ---- Panel damage (the dents of carSurfaceFx/paneldamage.lua; a thin slice, off until it has been seen in the game)
+  add({
+    F('panel', 'crash', 'Panel damage', 'bool', 'Dents on the body from hits (test)', 'A hit on a body panel leaves a dent on the paint: a shaded and a lit half, bigger and deeper the harder the hit. Texture only, the car is not changed. Needs "Scratches and wheel-arch dirt splats" on (it draws on the same paint canvas). Off by default.', 'paneldamage.enabled', { apply = 'spawn' }),
+    F('panel_metal', 'crash', 'Panel damage', 'bool', 'Dents on metal panels (test)', 'The metal kind of panel damage. The only kind so far.', 'paneldamage.metal'),
+    F('panel_amount', 'crash', 'Panel damage', 'slider', 'Dent size', 'How big the dents are (1 is a hand-sized dent for a hard hit, a few centimetres for a tap).', 'paneldamage.amount', { min = 0.5, max = 2, step = 0.1, unit = 'x' }),
+    F('panel_min', 'crash', 'Panel damage', 'slider', 'Smallest hit that dents', 'Hits with less energy than this leave nothing (a parking tap). In joules.', 'paneldamage.minEnergy', { min = 10, max = 400, step = 10, unit = 'J', advanced = true }),
+    F('panel_max', 'crash', 'Panel damage', 'slider', 'Most dents on a car', 'The oldest dents are dropped past this many on one car.', 'paneldamage.maxMarks', { min = 5, max = 120, step = 5, advanced = true }),
+  })
+
   -- every on/off switch is a feature toggle: the Active features page lists them (grouped by the mod); a switch labelled (test) is left off the page
   for _, f in ipairs(fields) do if f.type == 'bool' and not tostring(f.label):find('(test)', 1, true) then f.feature = true end end      -- (a row still labelled a test is not a feature)
 

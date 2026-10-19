@@ -441,7 +441,8 @@ local function startPanel()
   if panelOn() or not settings.paneldamage.enabled then return end
   setExtensionUnloadMode('carSurfaceFx_paneldamage', 'manual')
   extensions.load('carSurfaceFx_paneldamage')
-  carSurfaceFx_paneldamage.configure(settings.paneldamage)
+  local pd = rawget(_G, 'carSurfaceFx_paneldamage')
+  if pd then pd.configure(settings.paneldamage) end
   log_('I', 'panel damage module started (dents)')
 end
 local function stopPanel()
@@ -835,7 +836,7 @@ function M.reloadSettings()
   loadSettings()
   readTyresFlag()
   if scratchOn() then carSurfaceFx_scratch.configure(settings.scratch) end
-  if panelOn() then carSurfaceFx_paneldamage.configure(settings.paneldamage) end
+  if panelOn() then rawget(_G, 'carSurfaceFx_paneldamage').configure(settings.paneldamage) end
 end
 M.onSettingsChanged = M.reloadSettings
 
