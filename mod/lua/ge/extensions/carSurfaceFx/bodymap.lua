@@ -128,7 +128,7 @@ function RULES.mud(map, c, wi)
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w + 1.3 * wake(c)
+  return w + 0.6 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -182,7 +182,7 @@ function M.sample(map, kind, n, rnd, wi, opts)
     local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
       -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
-      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.5)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
     if kind == 'rubber' and #out > 0 then return out end
   end

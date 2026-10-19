@@ -176,7 +176,7 @@ assert(R.dirtBuild(R.dirtNew(), 60, { road = 1 }, 20, 0).dust > 0 and R.dirtBuil
 eq(R.dirtBuild(R.dirtNew(), 60, { road = 1 }, 20, 1).dust, 0, 'none on wet tarmac')
 eq(R.dirtWash({ snow = 1 }, 400, 1, 0).snow, 0, 'and snow')
 eq(R.dirtWash({ dust = 0.5 }, 1, 0, 0).snow, 0, 'old saved states without the new kinds still work')
-eq(R.dirtPaint({ baseColor = { 0, 0, 0, 1 } }, { snow = 1 }).baseColor[1] > 0.4, true, 'snow whitens the paint')
+eq(R.dirtPaint({ baseColor = { 0, 0, 0, 1 } }, { snow = 1 }).baseColor[1] > 0.05, true, 'snow lifts the paint a little (the white is in the splats on the flat parts)')
 eq(R.snowing(0.5, 0), 1, 'precipitation below 1.5 C is snow')
 eq(R.snowing(0.5, 10), 0, 'warm rain is not')
 eq(R.snowing(0.5, nil), 0, 'unknown temperature: no snow')

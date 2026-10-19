@@ -137,7 +137,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 M.KINDS = { 'dust', 'mud', 'rubber', 'grime', 'snow', 'bugs' }
 local TINT = { dust = { 0.62, 0.53, 0.40 }, mud = { 0.30, 0.22, 0.14 }, rubber = { 0.05, 0.05, 0.05 }, grime = { 0.30, 0.29, 0.27 }, snow = { 0.93, 0.95, 0.98 }, bugs = { 0.14, 0.11, 0.07 } }
-local SHOW = { dust = 0.35, mud = 0.5, rubber = 0.45, grime = 0.5, snow = 0.95, bugs = 0.35 }              -- how much of the paint a full amount of that kind covers
+local SHOW = { dust = 0.2, mud = 0.18, rubber = 0.1, grime = 0.25, snow = 0.08, bugs = 0.05 }              -- how much of the paint a full amount of that kind covers
 local GLOSS = { dust = 0.7, mud = 1, rubber = 0.5, grime = 0.6, snow = 0.5, bugs = 0.1 }                  -- how much of the gloss and metal it takes off
 M.CAP = { dust = 1, mud = 1, rubber = 1, grime = 0.6, snow = 1, bugs = 0.5 }                             -- a road film never gets as thick as mud
 
