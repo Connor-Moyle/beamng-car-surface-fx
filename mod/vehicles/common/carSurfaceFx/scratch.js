@@ -22,6 +22,7 @@
   var MAX_LINES = 300, MAX_BLOBS = 6000;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
+  var dents = [];                                   // { x, y, r, ang, d } panel dents (csfxDent): the light runs toward angle `ang` across the canvas, d 0..1 is the depth
 
   var sc = document.createElement('canvas');         // the permanent marks
   sc.width = sc.height = W;
@@ -193,10 +194,39 @@
     dirty = true;
   }
 
+  // A dent (docs/PANEL_DAMAGE.md): a soft shaded patch on the side of the dent that faces the light and a lit patch on the other side (the wall that catches the light), the
+  // pair a hollow in a panel makes. The base page only ever darkens, so the lit half is made on the PALETTE page: punching it out shows the white base un-tinted, a lighter
+  // paint (the same way a scratch shows bare metal). With no palette to punch (dark = 1) only the shaded half works, as for every mark on such a car. The shade is a dark grey
+  // (not black), the lit half is a lift, and both fade out softly so the edge is not a ring. Same call on both pages.
+  function soft(cx, cy, r, aMax, colour) {
+    var g = sctx.createRadialGradient(cx, cy, 0, cx, cy, r), a1 = aMax, a2 = aMax * 0.5;
+    if (palette) { var p = function (a) { return 'rgba(0,0,0,' + a + ')'; }; g.addColorStop(0, p(a1)); g.addColorStop(0.55, p(a2)); g.addColorStop(1, p(0)); }
+    else { g.addColorStop(0, rgbaColour(colour, a1)); g.addColorStop(0.55, rgbaColour(colour, a2)); g.addColorStop(1, rgbaColour(colour, 0)); }
+    sctx.fillStyle = g;
+    sctx.beginPath(); sctx.arc(cx, cy, r, 0, Math.PI * 2); sctx.fill();
+  }
+  function drawDent(o) {
+    if (emis) return;
+    var x = o.x * W, y = o.y * W, r = Math.max(3, o.r * W), d = Math.max(0.05, Math.min(1, o.d));
+    var lx = Math.cos(o.ang), ly = Math.sin(o.ang);
+    sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
+    // shaded: toward the light (the near wall of the hollow is in its own shadow)
+    soft(x + lx * r * 0.32, y + ly * r * 0.32, r * 0.9, palette ? 0.55 * d : (dark ? 0.5 * d : 1 - Math.pow(1 - 0.5 * d, 4)), [0.12, 0.12, 0.13]);
+    // lit: away from the light (the far wall catches it); the base stays white there, so only the palette page draws
+    if (palette) soft(x - lx * r * 0.34, y - ly * r * 0.34, r * 0.8, 0.42 * d, [1, 1, 1]);
+    dirty = true;
+  }
+  window.csfxDent = function (o) {
+    dents.push(o);
+    if (dents.length > 120) dents.shift();
+    drawDent(o);
+  };
+
   function redraw() {
     blank();
     for (var i = 0; i < lines.length; i++) drawLines(lines[i]);
     for (var j = 0; j < blobs.length; j++) drawBlob(blobs[j]);
+    for (var k = 0; k < dents.length; k++) drawDent(dents[k]);
   }
 
   // o = { l: [x1,y1,x2,y2,width, ...], c: [r,g,b], a }
@@ -232,12 +262,12 @@
   };
 
   // scratches buffed out, the dirt stays
-  window.csfxRepair = function () { lines = []; redraw(); };
+  window.csfxRepair = function () { lines = []; dents = []; redraw(); };
 
   // everything gone
   window.csfxPaintLum = function (v) { v = Number(v); if (isFinite(v) && Math.abs(v - paintLum) > 0.04) { paintLum = Math.max(0, Math.min(1, v)); if (emis) redraw(); } };
 
-  window.csfxClear = function () { lines = []; blobs = []; redraw(); };
+  window.csfxClear = function () { lines = []; blobs = []; dents = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
   window.csfxProbe = function () {

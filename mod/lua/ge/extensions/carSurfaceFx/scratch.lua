@@ -46,7 +46,7 @@ local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the 
 local logTag = 'carSurfaceFx_scratch'
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 34                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 35                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -77,7 +77,7 @@ local memory, replayAt, nodesAt, nodesSent = {}, {}, {}, {}
 local MEMORY_CAP = 60
 local function mem(id)
   local m = memory[id]
-  if not m then m = { marks = {}, splats = {} } memory[id] = m end
+  if not m then m = { marks = {}, splats = {}, dents = {} } memory[id] = m end
   return m
 end
 local function remember(list, rec)
@@ -501,7 +501,7 @@ function M.repair(id)
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then send(veh, 'csfxRepair()') end
   end
-  for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} end end
+  for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} m.dents = {} end end      -- (a repaired car has no dents either)
 end
 
 function M.buffOut()
@@ -511,14 +511,62 @@ function M.buffOut()
   end
 end
 
+-- ---- panel damage (carSurfaceFx/paneldamage.lua, docs/PANEL_DAMAGE.md): a dent on the paint at a node, drawn as a shaded and a lit half on the paint canvases.
+-- rM: the radius in metres, sev 0..1 (the depth), maxMarks: the most dents kept per car (the oldest go). Returns true when it was drawn (false: the car has no map or no canvases).
+local LIGHT_DIR_FALLBACK = 2.35                                   -- radians, when the light runs straight into the panel
+function M.dent(id, cid, sev, rM, maxMarks, light)
+  local car = cars[id]
+  local e = car and car.lut and car.lut[cid]
+  if not e then return false end
+  local veh = getObjectByID(id)
+  if not veh or not hasCanvas(veh) then return false end
+  -- the light in the car's own left / back / up components, turned into a direction across the texture here (as the scratch hit does for a slip direction)
+  local ang = LIGHT_DIR_FALLBACK
+  if car.axes and light then
+    local d = car.axes[1] * light[1] + car.axes[2] * light[2] + car.axes[3] * light[3]
+    local du = e[3] * d.x + e[4] * d.y + e[5] * d.z
+    local dv = e[6] * d.x + e[7] * d.y + e[8] * d.z
+    if du * du + dv * dv > 1e-6 * e[9] * e[9] then ang = math.atan2(-dv, du) end      -- (the canvas runs down: y = 1 - v)
+  end
+  local r = max(0.004, min(0.2, rM * e[9]))
+  local rec = { q(e[1]), q(1 - e[2]), q(r, 10000), q(ang, 100), q(sev, 100) }
+  draw(veh, 'csfxDent', { x = rec[1], y = rec[2], r = rec[3], ang = rec[4], d = rec[5] })
+  local m = mem(id)
+  m.dents = m.dents or {}
+  m.dents[#m.dents + 1] = rec
+  while #m.dents > (maxMarks or 40) do table.remove(m.dents, 1) end
+  return true
+end
+
+-- the node of car id (one the map knows) nearest to a world position, and how far it is, or nil
+function M.nearestNode(id, worldPos, maxDist)
+  local car, veh = cars[id], getObjectByID(id)
+  if not (car and car.lut and veh and worldPos) then return nil end
+  local best, bd = nil, (maxDist or 0.4) ^ 2
+  local origin = veh:getPosition()
+  for cid in pairs(car.lut) do
+    local ok, rel = pcall(function() return veh:getNodePosition(cid) end)
+    if ok and rel then
+      local dx, dy, dz = origin.x + rel.x - worldPos.x, origin.y + rel.y - worldPos.y, origin.z + rel.z - worldPos.z
+      local d2 = dx * dx + dy * dy + dz * dz
+      if d2 < bd then best, bd = cid, d2 end
+    end
+  end
+  return best, best and math.sqrt(bd) or nil
+end
+
+-- how many dents car id carries
+function M.dentCount(id) local m = memory[id] return m and m.dents and #m.dents or 0 end
+
 -- how many scratches car id carries (the last MEMORY_CAP are remembered)
 function M.count(id) local m = memory[id] return m and #m.marks or 0 end
 
 -- the marks of car id as plain numbers (the last 40 scratch lines and splats), or nil
 function M.getState(id)
   local m = memory[id]
-  if not m or (#m.marks == 0 and #m.splats == 0) then return nil end
+  if not m or (#m.marks == 0 and #m.splats == 0 and #(m.dents or {}) == 0) then return nil end
   local out = { marks = {}, splats = {} }
+  if m.dents and #m.dents > 0 then out.dents = {} for _, r in ipairs(m.dents) do out.dents[#out.dents + 1] = { unpack(r) } end end
   for i = math.max(1, #m.marks - 39), #m.marks do out.marks[#out.marks + 1] = { unpack(m.marks[i]) } end
   for i = math.max(1, #m.splats - 39), #m.splats do out.splats[#out.splats + 1] = { unpack(m.splats[i]) } end
   return out
@@ -526,7 +574,8 @@ end
 
 -- put marks back on car id (from getState): remembered now, drawn as soon as the car's canvases are up
 function M.restore(id, st)
-  local m = { marks = {}, splats = {} }
+  local m = { marks = {}, splats = {}, dents = {} }
+  for _, r in ipairs(type(st) == 'table' and st.dents or {}) do if #r >= 5 then m.dents[#m.dents + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
   for _, r in ipairs(type(st) == 'table' and st.marks or {}) do if #r >= 5 then m.marks[#m.marks + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
   for _, r in ipairs(type(st) == 'table' and st.splats or {}) do if #r >= 5 then m.splats[#m.splats + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
   memory[id] = m
@@ -541,6 +590,7 @@ local function replay(id)
     for j = i, math.min(i + 9, #m.marks) do for k = 1, 5 do l[#l + 1] = m.marks[j][k] end end
     draw(veh, 'csfxLines', { l = l, c = settings.colour, a = settings.opacity * 0.8 })
   end
+  for _, dn in ipairs(m.dents or {}) do draw(veh, 'csfxDent', { x = dn[1], y = dn[2], r = dn[3], ang = dn[4], d = dn[5] }) end
   for _, sp in ipairs(m.splats) do
     draw(veh, 'csfxBlobs', { l = { sp[1], sp[2], sp[3] }, c = sp[5] == 1 and DUST or MUD, a = sp[4], k = sp[5] == 1 and 'dust' or 'mud' })
   end
