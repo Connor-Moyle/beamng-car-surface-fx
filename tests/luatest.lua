@@ -118,7 +118,7 @@ eq(d2.dust, 0, 'wet loose ground gives no dust')
 eq(d2.mud > 0.5, true, 'wet loose ground gives mud')
 local d3 = R.dirtBuild(R.dirtNew(), 100000, { road = 1 }, 20, 0)
 eq(d3.grime, R.CAP.grime, 'road film is capped')
-eq(R.dirtBuild(R.dirtNew(), 10, { slip = 1 }, 20, 0).rubber, 10 / 12, 'a 10 s burnout')
+eq(R.dirtBuild(R.dirtNew(), 10, { slip = 1, road = 1 }, 20, 0).rubber, 10 / 12, 'a 10 s burnout on tarmac')
 -- the throw follows the tyres: a slow mud run with the wheels spinning (8 m/s car, 22 m/s tyre surface) throws more than a 60 km/h dry dirt road
 local slowMud = R.dirtBuild(R.dirtNew(), 60, { mud = 1, spin = 22 }, 8, 0).mud
 local dirtRoad = R.dirtBuild(R.dirtNew(), 60, { loose = 0.6 }, 60 / 3.6, 0).dust
@@ -215,3 +215,13 @@ do
 end
 print('carSurfaceFx rules: ' .. n .. ' checks passed')
 assert(R.dirtBuild(R.dirtNew(), 60, { loose = 1 }, 7, 1).mud > 0.1, 'a wet dirt road at 25 km/h for a minute: the car is visibly muddy')
+
+-- rubber: only a real skid on a hard road builds it, never normal driving or sliding on loose ground
+do
+  local d = R.dirtNew()
+  for _ = 1, 300 do d = R.dirtBuild(d, 0.5, { loose = 1, road = 0, slip = 0.6 }, 14, 0.8) end        -- 150 s of dirt driving, sliding a lot
+  eq(d.rubber < 0.01, true, 'a dirt road builds no rubber: ' .. d.rubber)
+  local t = R.dirtNew()
+  for _ = 1, 20 do t = R.dirtBuild(t, 0.5, { loose = 0, road = 1, slip = 1 }, 6, 0) end            -- a 10 s burnout on tarmac
+  eq(t.rubber > 0.5, true, 'a tarmac burnout leaves rubber: ' .. t.rubber)
+end
