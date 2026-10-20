@@ -73,7 +73,7 @@ local ROWS = {
 
   row('fire', 'debris.enabled', 'bool', 'Rubber debris', 'Worn rubber is thrown off the tyre as debris on the road.'),
   row('fire', 'fires', 'bool', 'Tyre fires', 'A tyre that gets hot enough catches fire.'),
-  row('fire', 'fireSpread', 'bool', 'Fires can spread to the car', 'A tyre fire that burns long enough lights the nearest part of the car. The car's fire is the game's own and may burn until you reset.'),
+  row('fire', 'fireSpread', 'bool', 'Fires can spread to the car', 'A tyre fire that burns long enough lights the nearest part of the car. The fire on the car is the game itself burning it, and may last until you reset.'),
   row('fire', 'spreadAfter', 'slider', 'Seconds before the car catches', 'How long a tyre fire burns before it lights the car.', 1, 20, 1, 's', true),
   row('fire', 'smokeOn', 'slider', 'Smoke starts at', 'The tyre temperature where smoke starts.', 80, 400, 5, 'C', true),
   row('fire', 'smokeFull', 'slider', 'Full smoke at', 'The tyre temperature where the smoke is thickest.', 80, 400, 5, 'C', true),
