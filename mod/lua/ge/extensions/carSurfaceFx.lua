@@ -707,16 +707,21 @@ function M.screenTrace(on) screenTrace = on and true or false traceT = 1 return 
 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
+-- the modules that follow their master switch in the settings; one table so update() stays under the 60 upvalue limit of LuaJIT
+local SWITCHES = {
+  { key = 'scratch', on = scratchOn, start = startScratch, stop = stopScratch },
+  { key = 'marks', on = marksOn, start = startMarks, stop = stopMarks },
+  { key = 'fluids', on = fluidsOn, start = startFluids, stop = stopFluids },
+  { key = 'ruts', on = rutsOn, start = startRuts, stop = stopRuts },
+  { key = 'impacts', on = impactsOn, start = startImpacts, stop = stopImpacts },
+  { key = 'paneldamage', on = panelOn, start = startPanel, stop = stopPanel },
+  { key = 'grass', on = grassOn, start = startGrass, stop = stopGrass },
+}
+
 local function update(dtReal)
   retireT = retireT + dtReal
   if retireT >= 1 then retireT = 0 retireOldMod() end
-  if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
-  if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
-  if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
-  if settings and settings.ruts and settings.ruts.enabled ~= rutsOn() then if settings.ruts.enabled then startRuts() else stopRuts() end end
-  if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
-  if settings and settings.paneldamage and settings.paneldamage.enabled ~= panelOn() then if settings.paneldamage.enabled then startPanel() else stopPanel() end end
-  if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
+  if settings then for _, m in ipairs(SWITCHES) do local t = settings[m.key] if t and t.enabled ~= m.on() then if t.enabled then m.start() else m.stop() end end end end
   if settings and tyresWanted ~= tyresOn() then if tyresWanted then startTyres() else stopTyres() end end
   if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
   if not settings then loadSettings() end
