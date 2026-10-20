@@ -48,10 +48,12 @@ metal[1], metal[2] = nil, nil
 L.set(0, 5, true)
 assert(metal[1] == 2 and metal[2] == 2, 'the nodes become METAL on the next report once they exist')
 -- a flip that failed on some nodes is retried (and said once), and succeeds when the calls work again
-local fails, nsent = 1, #events
+local fails, nsent = 0, #events
 obj.setNodeMaterial = function(_, cid, id) if fails > 0 then error('refused') end metal[cid] = id end
-metal[1], metal[2] = nil, nil
 L.restore()
+metal[1], metal[2] = nil, nil
+fails = 1
+nsent = #events
 L.set(0, 5, true)
 L.set(0, 5, true)
 L.set(0, 5, true)
