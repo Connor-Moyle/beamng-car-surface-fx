@@ -129,6 +129,16 @@ end
 function M.glass(vid, x, y, z, sev)
   counts.glass = counts.glass + 1
   if not (settings.enabled and settings.glass.enabled) then return end
+  -- a window sits above the car, so straight down is under the car where nobody sees the glass: it falls out to the side, a metre or so from the car's centre line
+  local veh = getObjectByID(vid)
+  local cp = veh and veh:getPosition()
+  if cp then
+    local dx, dy = x - cp.x, y - cp.y
+    local len = math.sqrt(dx * dx + dy * dy)
+    local ux, uy = 0, 0
+    if len > 0.3 then ux, uy = dx / len, dy / len else local a = math.random() * 6.2832 ux, uy = math.cos(a), math.sin(a) end
+    x, y = x + ux * 1.0, y + uy * 1.0
+  end
   local gz = groundZ(x, y, z)
   if not gz then return end
   local maxN = math.max(4, math.floor(settings.glass.maxPiles))
