@@ -292,12 +292,15 @@ local nd = R.defaults() nd.debris.enabled = false
 local dd = R.new('road', 16) dd.Ts = 250 dd.shed = 1000
 local gOff = R.takeDebris(dd, nd)
 assert(gOff == 0 and dd.shed == 0, 'rubber debris can be switched off')
-local lk = R.defaults() lk.look.stage1, lk.look.stage2, lk.look.stage3, lk.look.stage4 = 0.95, 0.8, 0.6, 0.4
-local lx = R.new('road', 16) lx.h[9] = 8 * 0.75             -- 75% left: stage 1 by default, stage 2 with the set limits
-assert(R.stage(lx, cfg) == 1 and R.stage(lx, lk) == 2, 'the look stages follow the settings: ' .. R.stage(lx, lk))
-lk.look.baldBelow = 3
-local lb = R.new('road', 16) lb.h[9] = 2.5
-assert(R.stage(lb, lk) == 4, 'bald below the set depth')
+local lk = R.defaults() lk.look.wornBelow = 0.8
+local lx = R.new('road', 16) lx.h[9] = 8 * 0.75             -- 75% left: not worn by default (stage 1), worn with the limit at 0.8 (stage 3)
+assert(R.stage(lx, cfg) == 1 and R.stage(lx, lk) == 3, 'the worn limit follows the setting: ' .. R.stage(lx, lk))
+local lw = R.defaults() lw.look.wornBelow = 0.2
+local ly = R.new('road', 16) ly.h[9] = 8 * 0.4
+assert(R.stage(ly, cfg) == 3 and R.stage(ly, lw) == 2, 'a lower limit keeps a tyre looking not worn for longer')
+local lb = R.new('road', 16) lb.h[9] = 0.4
+assert(R.stage(lb, cfg) >= 4 and R.stage(lb, lw) >= 4, 'under half a millimetre is always worn out')
+assert(R.defaults().look.wornBelow == 0.5 and R.defaults().look.enabled == true, 'the look defaults')
 
 -- ---- wear, temperature and wet grip: each switch on its own
 local sw = R.defaults() sw.wearEnabled = false

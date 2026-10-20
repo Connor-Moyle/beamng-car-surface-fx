@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Tyres page: switches and settings that were missing. **Rubber debris** has its own on/off switch, and the **worn tyre look** has one too (off: the car's own tyre material) with the four wear-stage limits and the bald depth as settings (they were fixed in the code). The page's note "no settings yet" is gone. Every value row on the page is read by the tyre rules.
+- Tyres page: switches and settings that were missing. **Rubber debris** has its own on/off switch, and the **worn tyre look** has one too (off: the car's own tyre material) with one setting, the tread left below which a tyre looks worn (the look has three steps: new, worn, belts); it applies to cars spawned after you switch the tyre simulation on. The page's note "no settings yet" is gone. Every value row on the page is read by the tyre rules.
 - Tyres page: three more switches, one per part: **Tyres wear out**, **Temperature changes grip** and **Rain changes grip** (off: the tyre grips the same wet or dry, and cannot aquaplane). Every switch on the page also shows on the Active features tab.
 
 ## 0.3.0

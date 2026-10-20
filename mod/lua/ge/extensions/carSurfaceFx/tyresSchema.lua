@@ -32,7 +32,7 @@ local function row(tab, path, typ, label, tooltip, min, max, step, unit, adv)
 end
 
 local ROWS = {
-  row('wear', 'enabled', 'bool', 'Tyre simulation', 'Tyres wear, heat up and change their grip. Off: the game\'s own tyres, and nothing here runs.'),
+  row('wear', 'enabled', 'bool', 'Tyre simulation', 'Tyres wear, heat up and change their grip. Off: the game\'s own tyres, and nothing here runs. The worn tyre look applies to cars spawned after you switch this on: respawn your car to see it (wear, heat and grip work straight away).'),
   row('wear', 'wearEnabled', 'bool', 'Tyres wear out', 'The tread wears away with slip. Off: tyres stay as new (the heat and grip effects still run).'),
   row('wear', 'wearRate', 'slider', 'Wear speed', 'How fast tyres wear compared with real life. 1 is the starting value; real wear is too slow to notice in play. 0 stops wear.', 0, 20, 0.1, 'x'),
   row('wear', 'flat.enabled', 'bool', 'Flat spots from locked wheels', 'A wheel that locks up and skids wears a flat spot into the tyre, which shakes the car.'),
@@ -53,11 +53,7 @@ local ROWS = {
   row('wear', 'flat.gripLoss', 'slider', 'Grip lost per flat spot', 'Grip lost for each millimetre of flat spot.', 0, 0.2, 0.005, nil, true),
 
   row('visuals', 'look.enabled', 'bool', 'Worn tyres look worn', 'The tyre changes look as the tread wears: worn rubber, then the belts showing. Off: the own tyre material of the car at all times.'),
-  row('visuals', 'look.stage1', 'slider', 'First wear stage', 'The tread left (as a fraction of the new tyre) below which the first sign of wear shows.', 0.1, 1, 0.05, nil, true),
-  row('visuals', 'look.stage2', 'slider', 'Second wear stage', 'The tread left below which the second stage shows.', 0.1, 1, 0.05, nil, true),
-  row('visuals', 'look.stage3', 'slider', 'Third wear stage', 'The tread left below which the third stage shows.', 0.1, 1, 0.05, nil, true),
-  row('visuals', 'look.stage4', 'slider', 'Worn-out stage', 'The tread left below which the tyre looks worn out.', 0.05, 1, 0.05, nil, true),
-  row('visuals', 'look.baldBelow', 'slider', 'Bald below', 'A tread under this many millimetres looks bald whatever the fraction.', 0, 3, 0.1, 'mm', true),
+  row('visuals', 'look.wornBelow', 'slider', 'Looks worn below', 'The tread left (as a fraction of the new tyre) below which a tyre looks worn. The belts show when the tread is gone. Applies to cars spawned after it is changed.', 0.1, 0.9, 0.05, nil, true),
 
   row('temperature', 'heatRate', 'slider', 'How fast tyres heat up', 'How quickly slip heats the tyre (1 is normal).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'coolRate', 'slider', 'How fast tyres cool down', 'How quickly the tyre loses heat to the air and the road (1 is normal).', 0.1, 5, 0.1, 'x'),
