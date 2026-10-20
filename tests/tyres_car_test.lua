@@ -265,4 +265,13 @@ T.setEnv({ wet = 0, water = 0 })
 wd.wheelSpeed = 35
 for _ = 1, 30 do T.updateGFX(0.1) end
 assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'and the grip comes back when the water is gone')
+-- a puddle depth told per wheel by Street Legal does the same, and fades when it is not renewed
+assert(T.active(), 'the module says it owns the tyres')
+local told = 0
+for wi = 0, 8 do if T.setWheelWater(wi, 0.6) then told = told + 1 end end
+assert(told > 0, 'a wheel took the puddle depth')
+for _ = 1, 3 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) < 0.8 * gDryAq, 'a puddle under the wheel takes grip away: ' .. T.grip())
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) > 0.95 * gDryAq, 'the puddle fades when it is not renewed')
 wheels, v, obj, log = nil, nil, nil, nil
