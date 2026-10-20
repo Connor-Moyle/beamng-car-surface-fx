@@ -221,4 +221,20 @@ assert(gSlickWet < 0.7 * gRoadWet and gRoadWet < gRainWet, 'in heavy rain: slick
 assert(gDry > gSlickWet, 'and the slick is better dry than wet: ' .. gDry .. ' vs ' .. gSlickWet)
 T.setEnv({ wet = 0, water = 0 })
 T.setCompound(nil)
+-- belts (no tread left) sliding throw sparks (particle 1) at the contact patch; the readouts never go below 0
+T.setConfig({ enabled = true })
+local sparks = 0
+obj.addParticleByNodesRelative = function(_, _, _, _, id) if id == 1 then sparks = sparks + 1 end end
+wd.lastSlip, wd.downForce, wd.isTireDeflated = 8, 4000, false
+T.updateGFX(0.01)
+T.setTread(0, 0)
+for _ = 1, 12 do T.updateGFX(0.1) end
+assert(sparks > 0, 'sparks from belts that slip: ' .. sparks .. ' ' .. T.status() .. ' active ' .. tostring(T.active()))
+local before = sparks
+T.setTread(1, 0)
+for _ = 1, 12 do T.updateGFX(0.1) end
+assert(sparks == before, 'a tyre with tread throws none')
+T.setTread(0, 0)
+for _ = 1, 3 do T.updateGFX(0.1) end
+assert(not T.status():find('worst tread -', 1, true), 'worst tread is never shown below 0: ' .. T.status())
 wheels, v, obj, log = nil, nil, nil, nil

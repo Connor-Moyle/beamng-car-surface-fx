@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 W, H = 1024, 512
-BAND = (0.273, 0.723)           # tire_01a atlas: tread rows
+BAND = (0.285, 0.715)           # tire_01a atlas: tread rows
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'mod', 'art', 'surfacefx', 'tyres')
 rng = np.random.default_rng(7)
 
@@ -40,7 +40,7 @@ def noise(cells_u, cells_v, seed):
 
 V, U = np.meshgrid((np.arange(H) + 0.5) / H, (np.arange(W) + 0.5) / W, indexing='ij')
 t = np.clip((V - BAND[0]) / (BAND[1] - BAND[0]), 0, 1)
-inband = smooth(V, BAND[0] - 0.012, BAND[0] + 0.012) * (1 - smooth(V, BAND[1] - 0.012, BAND[1] + 0.012))
+inband = smooth(V, BAND[0] - 0.03, BAND[0] + 0.02) * (1 - smooth(V, BAND[1] - 0.02, BAND[1] + 0.03))
 shoulder = 0.55 + 0.45 * (1 - (2 * t - 1) ** 2)       # the centre wears most
 
 
