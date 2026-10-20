@@ -49,3 +49,9 @@ Run in GE (`run_lua`), not in the car: send the whole file as the code (it retur
 2. Control: `CSFXD.try(1, 'tire_01a_old')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.try(1, 'csfx_tire_01a_belts')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.reload('csfx_tire_01a_belts')` and the same try again, screenshot.
 3. A loud material the car already has: take one name from `list()` ("car material ..."), `CSFXD.try(1, '<that name>')`: the tyre must visibly change (it proves the switch reaches the screen; if the tyre stays, the mesh numbering or camera is wrong).
 Report the text of every call and for each screenshot which tyre (driver's-seat left/right, front/rear) changed.
+
+## Tyre look: how the engine decodes the detail colour map (tyre_diag_*.png)
+
+Four flat grey maps in art/surfacefx/tyres: tyre_diag_c128.color.png, tyre_diag_d128.data.png (mid grey = no change in the shader's blend `base + (detail * 2 - 1) * strength` if it is read raw), tyre_diag_c200.color.png, tyre_diag_d200.data.png (lighter). With a car whose tyre is on the belts state (`set(1,5)`), on the live material in GE:
+`local m=scenetree.findObject('csfx_tire_01a_belts') m:setField('detailMap',0,'/art/surfacefx/tyres/tyre_diag_c128.color.png') m:setField('detailBaseColorMapStrength',0,'1') m:setField('detailNormalMapStrength',0,'0') m:setField('normalMapStrength',0,'1') Sim.upcast(m):reload()`
+Then shoot the tyre (side, lettering visible), and repeat with the other three maps. A mid-grey map that is read raw leaves the tyre looking stock; one read as sRGB makes it go darker; report, per map, stock / darker / lighter / coloured.
