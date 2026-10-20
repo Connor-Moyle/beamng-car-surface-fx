@@ -281,7 +281,7 @@ function M.gouge(vid, node, mat, force)
   local g = settings.gouges
   if not (settings.enabled and g.enabled) or (force or 0) < g.minForce then return end
   local kind
-  pcall(function() kind = rules.gougeKind(require('carSurfaceFx/surfaces').idTable()[mat]) end)
+  pcall(function() kind = rules.gougeKind(require('carSurfaceFx/surfaces').kindOf(mat)) end)
   if not kind then return end
   local veh = be:getObjectByID(vid)
   if not veh then return end

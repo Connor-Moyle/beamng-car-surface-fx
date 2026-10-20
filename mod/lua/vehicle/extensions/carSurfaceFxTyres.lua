@@ -10,6 +10,7 @@ local TICK = 0.1                    -- seconds between wear / temperature / grip
 local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
+local CORNER_RATIO = 0.3              -- slip under this share of the wheel surface speed: cornering, not wheelspin
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks (the engine's own METAL on asphalt rule uses 2.5 too)
@@ -128,16 +129,20 @@ local function credit(e, dt)
   if e.wd.isTireDeflated or t.blown then return 0 end
   local fz = tonumber(wd.downForce) or 0
   if fz < MIN_DOWNFORCE then return 0 end
+  if e.burnW then e.burnLeft = e.burnLeft - dt if e.burnLeft <= 0 then e.burnW = nil end end       -- (game time, not os.clock: that is CPU time and runs at another pace)
+  local burn = e.burnW or 0          -- test hook (M.testBurn): a wheelspin burnout fed in as watts, spread over the whole ring
+  if burn > 0 then for j = 1, 2 * e.t.n do R.addEnergy(e.t, j, burn * dt / (2 * e.t.n), false) end end
   local p = R.slipPower(abs(tonumber(wd.lastSlip) or 0), fz, 1, cfg.deadZone)
-  if p <= 0 then return 0 end
+  if p <= 0 then return burn end
   local j = e.slotOf[wd.lastTreadContactNode]
-  if not j then return p end                       -- (power still heats the tyre, no node to wear)
+  if not j then return p + burn end                -- (power still heats the tyre, no node to wear)
   local mate = j % 2 == 1 and j + 1 or j - 1       -- the other lane of the sector
   local slip = abs(tonumber(wd.lastSlip) or 0)
-  local lock = abs(tonumber(wd.wheelSpeed) or 0) < LOCK_RATIO * slip       -- the wheel barely turns while the ground goes by: locked sliding (low flat-spot wear)
+  local ws = abs(tonumber(wd.wheelSpeed) or 0)
+  local lock = ws < LOCK_RATIO * slip or slip < CORNER_RATIO * ws       -- locked sliding, or cornering (the wheel turns with the ground and only scrubs sideways): the low wear rate; only wheelspin wears spinWear times faster
   R.addEnergy(t, j, p * dt * 0.5, lock)
   R.addEnergy(t, mate, p * dt * 0.5, lock)
-  return p
+  return p + burn
 end
 
 local powerSum = {}                                -- wheel index -> W integrated over the tick (J)
@@ -157,12 +162,12 @@ local function tick(dt)
       end
       if e.puddleTtl then e.puddleTtl = e.puddleTtl - dt if e.puddleTtl <= 0 then e.puddle, e.puddleTtl = nil, nil end end   -- a puddle depth nobody renews fades after PUDDLE_TTL
       local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water, e.puddle or 0) > 0
-      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
+      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom, dist = (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and abs(tonumber(wd.wheelSpeed) or 0) * dt or 0 }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
       e.debrisG = (e.debrisG or 0) + dg
       if e.debrisG >= DEBRIS_FLUSH_G then events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT } e.debrisG = 0 end
-      R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = abs(tonumber(wd.wheelSpeed) or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
+      R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = max(abs(tonumber(wd.wheelSpeed) or 0), e.burnW and e.burnV or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
       if ev then
@@ -177,8 +182,8 @@ local function tick(dt)
           obj:addParticleByNodesRelative(cid, wd.node1, -1, 52, 0, 1)
         end)
       end
-      local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
-      if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
+      local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (particle 22, 6 when hotter: the game's white rubber smoke): one puff per tick, more often the hotter
+      if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 6 or 22, 0, 1) end) end
       if (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
         local n = min(SPARK_MAX, 1 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 3))
         if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
@@ -221,7 +226,7 @@ local function sendState(events)
 end
 
 -- ---- visuals, thrown with the game's own particles from the tread node of a wheel, away from its hub (so the plume starts at the tyre, not above it)
-local SMOKE_SMALL, SMOKE_MEDIUM, CHUNK = 51, 52, 56      -- BNGP_<n> of lua/vehicle/fire.lua; the chunk is the game's plastic piece (the colour is baked in the emitter)
+local SMOKE_SMALL, SMOKE_MEDIUM, CHUNK = 22, 6, 56         -- BNGP_<n>: 22 and 6 are the white smoke the game's own particles.json gives rubber sliding on asphalt (51 and 52 are black fire smoke: they read pink at sunset); the chunk is the game's plastic piece
 local smoke, smokeT = {}, 0                                 -- wheel index -> level 0..1
 local function treadNode(wi) local e = tyres and tyres[wi] return e and e.wd.node1, e and e.wd.node2 end
 function M.fx(kind, wi, a)
@@ -318,6 +323,12 @@ function M.setWheelWater(wi, depth)
   e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
   return true
 end
+function M.testBurn(wi, watts, secs, speed)              -- test hook: feed one wheel a burnout of this many watts for secs seconds (default 60) cooled as a wheel turning at speed m/s (default 25), watts nil/0 stops it; the module's own wear, heat, smoke and fire follow
+  local e = tyres and tyres[wi]
+  if not e then return false end
+  e.burnW, e.burnLeft, e.burnV = (watts or 0) > 0 and watts or nil, secs or 60, speed or 25   -- (a parked car has no airflow: the tyre cools as one turning at speed m/s, default 25)
+  return true
+end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
 function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
   external[kind] = external[kind] or {}
@@ -377,7 +388,7 @@ end
 function M.repair(wi)
   for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
+    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} e.burnW = nil end
   end
 end
 function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's

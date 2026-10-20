@@ -55,7 +55,8 @@ local ROWS = {
   row('visuals', 'look.enabled', 'bool', 'Worn tyres look worn', 'The tyre changes look as the tread wears: worn rubber, then the belts showing. Off: the own tyre material of the car at all times.'),
   row('visuals', 'look.wornBelow', 'slider', 'Looks worn below', 'The tread left (as a fraction of the new tyre) below which a tyre looks worn. The belts show when the tread is gone. Applies to cars spawned after it is changed.', 0.1, 0.9, 0.05, nil, true),
 
-  row('temperature', 'heatRate', 'slider', 'How fast tyres heat up', 'How quickly slip heats the tyre (1 is normal).', 0.1, 5, 0.1, 'x'),
+  row('wear', 'rollWear', 'slider', 'Wear while driving', 'How fast a road tyre wears from plain driving, in millimetres per 1000 km (0.2 is 40,000 km of tread; slip wears more on top).', 0.02, 5, 0.02, 'mm/1000km', true),
+  row('temperature', 'heatRate', 'slider', 'How fast tyres heat up', 'How quickly slip heats the tyre (0.7 by default).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'coolRate', 'slider', 'How fast tyres cool down', 'How quickly the tyre loses heat to the air and the road (1 is normal).', 0.1, 5, 0.1, 'x'),
   row('temperature', 'sunRoad', 'slider', 'Sun-warmed road', 'How much warmer the road is than the air when the sun shines on it.', 0, 30, 1, 'C', true),
 

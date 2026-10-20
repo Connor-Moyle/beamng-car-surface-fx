@@ -3,7 +3,10 @@ local R = require('carSurfaceFx/impactrules')
 local cfg = R.defaults()
 
 -- ---- the rules
-assert(R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 2, 2) and R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 5, 2), 'a window: both groups, metal or glass nodes')
+assert(R.isGlassBeam({ deformGroup = 'door_glass', breakGroup = 'b' }, 2, 2) and R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 5, 2), 'a window: both groups, and glass nodes or a glass group name')
+assert(not R.isGlassBeam({ deformGroup = 'driveshaft', breakGroup = 'b' }, 2, 2), 'a drive shaft has groups too, and is not a window')
+assert(R.isGlassBeam({ deformGroup = 'roofglass_break' }, 2, 2) and R.isGlassBeam({ deformGroup = 'windshield_break' }, 2, 2), 'the vivace windows: a deform group named glass, no break group, metal nodes')
+assert(not R.isGlassBeam({ deformGroup = 'headlightglass_L_break' }, 2, 2), 'lamp glass is not a window')
 assert(not R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 3, 3) and not R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 6, 2), 'plastic lenses and wood are not windows')
 assert(not R.isGlassBeam({ deformGroup = 'a' }, 2, 2) and not R.isGlassBeam(nil, 2, 2), 'a beam without both groups is not a window')
 
@@ -119,7 +122,7 @@ obj = { addParticleVelWidthTypeCount = function(_, node, dir, vel, speed, width,
   getId = function() return 7 end, queueGameEngineLua = function(_, cmd) calls[#calls + 1] = cmd end, breakBeam = function(_, cid) calls[#calls + 1] = 'break' .. cid end }
 wheels = { wheels = { [0] = { node1 = 100, node2 = 101 } } }
 v = { data = { nodes = { [1] = { nodeMaterial = 2 }, [2] = { nodeMaterial = 2 }, [3] = { nodeMaterial = 3 }, [4] = { nodeMaterial = 3 } },
-  beams = { [10] = { id1 = 1, id2 = 2, deformGroup = 'g', breakGroup = 'b', cid = 10 }, [11] = { id1 = 3, id2 = 4, deformGroup = 'g', breakGroup = 'b', cid = 11 }, [12] = { id1 = 1, id2 = 2, cid = 12 } } } }
+  beams = { [10] = { id1 = 1, id2 = 2, deformGroup = 'door_glass', breakGroup = 'b', cid = 10 }, [11] = { id1 = 3, id2 = 4, deformGroup = 'g', breakGroup = 'b', cid = 11 }, [12] = { id1 = 1, id2 = 2, cid = 12 } } } }
 extensions = { load = function(name) end }
 local C = dofile('mod/lua/vehicle/extensions/carSurfaceFxContact.lua')
 carSurfaceFxContact = C
@@ -157,7 +160,7 @@ assert(geCalls('impacts.glass') == 0, 'a headlight lens is not a window')
 calls = {}
 particles = {}
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 2)
-assert(geCalls('impacts.sparks%(%)') == 1 and #particles == 1 and particles[1].ptype == 1 and particles[1].count >= 2, 'metal grinding on metal throws the game\'s own spark particle: ' .. #particles)
+assert(geCalls('impacts.sparks%(%)') == 1 and #particles == 1 and particles[1].ptype == 9 and particles[1].count >= 2, 'metal grinding on metal throws the game\'s own spark particle: ' .. #particles)
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 14)
 assert(#particles == 1, 'not on dirt (and the cooldown)')
 -- the game's id order is not fixed: with the car's own node data, either order gives the same answer
@@ -181,6 +184,10 @@ assert(geCalls('impacts.debris') == 1 and #particles == 1 and particles[1].ptype
 onNodeCollision(100, nil, nil, { x = 0, y = 0, z = 0 }, 12, nil, 0, 0, 100, 0, 3, 2)
 assert(geCalls('impacts.debris') == 1, 'a wheel node never does')
 assert(X.breakWindows() == 1, 'the test break finds the one window beam')
+calls = {}
+C.onBeamBroke(10, 0)                                                  -- the engine reports a Lua-broken beam with no energy
+for _ = 1, 20 do X.updateGFX(0.05) end
+assert(geCalls('impacts.glass') == 1, 'after the test break the energy gate is waived: one pile ' .. geCalls('impacts.glass'))
 local same = true
 for kind, list in pairs(R.PARTICLE) do for i, id in ipairs(list) do if X.PARTICLE[kind][i] ~= id then same = false end end end
 assert(same, 'the car side and the GE side use the same particle numbers')

@@ -686,6 +686,7 @@ function M.water(id, p)
   if fx == 0 and fy == 0 and fz == 0 then fz = -9.8 end
   lastWaterJs = ('csfxWater({rain:%.3f,wet:%.3f,fx:%.3f,fy:%.3f,fz:%.3f,mm:%.2f,amount:%.2f,imp:%.2f,anim:%.2f})'):format(ok(p.rain), ok(p.wet), fx, fy, fz, ok(p.mm or 4.5), ok(p.amount or 1), ok(p.imp or 0), ok(p.anim or 1))
   waterSent = waterSent + 1
+  waterWhy = ''                                               -- (a send worked: the old blocked reason is stale)
   veh:queueJSUITexture(TAG_B, lastWaterJs)
 end
 

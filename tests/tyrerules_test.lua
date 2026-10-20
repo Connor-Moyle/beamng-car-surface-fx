@@ -99,7 +99,7 @@ end
 -- a burnout: 37 kW into the tyre, a few seconds
 local bt = R.new('road', 16, 0.305, 0.175, 20)
 run(bt, 6, { power = 37000, v = 4, fz = 4000, ambient = 20 })
-assert(bt.Ts > 150 and bt.Ts < 400, 'a burnout takes the thin surface layer past 150 C in six seconds: ' .. bt.Ts)
+assert(bt.Ts > 110 and bt.Ts < 400, 'a burnout takes the thin surface layer past 110 C (smoking) in six seconds: ' .. bt.Ts)
 assert(bt.Tc < 60, 'while the carcass is still cool: ' .. bt.Tc)
 assert(bt.Tc < bt.Ts - 30, 'the carcass lags the surface')
 -- cooling at speed with no slip: the surface goes back toward the ambient, faster than standing
@@ -318,3 +318,31 @@ local wetOff = R.nodeGrip(tg, 1, true, sg, { surface = 'asphalt', water = 1, v =
 assert(wetOn < dryF and math.abs(wetOff - R.nodeGrip(tg, 1, false, sg, { surface = 'asphalt', water = 0, v = 40 })) < 1e-9, 'wet grip off: wet is as dry (also no aquaplaning)')
 
 print('carSurfaceFx tyre rules: ok')
+
+-- tyre life per preset: kilometres of plain driving to the belts, and seconds of a full burnout (25 m/s of slip at 4 kN a tyre) to the belts
+local function kmToBelts(cfg0)
+  local t = R.new('road', 16, 0.305, 0.175, 20, 1)
+  local km = 0
+  while t.h[1] > 0 and km < 1e6 do R.wearStep(t, { surface = 'asphalt', dist = 1000 }, cfg0) km = km + 1 end
+  return km
+end
+local function secondsToBelts(cfg0)
+  local t, dt, s = R.new('road', 16, 0.305, 0.175, 20, 1), 0.05, 0
+  local p = R.slipPower(25, 4000, 1, cfg0.deadZone)
+  while t.h[1] > 0 and s < 3600 do
+    for j = 1, 2 * t.n do R.addEnergy(t, j, p * dt / (2 * t.n), false) end
+    R.wearStep(t, { surface = 'asphalt' }, cfg0)
+    R.tempStep(t, { dt = dt, power = p, v = 25, fz = 4000, ambient = 20 }, cfg0)
+    R.clearEnergy(t)
+    s = s + dt
+  end
+  return s
+end
+local realistic, arcade = R.defaults(), R.defaults()
+arcade.wearRate, arcade.heatRate = 0.3, 0.6
+local kmR, kmA = kmToBelts(realistic), kmToBelts(arcade)
+assert(kmR >= 30000 and kmR <= 50000, 'Realistic: a road tyre lasts 30-50k km of plain driving: ' .. kmR)
+assert(kmA > kmR, 'Arcade (wearRate 0.3) wears slower than Realistic: ' .. kmA)
+local sR, sA = secondsToBelts(realistic), secondsToBelts(arcade)
+assert(sR >= 60 and sR <= 120, 'Realistic: a full burnout reaches the belts in 1-2 minutes: ' .. sR)
+assert(sA > sR, 'Arcade: a burnout takes longer: ' .. sA)

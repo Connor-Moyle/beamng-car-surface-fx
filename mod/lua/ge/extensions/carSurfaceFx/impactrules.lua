@@ -23,7 +23,7 @@ function M.defaults()
     enabled = true,
     others = { enabled = false, maxCars = 4, range = 60 },
     glass = {
-      enabled = true, texture = '', color = { 0.80, 0.88, 0.92 }, opacity = 0.75, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
+      enabled = true, texture = '', color = { 0.92, 0.96, 1.0 }, opacity = 0.95, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
     },
     debris = {
       enabled = true, texture = '', particles = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
@@ -35,13 +35,17 @@ function M.defaults()
   }
 end
 
--- ---- glass. A window is a beam with both a deform group and a break group (the game's own sign of glass and wood), minus wood and plastic lenses (headlights and taillights have the
--- same pairing). beamInfo = { deformGroup, breakGroup }, m1 / m2 = the node materials of its two nodes.
+-- ---- glass. A window is a beam with a deform or break group that says glass (a name holding glass / window / windshield / windscreen: roofglass_break, windshield_break), or a glass node
+-- material on a grouped beam. Not wood or plastic lenses, and not lamp glass (headlightglass_L_break and the like are lamps). Drive shafts have groups too, and say none of this.
+-- beamInfo = { deformGroup, breakGroup }, m1 / m2 = the node materials of its two nodes.
 function M.isGlassBeam(beamInfo, m1, m2)
-  if not (beamInfo and beamInfo.deformGroup and beamInfo.breakGroup) then return false end
+  if not (beamInfo and (beamInfo.deformGroup or beamInfo.breakGroup)) then return false end
   local mats = M.MAT
   if m1 == mats.WOOD or m2 == mats.WOOD or m1 == mats.PLASTIC or m2 == mats.PLASTIC then return false end
-  return true
+  local g = (tostring(beamInfo.deformGroup or '') .. ' ' .. tostring(beamInfo.breakGroup or '')):lower()
+  if g:find('light', 1, true) or g:find('lamp', 1, true) then return false end
+  if m1 == mats.GLASS or m2 == mats.GLASS then return true end
+  return g:find('glass', 1, true) ~= nil or g:find('window', 1, true) ~= nil or g:find('windshield', 1, true) ~= nil or g:find('windscreen', 1, true) ~= nil
 end
 
 -- a pane is many beams: nearby breaks fold into one cluster {x,y,z (sums), n, last}; returns the cluster list (modified in place)
@@ -76,7 +80,7 @@ function M.flush(clusters, now, idle)
 end
 
 -- the radius of a shard pile from the severity (a small side window to a windscreen), and how many shards it is drawn with
-function M.pileRadius(sev, sizeScale) return (0.25 + 0.75 * clamp(sev, 0, 1)) * (sizeScale or 1) end
+function M.pileRadius(sev, sizeScale) return (0.4 + 1.0 * clamp(sev, 0, 1)) * (sizeScale or 1) end
 
 -- ---- debris. A broken joint or a hard hit: which kind of piece (nil = none: tyres leave nothing). rnd = a number 0..1
 function M.classify(m1, m2, rnd, boltChance)
