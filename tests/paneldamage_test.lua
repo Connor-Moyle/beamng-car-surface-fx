@@ -7,10 +7,10 @@ carSurfaceFx_scratch = {
   nearestNode = function(id, pos, d) if pos and pos.x == 1 then return 77, 0.1 end return nil end,
   repair = function(id) calls[#calls + 1] = { repair = id } end,
 }
-local clock = 100                                      -- a fake clock: an impact is collected for 0.35 s, then marked, then the car is quiet for 1.5 s
+local clock = 100                                      -- a fake clock: an impact is collected for 0.8 s, then marked, then the car is quiet for 1.5 s
 os.clock = function() return clock end
 local P = require('carSurfaceFx/paneldamage')
-local function flush() clock = clock + 0.5 P.onUpdate(0.1) clock = clock + 2 end
+local function flush() clock = clock + 1.0 P.onUpdate(0.1) clock = clock + 2 end
 
 -- off by default: nothing is drawn
 P.hit(5, 10, 8, 20000, 1200, 800, 2, 5)
@@ -76,15 +76,29 @@ calls = {}
 P.configure({ enabled = true, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1, minEnergy = 4, maxMarks = 40 })
 for i = 1, 300 do P.hit(7, 300 + i, 2, 400, 1200, 800, 2, 1 + (i % 50) * 0.2) end
 assert(#calls == 0, 'nothing is drawn while the impact is still being collected')
-clock = clock + 0.5 P.onUpdate(0.1)
+clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls >= 1 and #calls <= 8, 'a 300 contact impact leaves a handful of marks: ' .. #calls)
 for i = 2, #calls do assert(calls[i].sev <= calls[i - 1].sev + 1e-9, 'the hardest first') end
 local n1 = #calls
 clock = clock + 0.3
 for i = 1, 100 do P.hit(7, 700 + i, 2, 400, 1200, 800, 2, 3) end
-clock = clock + 0.5 P.onUpdate(0.1)
+clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls == n1 and P.status().counts.quiet > 0, 'the rattle just after is ignored')
 clock = clock + 3
-P.hit(7, 900, 2, 400, 1200, 800, 2, 3) clock = clock + 0.5 P.onUpdate(0.1)
+P.hit(7, 900, 2, 400, 1200, 800, 2, 3) clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls == n1 + 1, 'a later bump marks again')
+-- a car without a paint map yet (a parked car that is hit): its paint map is started and the marks are drawn when it is ready
+local mapReady, ensured = false, 0
+carSurfaceFx_scratch.hasMap = function(id) return id ~= 9 or mapReady end
+carSurfaceFx_scratch.ensureCar = function(id) ensured = ensured + 1 return mapReady end
+local dentOrig = carSurfaceFx_scratch.dent
+carSurfaceFx_scratch.dent = function(id, cid, ...) if id == 9 and not mapReady then return false end return dentOrig(id, cid, ...) end
+calls = {}
+clock = clock + 3
+P.hit(9, 55, 2, 400, 1200, 800, 2, 6)
+clock = clock + 1.0 P.onUpdate(0.1)
+assert(#calls == 0 and ensured >= 1, 'no map yet: the car is asked to build one, nothing drawn')
+mapReady = true
+clock = clock + 0.5 P.onUpdate(0.1)
+assert(#calls == 1 and calls[1].id == 9 and calls[1].cid == 55, 'the mark is drawn when the map is ready')
 print('carSurfaceFx panel damage: ok')

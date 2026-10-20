@@ -82,6 +82,9 @@ function M.setConfig(enabled, minPerp)
   if cfg.enabled then ensureSubscribed() end
 end
 
+-- the car's speed is sampled every frame while the switch is on, not only at a contact: a wall stop needs the speed from BEFORE the hit
+function M.updateGFX(dt) if cfg.enabled then sampleSpeed(os.clock()) end end
+
 -- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
 function M.status() local h = {} for k, n in pairs(byMat) do h[#h + 1] = k .. ':' .. n end table.sort(h) return string.format('at speed by node material {%s} | ', table.concat(h, ' ')) .. string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last node material %s, hit %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end
 

@@ -518,6 +518,14 @@ function M.washSplats(id, fDust, fMud)
   end
 end
 
+-- panel damage on a car nobody drives (a parked car that is hit): start its paint map on demand. Returns true when the map is ready now (the first call returns false while the mesh is read)
+function M.ensureCar(id)
+  local veh = getObjectByID(id)
+  if veh and not cars[id] and active() then start(veh) end
+  return M.hasMap(id)
+end
+function M.hasMap(id) local c = cars[id] return c ~= nil and c.lut ~= nil end
+
 -- repair: the scratches of car id buffed out (every car's when id is nil); the dirt stays
 function M.repair(id)
   for _, veh in ipairs(getAllVehicles()) do

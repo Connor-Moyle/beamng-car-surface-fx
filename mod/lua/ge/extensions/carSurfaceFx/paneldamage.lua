@@ -12,6 +12,7 @@ local lastHit                                       -- the last hit seen, for th
 local topLog = {}                                    -- the 10 hardest hits since the log was switched on
 local hitLog = {}                                   -- the probe's log of hits: { perp, force, mass, nodes, E, sev }
 local logOn = false
+local WINDOW = 0.8                                   -- seconds an impact is collected: the hardest contacts come after the first ones, as the car is stopped
 local pending, quietUntil = {}, {}                  -- vehId -> the contacts of the impact being collected / when the car may be marked again
 local readyAt = {}                                  -- vehId .. ':' .. cid -> os.clock() when the node may be marked again
 
@@ -50,7 +51,7 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
   local key = tostring(vid) .. ':' .. tostring(cid)
   if not rules.accept(settings, kind, E, now(), readyAt[key]) then counts.tooSoft = counts.tooSoft + 1 return false end
   readyAt[key] = now() + 0.4
-  -- one impact is hundreds of contacts: collect them for 0.35 s, then mark only the hardest few (M.onUpdate), and stay quiet for 1.5 s (the rattle against the wall afterwards)
+  -- one impact is hundreds of contacts: collect them for 0.8 s, then mark only the hardest few (M.onUpdate), and stay quiet for 1.5 s (the rattle against the wall afterwards)
   if (quietUntil[vid] or 0) > now() then counts.quiet = (counts.quiet or 0) + 1 return false end
   local p = pending[vid]
   if not p then p = { t0 = now(), list = {} } pending[vid] = p end
@@ -58,22 +59,47 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
   return true
 end
 
+local retry = {}                                     -- vehId -> { untilT, items }: marks for a car whose paint map is still being built
 local function flush(vid, p)
   table.sort(p.list, function(a, b) return a.E > b.E end)
   local budget = rules.markBudget(p.list[1] and p.list[1].E, settings.minEnergy)
   local seen, drawn = {}, 0
   for _, h in ipairs(p.list) do
     if drawn >= budget then break end
-    if not seen[h.cid] then seen[h.cid] = true if M.damageNode(vid, h.cid, h.E, h.kind) then drawn = drawn + 1 end end
+    if not seen[h.cid] then
+      seen[h.cid] = true
+      if M.damageNode(vid, h.cid, h.E, h.kind) then drawn = drawn + 1
+      else
+        local sc = scratch()
+        if sc and sc.hasMap and not sc.hasMap(vid) then                 -- a car without a paint map yet (not the player's): start one, the marks wait for it
+          sc.ensureCar(vid)
+          local r = retry[vid] or { untilT = now() + 6, items = {} }
+          retry[vid] = r
+          r.items[#r.items + 1] = h
+        end
+      end
+    end
   end
   counts.impacts = (counts.impacts or 0) + 1
   quietUntil[vid] = now() + 1.5
 end
 
+local retryAt = 0
 function M.onUpdate(dt)
+  if next(retry) and now() >= retryAt then
+    retryAt = now() + 0.4
+    local sc = scratch()
+    for vid, r in pairs(retry) do
+      if now() > r.untilT or not (sc and sc.hasMap) then retry[vid] = nil
+      elseif sc.hasMap(vid) then
+        retry[vid] = nil
+        for _, h in ipairs(r.items) do M.damageNode(vid, h.cid, h.E, h.kind) end
+      end
+    end
+  end
   if not next(pending) then return end
   for vid, p in pairs(pending) do
-    if now() - p.t0 >= 0.35 then pending[vid] = nil flush(vid, p) end
+    if now() - p.t0 >= WINDOW then pending[vid] = nil flush(vid, p) end
   end
 end
 
@@ -170,7 +196,7 @@ function M.status()
 end
 
 function M.onVehicleSpawned() M.configure(settings) end
-function M.onClientEndMission() readyAt = {} pending, quietUntil = {}, {} end
+function M.onClientEndMission() readyAt = {} pending, quietUntil, retry = {}, {}, {} end
 function M.onExtensionUnloaded()
   pcall(function() for _, veh in ipairs(getAllVehicles()) do veh:queueLuaCommand('if carSurfaceFxPanel then carSurfaceFxPanel.setConfig(false) end') end end)
 end
