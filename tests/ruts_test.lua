@@ -39,6 +39,34 @@ assert(R.feed(R.newPath(), 0, 0, 0, 'mud', cfg) == nil, 'one sample is no chunk'
 local path3 = R.newPath()
 R.feed(path3, 0, 0, 0, 'dirt', cfg) R.feed(path3, 0.6, 0, 0, 'dirt', cfg)
 assert(R.flush(path3) and R.flush(path3) == nil, 'a quiet path flushes once')
+-- run ends fade, the joints between the chunks of one run do not
+do
+  local p = R.newPath()
+  local cs = {}
+  for i = 0, 10 do local c = R.feed(p, i * 0.6, 0, 0, 'dirt', cfg) if c then cs[#cs + 1] = c end end
+  local last = R.flush(p)
+  assert(#cs == 2 and cs[1].fadeIn == true and not cs[1].fadeOut and cs[2].fadeIn == false and not cs[2].fadeOut, 'only the first chunk of a run fades in, no joint fades out')
+  assert(last and last.fadeIn == false and last.fadeOut == true, 'the last chunk fades out')
+  local q = R.newPath()
+  R.feed(q, 0, 0, 0, 'dirt', cfg) R.feed(q, 0.6, 0, 0, 'dirt', cfg)
+  local one = R.flush(q)
+  assert(one.fadeIn == true and one.fadeOut == true, 'a run of one chunk fades at both ends')
+  local g = R.newPath()
+  R.feed(g, 0, 0, 0, 'dirt', cfg) R.feed(g, 0.6, 0, 0, 'dirt', cfg)
+  local cut = R.feed(g, 50, 0, 0, 'dirt', cfg)
+  assert(cut.fadeOut == true and cut.fadeIn == true, 'a jump ends the run')
+  R.feed(g, 50.6, 0, 0, 'dirt', cfg) R.feed(g, 51.2, 0, 0, 'dirt', cfg)
+  assert(R.flush(g).fadeIn == true, 'after a cut the next run starts fresh')
+  local ch = R.newChains()
+  local firsts, lasts = 0, 0
+  for i = 0, 11 do
+    local o = R.chain(ch, 'dirt', i * 0.5, 0, 0, (i + 1) * 0.5, 0, 0, 0, cfg)
+    if o and o.fadeIn then firsts = firsts + 1 end
+    if o and o.fadeOut then lasts = lasts + 1 end
+  end
+  local rest = R.chainFlush(ch, 100, 1)
+  assert(firsts == 1 and lasts == 0 and #rest == 1 and rest[1].fadeOut == true and rest[1].fadeIn == false, 'a lit track run: the first chunk fades in, the flushed end fades out')
+end
 local same = R.newPath()
 R.feed(same, 0, 0, 0, 'mud', cfg)
 R.feed(same, 0.1, 0, 0, 'mud', cfg)
@@ -125,6 +153,8 @@ U.onUpdate(0.2)
 assert(U.roadCount() >= 2 and U.mode() == 'road', 'chunks become DecalRoads: ' .. U.status())
 local first = objects[101]
 assert(first and first.fields.material == 'csfx_rut_mud_dry' and #first.nodes == 5 and first.fields.textureLength == '4', 'a road with the dry mud rut material and the chunk\'s nodes')
+local fi, fo = tostring(first.fields.startEndFade):match('^(%S+) (%S+)$')
+assert(tonumber(fi) == 0.5 and tonumber(fo) == 0, 'the first chunk of a run fades in over 0.5 m and not out: ' .. tostring(first.fields.startEndFade))
 -- the wet material when it rains
 wetValue = 0.8
 drive(30, 5)
