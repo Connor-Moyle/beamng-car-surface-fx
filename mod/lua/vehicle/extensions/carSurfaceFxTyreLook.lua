@@ -63,7 +63,8 @@ local function setMetal(wi, on)
   local id = on and (particles.getMaterialIDByName(particles.materials or v.data.materials, METAL_NAME) or 2) or RUBBER_MAT
   for _, cid in ipairs(wd.treadNodes) do obj:setNodeMaterial(cid, id) end
   metalOf[wi] = on
-  log('I', 'carSurfaceFxTyreLook', 'wheel ' .. wi .. ' tread nodes ' .. (on and 'METAL' or 'RUBBER') .. ' (' .. #wd.treadNodes .. ' nodes)')
+  -- the car's own log does not reach beamng.log: the game side writes the line
+  obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,%q,%d) end', obj:getId(), wi, on and 'metal' or 'rubber', #wd.treadNodes))
 end
 
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone

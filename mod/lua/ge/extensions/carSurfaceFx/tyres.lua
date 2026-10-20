@@ -58,6 +58,9 @@ function M.reload()
 end
 function M.getConfig() return cfg end
 
+function M.lookEvent(id, wi, what, n)                  -- one-off facts from the car's look and spark code, written here because the car's own log does not reach beamng.log
+  log('I', 'carSurfaceFx_tyres', string.format('car %s wheel %s: %s (%s)', tostring(id), tostring(wi), tostring(what), tostring(n)))
+end
 local lookMsc = {}                                -- vehicle id -> { 'material|mesh' -> switch id } (see M.look)
 function M.attach(id)
   if watched[id] then return end

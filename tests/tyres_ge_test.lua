@@ -70,6 +70,7 @@ T.look(7, 0, 3, { { 'tire_01a', 'tire_01a_x' } })
 T.look(7, 0, 5, { { 'tire_01a', 'tire_01a_x' } })
 T.look(7, 0, 1, { { 'tire_01a', 'tire_01a_x' } })
 assert(sw == 1 and table.concat(calls, ' ') == '41=csfx_tire_01a_worn 41=csfx_tire_01a_belts 41=reset', 'one switch per mesh: ' .. table.concat(calls, ' '))
+T.lookEvent(7, 0, 'metal', 32)
 local car = {}
 T.onJbeamLoadingPhase2(nil, 7, car)
 assert(car.glowMap.tire_01a.on == 'csfx_tire_01a_worn' and car.glowMap.tire_01a.on_intense == 'csfx_tire_01a_belts' and car.glowMap.tire_01a.simpleFunction == 'csfx_never' and car.glowMap.tire, 'the stage materials are put into the glowMap of a car that loads while the tyres are on')
