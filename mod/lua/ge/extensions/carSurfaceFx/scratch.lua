@@ -67,6 +67,7 @@ local function defaults()
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
     dirtGlow    = false,                            -- a third canvas in the paint's emissive slot: the dirt's own colour added as light (the colour map can only darken)
     dirtGlowNits = 45000,
+    panelLit    = false,                            -- set by carSurfaceFx while panel damage is on: the lit page is bound too, so marks show on dark paint (not a setting of its own)
   }
 end
 local settings = defaults()
@@ -97,6 +98,8 @@ function M.configure(t)
   for k, v in pairs(t or {}) do if settings[k] ~= nil then settings[k] = v end end
 end
 local function active() return settings.enabled or settings.dirtEnabled end
+local function litOn() return settings.dirtGlow or settings.panelLit end
+
 
 -- ---- the car-side reporter (carSurfaceFx/bodywear.lua puts the contact sorting into the cars) ----
 -- (a command into every car's Lua once a second was a lot of traffic for nothing: now when the setting changed or every 5 s, and at once for a new car)
@@ -153,7 +156,7 @@ local function bind(l)
     l.mat:setField('colorPaletteMapUseUV', l.layer, '1')
     l.mat:setField('paletteBaseColor', l.layer, '1')
   end
-  if settings.dirtGlow and orig.emissiveMap == '' then                  -- a paint with its own emissive map keeps it
+  if litOn() and orig.emissiveMap == '' then                  -- a paint with its own emissive map keeps it
     l.mat:setField('emissiveMap', l.layer, TAG_E)
     l.mat:setField('emissiveMapUseUV', l.layer, '1')
     l.mat:setField('emissiveFactor', l.layer, '1 1 1')
@@ -186,6 +189,12 @@ local function ensureCanvases()
       end
     end
   end
+end
+
+-- whether every paint material already bound carries the lit page (true when none is bound yet): panel damage asks for a re-bind when it does not
+function M.litReady()
+  for _, b in pairs(bound) do if not b.glow then return false end end
+  return true
 end
 
 -- for the panel damage probe: what paint canvases car id has: has a palette to punch (false: marks can only darken), has the lit page (the dirt glow setting)
@@ -271,7 +280,7 @@ local function flush(dt)
     outHead = outHead + 1
     local veh = getObjectByID(e[1])
     local ok, has = pcall(function() return veh and hasCanvas(veh) end)
-    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]); if settings.dirtGlow then pcall(function() veh:queueJSUITexture(TAG_E, e[2]) end) end sendT = 0 break end
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]); if litOn() then pcall(function() veh:queueJSUITexture(TAG_E, e[2]) end) end sendT = 0 break end
   end
   if outHead > #outq then outq, outHead = {}, 1 end
 end

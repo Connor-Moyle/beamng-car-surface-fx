@@ -392,13 +392,21 @@ end
 
 -- The scratch module (carSurfaceFx/scratch.lua + meshuv.lua, from Enhanced Skid Marks' hi-fi engine) draws real scratches where the body is hit and dirt splats around the
 -- wheels on a per-car canvas. Not started while Enhanced Skid Marks' own copy runs (the two would fight over the paint layer).
+-- the scratch settings with the lit page asked for while panel damage is on (marks need light to show on dark paint)
+local function scratchSettings()
+  local t = {}
+  for k, v in pairs(settings.scratch) do t[k] = v end
+  t.panelLit = settings.paneldamage and settings.paneldamage.enabled == true
+  return t
+end
+local scratchRestart = false
 local function startScratch()
   if scratchOn() or rawget(_G, 'surfaceFXHiFiScratch') ~= nil or not settings.scratch.enabled then return end
   for _, name in ipairs({ 'carSurfaceFx_meshuv', 'carSurfaceFx_scratch', 'carSurfaceFx_bodywear' }) do
     setExtensionUnloadMode(name, 'manual')
     extensions.load(name)
   end
-  carSurfaceFx_scratch.configure(settings.scratch)
+  carSurfaceFx_scratch.configure(scratchSettings())
   log_('I', 'scratch module started')
 end
 
@@ -443,7 +451,9 @@ local function startPanel()
   extensions.load('carSurfaceFx_paneldamage')
   local pd = rawget(_G, 'carSurfaceFx_paneldamage')
   if pd then pd.configure(settings.paneldamage) end
-  log_('I', 'panel damage module started (dents)')
+  local sc = rawget(_G, 'carSurfaceFx_scratch')
+  if sc and sc.litReady and not sc.litReady() then scratchRestart = true end        -- the paint was bound without the lit page: bind again (done in update, once)
+  log_('I', 'panel damage module started (marks)')
 end
 local function stopPanel()
   if panelOn() then extensions.unload('carSurfaceFx_paneldamage') end
@@ -721,6 +731,7 @@ local SWITCHES = {
 local function update(dtReal)
   retireT = retireT + dtReal
   if retireT >= 1 then retireT = 0 retireOldMod() end
+  if scratchRestart then scratchRestart = false if scratchOn() then stopScratch() startScratch() end end
   if settings then for _, m in ipairs(SWITCHES) do local t = settings[m.key] if t and t.enabled ~= m.on() then if t.enabled then m.start() else m.stop() end end end end
   if settings and tyresWanted ~= tyresOn() then if tyresWanted then startTyres() else stopTyres() end end
   if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
@@ -840,7 +851,7 @@ function M.reloadSettings()
   if not settings then return end
   loadSettings()
   readTyresFlag()
-  if scratchOn() then carSurfaceFx_scratch.configure(settings.scratch) end
+  if scratchOn() then carSurfaceFx_scratch.configure(scratchSettings()) end
   if panelOn() then rawget(_G, 'carSurfaceFx_paneldamage').configure(settings.paneldamage) end
 end
 M.onSettingsChanged = M.reloadSettings

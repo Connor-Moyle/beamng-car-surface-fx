@@ -13,6 +13,9 @@ carSurfaceFx_meshuv = { tick = function() end }
 
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx/scratch.lua')
 assert(M.getState(7) == nil, 'nothing marked, nothing to save')
+assert(M.litReady() == true, 'no paint bound yet: nothing needs a re-bind for the lit page')
+M.configure({ panelLit = true })
+assert(M.litReady() == true, 'the panel damage request for the lit page is accepted as a setting')
 assert(M.count(7) == 0)
 
 M.restore(7, { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 }, { 0.3, 0.3, 0.4, 0.4, 0.003 } }, splats = { { 0.5, 0.5, 0.03, 0.45, 1 }, { 0.6, 0.6, 0.03, 0.45, 2 } } })
