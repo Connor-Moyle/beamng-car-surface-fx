@@ -67,6 +67,7 @@ local ROWS = {
   row('grip', 'beltSliding', 'slider', 'Grip with no tread (sliding)', 'The grip of a belt-worn tyre that is sliding.', 0.2, 1, 0.01, nil, true),
 
   row('wet', 'wetGripEnabled', 'bool', 'Rain changes grip', 'A wet road changes the grip of each tyre type (its wet grip on the Compounds tab) and standing water can aquaplane it. Off: tyres grip the same wet or dry.'),
+  row('wet', 'rainAquaplane', 'bool', 'Aquaplaning in heavy rain', 'In very heavy rain a thin film of water lies on the road; fast tyres without tread or with the wrong compound lose some grip.'),
   row('wet', 'rainCool', 'slider', 'Cooling by rain', 'How much faster a tyre cools on a fully wet road.', 1, 10, 0.5, 'x', true),
 
   row('fire', 'debris.enabled', 'bool', 'Rubber debris', 'Worn rubber is thrown off the tyre as debris on the road.'),

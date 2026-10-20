@@ -48,6 +48,7 @@ end
 local function fittedTo(wd) return fitAxle[axleOf(wd) or ''] or compound end
 
 local WATER_DEEP = 0.7              -- aquaplaning depth (0..1) of a wheel whose HUB is under water (the game's own water check, wheels.lua uses the same node)
+local PUDDLE_TTL = 0.5
 local WATER_SHALLOW = 0.3           -- of a wheel whose contact patch is under water but not its hub: a flooded road, a ford. The car cannot see a puddle's depth, only whether the water covers a node
 local function groundOf(wd)         -- the ground under a wheel: its contact material that is not the rubber, looked up in the table the game side sent (setSurfaces)
   local id = tonumber(wd.contactMaterialID1) or -1
@@ -107,7 +108,7 @@ end
 local function applyGrip(wi, e, force)
   if e.wd.isTireDeflated then e.applied = {} return end
   local t, ext = e.t, extMult(wi)
-  local ctx = { water = max(env.water, e.water or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
+  local ctx = { water = max(env.water, e.water or 0, e.puddle or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
   local wet = max(env.wet, e.surface == 'wet' and 1 or 0)
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
@@ -154,7 +155,8 @@ local function tick(dt)
         if wd.node1 and pcalls(obj.inWater, obj, wd.node1) then e.water = WATER_DEEP
         elseif contact and pcalls(obj.inWater, obj, contact) then e.water = WATER_SHALLOW end
       end
-      local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water) > 0
+      if e.puddleTtl then e.puddleTtl = e.puddleTtl - dt if e.puddleTtl <= 0 then e.puddle, e.puddleTtl = nil, nil end end   -- a puddle depth nobody renews fades after PUDDLE_TTL
+      local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water, e.puddle or 0) > 0
       local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
@@ -309,6 +311,13 @@ function M.setTread(frac, wi)
     end
   end
 end
+-- The puddle code of Street Legal (it knows where each puddle is) tells each wheel its water depth 0..1 (about 10-20 Hz); wi is the index in wheels.wheels. Not renewed for PUDDLE_TTL s = no puddle.
+function M.setWheelWater(wi, depth)
+  local e = tyres[wi]
+  if not e then return false end
+  e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
+  return true
+end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
 function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
   external[kind] = external[kind] or {}
@@ -374,7 +383,7 @@ end
 function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's
   if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local out = {}
-  for wi, e in pairs(tyres or {}) do out[#out + 1] = string.format('%s %s own %.2f in force %.2f', tostring(wi), tostring(e.wd.name), e.water or 0, max(env.water, e.water or 0)) end
+  for wi, e in pairs(tyres or {}) do out[#out + 1] = string.format('%s %s own %.2f in force %.2f', tostring(wi), tostring(e.wd.name), e.water or 0, max(env.water, e.water or 0, e.puddle or 0)) end
   table.sort(out)
   return table.concat(out, ' | ')
 end
@@ -385,6 +394,16 @@ function M.grip()                                  -- the mean friction factor w
     local sum, n = 0, 0
     for _, f in pairs(e.applied) do sum, n = sum + f, n + 1 end
     out[#out + 1] = string.format('%s %s %s %.3f', tostring(wi), tostring(e.wd.name), e.t.compound, n > 0 and sum / n or 1)
+  end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
+function M.gripWhy()                               -- what is behind each grip() number: ground, surface temperature, deepest wear, compound ratio, external factor, water in force, speed
+  local out = {}
+  for wi, e in pairs(tyres or {}) do
+    local minH = math.huge
+    for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    out[#out + 1] = string.format('%s %s %s surface %s Ts %.0f tread %.1f of %.1f ratio %.2f ext %.2f water %.2f v %.1f', tostring(wi), tostring(e.wd.name), e.t.compound, tostring(e.surface or env.surface), e.t.Ts, max(0, minH), e.t.c.h0, e.ratio, extMult(wi), max(env.water, e.water or 0, e.puddle or 0), abs(tonumber(e.wd.wheelSpeed) or 0))
   end
   table.sort(out)
   return table.concat(out, ' | ')

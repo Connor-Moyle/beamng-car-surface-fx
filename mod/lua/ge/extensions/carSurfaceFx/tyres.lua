@@ -100,13 +100,18 @@ function M.look(id, wi, stage, list)
   end
 end
 -- called by carSurfaceFx every frame: the weather to the cars once a second, a snapshot of each car every 5 s (for the career save)
+local RAIN_FILM, filmSent = 0.2, false
 function M.update(dt, wet)
   lastWet = wet or lastWet
   if cfg.enabled then local pid = be and be:getPlayerVehicleID(0) if pid and pid >= 0 then M.attach(pid) end end
   envT, snapT = envT + dt, snapT + dt
   if envT >= 1 then
     envT = 0
-    for id in pairs(watched) do send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.setEnv({wet=%.2f}) end', lastWet)) end
+    -- heavy rain leaves a film of water on the road: depth 0 below wetness 0.8, up to RAIN_FILM at 1 (rainAquaplane); a toggled-off option clears it once
+    local film = cfg.rainAquaplane and RAIN_FILM * math.max(0, (lastWet - 0.8) / 0.2) or 0
+    local extra = (film > 0 or filmSent) and string.format(',water=%.2f', film) or ''
+    filmSent = film > 0
+    for id in pairs(watched) do send(id, string.format('if carSurfaceFxTyres then carSurfaceFxTyres.setEnv({wet=%.2f%s}) end', lastWet, extra)) end
   end
   if snapT >= 5 then
     snapT = 0

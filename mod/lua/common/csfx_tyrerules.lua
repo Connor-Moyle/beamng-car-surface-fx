@@ -35,6 +35,7 @@ function M.defaults()
     deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)
     heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
+    rainAquaplane = false,                                    -- Mods settings: "Aquaplaning in heavy rain"; a thin film of water (depth up to 0.2) on the road above wetness 0.8
     heatRate = 1.0, coolRate = 1.0, rainCool = 4, sunRoad = 8,
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
     beltGrip = 0.55, beltSliding = 0.50,

@@ -265,6 +265,24 @@ T.setEnv({ wet = 0, water = 0 })
 wd.wheelSpeed = 35
 for _ = 1, 30 do T.updateGFX(0.1) end
 assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'and the grip comes back when the water is gone')
+-- a puddle depth told per wheel by Street Legal does the same, and fades when it is not renewed
+assert(T.active(), 'the module says it owns the tyres')
+local told = 0
+for wi = 0, 8 do if T.setWheelWater(wi, 0.6) then told = told + 1 end end
+assert(told > 0, 'a wheel took the puddle depth')
+for _ = 1, 3 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) < 0.8 * gDryAq, 'a puddle under the wheel takes grip away: ' .. T.grip())
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) > 0.95 * gDryAq, 'the puddle fades when it is not renewed')
+-- a full wet tyre in standing water: the readout is there, and it holds up better than the road tyre
+T.setCompound('fullwet')
+T.repair()
+T.setEnv({ wet = 0, water = 0.6 })
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(T.gripWhy():find('surface', 1, true) and T.gripWhy():find('ext 1.00', 1, true), 'gripWhy lists the inputs: ' .. T.gripWhy())
+assert(T.grip() ~= '' and T.grip():find('fullwet', 1, true), 'grip() is not empty on a fullwet tyre in water: ' .. T.grip())
+assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'fullwet floats later than the road tyre: ' .. T.grip())
+T.setEnv({ wet = 0, water = 0 })
 -- right after a compound change (the tyres are rebuilt on the next frame) the readouts still answer
 T.setCompound('fullwet')
 assert(T.grip() ~= '' and T.water() ~= '' and T.status():find('tyres 1', 1, true), 'readouts right after setCompound: [' .. T.grip() .. '] [' .. T.water() .. '] ' .. T.status())
