@@ -92,7 +92,7 @@ function M.probe(what, arg, kind, kind2)
     local sc0 = scratch()
     local pi = veh and sc0 and sc0.paintInfo and sc0.paintInfo(veh:getId())
     if not pi then return 'no paint canvases on the player car' end
-    return string.format('paint bound %s, canvases %s, palette %s (no palette: marks can only darken), lit page %s (needs Mods > Dirt > Lit snow)', tostring(pi.bound), tostring(pi.canvas), tostring(pi.palette), tostring(pi.lit))
+    return string.format('paint bound %s, canvases %s, palette %s (false: marks can only darken), lit page %s (true needs Mods > Dirt > Lit snow)', tostring(pi.bound), tostring(pi.canvas), tostring(pi.palette), tostring(pi.lit))
   end
   if what == 'clear' then if veh then M.clear(veh:getId()) end return 'cleared' end
   if not veh then return 'no player vehicle' end

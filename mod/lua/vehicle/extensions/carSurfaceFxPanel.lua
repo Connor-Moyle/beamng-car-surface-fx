@@ -9,7 +9,7 @@ local cfg = { enabled = false, minPerp = 1.0, cooldown = 0.4 }
 local nodeReady = {}
 local subscribed = false
 local mass, nodes
-local seen = { events = 0, nodeEv = 0, sent = 0 }      -- for M.status()
+local seen = { events = 0, nodeEv = 0, sent = 0, rejMat = 0, rejSlow = 0, rejWheel = 0, rejCool = 0, hardMat1 = nil, hardMat2 = nil, hardN = 0 }      -- for M.status()
 
 local function ge(cmd) pcall(function() obj:queueGameEngineLua(cmd) end) end
 
@@ -25,10 +25,12 @@ local function onEvent(ev)
   seen.events = seen.events + 1
   if not cfg.enabled or ev.kind ~= 'node' then return end
   seen.nodeEv = seen.nodeEv + 1
-  if (ev.mat1 ~= MAT.METAL and ev.mat1 ~= MAT.PLASTIC) or ev.mat2 == MAT.RUBBER or ev.perp < cfg.minPerp then return end
-  if carSurfaceFxContact and carSurfaceFxContact.isWheelNode and carSurfaceFxContact.isWheelNode(ev.node) then return end
+  if ev.perp >= cfg.minPerp then seen.hardN = seen.hardN + 1 seen.hardMat1, seen.hardMat2 = ev.mat1, ev.mat2 end          -- the materials of the last hit at speed, for status()
+  if ev.perp < cfg.minPerp then seen.rejSlow = seen.rejSlow + 1 return end
+  if (ev.mat1 ~= MAT.METAL and ev.mat1 ~= MAT.PLASTIC) or ev.mat2 == MAT.RUBBER then seen.rejMat = seen.rejMat + 1 return end
+  if carSurfaceFxContact and carSurfaceFxContact.isWheelNode and carSurfaceFxContact.isWheelNode(ev.node) then seen.rejWheel = seen.rejWheel + 1 return end
   local t = os.clock()
-  if (nodeReady[ev.node] or 0) > t then return end
+  if (nodeReady[ev.node] or 0) > t then seen.rejCool = seen.rejCool + 1 return end
   nodeReady[ev.node] = t + cfg.cooldown
   seen.sent = seen.sent + 1
   carNumbers()
@@ -53,7 +55,7 @@ function M.setConfig(enabled, minPerp)
 end
 
 -- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
-function M.status() return string.format('enabled %s subscribed %s | events %d, node events %d, sent to the game %d', tostring(cfg.enabled), tostring(subscribed), seen.events, seen.nodeEv, seen.sent) end
+function M.status() return string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last materials %s / %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end
 
 function M.onReset() nodeReady = {} end
 function M.onExtensionUnloaded() if carSurfaceFxContact then pcall(carSurfaceFxContact.unsubscribe, 'panel') end subscribed = false end
