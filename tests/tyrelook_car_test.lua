@@ -62,3 +62,12 @@ assert(said == 1, 'a failing flip is said once, not on every report: ' .. said)
 fails = 0
 L.set(0, 5, true)
 assert(metal[1] == 2 and metal[2] == 2, 'retried and done when the calls work again')
+-- the wheel is found by the car's own name, whatever the key order of its jbeam: the same name lands on the same tyre with the keys swapped
+for _, order in ipairs({ { FL = 0, FR = 1 }, { FL = 1, FR = 0 } }) do
+  wheels = { wheels = { [order.FL] = { name = 'FL', node1 = 50, treadNodes = { 1, 2 } }, [order.FR] = { name = 'FR', node1 = 51, treadNodes = { 3, 4 } } } }
+  sent = {}
+  local M2 = dofile('mod/lua/vehicle/extensions/carSurfaceFxTyreLook.lua')
+  M2.set('fr', 3)
+  assert(#sent == 1 and sent[1]:find(string.format('look(7,%d,3,{{"tire_01a","tire_01a_15x7_24"}})', order.FR), 1, true), 'FR by name, keys ' .. order.FL .. '/' .. order.FR .. ': ' .. tostring(sent[1]))
+end
+print('carSurfaceFxTyreLook by wheel name: ok')

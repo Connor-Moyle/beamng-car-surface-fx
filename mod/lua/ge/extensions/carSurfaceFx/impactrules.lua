@@ -23,7 +23,7 @@ function M.defaults()
     enabled = true,
     others = { enabled = false, maxCars = 4, range = 60 },
     glass = {
-      enabled = true, texture = '', color = { 0.80, 0.88, 0.92 }, opacity = 0.75, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
+      enabled = true, texture = '', color = { 0.92, 0.96, 1.0 }, opacity = 0.95, size = 1.0, maxPiles = 40, minEnergy = 5, clusterRadius = 0.8, idle = 0.22,
     },
     debris = {
       enabled = true, texture = '', particles = true, amount = 1.0, impactSpeed = 6.0, jointChance = 0.5, maxFlying = 60, maxResting = 120, life = 180, clearDistance = 250, bounce = 0.35, friction = 0.55,
@@ -80,7 +80,7 @@ function M.flush(clusters, now, idle)
 end
 
 -- the radius of a shard pile from the severity (a small side window to a windscreen), and how many shards it is drawn with
-function M.pileRadius(sev, sizeScale) return (0.25 + 0.75 * clamp(sev, 0, 1)) * (sizeScale or 1) end
+function M.pileRadius(sev, sizeScale) return (0.4 + 1.0 * clamp(sev, 0, 1)) * (sizeScale or 1) end
 
 -- ---- debris. A broken joint or a hard hit: which kind of piece (nil = none: tyres leave nothing). rnd = a number 0..1
 function M.classify(m1, m2, rnd, boltChance)

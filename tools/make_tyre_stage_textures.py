@@ -69,20 +69,20 @@ wv = (U * 170 - V * 85) % 1.0
 over = (np.sin(2 * np.pi * (U * 85)) * np.sin(2 * np.pi * (V * 42)) > 0)
 weave = np.where(over, 0.35 + 0.65 * np.sin(np.pi * wu) ** 2, 0.35 + 0.65 * np.sin(np.pi * wv) ** 2)
 streaks = noise(5, 56, 5) * 0.55 + noise(14, 150, 6) * 0.3 + noise(40, 220, 8) * 0.15       # ragged: long in U
-remnant = smooth(streaks, 0.54, 0.6) * (0.6 + 0.4 * noise(3, 9, 9))
+remnant = smooth(streaks, 0.6, 0.66) * (0.6 + 0.4 * noise(3, 9, 9))
 cordmask = inband * (1 - remnant)
 zone = smooth(noise(9, 30, 10), 0.45, 0.58)                                                    # 1 = textile, 0 = steel wire
-steel = np.array([0.34, 0.35, 0.38])
-tan = np.array([0.55, 0.45, 0.28])
+steel = np.array([0.62, 0.63, 0.66])
+tan = np.array([0.88, 0.74, 0.5])
 tone = steel[None, None, :] * (1 - zone[..., None]) + tan[None, None, :] * zone[..., None]
-cord_delta = tone * (0.45 + 0.55 * weave)[..., None] * cordmask[..., None]
+cord_delta = tone * (0.6 + 0.4 * weave)[..., None] * cordmask[..., None]
 cord_delta += np.array([0.012, 0.012, 0.012])[None, None, :] * (inband * remnant)[..., None]      # the torn rubber stays dark
 save((0.5 + 0.5 * cord_delta).astype(np.float32), 'tyre_cord_c.data.png')
 
 # belts normal: the thread slopes, strong, flat on the rubber remnants (OpenGL, green up)
 gx = np.cos(2 * np.pi * wu) * 0.5 + np.cos(2 * np.pi * wv) * 0.5
 gy = np.cos(2 * np.pi * wu) * 0.5 - np.cos(2 * np.pi * wv) * 0.5
-amp = 0.8 * cordmask
+amp = 0.9 * cordmask
 nx, ny = gx * amp, gy * amp
 nz = np.sqrt(np.clip(1 - nx ** 2 - ny ** 2, 0, 1))
 save(np.stack([0.5 + 0.5 * nx, 0.5 + 0.5 * ny, 0.5 + 0.5 * nz], -1).astype(np.float32), 'tyre_cord_n.normal.png')
