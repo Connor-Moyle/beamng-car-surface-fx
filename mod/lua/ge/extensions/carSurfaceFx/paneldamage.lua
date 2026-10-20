@@ -9,6 +9,7 @@ local TAG = 'carSurfaceFx_paneldamage'
 local settings = rules.defaults()
 local counts = { hits = 0, drawn = 0, tooSoft = 0, noMap = 0 }
 local lastHit                                       -- the last hit seen, for the probe: { cid, perp, force, E, sev }
+local lastImpact                                     -- the last impact marked: contacts, budget, marks, energy, speed change (status())
 local topLog = {}                                    -- the 10 hardest hits since the log was switched on
 local hitLog = {}                                   -- the probe's log of hits: { perp, force, mass, nodes, E, sev }
 local logOn = false
@@ -94,6 +95,7 @@ local function flush(vid, p)
     end
   end
   -- a harder hit has more contact area than distinct nodes: the rest of the budget is scattered round the hardest contacts (energy-weighted: the hardest get most)
+  local sats = 0
   if drawn > 0 then
     local primaries = {}
     for _, h in ipairs(p.list) do if seen[h.cid] then primaries[#primaries + 1] = h end end
@@ -103,13 +105,15 @@ local function flush(vid, p)
       local h = primaries[(i % math.min(#primaries, 3)) + 1]
       i = i + 1
       local sev = rules.severity(h.E, settings.minEnergy)
-      if M.damageNode(vid, h.cid, h.E * 0.7, h.kind, nil, rules.spread(sev)) then want = want - 1 end
+      if M.damageNode(vid, h.cid, h.E * 0.7, h.kind, nil, rules.spread(sev)) then want = want - 1 sats = sats + 1 end
     end
   end
+  lastImpact = { contacts = #p.list, budget = budget, primaries = drawn, scattered = sats, maxE = p.list[1] and p.list[1].E or 0, dvImpact = p.dvImpact, kind = p.list[1] and p.list[1].kind }
   if drawn > 0 then counts.impacts = (counts.impacts or 0) + 1 quietUntil[vid] = now() + 1.5 end       -- (the rattle of a resting car queues contacts too, but leaves no marks and starts no quiet time)
 end
 
 local retryAt = 0
+
 function M.onUpdate(dt)
   if next(retry) and now() >= retryAt then
     retryAt = now() + 0.4
@@ -217,7 +221,7 @@ function M.status()
   local rows, top = {}, {}
   for i = math.max(1, #hitLog - 4), #hitLog do rows[#rows + 1] = line(hitLog[i]) end
   for _, r in ipairs(topLog) do top[#top + 1] = line(r) end
-  return { enabled = settings.enabled, metal = settings.metal, plastic = settings.plastic, fibreglass = settings.fibreglass, carbon = settings.carbon, counts = counts, last = lastHit, hardest = top, latest = rows }
+  return { enabled = settings.enabled, metal = settings.metal, plastic = settings.plastic, fibreglass = settings.fibreglass, carbon = settings.carbon, counts = counts, last = lastHit, impact = lastImpact, hardest = top, latest = rows }
 end
 
 function M.onVehicleSpawned() M.configure(settings) end

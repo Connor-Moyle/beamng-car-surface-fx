@@ -200,7 +200,7 @@
   // Every page draws the same lines: the base page the dark core, the palette page punches a wider line (the un-tinted base shows as a pale edge on a car with a palette), and the lit
   // page adds a faint light line, so the mark shows on black paint too (the colour map can only darken).
   function pen(width, a, dk) {                                      // the stroke for this page: dk 1 the dark core, 0 the pale edge
-    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.13 + ')'; width = Math.max(1, width * 0.3); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
+    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.2 + ')'; width = Math.max(1.5, width * 0.6); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
     else if (palette) { if (dk) return false; sctx.globalCompositeOperation = 'destination-out'; sctx.strokeStyle = 'rgba(0,0,0,' + a + ')'; }
     else { if (!dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + (1 - Math.pow(1 - a, 3)) + ')'; }
     sctx.lineWidth = width; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
@@ -250,9 +250,9 @@
       stroke(pts, w * 6.5, a * 0.7, false); stroke(pts, w * 2.4, a, true);          // the split: pale fibre edge, dark core
       for (i = 0; i < 4; i++) { var e = i < 2 ? fwd[fwd.length - 1] : back[back.length - 1], ae = o.ang + (i < 2 ? 0 : Math.PI) + (hash(sd, i, 12) - 0.5) * 0.8; crack(crackPath(e[0], e[1], ae, 3, r * 0.08, 0.4, sd + i + 20), w * 0.6, a * 0.8); }
     } else {                                                        // metal: paint chips down to the metal along the hit, and a few short scratches
-      var nc = 3 + Math.floor(d * 5);
+      var nc = 4 + Math.floor(d * 6);
       for (i = 0; i < nc; i++) {
-        var ac = hash(sd, i, 13) * 6.2832, dc = r * 0.5 * hash(sd, i, 14), cx = x + Math.cos(ac) * dc, cy = y + Math.sin(ac) * dc, cr = Math.max(2, r * (0.07 + 0.1 * hash(sd, i, 15)));
+        var ac = hash(sd, i, 13) * 6.2832, dc = r * 0.5 * hash(sd, i, 14), cx = x + Math.cos(ac) * dc, cy = y + Math.sin(ac) * dc, cr = Math.max(3, r * (0.14 + 0.2 * hash(sd, i, 15)));
         var poly = [];
         for (var j = 0; j < 6; j++) { var pa = j * 1.0472 + hash(sd, i * 7 + j, 16) * 0.8, pr = cr * (0.6 + 0.8 * hash(sd, i * 7 + j, 17)); poly.push([cx + Math.cos(pa) * pr, cy + Math.sin(pa) * pr * 0.7]); }
         poly.push(poly[0]);
