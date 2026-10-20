@@ -36,7 +36,7 @@ function M.defaults()
     heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
     rainAquaplane = false,                                    -- Mods settings: "Aquaplaning in heavy rain"; a thin film of water (depth up to 0.2) on the road above wetness 0.8
-    heatRate = 1.0, coolRate = 1.0, rainCool = 4, sunRoad = 8,
+    heatRate = 0.7, coolRate = 1.0, rainCool = 4, sunRoad = 8,
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
     beltGrip = 0.55, beltSliding = 0.50,
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
@@ -191,12 +191,13 @@ end
 
 -- smoke 0..1 from the surface temperature
 function M.smoke(Ts, cfg) return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
--- one fire tick. Ignites after the hottest surface (Ts + the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
+-- one fire tick. Ignites after the hottest surface (Ts + a quarter of the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
 -- (douse per s at wet 1) and it pops (blown) after popAfter s of fire. Returns 'ignite' / 'pop' / 'out' the tick it happens, else nil.
+local FLASH_FIRE = 0.25      -- a locked slide heats one spot to the flash cap in seconds; only a quarter of that counts toward a fire (a skid smokes and flats, a long burnout burns)
 function M.fireStep(t, dt, wet, cfg)
   if t.blown then t.fire, t.hold = nil, 0 return end
   local hot = t.Ts
-  for i = 1, t.n do if (t.flash[i] or 0) + t.Ts > hot then hot = t.Ts + t.flash[i] end end
+  for i = 1, t.n do if (t.flash[i] or 0) * FLASH_FIRE + t.Ts > hot then hot = t.Ts + t.flash[i] * FLASH_FIRE end end
   if not t.fire then
     if cfg.fires == false then t.hold = 0 return end
     t.hold = hot >= cfg.igniteT and (t.hold or 0) + dt or 0

@@ -99,7 +99,7 @@ end
 -- a burnout: 37 kW into the tyre, a few seconds
 local bt = R.new('road', 16, 0.305, 0.175, 20)
 run(bt, 6, { power = 37000, v = 4, fz = 4000, ambient = 20 })
-assert(bt.Ts > 150 and bt.Ts < 400, 'a burnout takes the thin surface layer past 150 C in six seconds: ' .. bt.Ts)
+assert(bt.Ts > 110 and bt.Ts < 400, 'a burnout takes the thin surface layer past 110 C (smoking) in six seconds: ' .. bt.Ts)
 assert(bt.Tc < 60, 'while the carcass is still cool: ' .. bt.Tc)
 assert(bt.Tc < bt.Ts - 30, 'the carcass lags the surface')
 -- cooling at speed with no slip: the surface goes back toward the ambient, faster than standing

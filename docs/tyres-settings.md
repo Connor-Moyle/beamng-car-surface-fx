@@ -15,7 +15,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Wear | flat.enabled | true | on/off | N | flat spots from locked skids |
 | Wear | flat.minDepth | 0.2 | 0 - 2 mm | A | flat spot depth that starts to matter |
 | Wear | flat.gripLoss | 0.03 | 0 - 0.2 | A | grip lost per mm of flat spot |
-| Temperature | heatRate | 1.0 | 0.1 - 5 | N | how fast slip heats the tyre |
+| Temperature | heatRate | 0.7 | 0.1 - 5 | N | how fast slip heats the tyre |
 | Temperature | coolRate | 1.0 | 0.1 - 5 | N | how fast it cools |
 | Temperature | rainCool | 4 | 1 - 10 | A | cooling factor at full wet |
 | Temperature | sunRoad | 8 | 0 - 30 C | A | road warmer than the air by this much |
