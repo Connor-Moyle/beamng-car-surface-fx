@@ -160,6 +160,19 @@ onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 
 assert(geCalls('impacts.sparks%(%)') == 1 and #particles == 1 and particles[1].ptype == 1 and particles[1].count >= 2, 'metal grinding on metal throws the game\'s own spark particle: ' .. #particles)
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 14)
 assert(#particles == 1, 'not on dirt (and the cooldown)')
+-- the game's id order is not fixed: with the car's own node data, either order gives the same answer
+v.data.nodes[5] = { nodeMaterial = 2 }
+for _, ids in ipairs({ { 2, 10 }, { 10, 2 } }) do
+  particles = {}
+  for _ = 1, 3 do X.updateGFX(0.2) end
+  onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, ids[1], ids[2])
+  assert(#particles == 1, 'a metal node on asphalt sparks whichever id comes first: ' .. ids[1] .. ',' .. ids[2])
+  particles = {}
+  for _ = 1, 3 do X.updateGFX(0.2) end
+  onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, ids[1] == 2 and 14 or 14, ids[1] == 2 and 2 or 2)
+  assert(#particles == 0, 'and not on dirt either way')
+end
+v.data.nodes[5] = nil
 calls = {}
 for _ = 1, 3 do X.updateGFX(0.2) end
 particles = {}
@@ -173,6 +186,32 @@ for kind, list in pairs(R.PARTICLE) do for i, id in ipairs(list) do if X.PARTICL
 assert(same, 'the car side and the GE side use the same particle numbers')
 X.test('sparks')
 assert(#particles > 3, 'the test throws sparks by hand')
+
+-- the tap through the game's own particlefilter.nodeCollision(p) (what main.lua calls for every collision): preferred when the module is there
+do
+  local order = {}
+  particlefilter = { nodeCollision = function(p) order[#order + 1] = 'orig' end }
+  onNodeCollision = nil
+  local C2 = dofile('mod/lua/vehicle/extensions/carSurfaceFxContact.lua')
+  C2.onExtensionLoaded()
+  local ev2
+  C2.subscribe('pf', function(ev) order[#order + 1] = 'sub' ev2 = { node = ev.node, perp = ev.perp, force = ev.normalForce, m1 = ev.mat1, m2 = ev.mat2, nodeMat = ev.nodeMat, hitMat = ev.hitMat } end)
+  C2.setActive(true)
+  particlefilter.nodeCollision({ id1 = 9, pos = nil, normal = nil, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 3.5, slipVel = 1, normalForce = 4200, depth = 0, materialID1 = 2, materialID2 = 13 })
+  assert(order[1] == 'orig' and order[2] == 'sub', 'the game handler runs first, then the subscriber')
+  assert(ev2.node == 9 and ev2.perp == 3.5 and ev2.force == 4200 and ev2.m1 == 2 and ev2.m2 == 13, 'the numbers of the collision reach the subscriber')
+  assert(C2.status():find('tap particlefilter', 1, true) and C2.status():find('collisions seen 1', 1, true) and C2.status():find('published 1', 1, true), 'the status line says which tap and how many')
+  -- the node's own material decides which id is the car's and which the thing it touched
+  v.data.nodes[9] = { nodeMaterial = 3 }
+  particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 14, materialID2 = 3 })
+  assert(ev2.nodeMat == 3 and ev2.hitMat == 14, 'the node is the plastic one (second id), it hit 14')
+  particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 })
+  assert(ev2.nodeMat == 3 and ev2.hitMat == 10, 'the node is the plastic one (first id), it hit 10')
+  v.data.nodes[9] = nil
+  particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 10, materialID2 = 4 })
+  assert(ev2.nodeMat == 4 and ev2.hitMat == 10, 'an unknown node: the second id is the node (asphalt, rubber = a tyre)')
+  particlefilter = nil
+end
 
 -- restore
 vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFile, jsonWriteFile, debugDrawer = saved.vec3, saved.ColorF, saved.Engine, saved.be, saved.core_camera,

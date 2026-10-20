@@ -56,20 +56,20 @@ local function onContact(ev)
   local force, slip = ev.normalForce or 0, ev.slip or 0
   if force > n.maxForce then n.maxForce = force end
   if slip > n.maxSlip then n.maxSlip = slip end
-  local why = M.reject(carSurfaceFxContact.isWheelNode(ev.node), ev.mat1, ev.mat2, force, slip)
+  local why = M.reject(carSurfaceFxContact.isWheelNode(ev.node), ev.nodeMat, ev.hitMat, force, slip)
   if why then n[why] = n[why] + 1 return end
   local now = obj:getSimTime()
   if (cooldown[ev.node] or 0) > now or now < nextHit then n.cool = n.cool + 1 return end
   cooldown[ev.node], nextHit = now + COOLDOWN, now + CAR_GAP
-  local kind = M.classify(ev.nz, ev.mat2)
+  local kind = M.classify(ev.nz, ev.hitMat)
   n.hits, n[kind] = n.hits + 1, n[kind] + 1
   local a, b, c = 0, 0, 0
   if ev.slipDirX then a, b, c = alongRefs(ev.slipDirX, ev.slipDirY, ev.slipDirZ) end
   if debug and now >= nextLog then
     nextLog = now + 0.1
-    log('I', 'carSurfaceFxWear', string.format('hit node=%d %s force=%.0f slip=%.1f speed=%.1f mat=%s/%s nz=%s dir=(%.2f,%.2f,%.2f)', ev.node, kind, force, slip, ev.speed or 0, tostring(ev.mat1), tostring(ev.mat2), tostring(ev.nz), a, b, c))
+    log('I', 'carSurfaceFxWear', string.format('hit node=%d %s force=%.0f slip=%.1f speed=%.1f mat=%s/%s nz=%s dir=(%.2f,%.2f,%.2f)', ev.node, kind, force, slip, ev.speed or 0, tostring(ev.nodeMat), tostring(ev.hitMat), tostring(ev.nz), a, b, c))
   end
-  obj:queueGameEngineLua(string.format('if carSurfaceFx_bodywear then carSurfaceFx_bodywear.hit(%d,%d,"%s",%d,%.0f,%.2f,%.2f,%.3f,%.3f,%.3f) end', obj:getId(), ev.node, kind, ev.mat2 or 0, force, slip, ev.speed or 0, a, b, c))
+  obj:queueGameEngineLua(string.format('if carSurfaceFx_bodywear then carSurfaceFx_bodywear.hit(%d,%d,"%s",%d,%.0f,%.2f,%.2f,%.3f,%.3f,%.3f) end', obj:getId(), ev.node, kind, ev.hitMat or 0, force, slip, ev.speed or 0, a, b, c))
 end
 
 -- once a second, when anything was seen: the counts of this interval, so the game side can say why a scrape left no mark
