@@ -87,8 +87,8 @@ local function onEvent(ev)
     return
   end
   -- a node collision
-  local m1, m2 = ev.mat1, ev.mat2
-  if cfg.sparks and ev.normalForce >= cfg.sparkMinForce and ev.slip >= cfg.sparkMinSpeed and (m1 == MAT.METAL or m2 == MAT.METAL) and not (NO_SPARK[m1] or NO_SPARK[m2]) then
+  local m1, m2 = ev.nodeMat, ev.hitMat                      -- the car's node and what it touched (the contact module works the game's id order out)
+  if cfg.sparks and ev.normalForce >= cfg.sparkMinForce and ev.slip >= cfg.sparkMinSpeed and m1 == MAT.METAL and not NO_SPARK[m2] then
     local t = simTime
     if (sparkCooldown[ev.node] or 0) <= t then
       sparkCooldown[ev.node] = t + 0.08

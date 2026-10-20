@@ -97,10 +97,11 @@ def make_skid(seed, flip):
     return dict(color=col, opacity=a * 0.95, normal=normal_from_height(hgt, 1.0, flip), rough=rough, size=(W, H))
 
 
+SOFT = ('dirt', 'gravel', 'sand')       # real ruts here are only a little darker than the soil around, same hue
 SURF = {   # surface colour of the ground the track is pressed into (linear-ish), the tread depth, the grain, the roughness dry
-    'dirt':   dict(col=(0.30, 0.22, 0.15), depth=0.55, tread=1.0, stones=0.0, rough=0.88),
-    'gravel': dict(col=(0.34, 0.31, 0.27), depth=0.45, tread=0.6, stones=1.0, rough=0.9),
-    'sand':   dict(col=(0.55, 0.45, 0.30), depth=0.35, tread=0.5, stones=0.0, rough=0.95),
+    'dirt':   dict(col=(0.80, 0.68, 0.55), depth=0.55, tread=1.0, stones=0.0, rough=0.88),      # (the soft grounds: the colour of the pale soil of West Coast USA; a rut is 15-25 % darker in the same hue)
+    'gravel': dict(col=(0.62, 0.57, 0.50), depth=0.45, tread=0.6, stones=1.0, rough=0.9),
+    'sand':   dict(col=(0.80, 0.70, 0.50), depth=0.35, tread=0.5, stones=0.0, rough=0.95),
     'mud':    dict(col=(0.17, 0.12, 0.08), depth=0.8, tread=0.8, stones=0.0, rough=0.5),
     'snow':   dict(col=(0.78, 0.82, 0.88), depth=0.5, tread=0.7, stones=0.0, rough=0.6),
 }
@@ -169,7 +170,7 @@ def make_track(name, seed, flip):
     stones = np.clip(stones + 0.0, 0, 1)
     pressed = edge * (0.6 + 0.4 * (1 - np.abs(u) / 0.8).clip(0, 1))
     hgt = -pressed * s['depth'] * (0.8 + 0.2 * big) + pressed * t * 0.18 * s['tread'] + stones * pressed * 0.12 + 0.02 * grain
-    dark = 0.55 + 0.25 * (1 - pressed) + 0.1 * big
+    dark = (0.84 + 0.1 * (1 - pressed) + 0.06 * big) if name in SOFT else (0.55 + 0.25 * (1 - pressed) + 0.1 * big)
     base = np.array(s['col'])
     col = base[None, None, :] * (dark[..., None] * (1 + 0.25 * grain[..., None]) * (1 - 0.18 * (t * pressed)[..., None]))
     if s['stones']:
@@ -200,7 +201,11 @@ def make_rut(name, seed, flip):
     edge = band(u, 0.8, 0.12, ragged, 0.07)
     moist = groove * (0.45 if name in ('mud', 'dirt') else 0.25)
     base = np.array(s['col'])
-    col = base[None, None, :] * ((0.6 + 0.3 * lips - 0.28 * groove + 0.1 * grain)[..., None] * (1 - moist[..., None] * 0.35))
+    if name in SOFT:
+        shade = (0.97 + 0.04 * lips - 0.17 * groove + 0.08 * grain)[..., None] * (1 - moist[..., None] * 0.15)       # (the floor about 20 % darker than the soil)
+    else:
+        shade = (0.6 + 0.3 * lips - 0.28 * groove + 0.1 * grain)[..., None] * (1 - moist[..., None] * 0.35)
+    col = base[None, None, :] * shade
     a = edge * (0.55 + 0.35 * groove + 0.25 * lips).clip(0, 1) * smooth(0.0, 0.2, edge)
     rough = s['rough'] - groove * (0.3 if name == 'mud' else 0.25 if name in ('dirt', 'snow') else 0.05) + 0.04 * grain
     real = real_detail(name, seed, H, W)

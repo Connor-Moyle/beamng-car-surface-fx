@@ -15,8 +15,8 @@ assert(W.severity(15000, 8) == 1 and W.severity(7500, 4) == 0.25 and W.severity(
 
 W.setConfig(true, false)
 assert(handler, 'the wear subscribes to the shared contact wrapper')
-local function ev(t) local e = { kind = 'node', node = 5, mat1 = 2, mat2 = 10, normalForce = 5000, slip = 5, speed = 8, nz = 0.1, slipDirX = 1, slipDirY = 0, slipDirZ = 0 } for k, x in pairs(t) do e[k] = x end return e end
-handler(ev({ mat1 = 4 })) handler(ev({ node = 99 })) handler(ev({ normalForce = 100 })) handler(ev({ slip = 0.1 }))
+local function ev(t) local e = { kind = 'node', node = 5, nodeMat = 2, hitMat = 10, normalForce = 5000, slip = 5, speed = 8, nz = 0.1, slipDirX = 1, slipDirY = 0, slipDirZ = 0 } for k, x in pairs(t) do e[k] = x end return e end
+handler(ev({ nodeMat = 4 })) handler(ev({ hitMat = 4 })) handler(ev({ node = 99 })) handler(ev({ normalForce = 100 })) handler(ev({ slip = 0.1 }))
 assert(#sent == 0, 'tyres, wheel nodes, light and not-sliding contacts send no hit')
 handler(ev({}))
 assert(#sent == 1 and sent[1]:find('carSurfaceFx_bodywear.hit(7,5,"wall",10,5000,5.00,8.00,1.000,0.000,0.000)', 1, true), 'a hit: ' .. tostring(sent[1]))
@@ -27,7 +27,7 @@ handler(ev({ node = 6, nz = 0.9 }))
 assert(sent[2]:find('"ground"', 1, true), 'a contact on a floor is ground')
 W.updateGFX()
 local rep = sent[#sent]
-assert(#sent == 3 and rep:find('report(7,7,2,1,1,1,1,1,5000,5.0)', 1, true), 'seen 7, hits 2, light 1, still 1, tyre 1, wheel 1, too soon 1: ' .. rep)
+assert(#sent == 3 and rep:find('report(7,8,2,1,1,2,1,1,5000,5.0)', 1, true), 'seen 8, hits 2, light 1, still 1, tyre 2, wheel 1, too soon 1: ' .. rep)
 W.setConfig(false, false)
 assert(handler == nil, 'switched off it unsubscribes')
 

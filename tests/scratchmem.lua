@@ -13,6 +13,9 @@ carSurfaceFx_meshuv = { tick = function() end }
 
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx/scratch.lua')
 assert(M.getState(7) == nil, 'nothing marked, nothing to save')
+assert(M.litReady() == true, 'no paint bound yet: nothing needs a re-bind for the lit page')
+M.configure({ panelLit = true })
+assert(M.litReady() == true, 'the panel damage request for the lit page is accepted as a setting')
 assert(M.count(7) == 0)
 
 M.restore(7, { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 }, { 0.3, 0.3, 0.4, 0.4, 0.003 } }, splats = { { 0.5, 0.5, 0.03, 0.45, 1 }, { 0.6, 0.6, 0.03, 0.45, 2 } } })
@@ -35,6 +38,29 @@ assert(M.count(7) == 0 and #M.getState(7).splats == 1, 'repair removes the scrat
 M.washSplats(nil, 0, 0)
 assert(M.getState(7) == nil, 'washing everything leaves nothing to save')
 
+-- a reset of the car: the marks follow its real damage. Whole again (damage near 0) the scratches and panel marks go; damage kept (a recovery) they stay; unknown damage keeps them.
+-- Right after a restore a reset is ignored (a spawn can reset once). The check is made 0.7 s after the reset, from onUpdate.
+M.restore(7, { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, dents = { { 0.5, 0.5, 0.05, 0.4, 0.6, 1 }, { 0.6, 0.5, 0.05, 0.4, 0.6 } } })
+assert(M.dentCount(7) == 2 and M.getState(7).dents[1][6] == 1 and M.getState(7).dents[2][6] == 4, 'panel marks are remembered with their kind (4, metal, when none is given)')
+local realClock, now = os.clock, 0
+os.clock = function() return realClock() + now end
+be = { getPlayerVehicleID = function() return 7 end }
+map = { objects = { [7] = { damage = 0 } } }
+M.onVehicleResetted(7) now = 1 M.onUpdate(0.1)
+assert(M.count(7) == 1 and M.dentCount(7) == 2, 'a reset right after a restore leaves the marks')
+now = 10
+map.objects[7].damage = 4000
+M.onVehicleResetted(7) now = 11 M.onUpdate(0.1)
+assert(M.count(7) == 1 and M.dentCount(7) == 2, 'a recovery that keeps the damage keeps the marks')
+map = nil
+M.onVehicleResetted(7) now = 12 M.onUpdate(0.1)
+assert(M.count(7) == 1 and M.dentCount(7) == 2, 'unknown damage keeps the marks')
+map = { objects = { [7] = { damage = 0 } } }
+M.onVehicleResetted(7) now = 12.3 M.onUpdate(0.1)
+assert(M.count(7) == 1, 'the check waits for the vehicle to report (0.7 s)')
+now = 13 M.onUpdate(0.1)
+assert(M.count(7) == 0 and M.dentCount(7) == 0, 'a reset that leaves the car whole takes the scratches and the panel marks off')
+os.clock = realClock
 for i = 1, 100 do M.restore(7, { marks = { { i / 1000, 0, 0, 0, 0.001 } } }) end
 assert(M.count(7) == 1, 'restore replaces what was there')
 M.onVehicleDestroyed(7)

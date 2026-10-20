@@ -22,6 +22,7 @@
   var MAX_LINES = 300, MAX_BLOBS = 6000;
   var lines = [];                                   // { l: [x1,y1,x2,y2,width, ...], c, a } as received
   var blobs = [];                                   // { x, y, r, c, a, k } k = 'dust' | 'mud'
+  var dents = [];                                   // { x, y, r, ang, d } panel dents (csfxDent): the light runs toward angle `ang` across the canvas, d 0..1 is the depth
 
   var sc = document.createElement('canvas');         // the permanent marks
   sc.width = sc.height = W;
@@ -193,10 +194,90 @@
     dirty = true;
   }
 
+  // Panel damage marks (docs/PANEL_DAMAGE.md): drawn marks, not shading, because shading on the paint cannot look like a dent. o = { x, y, r, ang, d, k }: the place, the size across
+  // (texture units), the direction of the weave or the hit (radians), the depth 0..1, and the kind k: 'p' plastic (a star of cracks with stress-white edges), 'f' fibreglass (a crazed
+  // patch of fine cracks), 'c' carbon (a ragged split along the weave), 'm' metal (paint chips down to bare metal with a few scratch lines).
+  // Every page draws the same lines: the base page the dark core, the palette page punches a wider line (the un-tinted base shows as a pale edge on a car with a palette), and the lit
+  // page adds a faint light line, so the mark shows on black paint too (the colour map can only darken).
+  function pen(width, a, dk) {                                      // the stroke for this page: dk 1 the dark core, 0 the pale edge
+    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.15 + ')'; width = Math.max(1.5, width * 0.6); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
+    else if (palette) { if (dk) return false; sctx.globalCompositeOperation = 'destination-out'; sctx.strokeStyle = 'rgba(0,0,0,' + a + ')'; }
+    else { if (!dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + (1 - Math.pow(1 - a, 3)) + ')'; }
+    sctx.lineWidth = width; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+    return true;
+  }
+  // a crack: a polyline from (x, y) along `ang`, wandering a little, n steps of `step` pixels; returns the points so a branch can start on it
+  function crackPath(x, y, ang, n, step, wander, seed) {
+    var pts = [[x, y]];
+    for (var i = 1; i <= n; i++) {
+      ang += (hash(seed, i, 3) - 0.5) * wander;
+      x += Math.cos(ang) * step * (0.6 + 0.8 * hash(seed, i, 4)); y += Math.sin(ang) * step * (0.6 + 0.8 * hash(seed, i, 5));
+      pts.push([x, y]);
+    }
+    return pts;
+  }
+  function stroke(pts, width, a, dk) {
+    if (!pen(width, a, dk)) return;
+    sctx.beginPath(); sctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) sctx.lineTo(pts[i][0], pts[i][1]);
+    sctx.stroke();
+  }
+  // both widths at once: the wide pale edge, then the dark core on the base page
+  function crack(pts, w, a) { stroke(pts, w * 4.4, a * 0.7, false); stroke(pts, w * 1.2, a, true); }     // a wide pale edge (the only thing that shows on black paint), a narrow dark core
+  function drawDent(o) {
+    var x = o.x * W, y = o.y * W, r = Math.max(6, o.r * W), d = Math.max(0.05, Math.min(1, o.d)), k = o.k || 'm', sd = o.x * 977 + o.y * 131, i, pts;
+    var w = Math.max(1.4, r * 0.035), a = 0.55 + 0.4 * d;
+    if (k === 'p') {                                                // plastic: 3 to 6 cracks from the hit, the long ones fork once; a stress-white patch under the hit
+      var n = 3 + Math.floor(d * 3 + hash(sd, 1, 1) * 1.5);
+      if (palette) { var g = sctx.createRadialGradient(x, y, 0, x, y, r * 0.5); g.addColorStop(0, palette ? 'rgba(0,0,0,0.5)' : 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.3) + ',0.08)'); g.addColorStop(1, palette ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0)'); sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over'; sctx.fillStyle = g; sctx.beginPath(); sctx.arc(x, y, r * 0.5, 0, 6.2832); sctx.fill(); }
+      for (i = 0; i < n; i++) {
+        var a0 = o.ang + i * 6.2832 / n + (hash(sd, i, 2) - 0.5) * 0.7, len = (6 + Math.floor(d * 4)) ;
+        pts = crackPath(x, y, a0, len, r * 0.14, 0.7, sd + i);
+        crack(pts, w * (1.1 - 0.3 * hash(sd, i, 6)), a);
+        if (len > 7) { var f = pts[Math.floor(len * 0.55)]; crack(crackPath(f[0], f[1], a0 + (hash(sd, i, 7) > 0.5 ? 0.6 : -0.6), 3, r * 0.1, 0.6, sd + i + 50), w * 0.7, a); }
+      }
+    } else if (k === 'f') {                                         // fibreglass: crazing, many short fine cracks all round, a small chipped hole in the middle
+      var m = 9 + Math.floor(d * 6);
+      for (i = 0; i < m; i++) {
+        var af = hash(sd, i, 8) * 6.2832, df = r * 0.55 * hash(sd, i, 9);
+        crack(crackPath(x + Math.cos(af) * df, y + Math.sin(af) * df, af + (hash(sd, i, 10) - 0.5) * 2, 3 + Math.floor(hash(sd, i, 11) * 3), r * 0.1, 1.2, sd + i), w * 0.65, a * 0.9);
+      }
+      if (pen(1, 1, true)) { sctx.fillStyle = sctx.strokeStyle; sctx.beginPath(); sctx.arc(x, y, Math.max(2, r * 0.07), 0, 6.2832); sctx.fill(); }
+    } else if (k === 'c') {                                         // carbon: a ragged split along the weave, with frayed fibres at the ends
+      var half = 5 + Math.floor(d * 4), step = r * 0.2;
+      var fwd = crackPath(x, y, o.ang, half, step, 0.25, sd), back = crackPath(x, y, o.ang + Math.PI, half, step, 0.25, sd + 9);
+      pts = back.slice(1).reverse().concat(fwd);
+      stroke(pts, w * 6.5, a * 0.7, false); stroke(pts, w * 2.4, a, true);          // the split: pale fibre edge, dark core
+      for (i = 0; i < 4; i++) { var e = i < 2 ? fwd[fwd.length - 1] : back[back.length - 1], ae = o.ang + (i < 2 ? 0 : Math.PI) + (hash(sd, i, 12) - 0.5) * 0.8; crack(crackPath(e[0], e[1], ae, 3, r * 0.08, 0.4, sd + i + 20), w * 0.6, a * 0.8); }
+    } else {                                                        // metal: paint chips down to the metal along the hit, and a few short scratches
+      var nc = 4 + Math.floor(d * 6);
+      for (i = 0; i < nc; i++) {
+        var ac = hash(sd, i, 13) * 6.2832, dc = r * 0.5 * hash(sd, i, 14), cx = x + Math.cos(ac) * dc, cy = y + Math.sin(ac) * dc, cr = Math.max(3, r * (0.14 + 0.2 * hash(sd, i, 15)));
+        var poly = [];
+        for (var j = 0; j < 6; j++) { var pa = j * 1.0472 + hash(sd, i * 7 + j, 16) * 0.8, pr = cr * (0.6 + 0.8 * hash(sd, i * 7 + j, 17)); poly.push([cx + Math.cos(pa) * pr, cy + Math.sin(pa) * pr * 0.7]); }
+        poly.push(poly[0]);
+        if (pen(w * 3, 0.9, false)) { sctx.fillStyle = sctx.strokeStyle; sctx.beginPath(); sctx.moveTo(poly[0][0], poly[0][1]); for (j = 1; j < poly.length; j++) sctx.lineTo(poly[j][0], poly[j][1]); sctx.closePath(); sctx.fill(); sctx.stroke(); }
+        if (pen(w, a, true)) { sctx.beginPath(); sctx.moveTo(poly[0][0], poly[0][1]); for (j = 1; j < poly.length; j++) sctx.lineTo(poly[j][0], poly[j][1]); sctx.stroke(); }
+      }
+      for (i = 0; i < 2 + Math.floor(d * 3); i++) {
+        var as = o.ang + (hash(sd, i, 18) - 0.5) * 1.2, ds = r * (hash(sd, i, 19) - 0.5);
+        pts = [[x + Math.cos(o.ang + 1.57) * ds - Math.cos(as) * r * 0.5, y + Math.sin(o.ang + 1.57) * ds - Math.sin(as) * r * 0.5], [x + Math.cos(o.ang + 1.57) * ds + Math.cos(as) * r * 0.5, y + Math.sin(o.ang + 1.57) * ds + Math.sin(as) * r * 0.5]];
+        crack(pts, w * 0.8, a * 0.8);
+      }
+    }
+    dirty = true;
+  }
+  window.csfxDent = function (o) {
+    dents.push(o);
+    if (dents.length > 120) dents.shift();
+    drawDent(o);
+  };
+
   function redraw() {
     blank();
     for (var i = 0; i < lines.length; i++) drawLines(lines[i]);
     for (var j = 0; j < blobs.length; j++) drawBlob(blobs[j]);
+    for (var k = 0; k < dents.length; k++) drawDent(dents[k]);
   }
 
   // o = { l: [x1,y1,x2,y2,width, ...], c: [r,g,b], a }
@@ -232,12 +313,12 @@
   };
 
   // scratches buffed out, the dirt stays
-  window.csfxRepair = function () { lines = []; redraw(); };
+  window.csfxRepair = function () { lines = []; dents = []; redraw(); };
 
   // everything gone
   window.csfxPaintLum = function (v) { v = Number(v); if (isFinite(v) && Math.abs(v - paintLum) > 0.04) { paintLum = Math.max(0, Math.min(1, v)); if (emis) redraw(); } };
 
-  window.csfxClear = function () { lines = []; blobs = []; redraw(); };
+  window.csfxClear = function () { lines = []; blobs = []; dents = []; redraw(); };
 
   // a big red cross over the whole canvas, to see whether this page reaches the paint at all (carSurfaceFx_scratch.probe())
   window.csfxProbe = function () {

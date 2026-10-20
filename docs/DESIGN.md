@@ -18,7 +18,7 @@ Universal weather and wear on the body of every car, at runtime, with no per-car
 
 - `onUpdate` is wrapped: one error switches the mod off, puts everything back and logs once (`carSurfaceFx.resume()` retries).
 - Material reloads only on state changes, one per frame at most. Nothing allocated per frame.
-- Tests before each commit: `node tools/luatest.js` (rules, smoke test against a mocked game, scratch memory), `node tests/simtest.js`, `node tests/scratchjs_test.js`, `node tests/paintwater_test.js`, `node tools/globalcheck.js` (undefined globals; needs `luaparse`; the tests need `fengari`).
+- Tests before each commit: `node tools/luatest.js` (rules, smoke test against a mocked game, scratch memory), `node tests/simtest.js`, `node tests/scratchjs_test.js`, `node tests/paintwater_test.js`, `node tools/globalcheck.js` (undefined globals; needs `luaparse`; the tests need `fengari`), `node tools/upvalues.js` (LuaJIT loads no function with more than 60 outer locals; fengari does not notice).
 
 ## What was found (so nobody tries it again)
 

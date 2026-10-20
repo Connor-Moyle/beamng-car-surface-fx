@@ -47,7 +47,7 @@ local logTag = 'carSurfaceFx_scratch'
 local DEFAULT_GLOW_NITS = 45000
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
-local PAGE_V = 34                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
+local PAGE_V = 35                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
 local SIZE, FPS = 1024, 10   -- the engine caps a web texture near the screen size: 2048 came back part garbage
 
 local random, sqrt, floor, min, max = math.random, math.sqrt, math.floor, math.min, math.max
@@ -68,6 +68,7 @@ local function defaults()
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
     dirtGlow    = false,                            -- a third canvas in the paint's emissive slot: the dirt's own colour added as light (the colour map can only darken)
     dirtGlowNits = DEFAULT_GLOW_NITS,
+    panelLit    = false,                            -- set by carSurfaceFx while panel damage is on: the lit page is bound too, so marks show on dark paint (not a setting of its own)
   }
 end
 local settings = defaults()
@@ -75,10 +76,11 @@ local settings = defaults()
 -- what each car has been marked with, kept GE-side (the canvas pages are write-only for us): scratch lines { x1, y1, x2, y2, width } and dirt splats { x, y, r, opacity, kind }
 -- (kind 1 = dust, 2 = mud), quantised and capped, so a car's marks can be saved (getState) and drawn again on a respawned car (restore, and after a mesh rebuild).
 local memory, replayAt, nodesAt, nodesSent = {}, {}, {}, {}
+local restoredAt = {}                                          -- id -> when marks were put back on a respawned car (a reset right after is ignored)
 local MEMORY_CAP = 60
 local function mem(id)
   local m = memory[id]
-  if not m then m = { marks = {}, splats = {} } memory[id] = m end
+  if not m then m = { marks = {}, splats = {}, dents = {} } memory[id] = m end
   return m
 end
 local function remember(list, rec)
@@ -97,6 +99,8 @@ function M.configure(t)
   for k, v in pairs(t or {}) do if settings[k] ~= nil then settings[k] = v end end
 end
 local function active() return settings.enabled or settings.dirtEnabled end
+local function litOn() return settings.dirtGlow or settings.panelLit end
+
 
 -- ---- the car-side reporter (carSurfaceFx/bodywear.lua puts the contact sorting into the cars) ----
 -- (a command into every car's Lua once a second was a lot of traffic for nothing: now when the setting changed or every 5 s, and at once for a new car)
@@ -153,7 +157,7 @@ local function bind(l)
     l.mat:setField('colorPaletteMapUseUV', l.layer, '1')
     l.mat:setField('paletteBaseColor', l.layer, '1')
   end
-  if settings.dirtGlow and orig.emissiveMap == '' then                  -- a paint with its own emissive map keeps it
+  if litOn() and orig.emissiveMap == '' then                  -- a paint with its own emissive map keeps it
     l.mat:setField('emissiveMap', l.layer, TAG_E)
     l.mat:setField('emissiveMapUseUV', l.layer, '1')
     l.mat:setField('emissiveFactor', l.layer, '1 1 1')
@@ -186,6 +190,23 @@ local function ensureCanvases()
       end
     end
   end
+end
+
+-- whether every paint material already bound carries the lit page (true when none is bound yet): panel damage asks for a re-bind when it does not
+function M.litReady()
+  for _, b in pairs(bound) do if not b.glow then return false end end
+  return true
+end
+
+-- for the panel damage probe: what paint canvases car id has: has a palette to punch (false: marks can only darken), has the lit page (the dirt glow setting)
+function M.paintInfo(id)
+  local veh = getObjectByID(id)
+  if not veh then return nil end
+  local pal, glow, any = false, false, false
+  for _, nm in ipairs(veh:getMaterialNames() or {}) do
+    if bound[nm] then any = true pal = pal or bound[nm].pal == true glow = glow or bound[nm].glow == true end
+  end
+  return { bound = any, palette = pal, lit = glow, canvas = hasCanvas(veh) }
 end
 
 -- put every material back exactly as it was and drop the canvases (each item on its own: one that throws, or a car that is already gone, does not stop the rest)
@@ -260,7 +281,7 @@ local function flush(dt)
     outHead = outHead + 1
     local veh = getObjectByID(e[1])
     local ok, has = pcall(function() return veh and hasCanvas(veh) end)
-    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]); if settings.dirtGlow then pcall(function() veh:queueJSUITexture(TAG_E, e[2]) end) end sendT = 0 break end
+    if ok and has then veh:queueJSUITexture(TAG_B, e[2]); veh:queueJSUITexture(TAG_P, e[2]); if litOn() then pcall(function() veh:queueJSUITexture(TAG_E, e[2]) end) end sendT = 0 break end
   end
   if outHead > #outq then outq, outHead = {}, 1 end
 end
@@ -497,12 +518,20 @@ function M.washSplats(id, fDust, fMud)
   end
 end
 
+-- panel damage on a car nobody drives (a parked car that is hit): start its paint map on demand. Returns true when the map is ready now (the first call returns false while the mesh is read)
+function M.ensureCar(id)
+  local veh = getObjectByID(id)
+  if veh and not cars[id] and active() then start(veh) end
+  return M.hasMap(id)
+end
+function M.hasMap(id) local c = cars[id] return c ~= nil and c.lut ~= nil end
+
 -- repair: the scratches of car id buffed out (every car's when id is nil); the dirt stays
 function M.repair(id)
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then send(veh, 'csfxRepair()') end
   end
-  for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} end end
+  for vid, m in pairs(memory) do if id == nil or vid == id then m.marks = {} m.dents = {} end end      -- (a repaired car has no dents either)
 end
 
 function M.buffOut()
@@ -512,14 +541,77 @@ function M.buffOut()
   end
 end
 
+-- ---- panel damage (carSurfaceFx/paneldamage.lua, docs/PANEL_DAMAGE.md): a dent on the paint at a node, drawn as a shaded and a lit half on the paint canvases.
+-- rM: the radius in metres, sev 0..1 (the depth), maxMarks: the most dents kept per car (the oldest go). Returns true when it was drawn (false: the car has no map or no canvases).
+local LIGHT_DIR_FALLBACK = 2.35                                   -- radians, when the light runs straight into the panel
+local KIND_CODE = { plastic = 1, fibreglass = 2, carbon = 3, metal = 4 }
+local KIND_LETTER = { 'p', 'f', 'c', 'm' }
+-- spreadM (optional): scatter the mark up to that many metres around the node, for the extra marks of a hard hit
+function M.dent(id, cid, sev, rM, maxMarks, light, kind, spreadM)
+  local car = cars[id]
+  local e = car and car.lut and car.lut[cid]
+  if not e then return false end
+  local veh = getObjectByID(id)
+  if not veh or not hasCanvas(veh) then return false end
+  -- the light in the car's own left / back / up components, turned into a direction across the texture here (as the scratch hit does for a slip direction)
+  local ang = LIGHT_DIR_FALLBACK
+  if car.axes and light then
+    local d = car.axes[1] * light[1] + car.axes[2] * light[2] + car.axes[3] * light[3]
+    local du = e[3] * d.x + e[4] * d.y + e[5] * d.z
+    local dv = e[6] * d.x + e[7] * d.y + e[8] * d.z
+    if du * du + dv * dv > 1e-6 * e[9] * e[9] then ang = math.atan2(-dv, du) end      -- (the canvas runs down: y = 1 - v)
+  end
+  local r = max(0.004, min(0.2, rM * e[9]))
+  local ox, oy = 0, 0
+  if spreadM and spreadM > 0 then
+    local a, d = math.random() * 6.2832, spreadM * e[9] * math.sqrt(math.random())      -- (texture units: e[9] is per metre)
+    ox, oy = math.cos(a) * d, math.sin(a) * d
+  end
+  local rec = { q(max(0, min(1, e[1] + ox))), q(max(0, min(1, 1 - e[2] + oy))), q(r, 10000), q(ang, 100), q(sev, 100), KIND_CODE[kind] or 4 }
+  draw(veh, 'csfxDent', { x = rec[1], y = rec[2], r = rec[3], ang = rec[4], d = rec[5], k = KIND_LETTER[rec[6]] })
+  local m = mem(id)
+  m.dents = m.dents or {}
+  m.dents[#m.dents + 1] = rec
+  while #m.dents > (maxMarks or 40) do table.remove(m.dents, 1) end
+  return true
+end
+
+-- the node of car id (one the map knows) nearest to a world position, and how far it is, or nil
+function M.nearestNode(id, worldPos, maxDist)
+  local car, veh = cars[id], getObjectByID(id)
+  if not (car and car.lut and veh and worldPos) then return nil end
+  local best, bd = nil, (maxDist or 0.4) ^ 2
+  local origin = veh:getPosition()
+  for cid in pairs(car.lut) do
+    local ok, rel = pcall(function() return veh:getNodePosition(cid) end)
+    if ok and rel then
+      local dx, dy, dz = origin.x + rel.x - worldPos.x, origin.y + rel.y - worldPos.y, origin.z + rel.z - worldPos.z
+      local d2 = dx * dx + dy * dy + dz * dz
+      if d2 < bd then best, bd = cid, d2 end
+    end
+  end
+  return best, best and math.sqrt(bd) or nil
+end
+
+-- the node ids (cid) of car id that the paint map knows, in no particular order (for the probe)
+function M.mappedNodes(id)
+  local car, out = cars[id], {}
+  if car and car.lut then for cid in pairs(car.lut) do out[#out + 1] = cid end table.sort(out) end
+  return out
+end
+
+-- how many dents car id carries
+function M.dentCount(id) local m = memory[id] return m and m.dents and #m.dents or 0 end
+
 -- how many scratches car id carries (the last MEMORY_CAP are remembered)
 function M.count(id) local m = memory[id] return m and #m.marks or 0 end
 
 -- the marks of car id as plain numbers (the last 40 scratch lines and splats), or nil
 function M.getState(id)
   local m = memory[id]
-  if not m or (#m.marks == 0 and #m.splats == 0) then return nil end
+  if not m or (#m.marks == 0 and #m.splats == 0 and #(m.dents or {}) == 0) then return nil end
   local out = { marks = {}, splats = {} }
+  if m.dents and #m.dents > 0 then out.dents = {} for _, r in ipairs(m.dents) do out.dents[#out.dents + 1] = { unpack(r) } end end
   for i = math.max(1, #m.marks - 39), #m.marks do out.marks[#out.marks + 1] = { unpack(m.marks[i]) } end
   for i = math.max(1, #m.splats - 39), #m.splats do out.splats[#out.splats + 1] = { unpack(m.splats[i]) } end
   return out
@@ -527,11 +619,13 @@ end
 
 -- put marks back on car id (from getState): remembered now, drawn as soon as the car's canvases are up
 function M.restore(id, st)
-  local m = { marks = {}, splats = {} }
+  local m = { marks = {}, splats = {}, dents = {} }
+  for _, r in ipairs(type(st) == 'table' and st.dents or {}) do if #r >= 5 then m.dents[#m.dents + 1] = { r[1], r[2], r[3], r[4], r[5], r[6] or 4 } end end
   for _, r in ipairs(type(st) == 'table' and st.marks or {}) do if #r >= 5 then m.marks[#m.marks + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
   for _, r in ipairs(type(st) == 'table' and st.splats or {}) do if #r >= 5 then m.splats[#m.splats + 1] = { r[1], r[2], r[3], r[4], r[5] } end end
   memory[id] = m
   replayAt[id] = os.clock() + 1
+  restoredAt[id] = os.clock()
 end
 
 local function replay(id)
@@ -542,6 +636,7 @@ local function replay(id)
     for j = i, math.min(i + 9, #m.marks) do for k = 1, 5 do l[#l + 1] = m.marks[j][k] end end
     draw(veh, 'csfxLines', { l = l, c = settings.colour, a = settings.opacity * 0.8 })
   end
+  for _, dn in ipairs(m.dents or {}) do draw(veh, 'csfxDent', { x = dn[1], y = dn[2], r = dn[3], ang = dn[4], d = dn[5], k = KIND_LETTER[dn[6] or 4] }) end
   for _, sp in ipairs(m.splats) do
     draw(veh, 'csfxBlobs', { l = { sp[1], sp[2], sp[3] }, c = sp[5] == 1 and DUST or MUD, a = sp[4], k = sp[5] == 1 and 'dust' or 'mud' })
   end
@@ -688,10 +783,12 @@ end
 -- ---- lifecycle ----
 function M.onExtensionLoaded() end
 local pollTimer = 0
+local checkResets                                              -- (defined with onVehicleResetted below)
 function M.onUpdate(dt)
   flush(dt)
   carSurfaceFx_meshuv.tick()
   bodydirt.tick()
+  checkResets()
   pollTimer = pollTimer + (dt or 0)
   if pollTimer < 1.0 then return end
   pollTimer = 0
@@ -716,7 +813,30 @@ function M.onVehicleSpawned(id)
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
-function M.onVehicleDestroyed(id) injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
+-- the car was reset or recovered: the marks follow the car's REAL damage. If it is whole again (free roam R, a garage or body shop repair) the scratches and the panel marks go (the
+-- dirt stays); a recovery or tow that keeps the physical damage keeps them too. The vehicle reports its damage a moment after the reset, so this looks again 0.7 s later, at
+-- map.objects[id].damage (the vehicle's dissipated energy; 0 on a new car). An unknown damage keeps the marks. A restore on a respawned car is left alone for 5 seconds (a spawn can reset once).
+local WHOLE = 20
+local resetAt = {}
+function M.onVehicleResetted(id)
+  if restoredAt[id] and os.clock() - restoredAt[id] < 5 then return end
+  resetAt[id] = os.clock() + 0.7
+end
+local function damageOf(id)
+  local m = rawget(_G, 'map')
+  local o = m and m.objects and m.objects[id]
+  return o and tonumber(o.damage) or nil
+end
+function checkResets()
+  for id, t in pairs(resetAt) do
+    if t <= os.clock() then
+      resetAt[id] = nil
+      local dmg = damageOf(id)
+      if dmg and dmg < WHOLE then M.repair(id) end
+    end
+  end
+end
+function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
 function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 
