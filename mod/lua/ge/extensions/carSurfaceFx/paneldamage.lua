@@ -9,6 +9,7 @@ local TAG = 'carSurfaceFx_paneldamage'
 local settings = rules.defaults()
 local counts = { hits = 0, drawn = 0, tooSoft = 0, noMap = 0 }
 local lastHit                                       -- the last hit seen, for the probe: { cid, perp, force, E, sev }
+local topLog = {}                                    -- the 10 hardest hits since the log was switched on
 local hitLog = {}                                   -- the probe's log of hits: { perp, force, mass, nodes, E, sev }
 local logOn = false
 local readyAt = {}                                  -- vehId .. ':' .. cid -> os.clock() when the node may be marked again
@@ -31,14 +32,18 @@ function M.configure(t)
 end
 
 -- the car side's report of a body node that hit something
-function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial)
+function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, carSpeed)
   counts.hits = counts.hits + 1
   local E = rules.energy(perp, force, mass, nodes)
   local sev = rules.severity(E, settings.minEnergy)
   lastHit = { cid = cid, perp = perp, force = force, E = E, sev = sev }
   if logOn then
-    hitLog[#hitLog + 1] = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev }
+    local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, car = carSpeed }
+    hitLog[#hitLog + 1] = r
     if #hitLog > 200 then table.remove(hitLog, 1) end
+    topLog[#topLog + 1] = r                         -- the hardest hits seen, kept apart (the last ones are the resting rattle against the wall)
+    table.sort(topLog, function(a, b) return a.E > b.E end)
+    while #topLog > 10 do table.remove(topLog) end
   end
   local kind = rules.kindOf({ nodeMaterial = nodeMaterial })
   local key = tostring(vid) .. ':' .. tostring(cid)
@@ -87,7 +92,7 @@ end
 function M.probe(what, arg, kind, kind2)
   kind = kind or 'metal'
   local veh = getPlayerVehicle and getPlayerVehicle(0)
-  if what == 'log' then logOn = arg ~= false hitLog = {} return 'hit log ' .. (logOn and 'on' or 'off') end
+  if what == 'log' then logOn = arg ~= false hitLog = {} topLog = {} return 'hit log ' .. (logOn and 'on' or 'off') end
   if what == 'info' then
     local sc0 = scratch()
     local pi = veh and sc0 and sc0.paintInfo and sc0.paintInfo(veh:getId())
@@ -132,12 +137,11 @@ function M.probe(what, arg, kind, kind2)
 end
 
 function M.status()
-  local rows = {}
-  for i = math.max(1, #hitLog - 9), #hitLog do
-    local r = hitLog[i]
-    rows[#rows + 1] = string.format('perp %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.force, r.mass, r.nodes, r.E, r.sev)
-  end
-  return { enabled = settings.enabled, metal = settings.metal, plastic = settings.plastic, fibreglass = settings.fibreglass, carbon = settings.carbon, counts = counts, last = lastHit, log = rows }
+  local function line(r) return string.format('node perp %.1f m/s, car %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.car or -1, r.force, r.mass, r.nodes, r.E, r.sev) end
+  local rows, top = {}, {}
+  for i = math.max(1, #hitLog - 4), #hitLog do rows[#rows + 1] = line(hitLog[i]) end
+  for _, r in ipairs(topLog) do top[#top + 1] = line(r) end
+  return { enabled = settings.enabled, metal = settings.metal, plastic = settings.plastic, fibreglass = settings.fibreglass, carbon = settings.carbon, counts = counts, last = lastHit, hardest = top, latest = rows }
 end
 
 function M.onVehicleSpawned() M.configure(settings) end

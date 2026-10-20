@@ -36,7 +36,8 @@ local function onEvent(ev)
   nodeReady[ev.node] = t + cfg.cooldown
   seen.sent = seen.sent + 1
   carNumbers()
-  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat))
+  local okv, vel = pcall(function() return obj:getVelocity():length() end)      -- the car's own speed: the node's perpendicular speed jitters at a resting contact
+  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.1f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, okv and vel or -1))
 end
 
 local function ensureSubscribed()

@@ -53,4 +53,12 @@ assert(P.damageNode(5, 20, 500, 'metal') == false, 'the master off again')
 getPlayerVehicle = function() return nil end
 assert(P.probe('dent') == 'no player vehicle' and P.probe('log', true) == 'hit log on', 'probe without a car, the log switch')
 assert(type(P.status().counts) == 'table', 'status')
+-- the log keeps the hardest hits apart from the latest ones
+P.configure({ enabled = true, metal = true, plastic = true, minEnergy = 60 })
+P.probe('log', true)
+for i = 1, 14 do P.hit(5, 100 + i, 2 + i * 0.3, 900, 1200, 800, 2, 3.5) end         -- harder and harder
+for i = 1, 8 do P.hit(5, 200 + i, 1.2, 100, 1200, 800, 2, 0.5) end                    -- then a soft rattle
+local st = P.status()
+assert(#st.hardest == 10 and #st.latest == 5, 'ten hardest, five latest')
+assert(st.hardest[1]:find('node perp 6.2 m/s', 1, true) and st.latest[#st.latest]:find('car 0.5 m/s', 1, true) and st.hardest[1]:find('car 3.5 m/s', 1, true), 'the hardest are not lost to the rattle; the car speed is logged')
 print('carSurfaceFx panel damage: ok')
