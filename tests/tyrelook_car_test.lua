@@ -47,3 +47,16 @@ particles.getMaterialIDByName = function() return 2 end
 metal[1], metal[2] = nil, nil
 L.set(0, 5, true)
 assert(metal[1] == 2 and metal[2] == 2, 'the nodes become METAL on the next report once they exist')
+-- a flip that failed on some nodes is retried (and said once), and succeeds when the calls work again
+local fails, nsent = 1, #events
+obj.setNodeMaterial = function(_, cid, id) if fails > 0 then error('refused') end metal[cid] = id end
+metal[1], metal[2] = nil, nil
+L.restore()
+L.set(0, 5, true)
+L.set(0, 5, true)
+L.set(0, 5, true)
+local said = 0 for k = nsent + 1, #events do if events[k]:find('refused', 1, true) then said = said + 1 end end
+assert(said == 1, 'a failing flip is said once, not on every report: ' .. said)
+fails = 0
+L.set(0, 5, true)
+assert(metal[1] == 2 and metal[2] == 2, 'retried and done when the calls work again')

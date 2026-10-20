@@ -8,6 +8,7 @@ local RUBBER_MAT, METAL_NAME = 4, 'METAL'
 local sw                            -- wheel index -> { { orig, mesh } } once built
 local stageOf = {}                  -- wheel index -> the stage on show
 local metalOf = {}                  -- wheel index -> true while its tread nodes are METAL
+local metalFailSaid = {}            -- wheel index -> true once a failed flip has been written to the log (a failing one is retried on every report, said once)
 local pinned = {}                  -- wheel index -> true while a test has set its stage by hand (the tyre module's own reports leave it alone)
 local disabled = false
 
@@ -70,7 +71,7 @@ local function setMetal(wi, on)
     local ok, err = pcall(obj.setNodeMaterial, obj, cid, id)
     if not ok then failed = failed + 1 why = why or tostring(err) end
   end
-  metalOf[wi] = on
+  if failed == 0 then metalOf[wi] = on metalFailSaid[wi] = nil elseif metalFailSaid[wi] then return else metalFailSaid[wi] = true end      -- a flip with failures is retried by the next report
   -- the car's own log does not reach beamng.log: the game side writes the line (with the material id and any failures, so a missing effect can be told from a missing call)
   obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,%q,%q) end', obj:getId(), wi, on and 'metal' or 'rubber',
     string.format('%d nodes, material id %s, %d failed%s', #wd.treadNodes, tostring(id), failed, why and (': ' .. why:sub(1, 80)) or '')))
