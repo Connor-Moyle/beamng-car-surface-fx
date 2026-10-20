@@ -98,6 +98,20 @@ Hl.stamp(on, -1018.5, -1016.5, 'mud', 1)
 Hl.update(on, 4)
 assert(not Hl.available() and Hl.why():find('no updateGrid') and logs[#logs]:find('hollows off'), 'a failing call: off, one log line')
 
+-- with Street Legal's gate present: no flush while it says no (the edits stay dirty), a flush when free, and the gate is told
+block.updateGrid = function(_, a, b) grids[#grids + 1] = { a.x, a.y, b.x, b.y } end
+local open_, told = false, 0
+package.loaded['sl/core/gpugate'] = { terrainEditOk = function() return open_ end, planesTouched = function() told = told + 1 end }
+package.loaded['carSurfaceFx/hollows'] = nil
+Hl = require('carSurfaceFx/hollows')
+Hl.stamp(on, -1018.5, -1016.5, 'mud', 1)
+local g0 = #grids
+Hl.update(on, 4)
+assert(#grids == g0 and told == 0 and Hl.count() > 0, 'the gate says wait: nothing written')
+open_ = true
+Hl.update(on, 0.1)
+assert(#grids == g0 + 1 and told == 1, 'the gate is free: one flush and the gate is told')
+package.loaded['sl/core/gpugate'] = nil
 vec3, core_terrain, log = saved.vec3, saved.core_terrain, saved.log
 be.reloadCollision = oldReload
 be = oldBe

@@ -27,6 +27,16 @@ local function block()
   return tb
 end
 
+-- Street Legal's gate (sl/core/gpugate), when that mod is there: the GPU was lost when terrain edits and its rain material reloads came close together, so they take turns
+local gate
+local function sharedGate()
+  if gate == nil then
+    local ok, g = pcall(require, 'sl/core/gpugate')
+    gate = ok and type(g) == 'table' and g.terrainEditOk and g or false
+  end
+  return gate
+end
+
 local function fail(why)
   failed = tostring(why)
   log('W', TAG, 'terrain hollows off: ' .. failed)
@@ -55,11 +65,14 @@ function M.update(cfg, dt)
   if failed or not tb or st.dirtyN == 0 then return end
   timer = timer + dt
   if timer < cfg.flushInterval then return end
+  local g, now = sharedGate(), os.clock()
+  if g and not g.terrainEditOk(now) then return end                -- (the edits stay dirty and go out at the next free flush)
   timer = 0
   local list, box = rules.takeDirty(st)
   if not list then return end
   local ok, err = pcall(apply, list, box)
   if not ok then fail(err) end
+  if g then g.planesTouched(now) end                                -- (the wet world leaves the GPU alone for a moment after our edit)
 end
 
 -- put every height back (the original of each touched vertex) and tell the engine, then forget it all
