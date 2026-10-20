@@ -35,15 +35,16 @@ function M.defaults()
   }
 end
 
--- ---- glass. A window is a beam with both a deform group and a break group (the game's own sign of glass and wood, but also of drive shafts), minus wood and plastic lenses (headlights and
--- taillights have the same pairing), and it must say glass: a glass node material, or a deform group named glass / window / windshield / windscreen.
+-- ---- glass. A window is a beam with a deform or break group that says glass (a name holding glass / window / windshield / windscreen: roofglass_break, windshield_break), or a glass node
+-- material on a grouped beam. Not wood or plastic lenses, and not lamp glass (headlightglass_L_break and the like are lamps). Drive shafts have groups too, and say none of this.
 -- beamInfo = { deformGroup, breakGroup }, m1 / m2 = the node materials of its two nodes.
 function M.isGlassBeam(beamInfo, m1, m2)
-  if not (beamInfo and beamInfo.deformGroup and beamInfo.breakGroup) then return false end
+  if not (beamInfo and (beamInfo.deformGroup or beamInfo.breakGroup)) then return false end
   local mats = M.MAT
   if m1 == mats.WOOD or m2 == mats.WOOD or m1 == mats.PLASTIC or m2 == mats.PLASTIC then return false end
+  local g = (tostring(beamInfo.deformGroup or '') .. ' ' .. tostring(beamInfo.breakGroup or '')):lower()
+  if g:find('light', 1, true) or g:find('lamp', 1, true) then return false end
   if m1 == mats.GLASS or m2 == mats.GLASS then return true end
-  local g = tostring(beamInfo.deformGroup):lower()
   return g:find('glass', 1, true) ~= nil or g:find('window', 1, true) ~= nil or g:find('windshield', 1, true) ~= nil or g:find('windscreen', 1, true) ~= nil
 end
 

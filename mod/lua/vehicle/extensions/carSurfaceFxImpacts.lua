@@ -59,11 +59,12 @@ local function burst(nodeId, kind, hard, spread)
   ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.debris(%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"%s",%s,%.2f) end', obj:getId(), p.x, p.y, p.z, nv.x, nv.y, nv.z, kind, hard and 'true' or 'false', spread))
 end
 
--- the same rule as the GE side's impactrules.isGlassBeam: both groups, not wood or plastic, and it says glass (drive shafts have both groups too)
+-- the same rule as the GE side's impactrules.isGlassBeam: a group that says glass (roofglass_break), not wood, plastic or lamp glass
 local function isGlassBeam(beam, m1, m2)
-  if not (beam.deformGroup and beam.breakGroup) or m1 == MAT.WOOD or m2 == MAT.WOOD or m1 == MAT.PLASTIC or m2 == MAT.PLASTIC then return false end
+  if not (beam.deformGroup or beam.breakGroup) or m1 == MAT.WOOD or m2 == MAT.WOOD or m1 == MAT.PLASTIC or m2 == MAT.PLASTIC then return false end
+  local g = (tostring(beam.deformGroup or '') .. ' ' .. tostring(beam.breakGroup or '')):lower()
+  if g:find('light', 1, true) or g:find('lamp', 1, true) then return false end
   if m1 == MAT.GLASS or m2 == MAT.GLASS then return true end
-  local g = tostring(beam.deformGroup):lower()
   return g:find('glass', 1, true) ~= nil or g:find('window', 1, true) ~= nil or g:find('windshield', 1, true) ~= nil or g:find('windscreen', 1, true) ~= nil
 end
 
@@ -82,7 +83,7 @@ local function onEvent(ev)
     local beam = v.data.beams and v.data.beams[ev.beam]
     if not beam then return end
     local m1, m2 = nodeMat(beam.id1), nodeMat(beam.id2)
-    -- a window: both groups on the beam (the game's own sign of glass and wood), minus wood and plastic lenses
+    -- a window: a group named glass on the beam (see isGlassBeam)
     if cfg.glass and isGlassBeam(beam, m1, m2) then
       local p = obj:getAbsNodePosition(beam.id1)
       addToCluster(p.x, p.y, p.z)

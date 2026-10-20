@@ -4,7 +4,9 @@ local cfg = R.defaults()
 
 -- ---- the rules
 assert(R.isGlassBeam({ deformGroup = 'door_glass', breakGroup = 'b' }, 2, 2) and R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 5, 2), 'a window: both groups, and glass nodes or a glass group name')
-assert(not R.isGlassBeam({ deformGroup = 'driveshaft', breakGroup = 'b' }, 2, 2), 'a drive shaft has both groups too, and is not a window')
+assert(not R.isGlassBeam({ deformGroup = 'driveshaft', breakGroup = 'b' }, 2, 2), 'a drive shaft has groups too, and is not a window')
+assert(R.isGlassBeam({ deformGroup = 'roofglass_break' }, 2, 2) and R.isGlassBeam({ deformGroup = 'windshield_break' }, 2, 2), 'the vivace windows: a deform group named glass, no break group, metal nodes')
+assert(not R.isGlassBeam({ deformGroup = 'headlightglass_L_break' }, 2, 2), 'lamp glass is not a window')
 assert(not R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 3, 3) and not R.isGlassBeam({ deformGroup = 'a', breakGroup = 'b' }, 6, 2), 'plastic lenses and wood are not windows')
 assert(not R.isGlassBeam({ deformGroup = 'a' }, 2, 2) and not R.isGlassBeam(nil, 2, 2), 'a beam without both groups is not a window')
 
