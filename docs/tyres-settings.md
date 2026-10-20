@@ -24,6 +24,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Grip | pressureEffect | 1.0 | 0 - 2 | A | pressure effect on grip and wear |
 | Grip | beltGrip / beltSliding | 0.55 / 0.50 | 0.2 - 1 | A | grip once the tread is gone (belts) |
 | Grip | baldBelow | 0.5 | 0 - 2 mm | A | tread under which it looks bald |
+| Wet | rainAquaplane | **false** (unproven) | on/off | N | "Aquaplaning in heavy rain": wetness above 0.8 puts a water film of depth up to 0.2 on the road (at most ~16 % grip loss at speed) |
 | Wet | rainCool | (see Temperature) | | | |
 | Fire & debris | fires | true | on/off | N | "Tyre fires" |
 | Fire & debris | fireSpread | **false** (unproven) | on/off | N | "Fires can spread to the car" |
