@@ -396,6 +396,16 @@ function M.grip()                                  -- the mean friction factor w
   table.sort(out)
   return table.concat(out, ' | ')
 end
+function M.gripWhy()                               -- what is behind each grip() number: ground, surface temperature, deepest wear, compound ratio, external factor, water in force, speed
+  local out = {}
+  for wi, e in pairs(tyres or {}) do
+    local minH = math.huge
+    for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    out[#out + 1] = string.format('%s %s %s surface %s Ts %.0f tread %.1f of %.1f ratio %.2f ext %.2f water %.2f v %.1f', tostring(wi), tostring(e.wd.name), e.t.compound, tostring(e.surface or env.surface), e.t.Ts, max(0, minH), e.t.c.h0, e.ratio, extMult(wi), max(env.water, e.water or 0, e.puddle or 0), abs(tonumber(e.wd.wheelSpeed) or 0))
+  end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
 function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
   local out = {}
   for wi, e in pairs(tyres or {}) do

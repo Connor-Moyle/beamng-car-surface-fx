@@ -279,6 +279,7 @@ T.setCompound('fullwet')
 T.repair()
 T.setEnv({ wet = 0, water = 0.6 })
 for _ = 1, 30 do T.updateGFX(0.1) end
+assert(T.gripWhy():find('surface', 1, true) and T.gripWhy():find('ext 1.00', 1, true), 'gripWhy lists the inputs: ' .. T.gripWhy())
 assert(T.grip() ~= '' and T.grip():find('fullwet', 1, true), 'grip() is not empty on a fullwet tyre in water: ' .. T.grip())
 assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'fullwet floats later than the road tyre: ' .. T.grip())
 T.setEnv({ wet = 0, water = 0 })
