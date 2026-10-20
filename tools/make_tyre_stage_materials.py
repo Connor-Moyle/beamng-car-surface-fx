@@ -1,20 +1,24 @@
 """Tyre wear stage materials: python tools/make_tyre_stage_materials.py <path to BeamNG content/vehicles/common.zip>
-For every tyre material of the game's shared tyre folder it writes five worn variants, csfx_<name>_s1 .. _s5 (a material file under vehicles/common, which the game loads with the first car like its own tyre materials: a runtime loadJsonMaterialsFile was not accepted as a switch target),
-and the list of the original names for the car side (mod/lua/common/csfx_tyrelook_names.lua). A variant is the car's own stage 0 (its textures are referenced by path, none are copied)
-with the tread normal faded and one of the detail normals of art/surfacefx/tyres laid over it. s1 slight .. s4 bald, s5 the belts (the rules' stage numbers).
+For the tyre materials in FAMILY it writes five worn variants, csfx_<name>_s1 .. _s5 (a material file under vehicles/common, which the game loads with the first car like its own tyre materials: a switch
+target that is not in the car's spawn set renders flat black) and the list of the original names for the car side (mod/lua/common/csfx_tyrelook_names.lua). A variant is the car's own stage 0 (its textures
+are referenced by path, none are copied) with the tread normal faded and the full-atlas detail overlays of make_tyre_stage_textures.py laid over it. s1 slight .. s4 bald, s5 the belts (the rules' stage numbers).
 """
 import json, sys, uuid, zipfile, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'mod')
 ART = '/art/surfacefx/tyres/'
-# stage -> (strength of the car's own tread normal, detail map, detail strength, base colour factor)
+# The tyre materials whose atlas the overlays of make_tyre_stage_textures.py fit (the tread is the central band of the 1024 x 512 map): only these get stage materials. The other tyre materials of the
+# game have other atlases (checked by eye on a contact sheet; some are radial) and keep their normal look.
+FAMILY = ('tire', 'tire_01a')
+WEAR, CORD, CORD_N = ART + 'tyre_wear_c.data.png', ART + 'tyre_cord_c.data.png', ART + 'tyre_cord_n.normal.png'
+# stage -> (strength of the car's own tread normal, colour detail map, its strength, detail normal map, its strength)
 STAGES = {
-    1: (0.85, 'tyre_worn_1', 0.25, None),
-    2: (0.6, 'tyre_worn_2', 0.5, None),
-    3: (0.35, 'tyre_worn_3', 0.8, None),
-    4: (0.12, 'tyre_worn_3', 1.0, [1.25, 1.25, 1.25, 1]),
-    5: (0.08, 'tyre_belts_1', 1.0, [1.7, 1.55, 1.35, 1]),
+    1: (0.9, WEAR, 0.12, None, 0),
+    2: (0.65, WEAR, 0.35, None, 0),
+    3: (0.4, WEAR, 0.7, None, 0),
+    4: (0.15, WEAR, 1.3, CORD_N, 0.12),
+    5: (0.05, CORD, 1.0, CORD_N, 1.0),
 }
 
 z = zipfile.ZipFile(sys.argv[1])
@@ -23,30 +27,22 @@ for n in z.namelist():
     if n.startswith('vehicles/common/tires') and n.endswith('materials.json'):
         src.update(json.loads(z.read(n)))
 out = {}
-for name, m in sorted(src.items()):
+for name in FAMILY:
+    m = src[name]
     st = (m.get('Stages') or [{}])[0]
-    if not st.get('normalMap') and not st.get('baseColorMap'):
-        continue
-    for k, (ns, det, ds, col) in STAGES.items():
+    for k, (ns, dmap, dstr, nmap, nstr) in STAGES.items():
         s = dict(st)
         s['normalMapStrength'] = ns
-        s['detailNormalMap'] = ART + det + '.normal.png'
-        s['detailNormalMapStrength'] = ds
-        s['detailScale'] = [3, 3]
-        if col:
-            s['baseColorFactor'] = col
+        s['detailMap'] = dmap
+        s['detailBaseColorMapStrength'] = dstr
+        if nmap:
+            s['detailNormalMap'] = nmap
+            s['detailNormalMapStrength'] = nstr
+        s['detailScale'] = [1, 1]
         v = {kk: vv for kk, vv in m.items() if kk not in ('Stages', 'name', 'mapTo', 'persistentId')}
         vn = 'csfx_%s_s%d' % (name, k)
         v.update(name=vn, mapTo=vn, persistentId=str(uuid.uuid5(uuid.NAMESPACE_URL, vn)), Stages=[s, {}, {}, {}])
         out[vn] = v
-# two diagnosis clones of tire_01a (not used by the mod): an exact copy, and the exact copy plus only the detail normal. Whichever renders flat black shows what breaks a stage.
-for suffix, extra in (('plain', {}), ('dn', {'detailNormalMap': ART + 'tyre_worn_1.normal.png', 'detailNormalMapStrength': 0.5, 'detailScale': [3, 3]})):
-    m = src['tire_01a']
-    vn = 'csfx_tire_01a_' + suffix
-    st = dict((m.get('Stages') or [{}])[0]); st.update(extra)
-    v = {kk: vv for kk, vv in m.items() if kk not in ('Stages', 'name', 'mapTo', 'persistentId')}
-    v.update(name=vn, mapTo=vn, persistentId=str(uuid.uuid5(uuid.NAMESPACE_URL, vn)), Stages=[st, {}, {}, {}])
-    out[vn] = v
 os.makedirs(os.path.join(OUT, 'vehicles/common/carSurfaceFx'), exist_ok=True)
 with open(os.path.join(OUT, 'vehicles/common/carSurfaceFx/stages.materials.json'), 'w') as f:
     json.dump(out, f, indent=1)

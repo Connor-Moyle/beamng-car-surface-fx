@@ -1,7 +1,7 @@
 -- carSurfaceFxTyreLook.lua with a mocked car: each wheel's own tyre mesh is found by the node list of its flexbody, the stage goes up to the game side as a call with the wheel's meshes, the belts make the tread METAL.
 local sent, metal = {}, {}
 local names = dofile('mod/lua/common/csfx_tyrelook_names.lua')
-assert(#names >= 40 and names[1], 'the list of tyre materials is generated')
+assert(#names >= 1 and names[1], 'the list of tyre materials is generated')
 wheels = { wheels = { [0] = { name = 'FL', node1 = 50, treadNodes = { 1, 2 } }, [1] = { name = 'FR', node1 = 51, treadNodes = { 3, 4 } } } }
 -- the mesh order is the reverse of the wheel order on purpose
 v = { data = { flexbodies = { { mesh = 'tire_01a_15x7_24', _group_nodes = { 3, 4, 51 } }, { mesh = 'tire_01a_15x7_24D', _group_nodes = { 1, 2, 50 } }, { mesh = 'body', _group_nodes = { 9 } } } } }
