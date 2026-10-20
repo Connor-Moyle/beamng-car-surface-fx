@@ -12,6 +12,7 @@ local M = {}
 local subs, names = {}, {}                  -- subscribers in order
 local ev = {}
 local wrapped, active = false, false
+local seen = { calls = 0, published = 0, maxPerp = 0, last = 0 }      -- for M.status(): does the game call onNodeCollision at all, and do hits get past the gate
 local wheelNodes = nil
 
 local function publish(e)
@@ -27,6 +28,8 @@ function M.unsubscribe(name)
   for i, n in ipairs(names) do if n == name then table.remove(names, i) table.remove(subs, i) return end end
 end
 function M.count() return #subs end
+-- one line for the in-game check (vehicle console): carSurfaceFxContact.status()
+function M.status() return string.format('wrapped %s active %s subscribers %d | onNodeCollision calls %d, published %d, highest perp %.2f m/s, last %.2f', tostring(wrapped), tostring(active), #subs, seen.calls, seen.published, seen.maxPerp, seen.last) end
 
 -- the wheels' own nodes touch the ground all the time and are never a crash
 local function isWheelNode(id)
@@ -51,6 +54,7 @@ local function wrapNodeCollision()
   local orig = onNodeCollision
   onNodeCollision = function(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
     if orig then orig(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2) end
+    seen.calls = seen.calls + 1 seen.last = perpVel or 0 if (perpVel or 0) > seen.maxPerp then seen.maxPerp = perpVel end
     if not active or #subs == 0 then return end
     ev.kind, ev.node, ev.mat1, ev.mat2, ev.perp, ev.slip, ev.normalForce = 'node', id1, m1, m2, perpVel or 0, slipVel or 0, normalForce or 0
     ev.otherMat = m2
@@ -62,6 +66,7 @@ local function wrapNodeCollision()
     ev.nx, ev.ny, ev.nz = n and n.x or 0, n and n.y or 0, n and n.z or 1
     ev.vx, ev.vy, ev.vz = nv and nv.x or 0, nv and nv.y or 0, nv and nv.z or 0
     ev.beam, ev.energy = nil, nil
+    seen.published = seen.published + 1
     publish(ev)
   end
 end

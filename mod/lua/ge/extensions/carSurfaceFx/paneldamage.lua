@@ -78,15 +78,22 @@ end
 -- ---- the probe hooks (docs/PANEL_DAMAGE.md section 7), for the in-game check ----------------------------------------------------------------------------------------------
 -- (each takes a last argument, the kind: 'metal' (default), 'plastic', 'fibreglass', 'carbon')
 -- carSurfaceFx_paneldamage.probe('dent', sev)         a test mark on the mapped node nearest the car's centre, 0.9 m up; sev 0.1 .. 1 (default 0.6)
--- carSurfaceFx_paneldamage.probe('row', n)            n dents (default 10) along the car's length, 0.9 m out to the side and 0.7 m up: the position and seam check
+-- carSurfaceFx_paneldamage.probe('row', n)            n dents (default 10) along the car's length, 0.9 m out to the side and 0.7 m up (a 4th argument sets the height in metres, 0.45 is the door skin): the position and seam check
 -- carSurfaceFx_paneldamage.probe('fill', n)           n dents on mapped nodes (default 40), for the cost check: watch the frame time
 -- carSurfaceFx_paneldamage.probe('log', true|false)   record the real hits (speed, force, mass, energy, depth); status() lists the last ones
+-- carSurfaceFx_paneldamage.probe('info')              does the player car's paint have a palette and the lit page (a black car shows the marks only with one of them)
 -- carSurfaceFx_paneldamage.probe('clear')
 -- Each returns a line of text. The master switch must be on first (Mods menu > Panel damage).
-function M.probe(what, arg, kind)
+function M.probe(what, arg, kind, kind2)
   kind = kind or 'metal'
   local veh = getPlayerVehicle and getPlayerVehicle(0)
   if what == 'log' then logOn = arg ~= false hitLog = {} return 'hit log ' .. (logOn and 'on' or 'off') end
+  if what == 'info' then
+    local sc0 = scratch()
+    local pi = veh and sc0 and sc0.paintInfo and sc0.paintInfo(veh:getId())
+    if not pi then return 'no paint canvases on the player car' end
+    return string.format('paint bound %s, canvases %s, palette %s (no palette: marks can only darken), lit page %s (needs Mods > Dirt > Lit snow)', tostring(pi.bound), tostring(pi.canvas), tostring(pi.palette), tostring(pi.lit))
+  end
   if what == 'clear' then if veh then M.clear(veh:getId()) end return 'cleared' end
   if not veh then return 'no player vehicle' end
   local sc = scratch()
@@ -102,11 +109,12 @@ function M.probe(what, arg, kind)
     return 'dent on node ' .. cid .. string.format(' (%.2f m away) depth %.2f: ', d or 0, sev) .. tostring(M.damageNode(id, cid, E, kind))
   elseif what == 'row' then
     local n, drawn = math.floor(tonumber(arg) or 10), 0
+    local rowH = tonumber(kind2) or 0.7
     local dir, up = veh:getDirectionVector(), vec3(0, 0, 1)
     local side = dir:cross(up):normalized()
     local c = veh:getPosition()
     for i = 0, n - 1 do
-      local p = c + dir * (-2 + 4 * i / math.max(1, n - 1)) + side * 0.9 + up * 0.7
+      local p = c + dir * (-2 + 4 * i / math.max(1, n - 1)) + side * 0.9 + up * rowH
       local cid = sc.nearestNode(id, p, 0.6)
       if cid and M.damageNode(id, cid, settings.minEnergy * 6, kind) then drawn = drawn + 1 end
     end

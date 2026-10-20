@@ -188,6 +188,17 @@ local function ensureCanvases()
   end
 end
 
+-- for the panel damage probe: what paint canvases car id has: has a palette to punch (false: marks can only darken), has the lit page (the dirt glow setting)
+function M.paintInfo(id)
+  local veh = getObjectByID(id)
+  if not veh then return nil end
+  local pal, glow, any = false, false, false
+  for _, nm in ipairs(veh:getMaterialNames() or {}) do
+    if bound[nm] then any = true pal = pal or bound[nm].pal == true glow = glow or bound[nm].glow == true end
+  end
+  return { bound = any, palette = pal, lit = glow, canvas = hasCanvas(veh) }
+end
+
 -- put every material back exactly as it was and drop the canvases (each item on its own: one that throws, or a car that is already gone, does not stop the rest)
 local function restoreAll()
   for name, layers in pairs(bound) do

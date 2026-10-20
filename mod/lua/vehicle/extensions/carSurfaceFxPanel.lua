@@ -9,6 +9,7 @@ local cfg = { enabled = false, minPerp = 1.0, cooldown = 0.4 }
 local nodeReady = {}
 local subscribed = false
 local mass, nodes
+local seen = { events = 0, nodeEv = 0, sent = 0 }      -- for M.status()
 
 local function ge(cmd) pcall(function() obj:queueGameEngineLua(cmd) end) end
 
@@ -21,12 +22,15 @@ local function carNumbers()
 end
 
 local function onEvent(ev)
+  seen.events = seen.events + 1
   if not cfg.enabled or ev.kind ~= 'node' then return end
+  seen.nodeEv = seen.nodeEv + 1
   if (ev.mat1 ~= MAT.METAL and ev.mat1 ~= MAT.PLASTIC) or ev.mat2 == MAT.RUBBER or ev.perp < cfg.minPerp then return end
   if carSurfaceFxContact and carSurfaceFxContact.isWheelNode and carSurfaceFxContact.isWheelNode(ev.node) then return end
   local t = os.clock()
   if (nodeReady[ev.node] or 0) > t then return end
   nodeReady[ev.node] = t + cfg.cooldown
+  seen.sent = seen.sent + 1
   carNumbers()
   ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.mat1))
 end
@@ -47,6 +51,9 @@ function M.setConfig(enabled, minPerp)
   if tonumber(minPerp) then cfg.minPerp = tonumber(minPerp) end
   if cfg.enabled then ensureSubscribed() end
 end
+
+-- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
+function M.status() return string.format('enabled %s subscribed %s | events %d, node events %d, sent to the game %d', tostring(cfg.enabled), tostring(subscribed), seen.events, seen.nodeEv, seen.sent) end
 
 function M.onReset() nodeReady = {} end
 function M.onExtensionUnloaded() if carSurfaceFxContact then pcall(carSurfaceFxContact.unsubscribe, 'panel') end subscribed = false end
