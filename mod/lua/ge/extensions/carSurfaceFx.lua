@@ -692,9 +692,8 @@ function M.screenTrace(on) screenTrace = on and true or false traceT = 1 return 
 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
-local function update(dtReal)
-  retireT = retireT + dtReal
-  if retireT >= 1 then retireT = 0 retireOldMod() end
+-- starts and stops each module to match its switch (kept out of update(): LuaJIT allows 60 upvalues per function)
+local function syncModules()
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end
   if settings and settings.fluids and settings.fluids.enabled ~= fluidsOn() then if settings.fluids.enabled then startFluids() else stopFluids() end end
@@ -702,6 +701,12 @@ local function update(dtReal)
   if settings and settings.impacts and settings.impacts.enabled ~= impactsOn() then if settings.impacts.enabled then startImpacts() else stopImpacts() end end
   if settings and settings.grass and settings.grass.enabled ~= grassOn() then if settings.grass.enabled then startGrass() else stopGrass() end end
   if settings and tyresWanted ~= tyresOn() then if tyresWanted then startTyres() else stopTyres() end end
+end
+
+local function update(dtReal)
+  retireT = retireT + dtReal
+  if retireT >= 1 then retireT = 0 retireOldMod() end
+  syncModules()
   if tyresOn() then carSurfaceFx_tyres.update(dtReal, wet) end
   if not settings then loadSettings() end
   local q = queue[1]
