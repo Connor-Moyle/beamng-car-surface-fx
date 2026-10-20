@@ -157,7 +157,7 @@ local function tick(dt)
       end
       if e.puddleTtl then e.puddleTtl = e.puddleTtl - dt if e.puddleTtl <= 0 then e.puddle, e.puddleTtl = nil, nil end end   -- a puddle depth nobody renews fades after PUDDLE_TTL
       local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water, e.puddle or 0) > 0
-      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
+      local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom, dist = (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and abs(tonumber(wd.wheelSpeed) or 0) * dt or 0 }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
       e.debrisG = (e.debrisG or 0) + dg

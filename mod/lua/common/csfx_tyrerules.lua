@@ -36,6 +36,7 @@ function M.defaults()
     heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
     rainAquaplane = false,                                    -- Mods settings: "Aquaplaning in heavy rain"; a thin film of water (depth up to 0.2) on the road above wetness 0.8
+    rollWear = 0.2,                                          -- Mods settings: "Wear while driving"; mm of tread per 1000 km rolled on a road tyre (0.2 = 40,000 km for 8 mm)
     heatRate = 0.7, coolRate = 1.0, rainCool = 4, sunRoad = 8,
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
     beltGrip = 0.55, beltSliding = 0.50,
@@ -115,8 +116,13 @@ function M.wearStep(t, ctx, cfg)
   local ms = cfg.surface[sk] or cfg.surface[WEAR_ALIAS[sk] or ''] or 1
   if ctx.surface == 'rock' and (t.compound == 'mud' or t.compound == 'offroad') then ms = ms * 2 end
   local mp = M.pressureWear(ctx.pressure, ctx.pNom, cfg)
+  local roll = (ctx.dist or 0) > 0 and (cfg.rollWear or 0) * 1e-6 * ctx.dist * (c.k / M.COMPOUNDS.road.k) * ms * mp * cfg.wearRate or 0     -- plain rolling: the whole ring, whatever the slip
   for j = 1, 2 * t.n do
     local e = t.E[j]
+    if roll > 0 and t.h[j] > -c.margin - cfg.cordLimit then
+      t.h[j] = t.h[j] - roll * M.heatWear(c, t.Ts, cfg)
+      if t.h[j] <= -cfg.cordLimit then t.blown = true end
+    end
     if e > 0 then
       e = t.EL[j] + (e - t.EL[j]) * (cfg.spinWear or 1)
       local i = M.sectorOf(j)
