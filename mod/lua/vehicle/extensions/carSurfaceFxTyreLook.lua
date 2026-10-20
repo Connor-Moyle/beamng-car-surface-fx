@@ -60,11 +60,20 @@ end
 local function setMetal(wi, on)
   local wd = wheels.wheels[wi]
   if not (wd and wd.treadNodes) or (metalOf[wi] or false) == on then return end
-  local id = on and (particles.getMaterialIDByName(particles.materials or v.data.materials, METAL_NAME) or 2) or RUBBER_MAT
-  for _, cid in ipairs(wd.treadNodes) do obj:setNodeMaterial(cid, id) end
+  local id = RUBBER_MAT
+  if on then
+    local ok, r = pcall(function() return particles.getMaterialIDByName(particles.materials or v.data.materials, METAL_NAME) end)
+    id = ok and tonumber(r) or 2                    -- 2 = METAL in the game's material list (research 7.6)
+  end
+  local failed, why = 0, nil
+  for _, cid in ipairs(wd.treadNodes) do
+    local ok, err = pcall(obj.setNodeMaterial, obj, cid, id)
+    if not ok then failed = failed + 1 why = why or tostring(err) end
+  end
   metalOf[wi] = on
-  -- the car's own log does not reach beamng.log: the game side writes the line
-  obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,%q,%d) end', obj:getId(), wi, on and 'metal' or 'rubber', #wd.treadNodes))
+  -- the car's own log does not reach beamng.log: the game side writes the line (with the material id and any failures, so a missing effect can be told from a missing call)
+  obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,%q,%q) end', obj:getId(), wi, on and 'metal' or 'rubber',
+    string.format('%d nodes, material id %s, %d failed%s', #wd.treadNodes, tostring(id), failed, why and (': ' .. why:sub(1, 80)) or '')))
 end
 
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone

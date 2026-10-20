@@ -21,7 +21,7 @@ L.set(0, 0)
 assert(#sent == 4, 'no repeat while the stage is the same')
 L.set(0, 3) L.restore()
 assert(L.stages() == '', 'restore puts everything back')
-assert(events[1]:find('lookEvent(7,0,"metal",2)', 1, true), 'the METAL switch is reported to the game side for its log: ' .. tostring(events[1]))
+assert(events[1]:find('lookEvent(7,0,"metal","2 nodes, material id 2, 0 failed")', 1, true), 'the METAL switch is reported to the game side for its log: ' .. tostring(events[1]))
 assert(L.info() == '0:tire_01a@tire_01a_15x7_24D 1:tire_01a@tire_01a_15x7_24 glow=0', 'info lists the meshes: ' .. L.info())
 print('carSurfaceFxTyreLook: ok')
 -- a stage set by hand is not undone by the tyre module's reports; restore() hands it back
@@ -32,3 +32,8 @@ assert(#sent == n and L.stages():find('1=5', 1, true), 'the module reports do no
 L.restore()
 L.set(1, 2, true)
 assert(L.stages() == '1=2', 'after restore the reports drive it again')
+-- a failing engine call is reported, not swallowed
+obj.setNodeMaterial = function() error('boom') end
+particles.getMaterialIDByName = function() error('no list') end
+L.set(1, 5)
+assert(events[#events]:find('lookEvent(7,1,"metal","2 nodes, material id 2, 2 failed: ', 1, true), 'failures are reported to the game side: ' .. tostring(events[#events]))
