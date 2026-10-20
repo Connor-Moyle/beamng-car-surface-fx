@@ -63,7 +63,7 @@ local function setMetal(wi, on)
   local id = on and (particles.getMaterialIDByName(particles.materials or v.data.materials, METAL_NAME) or 2) or RUBBER_MAT
   for _, cid in ipairs(wd.treadNodes) do obj:setNodeMaterial(cid, id) end
   metalOf[wi] = on
-  log('D', 'carSurfaceFxTyreLook', 'wheel ' .. wi .. ' tread nodes ' .. (on and 'METAL' or 'RUBBER') .. ' (' .. #wd.treadNodes .. ' nodes)')
+  log('I', 'carSurfaceFxTyreLook', 'wheel ' .. wi .. ' tread nodes ' .. (on and 'METAL' or 'RUBBER') .. ' (' .. #wd.treadNodes .. ' nodes)')
 end
 
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone
