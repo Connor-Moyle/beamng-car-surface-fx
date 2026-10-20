@@ -49,7 +49,8 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
   end
   local kind = rules.kindOf({ nodeMaterial = nodeMaterial })
   local key = tostring(vid) .. ':' .. tostring(cid)
-  if not rules.accept(settings, kind, E, now(), readyAt[key]) then counts.tooSoft = counts.tooSoft + 1 return false end
+  -- the minimum is applied when the impact is over (flush), after the whole speed change of the impact has lifted the contacts: each contact alone only saw part of it
+  if not rules.accept(settings, kind, math.huge, now(), readyAt[key]) then counts.tooSoft = counts.tooSoft + 1 return false end
   readyAt[key] = now() + 0.4
   -- one impact is hundreds of contacts: collect them for 0.8 s, then mark only the hardest few (M.onUpdate), and stay quiet for 1.5 s (the rattle against the wall afterwards)
   if (quietUntil[vid] or 0) > now() then counts.quiet = (counts.quiet or 0) + 1 return false end
@@ -70,6 +71,9 @@ local function flush(vid, p)
   if p.dvImpact then
     for _, h in ipairs(p.list) do h.E = math.max(h.E, rules.energy(rules.closingSpeed(h.perp, p.dvImpact), h.force, h.mass, h.nodes)) end
   end
+  local keep = {}
+  for _, h in ipairs(p.list) do if h.E >= settings.minEnergy then keep[#keep + 1] = h else counts.tooSoft = counts.tooSoft + 1 end end
+  p.list = keep
   table.sort(p.list, function(a, b) return a.E > b.E end)
   local budget = rules.markBudget(p.list[1] and p.list[1].E, settings.minEnergy)
   local seen, drawn = {}, 0
@@ -89,8 +93,7 @@ local function flush(vid, p)
       end
     end
   end
-  counts.impacts = (counts.impacts or 0) + 1
-  quietUntil[vid] = now() + 1.5
+  if drawn > 0 then counts.impacts = (counts.impacts or 0) + 1 quietUntil[vid] = now() + 1.5 end       -- (the rattle of a resting car queues contacts too, but leaves no marks and starts no quiet time)
 end
 
 local retryAt = 0

@@ -108,4 +108,17 @@ for i = 1, 5 do P.hit(11, 800 + i, 2, 200, 1200, 800, 2, 2.4) end            -- 
 P.impactEnd(11, 5.4)                                                          -- the whole stop took 5.4 m/s: about 75 J
 clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls >= 1 and calls[1].sev > 0.5, 'the impact speed change sets the depth: ' .. tostring(calls[1] and calls[1].sev))
+-- contacts that each look like a rattle (under the minimum) still mark when the whole impact was a real speed change; with no speed change they leave nothing
+calls = {}
+clock = clock + 3
+for i = 1, 6 do P.hit(12, 900 + i, 2, 150, 1200, 800, 2, 0.3) end
+P.impactEnd(12, 3.0)
+clock = clock + 1.0 P.onUpdate(0.1)
+assert(#calls >= 1, 'a 10 km/h impact whose contacts each read 3 J still marks')
+local n2 = #calls
+clock = clock + 3
+for i = 1, 6 do P.hit(12, 950 + i, 2, 150, 1200, 800, 2, 0.3) end
+P.impactEnd(12, 0)
+clock = clock + 1.0 P.onUpdate(0.1)
+assert(#calls == n2, 'a resting rattle with no speed change leaves nothing')
 print('carSurfaceFx panel damage: ok')
