@@ -188,7 +188,7 @@ do
   local slide = 0
   pv.getNodePosition = function() return setmetatable({ x = 100 + slide, y = 0, z = 0.1 }, mt) end
   local oldSurf = package.loaded['carSurfaceFx/surfaces']
-  package.loaded['carSurfaceFx/surfaces'] = { idTable = function() return { [7] = 'tarmac', [8] = 'dirt', [9] = 'ice' } end }
+  package.loaded['carSurfaceFx/surfaces'] = { kindOf = function(id) return ({ [7] = 'tarmac', [8] = 'dirt', [9] = 'ice' })[id] end }
   local function slideOver(mat, force, n)
     for i = 1, n do slide = slide + 0.4 U.gouge(1, 5, mat, force) end
   end

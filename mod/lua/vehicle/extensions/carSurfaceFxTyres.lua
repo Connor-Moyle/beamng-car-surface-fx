@@ -177,8 +177,8 @@ local function tick(dt)
           obj:addParticleByNodesRelative(cid, wd.node1, -1, 52, 0, 1)
         end)
       end
-      local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
-      if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
+      local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (particle 22, 6 when hotter: the game's white rubber smoke): one puff per tick, more often the hotter
+      if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 6 or 22, 0, 1) end) end
       if (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
         local n = min(SPARK_MAX, 1 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 3))
         if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
@@ -221,7 +221,7 @@ local function sendState(events)
 end
 
 -- ---- visuals, thrown with the game's own particles from the tread node of a wheel, away from its hub (so the plume starts at the tyre, not above it)
-local SMOKE_SMALL, SMOKE_MEDIUM, CHUNK = 51, 52, 56      -- BNGP_<n> of lua/vehicle/fire.lua; the chunk is the game's plastic piece (the colour is baked in the emitter)
+local SMOKE_SMALL, SMOKE_MEDIUM, CHUNK = 22, 6, 56         -- BNGP_<n>: 22 and 6 are the white smoke the game's own particles.json gives rubber sliding on asphalt (51 and 52 are black fire smoke: they read pink at sunset); the chunk is the game's plastic piece
 local smoke, smokeT = {}, 0                                 -- wheel index -> level 0..1
 local function treadNode(wi) local e = tyres and tyres[wi] return e and e.wd.node1, e and e.wd.node2 end
 function M.fx(kind, wi, a)
