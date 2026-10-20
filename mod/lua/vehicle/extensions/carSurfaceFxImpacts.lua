@@ -14,7 +14,7 @@ local cfg = { glass = false, debris = false, sparks = false, glassMinEnergy = 5,
 
 -- the game's own particle emitters (BNGP_<n>, the same numbers lua/vehicle/beamstate.lua and lua/common/particles.json use); kept equal to the GE side's impactrules.PARTICLE by the test
 M.PARTICLE = { metal = { 1 }, bolt = { 1 }, plastic = { 56, 57, 58 }, glass = { 68, 69 }, wood = { 12 }, rock = { 2 } }
-local SPARK = 1
+local SPARK = 9                                         -- BNGP_9 (sparks explosion: 10-15 cm, 15 m/s) instead of the game's BNGP_1 (4-12 cm, 1 m/s), which is not visible by day at Low
 local function particleFor(kind) local l = M.PARTICLE[kind] or M.PARTICLE.metal return l[1 + floor(random() * #l) % #l] end
 local clusters = {}
 local simTime = 0
@@ -59,6 +59,14 @@ local function burst(nodeId, kind, hard, spread)
   ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.debris(%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"%s",%s,%.2f) end', obj:getId(), p.x, p.y, p.z, nv.x, nv.y, nv.z, kind, hard and 'true' or 'false', spread))
 end
 
+-- the same rule as the GE side's impactrules.isGlassBeam: both groups, not wood or plastic, and it says glass (drive shafts have both groups too)
+local function isGlassBeam(beam, m1, m2)
+  if not (beam.deformGroup and beam.breakGroup) or m1 == MAT.WOOD or m2 == MAT.WOOD or m1 == MAT.PLASTIC or m2 == MAT.PLASTIC then return false end
+  if m1 == MAT.GLASS or m2 == MAT.GLASS then return true end
+  local g = tostring(beam.deformGroup):lower()
+  return g:find('glass', 1, true) ~= nil or g:find('window', 1, true) ~= nil or g:find('windshield', 1, true) ~= nil or g:find('windscreen', 1, true) ~= nil
+end
+
 local function addToCluster(x, y, z)
   local r2 = cfg.clusterRadius * cfg.clusterRadius
   for _, c in ipairs(clusters) do
@@ -75,7 +83,7 @@ local function onEvent(ev)
     if not beam then return end
     local m1, m2 = nodeMat(beam.id1), nodeMat(beam.id2)
     -- a window: both groups on the beam (the game's own sign of glass and wood), minus wood and plastic lenses
-    if cfg.glass and beam.deformGroup and beam.breakGroup and m1 ~= MAT.WOOD and m2 ~= MAT.WOOD and m1 ~= MAT.PLASTIC and m2 ~= MAT.PLASTIC then
+    if cfg.glass and isGlassBeam(beam, m1, m2) then
       local p = obj:getAbsNodePosition(beam.id1)
       addToCluster(p.x, p.y, p.z)
       return
@@ -158,7 +166,7 @@ function M.breakWindows()
   local n = 0
   for _, beam in pairs(v.data.beams or {}) do
     local m1, m2 = nodeMat(beam.id1), nodeMat(beam.id2)
-    if beam.deformGroup and beam.breakGroup and m1 ~= MAT.WOOD and m2 ~= MAT.WOOD and m1 ~= MAT.PLASTIC and m2 ~= MAT.PLASTIC and beam.cid then
+    if isGlassBeam(beam, m1, m2) and beam.cid then
       pcall(function() obj:breakBeam(beam.cid) end)
       n = n + 1
     end
