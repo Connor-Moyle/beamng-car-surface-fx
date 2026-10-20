@@ -4,6 +4,8 @@
 local M = {}
 
 local MAT = { METAL = 2, PLASTIC = 3, RUBBER = 4 }
+local hist, histAt = {}, 0                           -- the car's own speed, sampled every 50 ms for the last 0.8 s: { t, speed }
+local WINDOW = 0.8
 local byMat = {}                                    -- at-speed hits by the car's node material, for status()
 
 local cfg = { enabled = false, minPerp = 1.0, cooldown = 0.4 }
@@ -22,8 +24,31 @@ local function carNumbers()
   for _, n in pairs(d) do nodes = nodes + 1 mass = mass + (tonumber(n.nodeWeight) or 0) end
 end
 
+-- how much the car's own speed changed in the last 0.6 s (m/s): a wall stop loses the whole approach speed, a parked car that is hit gains some, a tap changes it by little. This is the
+-- impulse of the crash, which the jittery perpendicular speed of one node is not.
+local function sampleSpeed(t)
+  if t - histAt < 0.05 then return end
+  histAt = t
+  local ok, vel = pcall(function() return obj:getVelocity():length() end)
+  if not ok then return end
+  hist[#hist + 1] = { t, vel }
+  while hist[1] and t - hist[1][1] > WINDOW do table.remove(hist, 1) end
+end
+local function speedChange(t)
+  local now = hist[#hist] and hist[#hist][2] or 0
+  local hi, lo = now, now
+  for i = 1, #hist do
+    if t - hist[i][1] <= 0.6 then
+      if hist[i][2] > hi then hi = hist[i][2] end
+      if hist[i][2] < lo then lo = hist[i][2] end
+    end
+  end
+  return math.max(hi - now, now - lo)
+end
+
 local function onEvent(ev)
   seen.events = seen.events + 1
+  sampleSpeed(os.clock())
   if not cfg.enabled or ev.kind ~= 'node' then return end
   seen.nodeEv = seen.nodeEv + 1
   if ev.perp >= cfg.minPerp then seen.hardN = seen.hardN + 1 seen.hardMat1, seen.hardMat2 = ev.nodeMat, ev.hitMat byMat[ev.nodeMat or -1] = (byMat[ev.nodeMat or -1] or 0) + 1 end          -- the materials of the last hit at speed, for status()
@@ -36,8 +61,8 @@ local function onEvent(ev)
   nodeReady[ev.node] = t + cfg.cooldown
   seen.sent = seen.sent + 1
   carNumbers()
-  local okv, vel = pcall(function() return obj:getVelocity():length() end)      -- the car's own speed: the node's perpendicular speed jitters at a resting contact
-  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.1f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, okv and vel or -1))
+  local dv = speedChange(t)
+  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv))
 end
 
 local function ensureSubscribed()
@@ -60,7 +85,7 @@ end
 -- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
 function M.status() local h = {} for k, n in pairs(byMat) do h[#h + 1] = k .. ':' .. n end table.sort(h) return string.format('at speed by node material {%s} | ', table.concat(h, ' ')) .. string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last node material %s, hit %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end
 
-function M.onReset() nodeReady = {} end
+function M.onReset() nodeReady = {} hist = {} end
 function M.onExtensionUnloaded() if carSurfaceFxContact then pcall(carSurfaceFxContact.unsubscribe, 'panel') end subscribed = false end
 
 return M

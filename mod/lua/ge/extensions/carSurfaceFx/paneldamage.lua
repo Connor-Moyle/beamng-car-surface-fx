@@ -32,13 +32,13 @@ function M.configure(t)
 end
 
 -- the car side's report of a body node that hit something
-function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, carSpeed)
+function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv)
   counts.hits = counts.hits + 1
-  local E = rules.energy(perp, force, mass, nodes)
+  local E = rules.energy(rules.closingSpeed(perp, dv), force, mass, nodes)
   local sev = rules.severity(E, settings.minEnergy)
   lastHit = { cid = cid, perp = perp, force = force, E = E, sev = sev }
   if logOn then
-    local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, car = carSpeed }
+    local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, dv = dv }
     hitLog[#hitLog + 1] = r
     if #hitLog > 200 then table.remove(hitLog, 1) end
     topLog[#topLog + 1] = r                         -- the hardest hits seen, kept apart (the last ones are the resting rattle against the wall)
@@ -137,7 +137,7 @@ function M.probe(what, arg, kind, kind2)
 end
 
 function M.status()
-  local function line(r) return string.format('node perp %.1f m/s, car %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.car or -1, r.force, r.mass, r.nodes, r.E, r.sev) end
+  local function line(r) return string.format('node perp %.1f m/s, car speed change %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.dv or -1, r.force, r.mass, r.nodes, r.E, r.sev) end
   local rows, top = {}, {}
   for i = math.max(1, #hitLog - 4), #hitLog do rows[#rows + 1] = line(hitLog[i]) end
   for _, r in ipairs(topLog) do top[#top + 1] = line(r) end

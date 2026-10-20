@@ -16,6 +16,14 @@ function M.effectiveMass(mass, nodes)
   return clamp(mass / nodes * 4, 5, 60)
 end
 
+-- the speed a hit counts with (m/s): the change of the car's own speed over the last 0.6 s when it is a real change (1 m/s or more: a crash, a wall stop, being hit while parked), else
+-- the node's perpendicular speed capped at 2 m/s (against a resting contact that speed jitters up to 8 m/s, so on its own it called a 3 km/h tap a crash)
+function M.closingSpeed(perp, dv)
+  dv = tonumber(dv)
+  if dv and dv >= 1 then return dv end
+  return math.min(math.abs(tonumber(perp) or 0), 2)
+end
+
 -- joules: the energy of the hit node's speed into the panel, or what the normal force gives over a small give (2 mm), whichever is more. A calibration that sets size and
 -- thresholds only; the probe (docs/PANEL_DAMAGE.md section 7) measures the real numbers.
 function M.energy(perp, normalForce, mass, nodes)
