@@ -18,7 +18,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.9,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.12,
+    "detailBaseColorMapStrength": 0.4,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.15,
     "detailScale": [
      1,
      1
@@ -48,7 +50,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.65,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.35,
+    "detailBaseColorMapStrength": 0.8,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.3,
     "detailScale": [
      1,
      1
@@ -78,7 +82,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.4,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.7,
+    "detailBaseColorMapStrength": 1.2,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.5,
     "detailScale": [
      1,
      1
@@ -106,11 +112,11 @@
     "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
     "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
-    "normalMapStrength": 0.15,
+    "normalMapStrength": 0.12,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 1.3,
-    "detailNormalMap": "/art/surfacefx/tyres/tyre_cord_n.normal.png",
-    "detailNormalMapStrength": 0.12,
+    "detailBaseColorMapStrength": 1.8,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.7,
     "detailScale": [
      1,
      1
@@ -172,7 +178,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.9,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.12,
+    "detailBaseColorMapStrength": 0.4,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.15,
     "detailScale": [
      1,
      1
@@ -202,7 +210,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.65,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.35,
+    "detailBaseColorMapStrength": 0.8,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.3,
     "detailScale": [
      1,
      1
@@ -232,7 +242,9 @@
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
     "normalMapStrength": 0.4,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 0.7,
+    "detailBaseColorMapStrength": 1.2,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.5,
     "detailScale": [
      1,
      1
@@ -260,11 +272,11 @@
     "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
     "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
     "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
-    "normalMapStrength": 0.15,
+    "normalMapStrength": 0.12,
     "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
-    "detailBaseColorMapStrength": 1.3,
-    "detailNormalMap": "/art/surfacefx/tyres/tyre_cord_n.normal.png",
-    "detailNormalMapStrength": 0.12,
+    "detailBaseColorMapStrength": 1.8,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.7,
     "detailScale": [
      1,
      1

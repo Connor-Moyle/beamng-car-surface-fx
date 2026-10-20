@@ -11,14 +11,15 @@ ART = '/art/surfacefx/tyres/'
 # The tyre materials whose atlas the overlays of make_tyre_stage_textures.py fit (the tread is the central band of the 1024 x 512 map): only these get stage materials. The other tyre materials of the
 # game have other atlases (checked by eye on a contact sheet; some are radial) and keep their normal look.
 FAMILY = ('tire', 'tire_01a')
-WEAR, CORD, CORD_N = ART + 'tyre_wear_c.data.png', ART + 'tyre_cord_c.data.png', ART + 'tyre_cord_n.normal.png'
-# stage -> (strength of the car's own tread normal, colour detail map, its strength, detail normal map, its strength)
+WEAR, WEAR_R, CORD, CORD_N = ART + 'tyre_wear_c.data.png', ART + 'tyre_wear_r.data.png', ART + 'tyre_cord_c.data.png', ART + 'tyre_cord_n.normal.png'
+# stage -> (strength of the car's own tread normal, colour detail map, its strength, roughness detail strength, detail normal map, its strength)
+# the wear is carried by the flattened tread normal and the sheen, the colour only lifts a little; the belts get the weave colour and a strong weave normal
 STAGES = {
-    1: (0.9, WEAR, 0.12, None, 0),
-    2: (0.65, WEAR, 0.35, None, 0),
-    3: (0.4, WEAR, 0.7, None, 0),
-    4: (0.15, WEAR, 1.3, CORD_N, 0.12),
-    5: (0.05, CORD, 1.0, CORD_N, 1.0),
+    1: (0.9, WEAR, 0.4, 0.15, None, 0),
+    2: (0.65, WEAR, 0.8, 0.3, None, 0),
+    3: (0.4, WEAR, 1.2, 0.5, None, 0),
+    4: (0.12, WEAR, 1.8, 0.7, None, 0),
+    5: (0.05, CORD, 1.0, 0.0, CORD_N, 1.0),
 }
 
 z = zipfile.ZipFile(sys.argv[1])
@@ -30,11 +31,14 @@ out = {}
 for name in FAMILY:
     m = src[name]
     st = (m.get('Stages') or [{}])[0]
-    for k, (ns, dmap, dstr, nmap, nstr) in STAGES.items():
+    for k, (ns, dmap, dstr, rstr, nmap, nstr) in STAGES.items():
         s = dict(st)
         s['normalMapStrength'] = ns
         s['detailMap'] = dmap
         s['detailBaseColorMapStrength'] = dstr
+        if rstr:
+            s['roughnessDetailMap'] = WEAR_R
+            s['detailRoughnessMapStrength'] = rstr
         if nmap:
             s['detailNormalMap'] = nmap
             s['detailNormalMapStrength'] = nstr
