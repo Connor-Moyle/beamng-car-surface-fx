@@ -388,7 +388,7 @@ end
 function M.repair(wi)
   for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
+    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} e.burnW = nil end
   end
 end
 function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's

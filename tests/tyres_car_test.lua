@@ -297,6 +297,10 @@ assert(fed > 0, 'the hook found a wheel')
 local ts0 = tonumber(T.status():match('hottest (%d+)'))
 for _ = 1, 100 do T.updateGFX(0.1) end
 assert(tonumber(T.status():match('hottest (%d+)')) > ts0 + 100, 'a burnout of 100 kW makes the tyre hot: ' .. T.status())
+for wi = 0, 8 do T.testBurn(wi, 100000, 100) end
+T.repair()
+for _ = 1, 20 do T.updateGFX(0.1) end
+assert(tonumber(T.status():match('hottest (%d+)')) < 60, 'a renewed tyre (reset) ends a running burnout hook: ' .. T.status())
 for wi = 0, 8 do T.testBurn(wi, 0) end
 T.setConfig({ enabled = true, wearRate = 3 })
 local function wearOf(ws, slip)
