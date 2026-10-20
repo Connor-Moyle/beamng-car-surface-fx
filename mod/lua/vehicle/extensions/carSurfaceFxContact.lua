@@ -76,7 +76,7 @@ end
 -- the tap runs inside the game's own collision path: an error here must never reach it. The first error switches the tap off for this car, logged once.
 local tapBroken = nil
 local function safe(...)
-  if tapBroken then return end
+  if tapBroken or not active then return end
   local ok, err = pcall(handle, ...)
   if not ok then tapBroken = tostring(err) seen.via = 'switched off after an error' pcall(log, 'E', 'carSurfaceFxContact', 'collision tap switched off: ' .. tapBroken) end
 end
@@ -84,16 +84,18 @@ end
 -- Where the game's collisions are tapped. The vehicle's main.lua onNodeCollision hands every collision to particlefilter.nodeCollision(p) (a table of the numbers), so wrapping that
 -- module function is the surest tap (it does not matter how the engine finds the global). With no particlefilter the global onNodeCollision is wrapped instead. Chain-safe: the
 -- previous handler always runs first. Once only.
+local tapPf, tapOrig, tapWrapper                                -- what was wrapped, so unloading can put it back
 local function wrapNodeCollision()
   if wrapped then return end
   wrapped = true
   local pf = rawget(_G, 'particlefilter')
   if pf and type(pf.nodeCollision) == 'function' then
     local orig = pf.nodeCollision
-    pf.nodeCollision = function(p, ...)
+    tapWrapper = function(p, ...)
       orig(p, ...)
       if p then safe(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
     end
+    pf.nodeCollision, tapPf, tapOrig = tapWrapper, pf, orig
     seen.via = 'particlefilter'
     return
   end
@@ -118,6 +120,11 @@ function M.setActive(on) active = on and true or false end
 
 function M.onExtensionLoaded() wrapNodeCollision() end
 function M.onReset() wheelNodes = nil end
-function M.onExtensionUnloaded() active = false subs, names = {}, {} end      -- the wrapper stays in the chain but does nothing
+function M.onExtensionUnloaded()
+  active = false subs, names = {}, {}
+  -- put the game's function back when ours is still the outermost; if something wrapped it after us the wrapper stays in the chain and does nothing
+  if tapPf and tapPf.nodeCollision == tapWrapper then tapPf.nodeCollision = tapOrig wrapped = false end
+  tapPf, tapOrig, tapWrapper = nil, nil, nil
+end
 
 return M
