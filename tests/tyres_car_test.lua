@@ -303,6 +303,17 @@ for _ = 1, 20 do T.updateGFX(0.1) end
 assert(tonumber(T.status():match('hottest (%d+)')) < 60, 'a renewed tyre (reset) ends a running burnout hook: ' .. T.status())
 for wi = 0, 8 do T.testBurn(wi, 0) end
 T.setConfig({ enabled = true, wearRate = 3 })
+-- the game deflated a burning tyre first (its hub passed the pop temperature with the fire spread on): the tyre is blown, its fire over
+T.repair() T.setConfig({ enabled = true, fires = true, wearRate = 1 })
+for wi = 0, 8 do T.testBurn(wi, 200000, 100) end
+for _ = 1, 300 do T.updateGFX(0.1) if T.dump():find('fire %d') then break end end
+assert(T.dump():find('fire %d'), 'a 200 kW burnout lights the tyre: ' .. T.dump())
+wd.isTireDeflated = true
+T.updateGFX(0.1)
+assert(T.dump():find('fire nil', 1, true) and T.dump():find('blown true', 1, true), 'deflated while burning: blown, fire over: ' .. T.dump())
+wd.isTireDeflated = false
+for wi = 0, 8 do T.testBurn(wi, 0) end
+T.repair()
 local function wearOf(ws, slip)
   T.repair()
   wd.wheelSpeed, wd.lastSlip = ws, slip

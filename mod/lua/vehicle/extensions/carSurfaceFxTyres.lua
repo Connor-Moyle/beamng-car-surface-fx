@@ -190,6 +190,10 @@ local function tick(dt)
         pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -1, SPARK_PARTICLE, 0, 1) end end)
       end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
+    elseif t.fire then                                          -- the game's own fire burnt the tyre through first (spread on: its hub passed the pop temperature): our fire ends with the tyre, the car's own fire is the game's
+      t.fire, t.blown, t.spread = nil, true, nil
+      events = events or {} events[#events + 1] = { wi, 'pop' }
+      pcall(M.putOut, wi)
     end
     R.clearEnergy(t)
     powerSum[wi] = 0
