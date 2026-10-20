@@ -200,7 +200,7 @@
   // Every page draws the same lines: the base page the dark core, the palette page punches a wider line (the un-tinted base shows as a pale edge on a car with a palette), and the lit
   // page adds a faint light line, so the mark shows on black paint too (the colour map can only darken).
   function pen(width, a, dk) {                                      // the stroke for this page: dk 1 the dark core, 0 the pale edge
-    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.2 + ')'; width = Math.max(1.5, width * 0.6); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
+    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.15 + ')'; width = Math.max(1.5, width * 0.6); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
     else if (palette) { if (dk) return false; sctx.globalCompositeOperation = 'destination-out'; sctx.strokeStyle = 'rgba(0,0,0,' + a + ')'; }
     else { if (!dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + (1 - Math.pow(1 - a, 3)) + ')'; }
     sctx.lineWidth = width; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
