@@ -22,7 +22,7 @@ local function out() local s = table.concat(D.log, '\n') D.log = {} return s end
 function D.list()
   say('vehicle', veh():getJBeamFilename(), 'id', veh():getId())
   for k, m in ipairs(meshes()) do say('mesh', k, m) end
-  for _, n in ipairs({ 'tire_01a', 'tire_01a_old', 'csfx_tire_01a_s1', 'csfx_tire_01a_s5' }) do
+  for _, n in ipairs({ 'tire_01a', 'tire_01a_old', 'csfx_tire_01a_worn', 'csfx_tire_01a_belts' }) do
     local o = scenetree.findObject(n)
     say(n, o and 'exists' or 'MISSING', o and ('class ' .. tostring(o:getClassName()) .. ' mapTo ' .. tostring(o:getField('mapTo', 0)) .. ' baseColorMap ' .. tostring(o:getField('baseColorMap', 0)) .. ' detail ' .. tostring(o:getField('detailNormalMap', 0))) or '')
   end

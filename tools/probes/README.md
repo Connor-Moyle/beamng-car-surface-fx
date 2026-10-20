@@ -45,7 +45,7 @@ Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the
 ## Tyre wear look: game-side diagnosis (tools/probes/tyrelook_ge.lua)
 
 Run in GE (`run_lua`), not in the car: send the whole file as the code (it returns `D`), keep `D` in a global yourself (`CSFXD = ...`), then call `return CSFXD.list()` etc. A car is parked, camera on one wheel.
-1. `CSFXD.list()`: meshes (sorted, numbered), whether `csfx_tire_01a_s1/s5` exist (after the tyres module is on, or `CSFXD.load()`), their mapTo and detail map.
-2. Control: `CSFXD.try(1, 'tire_01a_old')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.try(1, 'csfx_tire_01a_s5')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.reload('csfx_tire_01a_s5')` and the same try again, screenshot.
+1. `CSFXD.list()`: meshes (sorted, numbered), whether `csfx_tire_01a_worn/s5` exist (after the tyres module is on, or `CSFXD.load()`), their mapTo and detail map.
+2. Control: `CSFXD.try(1, 'tire_01a_old')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.try(1, 'csfx_tire_01a_belts')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.reload('csfx_tire_01a_belts')` and the same try again, screenshot.
 3. A loud material the car already has: take one name from `list()` ("car material ..."), `CSFXD.try(1, '<that name>')`: the tyre must visibly change (it proves the switch reaches the screen; if the tyre stays, the mesh numbering or camera is wrong).
 Report the text of every call and for each screenshot which tyre (driver's-seat left/right, front/rear) changed.

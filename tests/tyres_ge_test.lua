@@ -60,12 +60,23 @@ T.state(7, { { 1, 2, 60, 45, 0, false, false } }, { { 1, 'ignite' } })        --
 T.setEmitters({})
 T.forget(7)
 assert(T.getTyres(7) == nil, 'forgotten when the car is destroyed')
--- the wear look: one switch per mesh, made on the game side, kept; stage 0 gives the material back
+-- the wear look: stage materials go into the glowMap of a car that loads while the tyres are on; one switch per mesh, made here and kept; rules stages 0-2 give the material back, 3-4 worn, 5 belts
 local sw, calls = 0, {}
 veh.getSwitchableMaterial = function(_, o, _, m) sw = sw + 1 return 40 + sw end
 veh.switchMaterial = function(_, msc, m) calls[#calls + 1] = msc .. '=' .. m end
 veh.resetMaterials = function(_, msc) calls[#calls + 1] = msc .. '=reset' end
 T.look(7, 0, 3, { { 'tire_01a', 'tire_01a_x' } })
-T.look(7, 0, 0, { { 'tire_01a', 'tire_01a_x' } })
-assert(sw == 1 and calls[#calls - 1] == '41=csfx_tire_01a_s3' and calls[#calls] == '41=reset' and calls[1] == '41=csfx_tire_01a_s1', 'one switch per mesh, all states once, then stage 3 and back: ' .. table.concat(calls, ' '))
+T.look(7, 0, 5, { { 'tire_01a', 'tire_01a_x' } })
+T.look(7, 0, 1, { { 'tire_01a', 'tire_01a_x' } })
+assert(sw == 1 and table.concat(calls, ' ') == '41=csfx_tire_01a_worn 41=csfx_tire_01a_belts 41=reset', 'one switch per mesh: ' .. table.concat(calls, ' '))
+local car = {}
+T.onJbeamLoadingPhase2(nil, 7, car)
+assert(car.glowMap.tire_01a.on == 'csfx_tire_01a_worn' and car.glowMap.tire_01a.on_intense == 'csfx_tire_01a_belts' and car.glowMap.tire_01a.simpleFunction == 'csfx_never' and car.glowMap.tire, 'the stage materials are put into the glowMap of a car that loads while the tyres are on')
+local own = { glowMap = { tire_01a = { off = 'x' } } }
+T.onJbeamLoadingPhase2(nil, 7, own)
+assert(own.glowMap.tire_01a.off == 'x', 'a car with its own glowMap entry for the tyre keeps it')
+T.configure({ enabled = false })
+local off = {}
+T.onJbeamLoadingPhase2(nil, 8, off)
+assert(off.glowMap == nil, 'tyres off: the car is not touched')
 print('carSurfaceFx tyres (game side): ok')
