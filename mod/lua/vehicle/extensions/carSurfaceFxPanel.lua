@@ -6,6 +6,8 @@ local M = {}
 local MAT = { METAL = 2, PLASTIC = 3, RUBBER = 4 }
 local hist, histAt = {}, 0                           -- the car's own speed, sampled every 50 ms for the last 0.8 s: { t, speed }
 local WINDOW = 0.8
+local imp = nil                                     -- the impact being followed: { t0, top, lo } (the highest and the lowest speed of the car since just before it)
+local IMPACT_SECS = 0.7
 local byMat = {}                                    -- at-speed hits by the car's node material, for status()
 
 local cfg = { enabled = false, minPerp = 1.0, cooldown = 0.4 }
@@ -62,6 +64,7 @@ local function onEvent(ev)
   seen.sent = seen.sent + 1
   carNumbers()
   local dv, vhi, vlo, vnow = speedChange(t)
+  if not imp then imp = { t0 = t, top = vhi, lo = vnow } end        -- follow this impact to its end (updateGFX reports it)
   ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f, %.2f, %.2f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv, vhi, vlo))
 end
 
@@ -83,7 +86,20 @@ function M.setConfig(enabled, minPerp)
 end
 
 -- the car's speed is sampled every frame while the switch is on, not only at a contact: a wall stop needs the speed from BEFORE the hit
-function M.updateGFX(dt) if cfg.enabled then sampleSpeed(os.clock()) end end
+function M.updateGFX(dt)
+  if not cfg.enabled then return end
+  local t = os.clock()
+  sampleSpeed(t)
+  if imp then
+    local now = hist[#hist] and hist[#hist][2] or 0
+    if now < imp.lo then imp.lo = now end
+    if now > imp.top then imp.top = now end                -- (a parked car that is hit gains speed: the top is after the hit)
+    if t - imp.t0 >= IMPACT_SECS then       -- the whole impact is over: how much speed it took off (or put on) the car, for the marks
+      ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.impactEnd(%d, %.2f) end', obj:getId(), math.max(imp.top - imp.lo, 0)))
+      imp = nil
+    end
+  end
+end
 
 -- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
 function M.status() local h = {} for k, n in pairs(byMat) do h[#h + 1] = k .. ':' .. n end table.sort(h) return string.format('at speed by node material {%s} | ', table.concat(h, ' ')) .. string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last node material %s, hit %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end

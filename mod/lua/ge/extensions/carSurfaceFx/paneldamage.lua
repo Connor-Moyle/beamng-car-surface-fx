@@ -55,12 +55,21 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
   if (quietUntil[vid] or 0) > now() then counts.quiet = (counts.quiet or 0) + 1 return false end
   local p = pending[vid]
   if not p then p = { t0 = now(), list = {} } pending[vid] = p end
-  p.list[#p.list + 1] = { cid = cid, E = E, kind = kind }
+  p.list[#p.list + 1] = { cid = cid, E = E, kind = kind, perp = perp, force = force, mass = mass, nodes = nodes }
   return true
 end
 
 local retry = {}                                     -- vehId -> { untilT, items }: marks for a car whose paint map is still being built
+-- the car side's report of how much speed the whole impact took off (or put on) the car, a moment before the impact is marked: each contact only saw the part of it that had happened
+function M.impactEnd(vid, dv)
+  local p = pending[vid]
+  if p then p.dvImpact = tonumber(dv) end
+end
+
 local function flush(vid, p)
+  if p.dvImpact then
+    for _, h in ipairs(p.list) do h.E = math.max(h.E, rules.energy(rules.closingSpeed(h.perp, p.dvImpact), h.force, h.mass, h.nodes)) end
+  end
   table.sort(p.list, function(a, b) return a.E > b.E end)
   local budget = rules.markBudget(p.list[1] and p.list[1].E, settings.minEnergy)
   local seen, drawn = {}, 0
@@ -201,5 +210,5 @@ function M.onExtensionUnloaded()
   pcall(function() for _, veh in ipairs(getAllVehicles()) do veh:queueLuaCommand('if carSurfaceFxPanel then carSurfaceFxPanel.setConfig(false) end') end end)
 end
 
-require('carSurfaceFx/guard').wrap(M, TAG, { 'hit', 'onUpdate' })
+require('carSurfaceFx/guard').wrap(M, TAG, { 'hit', 'onUpdate', 'impactEnd' })
 return M

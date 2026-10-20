@@ -101,4 +101,11 @@ assert(#calls == 0 and ensured >= 1, 'no map yet: the car is asked to build one,
 mapReady = true
 clock = clock + 0.5 P.onUpdate(0.1)
 assert(#calls == 1 and calls[1].id == 9 and calls[1].cid == 55, 'the mark is drawn when the map is ready')
+-- the whole impact's speed change, reported by the car a moment before the marking, lifts the contacts that saw only a part of it
+calls = {}
+clock = clock + 3
+for i = 1, 5 do P.hit(11, 800 + i, 2, 200, 1200, 800, 2, 2.4) end            -- each contact saw 2.4 m/s of it: about 15 J
+P.impactEnd(11, 5.4)                                                          -- the whole stop took 5.4 m/s: about 75 J
+clock = clock + 1.0 P.onUpdate(0.1)
+assert(#calls >= 1 and calls[1].sev > 0.5, 'the impact speed change sets the depth: ' .. tostring(calls[1] and calls[1].sev))
 print('carSurfaceFx panel damage: ok')
