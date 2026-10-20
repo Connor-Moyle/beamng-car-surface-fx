@@ -200,7 +200,7 @@
   // Every page draws the same lines: the base page the dark core, the palette page punches a wider line (the un-tinted base shows as a pale edge on a car with a palette), and the lit
   // page adds a faint light line, so the mark shows on black paint too (the colour map can only darken).
   function pen(width, a, dk) {                                      // the stroke for this page: dk 1 the dark core, 0 the pale edge
-    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.45) + ',' + ch(0.45) + ',' + ch(0.47) + ',' + a * 0.5 + ')'; }
+    if (emis) { if (dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.2 + ')'; width = Math.max(1, width * 0.3); }    // lit page: a hairline of faint light (the emissive slot is very strong: a wide line blazed like neon)
     else if (palette) { if (dk) return false; sctx.globalCompositeOperation = 'destination-out'; sctx.strokeStyle = 'rgba(0,0,0,' + a + ')'; }
     else { if (!dk) return false; sctx.globalCompositeOperation = 'source-over'; sctx.strokeStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + (1 - Math.pow(1 - a, 3)) + ')'; }
     sctx.lineWidth = width; sctx.lineCap = 'round'; sctx.lineJoin = 'round';
@@ -229,7 +229,7 @@
     var w = Math.max(1.4, r * 0.035), a = 0.55 + 0.4 * d;
     if (k === 'p') {                                                // plastic: 3 to 6 cracks from the hit, the long ones fork once; a stress-white patch under the hit
       var n = 3 + Math.floor(d * 3 + hash(sd, 1, 1) * 1.5);
-      if (palette || emis) { var g = sctx.createRadialGradient(x, y, 0, x, y, r * 0.5); g.addColorStop(0, palette ? 'rgba(0,0,0,0.5)' : 'rgba(' + ch(0.5) + ',' + ch(0.5) + ',' + ch(0.5) + ',0.35)'); g.addColorStop(1, palette ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0)'); sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over'; sctx.fillStyle = g; sctx.beginPath(); sctx.arc(x, y, r * 0.5, 0, 6.2832); sctx.fill(); }
+      if (palette || emis) { var g = sctx.createRadialGradient(x, y, 0, x, y, r * 0.5); g.addColorStop(0, palette ? 'rgba(0,0,0,0.5)' : 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.3) + ',0.08)'); g.addColorStop(1, palette ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0)'); sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over'; sctx.fillStyle = g; sctx.beginPath(); sctx.arc(x, y, r * 0.5, 0, 6.2832); sctx.fill(); }
       for (i = 0; i < n; i++) {
         var a0 = o.ang + i * 6.2832 / n + (hash(sd, i, 2) - 0.5) * 0.7, len = (6 + Math.floor(d * 4)) ;
         pts = crackPath(x, y, a0, len, r * 0.14, 0.7, sd + i);

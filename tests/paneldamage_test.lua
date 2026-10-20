@@ -21,8 +21,8 @@ P.hit(5, 10, 6, 5000, 1200, 800, 2)                   -- 108 J
 assert(#calls == 1 and calls[1].cid == 10 and calls[1].sev > 0.1 and calls[1].r > 0.04 and calls[1].maxMarks == 40, 'a real hit dents its node')
 P.hit(5, 10, 6, 5000, 1200, 800, 2)
 assert(#calls == 1, 'the same node again at once: the cooldown holds')
-P.hit(5, 11, 6, 5000, 1200, 800, 4)                   -- a rubber node
-assert(#calls == 1, 'rubber is not a panel')
+P.hit(5, 11, 6, 5000, 1200, 800, 5)                   -- a glass node
+assert(#calls == 1, 'glass is not a panel')
 local harder = {}
 P.hit(5, 12, 12, 9000, 1200, 800, 2)
 assert(#calls == 2 and calls[2].sev > calls[1].sev and calls[2].r > calls[1].r, 'a harder hit is deeper and wider')

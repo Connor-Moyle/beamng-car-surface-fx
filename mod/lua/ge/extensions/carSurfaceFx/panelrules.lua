@@ -38,14 +38,14 @@ function M.radius(sev, amount)
 end
 
 -- the kind of mark a panel takes. info = { materialName, partName, nodeMaterial } (any may be nil). This slice knows metal only; the rest of the design (carbon, fibreglass, plastic)
--- goes in this one function. Returns the kind, or nil when that kind is not built yet or the node is not a body panel (rubber, glass).
+-- goes in this one function. Returns the kind, or nil when the node is not a body panel (glass).
 local NODE = { METAL = 2, PLASTIC = 3, RUBBER = 4, GLASS = 5 }
 M.NODE = NODE
 M.KINDS = { metal = true, plastic = true, fibreglass = true, carbon = true }
 function M.kindOf(info)
   local nm = info and info.nodeMaterial
-  if nm == NODE.RUBBER or nm == NODE.GLASS then return nil end
-  if nm == NODE.PLASTIC then return 'plastic' end                 -- (fibreglass and carbon are known only from the panel's material name, which the API takes as `kind`)
+  if nm == NODE.GLASS then return nil end
+  if nm == NODE.PLASTIC or nm == NODE.RUBBER then return 'plastic' end      -- (rubber: bumper covers and trim; the car side keeps the tyres out)                 -- (fibreglass and carbon are known only from the panel's material name, which the API takes as `kind`)
   return 'metal'                                                  -- the fallback of the design
 end
 

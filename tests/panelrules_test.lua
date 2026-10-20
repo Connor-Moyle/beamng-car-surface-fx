@@ -12,7 +12,7 @@ assert(P.severity(10, 60) == 0 and P.severity(60, 60) == 0.1 and P.severity(1200
 assert(P.severity(200, 60) > P.severity(100, 60), 'harder is deeper')
 near(P.radius(0, 1), 0.04, 1e-9, 'tap radius') near(P.radius(1, 1), 0.14, 1e-9, 'crease radius') near(P.radius(1, 2), 0.28, 1e-9, 'amount') near(P.radius(1, 99), 0.42, 1e-9, 'amount clamped')
 assert(P.kindOf({ nodeMaterial = P.NODE.METAL }) == 'metal' and P.kindOf({ nodeMaterial = P.NODE.PLASTIC }) == 'plastic' and P.kindOf(nil) == 'metal', 'metal is the fallback, plastic nodes are plastic')
-assert(P.kindOf({ nodeMaterial = P.NODE.RUBBER }) == nil and P.kindOf({ nodeMaterial = P.NODE.GLASS }) == nil, 'rubber and glass are not panels')
+assert(P.kindOf({ nodeMaterial = P.NODE.RUBBER }) == 'plastic' and P.kindOf({ nodeMaterial = P.NODE.GLASS }) == nil, 'rubber trim is plastic, glass is not a panel')
 local on = { enabled = true, metal = true, plastic = false, fibreglass = true, carbon = true, minEnergy = 60 }
 assert(P.accept(on, 'metal', 100, 5, 0) == true, 'accepted')
 assert(P.accept({ enabled = false, metal = true, minEnergy = 60 }, 'metal', 100, 5, 0) == false, 'master off')
