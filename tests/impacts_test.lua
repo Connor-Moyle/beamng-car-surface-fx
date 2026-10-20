@@ -210,6 +210,13 @@ do
   v.data.nodes[9] = nil
   particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 10, materialID2 = 4 })
   assert(ev2.nodeMat == 4 and ev2.hitMat == 10, 'an unknown node: the second id is the node (asphalt, rubber = a tyre)')
+  -- an error inside the tap never reaches the game's collision path: it is swallowed, the tap switches itself off
+  local before = #order
+  assert(pcall(particlefilter.nodeCollision, { id1 = 9, normal = 5, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 }), 'a failing handle does not raise in the call')
+  assert(C2.status():find('switched off', 1, true), 'and the status says the tap is off: ' .. C2.status())
+  local n0 = #order
+  particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 })
+  assert(#order == n0 + 1 and order[#order] == 'orig', 'switched off: only the original handler runs')
   particlefilter = nil
 end
 
