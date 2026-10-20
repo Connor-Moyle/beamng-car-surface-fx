@@ -129,7 +129,8 @@ local function credit(e, dt)
   if e.wd.isTireDeflated or t.blown then return 0 end
   local fz = tonumber(wd.downForce) or 0
   if fz < MIN_DOWNFORCE then return 0 end
-  local burn = e.burnW and e.burnUntil > os.clock() and e.burnW or 0          -- test hook (M.testBurn): a wheelspin burnout fed in as watts, spread over the whole ring
+  if e.burnW then e.burnLeft = e.burnLeft - dt if e.burnLeft <= 0 then e.burnW = nil end end       -- (game time, not os.clock: that is CPU time and runs at another pace)
+  local burn = e.burnW or 0          -- test hook (M.testBurn): a wheelspin burnout fed in as watts, spread over the whole ring
   if burn > 0 then for j = 1, 2 * e.t.n do R.addEnergy(e.t, j, burn * dt / (2 * e.t.n), false) end end
   local p = R.slipPower(abs(tonumber(wd.lastSlip) or 0), fz, 1, cfg.deadZone)
   if p <= 0 then return burn end
@@ -166,7 +167,7 @@ local function tick(dt)
       local dg, dT = R.takeDebris(t, cfg)
       e.debrisG = (e.debrisG or 0) + dg
       if e.debrisG >= DEBRIS_FLUSH_G then events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT } e.debrisG = 0 end
-      R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = max(abs(tonumber(wd.wheelSpeed) or 0), e.burnW and e.burnUntil > os.clock() and e.burnV or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
+      R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = max(abs(tonumber(wd.wheelSpeed) or 0), e.burnW and e.burnV or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
       if ev then
@@ -325,7 +326,7 @@ end
 function M.testBurn(wi, watts, secs, speed)              -- test hook: feed one wheel a burnout of this many watts for secs seconds (default 60) cooled as a wheel turning at speed m/s (default 25), watts nil/0 stops it; the module's own wear, heat, smoke and fire follow
   local e = tyres and tyres[wi]
   if not e then return false end
-  e.burnW, e.burnUntil, e.burnV = (watts or 0) > 0 and watts or nil, os.clock() + (secs or 60), speed or 25   -- (a parked car has no airflow: the tyre cools as one turning at speed m/s, default 25)
+  e.burnW, e.burnLeft, e.burnV = (watts or 0) > 0 and watts or nil, secs or 60, speed or 25   -- (a parked car has no airflow: the tyre cools as one turning at speed m/s, default 25)
   return true
 end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
