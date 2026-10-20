@@ -200,7 +200,7 @@ local function sendState(events)
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
     local stage = e.t.blown and 5 or R.stage(e.t, cfg)
-    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage, true) end
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, (cfg.look and cfg.look.enabled == false) and 0 or stage, true) end      -- (the look switch off: the car's own tyre material)
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
     minH = max(0, minH)                                         -- below 0 the tread is into the belts (cord margin): reported as 0
