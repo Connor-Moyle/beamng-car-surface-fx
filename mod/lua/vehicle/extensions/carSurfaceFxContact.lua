@@ -76,7 +76,7 @@ end
 -- the tap runs inside the game's own collision path: an error here must never reach it. The first error switches the tap off for this car, logged once.
 local tapBroken = nil
 local function safe(...)
-  if tapBroken or not active then return end
+  if tapBroken then return end
   local ok, err = pcall(handle, ...)
   if not ok then tapBroken = tostring(err) seen.via = 'switched off after an error' pcall(log, 'E', 'carSurfaceFxContact', 'collision tap switched off: ' .. tapBroken) end
 end
@@ -84,26 +84,31 @@ end
 -- Where the game's collisions are tapped. The vehicle's main.lua onNodeCollision hands every collision to particlefilter.nodeCollision(p) (a table of the numbers), so wrapping that
 -- module function is the surest tap (it does not matter how the engine finds the global). With no particlefilter the global onNodeCollision is wrapped instead. Chain-safe: the
 -- previous handler always runs first. Once only.
-local tapPf, tapOrig, tapWrapper                                -- what was wrapped, so unloading can put it back
+local unwrap = nil                                  -- puts the game's own function back (when it is still our wrapper)
 local function wrapNodeCollision()
   if wrapped then return end
   wrapped = true
   local pf = rawget(_G, 'particlefilter')
   if pf and type(pf.nodeCollision) == 'function' then
     local orig = pf.nodeCollision
-    tapWrapper = function(p, ...)
+    local ours
+    ours = function(p, ...)
       orig(p, ...)
-      if p then safe(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
+      if p and active then safe(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
     end
-    pf.nodeCollision, tapPf, tapOrig = tapWrapper, pf, orig
+    pf.nodeCollision = ours
+    unwrap = function() if pf.nodeCollision == ours then pf.nodeCollision = orig end end
     seen.via = 'particlefilter'
     return
   end
   local orig = onNodeCollision
-  onNodeCollision = function(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
+  local ours
+  ours = function(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
     if orig then orig(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2) end
-    safe(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
+    if active then safe(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2) end
   end
+  onNodeCollision = ours
+  unwrap = function() if onNodeCollision == ours then onNodeCollision = orig end end
   seen.via = 'onNodeCollision'
 end
 
@@ -122,9 +127,9 @@ function M.onExtensionLoaded() wrapNodeCollision() end
 function M.onReset() wheelNodes = nil end
 function M.onExtensionUnloaded()
   active = false subs, names = {}, {}
-  -- put the game's function back when ours is still the outermost; if something wrapped it after us the wrapper stays in the chain and does nothing
-  if tapPf and tapPf.nodeCollision == tapWrapper then tapPf.nodeCollision = tapOrig wrapped = false end
-  tapPf, tapOrig, tapWrapper = nil, nil, nil
+  if unwrap then unwrap() unwrap = nil end              -- put the game's function back if nobody wrapped it after us, so a reload does not grow the chain
+  wrapped = false                                       -- (a wrapper somebody else sits on top of stays in the chain, but does nothing: inactive)
+  seen.via = 'not wrapped'
 end
 
 return M

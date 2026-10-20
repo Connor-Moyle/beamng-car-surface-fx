@@ -220,6 +220,37 @@ do
   particlefilter = nil
 end
 
+-- unload puts the game's own function back, so a reload does not grow the chain; an inactive wrapper costs one check
+do
+  local runs = 0
+  local gameFn = function(p) runs = runs + 1 end
+  particlefilter = { nodeCollision = gameFn }
+  onNodeCollision = nil
+  for round = 1, 3 do
+    local C3 = dofile('mod/lua/vehicle/extensions/carSurfaceFxContact.lua')
+    C3.onExtensionLoaded()
+    assert(particlefilter.nodeCollision ~= gameFn, 'round ' .. round .. ': the tap is in the chain')
+    local got3 = 0
+    C3.subscribe('x', function() got3 = got3 + 1 end)
+    particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 })
+    assert(got3 == 0, 'inactive: nothing is published')
+    C3.setActive(true)
+    particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 })
+    assert(got3 == 1, 'active: published once (no doubled tap)')
+    C3.onExtensionUnloaded()
+    assert(particlefilter.nodeCollision == gameFn, 'round ' .. round .. ': unload puts the game function back')
+  end
+  -- somebody wrapped after us: the wrapper stays but does nothing
+  local C4 = dofile('mod/lua/vehicle/extensions/carSurfaceFxContact.lua')
+  C4.onExtensionLoaded()
+  local ours = particlefilter.nodeCollision
+  local theirs = function(p, ...) return ours(p, ...) end
+  particlefilter.nodeCollision = theirs
+  C4.onExtensionUnloaded()
+  assert(particlefilter.nodeCollision == theirs, 'a wrapper put on top of ours is left alone')
+  particlefilter = nil
+end
+
 -- restore
 vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFile, jsonWriteFile, debugDrawer = saved.vec3, saved.ColorF, saved.Engine, saved.be, saved.core_camera,
   saved.castRayStatic, saved.getAllVehicles, saved.jsonReadFile, saved.jsonWriteFile, saved.debugDrawer
