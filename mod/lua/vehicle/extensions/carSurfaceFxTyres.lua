@@ -12,6 +12,9 @@ local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching 
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
+local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks (the engine's own METAL on asphalt rule uses 2.5 too)
+local SPARK_MAX = 4                  -- sparks per tick (10 Hz) at the most
+local SPARK_PARTICLE = 1            -- particles.json type 1: sparks
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
@@ -168,6 +171,11 @@ local function tick(dt)
       end
       local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
       if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
+      if (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
+        local n = min(SPARK_MAX, 1 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 3))
+        if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
+        pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -1, SPARK_PARTICLE, 0, 1) end end)
+      end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
     end
     R.clearEnergy(t)
@@ -192,9 +200,10 @@ local function sendState(events)
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
     local stage = e.t.blown and 5 or R.stage(e.t, cfg)
-    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage) end
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage, true) end
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    minH = max(0, minH)                                         -- below 0 the tread is into the belts (cord margin): reported as 0
     parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, stage, e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,
       minH, e.t.c.h0, e.t.compound, tostring(e.wd.name or ''))
   end
@@ -371,6 +380,7 @@ function M.dump()                                  -- one line per tyre: wheel i
   for wi, e in pairs(tyres or {}) do
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    minH = max(0, minH)
     out[#out + 1] = string.format('%s %s Ts %.0f fire %s h %.2f blown %s deflated %s', tostring(wi), tostring(e.wd.name), e.t.Ts, tostring(e.t.fire), minH, tostring(e.t.blown), tostring(e.wd.isTireDeflated))
   end
   table.sort(out)
@@ -383,7 +393,7 @@ function M.status()
     for j = 1, 2 * e.t.n do worst = min(worst, e.t.h[j]) end
     hot = max(hot, e.t.Ts)
   end
-  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and worst or 0, hot, tostring(compound))
+  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and max(0, worst) or 0, hot, tostring(compound))
 end
 
 -- every tread node back to its stock friction (the module is switched off, or unloaded)

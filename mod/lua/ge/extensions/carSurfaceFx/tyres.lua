@@ -60,15 +60,45 @@ function M.reload()
 end
 function M.getConfig() return cfg end
 
+function M.lookEvent(id, wi, what, n)                  -- one-off facts from the car's look and spark code, written here because the car's own log does not reach beamng.log
+  log('I', 'carSurfaceFx_tyres', string.format('car %s wheel %s: %s (%s)', tostring(id), tostring(wi), tostring(what), tostring(n)))
+end
+local lookMsc = {}                                -- vehicle id -> { 'material|mesh' -> switch id } (see M.look)
 function M.attach(id)
   if watched[id] then return end
   watched[id] = true
   load_(id)
 end
-function M.forget(id) watched[id], states[id], snaps[id] = nil, nil, nil end
+function M.forget(id) watched[id], states[id], snaps[id], lookMsc[id] = nil, nil, nil, nil end
 M.onVehicleDestroyed = M.forget
-function M.onVehicleSpawned(id) if watched[id] then load_(id) end end          -- a respawn: new car VM, give it the module again (state comes back with restore)
+function M.onVehicleSpawned(id) lookMsc[id] = nil if watched[id] then load_(id) end end          -- a respawn: new car VM, give it the module again (state comes back with restore)
 
+-- The wear look. The engine only accepts a material switch to a target that was made part of the car at spawn (a runtime switch-in renders flat black), so while a car's jbeam loads (the hook below)
+-- the stage materials are put into its glowMap: on = csfx_<tyre>_worn, on_intense = csfx_<tyre>_belts; the engine then builds and precompiles those switches itself. Only cars spawned after the tyres are
+-- switched on have them (a car in the level needs a respawn). The car module sends up a wheel's stage and its tyre meshes as { {original material, mesh}, ... }; the switch is made here, one per mesh.
+-- Rules stage 0..2: the car's own tyre; 3 and 4 (under half the tread): worn; 5 (the belts): the cords.
+local LOOK_NAMES = require('csfx_tyrelook_names')
+function M.onJbeamLoadingPhase2(loadingProgress, objID, vehicle)
+  if not cfg.enabled or type(vehicle) ~= 'table' then return end
+  vehicle.glowMap = vehicle.glowMap or {}
+  for _, name in ipairs(LOOK_NAMES) do
+    if not vehicle.glowMap[name] then vehicle.glowMap[name] = { off = name, on = 'csfx_' .. name .. '_worn', on_intense = 'csfx_' .. name .. '_belts', simpleFunction = 'csfx_never' } end
+  end
+  log('I', 'carSurfaceFx_tyres', 'wear look: glowMap entries added for car ' .. tostring(objID))
+end
+function M.look(id, wi, stage, list)
+  local v = vehOf(id)
+  if not v then return end
+  lookMsc[id] = lookMsc[id] or {}
+  for _, p in ipairs(list or {}) do
+    local key = p[1] .. '|' .. p[2]
+    local msc = lookMsc[id][key]
+    if not msc then msc = v:getSwitchableMaterial(p[1], p[1], p[2]) lookMsc[id][key] = msc end
+    if msc and msc >= 0 then
+      if stage < 3 then v:resetMaterials(msc) else v:switchMaterial(msc, 'csfx_' .. p[1] .. (stage >= 5 and '_belts' or '_worn')) end
+    end
+  end
+end
 -- called by carSurfaceFx every frame: the weather to the cars once a second, a snapshot of each car every 5 s (for the career save)
 function M.update(dt, wet)
   lastWet = wet or lastWet

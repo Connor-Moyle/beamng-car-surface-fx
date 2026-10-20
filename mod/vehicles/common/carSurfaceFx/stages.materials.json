@@ -1,0 +1,130 @@
+{
+ "csfx_tire_worn": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_worn",
+  "mapTo": "csfx_tire_worn",
+  "persistentId": "791b0480-f41d-557e-b9c4-63aca86faa98",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
+    "normalMapStrength": 0.1,
+    "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
+    "detailBaseColorMapStrength": 2.0,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.7,
+    "detailScale": [
+     1,
+     1
+    ]
+   },
+   {},
+   {},
+   {}
+  ]
+ },
+ "csfx_tire_belts": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_belts",
+  "mapTo": "csfx_tire_belts",
+  "persistentId": "61deff71-ce70-5735-823c-8d9d3cd2a8b8",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
+    "normalMapStrength": 0.05,
+    "detailMap": "/art/surfacefx/tyres/tyre_cord_c.data.png",
+    "detailBaseColorMapStrength": 1.0,
+    "detailNormalMap": "/art/surfacefx/tyres/tyre_cord_n.normal.png",
+    "detailNormalMapStrength": 1.0,
+    "detailScale": [
+     1,
+     1
+    ]
+   },
+   {},
+   {},
+   {}
+  ]
+ },
+ "csfx_tire_01a_worn": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_01a_worn",
+  "mapTo": "csfx_tire_01a_worn",
+  "persistentId": "38a99f16-fc1f-55c0-b4c4-aea2c18d2c8f",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
+    "normalMapStrength": 0.1,
+    "detailMap": "/art/surfacefx/tyres/tyre_wear_c.data.png",
+    "detailBaseColorMapStrength": 2.0,
+    "roughnessDetailMap": "/art/surfacefx/tyres/tyre_wear_r.data.png",
+    "detailRoughnessMapStrength": 0.7,
+    "detailScale": [
+     1,
+     1
+    ]
+   },
+   {},
+   {},
+   {}
+  ]
+ },
+ "csfx_tire_01a_belts": {
+  "class": "Material",
+  "doubleSided": true,
+  "dynamicCubemap": true,
+  "invertBackFaceNormals": true,
+  "materialTag0": "beamng",
+  "materialTag1": "vehicle",
+  "version": 1.5,
+  "name": "csfx_tire_01a_belts",
+  "mapTo": "csfx_tire_01a_belts",
+  "persistentId": "c62a080b-7839-5970-a877-89b1a70492f5",
+  "Stages": [
+   {
+    "ambientOcclusionMap": "/vehicles/common/tires/tire_01a_ao.color.png",
+    "baseColorMap": "/vehicles/common/tires/tire_01a_b.color.png",
+    "normalMap": "/vehicles/common/tires/tire_01a_n.normal.png",
+    "roughnessMap": "/vehicles/common/tires/tire_01a_r.data.png",
+    "normalMapStrength": 0.05,
+    "detailMap": "/art/surfacefx/tyres/tyre_cord_c.data.png",
+    "detailBaseColorMapStrength": 1.0,
+    "detailNormalMap": "/art/surfacefx/tyres/tyre_cord_n.normal.png",
+    "detailNormalMapStrength": 1.0,
+    "detailScale": [
+     1,
+     1
+    ]
+   },
+   {},
+   {},
+   {}
+  ]
+ }
+}
