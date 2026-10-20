@@ -318,7 +318,6 @@ function M.setWheelWater(wi, depth)
   e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
   return true
 end
-function M.active() return cfg.enabled == true and next(tyres) ~= nil end   -- the tyre module owns the friction of this car's tyres
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
 function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
   external[kind] = external[kind] or {}
