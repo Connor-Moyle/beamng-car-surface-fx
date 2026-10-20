@@ -18,6 +18,7 @@ local SPARK = 9                                         -- BNGP_9 (sparks explos
 local function particleFor(kind) local l = M.PARTICLE[kind] or M.PARTICLE.metal return l[1 + floor(random() * #l) % #l] end
 local clusters = {}
 local simTime = 0
+local probeUntil = 0                                          -- breakWindows (a test) waives the energy gate for a moment: a beam broken from Lua carries no energy
 local nodeCooldown = {}
 local sparkCooldown = {}
 local subscribed = false
@@ -79,7 +80,7 @@ end
 
 local function onEvent(ev)
   if ev.kind == 'beam' then
-    if (ev.energy or 0) < cfg.glassMinEnergy then return end
+    if (ev.energy or 0) < cfg.glassMinEnergy and simTime > probeUntil then return end
     local beam = v.data.beams and v.data.beams[ev.beam]
     if not beam then return end
     local m1, m2 = nodeMat(beam.id1), nodeMat(beam.id2)
@@ -165,6 +166,7 @@ end
 -- a test: every window beam of this car breaks through the engine's own call, so the whole chain runs (the break, the detection, the pile). Returns how many beams.
 function M.breakWindows()
   local n = 0
+  probeUntil = simTime + 3
   for _, beam in pairs(v.data.beams or {}) do
     local m1, m2 = nodeMat(beam.id1), nodeMat(beam.id2)
     if isGlassBeam(beam, m1, m2) and beam.cid then

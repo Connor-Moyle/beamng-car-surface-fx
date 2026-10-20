@@ -184,6 +184,10 @@ assert(geCalls('impacts.debris') == 1 and #particles == 1 and particles[1].ptype
 onNodeCollision(100, nil, nil, { x = 0, y = 0, z = 0 }, 12, nil, 0, 0, 100, 0, 3, 2)
 assert(geCalls('impacts.debris') == 1, 'a wheel node never does')
 assert(X.breakWindows() == 1, 'the test break finds the one window beam')
+calls = {}
+C.onBeamBroke(10, 0)                                                  -- the engine reports a Lua-broken beam with no energy
+for _ = 1, 20 do X.updateGFX(0.05) end
+assert(geCalls('impacts.glass') == 1, 'after the test break the energy gate is waived: one pile ' .. geCalls('impacts.glass'))
 local same = true
 for kind, list in pairs(R.PARTICLE) do for i, id in ipairs(list) do if X.PARTICLE[kind][i] ~= id then same = false end end end
 assert(same, 'the car side and the GE side use the same particle numbers')
