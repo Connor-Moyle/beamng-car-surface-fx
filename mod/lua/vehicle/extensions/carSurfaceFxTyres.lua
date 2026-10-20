@@ -47,7 +47,8 @@ local function axleOf(wd)
 end
 local function fittedTo(wd) return fitAxle[axleOf(wd) or ''] or compound end
 
-local WATER_DEPTH = 0.4             -- how deep a wheel in water counts for aquaplaning (0..1); the car cannot see the puddle's depth
+local WATER_DEEP = 0.7              -- aquaplaning depth (0..1) of a wheel whose HUB is under water (the game's own water check, wheels.lua uses the same node)
+local WATER_SHALLOW = 0.3           -- of a wheel whose contact patch is under water but not its hub: a flooded road, a ford. The car cannot see a puddle's depth, only whether the water covers a node
 local function groundOf(wd)         -- the ground under a wheel: its contact material that is not the rubber, looked up in the table the game side sent (setSurfaces)
   local id = tonumber(wd.contactMaterialID1) or -1
   if id == RUBBER_MAT then id = tonumber(wd.contactMaterialID2) or -1 end
@@ -147,8 +148,13 @@ local function tick(dt)
     if not wd.isTireDeflated then
       local pr = pressureOf(wd)
       e.surface = groundOf(wd) or e.surface                         -- (kept while the wheel is in the air)
-      e.water = (wd.node1 and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and pcalls(obj.inWater, obj, wd.node1)) and WATER_DEPTH or 0
-      local wetNow = env.wet > 0.3 or e.surface == 'wet' or e.water > 0
+      e.water = 0
+      if (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then
+        local contact = e.cids[e.slotOf[wd.lastTreadContactNode] or 1]
+        if wd.node1 and pcalls(obj.inWater, obj, wd.node1) then e.water = WATER_DEEP
+        elseif contact and pcalls(obj.inWater, obj, contact) then e.water = WATER_SHALLOW end
+      end
+      local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water) > 0
       local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
@@ -364,6 +370,12 @@ function M.repair(wi)
   for k, e in pairs(tyres or {}) do
     if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
+end
+function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's
+  local out = {}
+  for wi, e in pairs(tyres or {}) do out[#out + 1] = string.format('%s %s own %.2f in force %.2f', tostring(wi), tostring(e.wd.name), e.water or 0, max(env.water, e.water or 0)) end
+  table.sort(out)
+  return table.concat(out, ' | ')
 end
 function M.grip()                                  -- the mean friction factor written on each tyre (1 = the car's own stock friction): a grip check that needs no driving
   local out = {}

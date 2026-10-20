@@ -126,6 +126,14 @@ T.setConfig({ wearRate = 1 })
 for _ = 1, 20 do T.updateGFX(0.01) end
 obj.inWater = function() return true end
 for _ = 1, 20 do T.updateGFX(0.01) end
+assert(T.water():find('own 0.70', 1, true), 'a hub under water counts as deep: ' .. T.water())
+obj.inWater = function(_, cid) return cid == 105 end          -- only the contact patch (the contact node of the mock is 105): a flooded road
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(T.water():find('own 0.30', 1, true), 'a covered contact patch counts as shallow: ' .. T.water())
+obj.inWater = function() return false end
+for _ = 1, 20 do T.updateGFX(0.01) end
+assert(T.water():find('own 0.00', 1, true), 'dry: none')
+obj.inWater = function() return true end
 assert(#sent > 0, 'runs with ground and water readings')
 obj.inWater = nil
 wd.contactMaterialID1, wd.contactMaterialID2 = nil, nil
@@ -237,4 +245,24 @@ assert(sparks == before, 'a tyre with tread throws none')
 T.setTread(0, 0)
 for _ = 1, 3 do T.updateGFX(0.1) end
 assert(not T.status():find('worst tread -', 1, true), 'worst tread is never shown below 0: ' .. T.status())
+-- standing water (the environment's depth, e.g. a flooded road) above the aquaplaning speed takes grip away, and gives it back when the water is gone
+T.setConfig({ enabled = true, wearRate = 0 })
+wd.isTireDeflated, wd.wheelSpeed, wd.lastSlip = false, 35, 0
+wd.contactMaterialID1, wd.contactMaterialID2 = 4, 10
+obj.inWater = function() return false end
+T.setEnv({ wet = 0, water = 0 })
+T.repair()
+for _ = 1, 30 do T.updateGFX(0.1) end
+local gDryAq = tonumber(T.grip():match('(%d%.%d+)$'))
+T.setEnv({ wet = 0, water = 0.6 })
+for _ = 1, 30 do T.updateGFX(0.1) end
+local gWaterAq = tonumber(T.grip():match('(%d%.%d+)$'))
+assert(gWaterAq < 0.8 * gDryAq, 'at 35 m/s in standing water the road tyre loses grip: ' .. gDryAq .. ' -> ' .. gWaterAq)
+wd.wheelSpeed = 8
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) > 0.9 * gDryAq * 0.8, 'slowly there is no aquaplaning')
+T.setEnv({ wet = 0, water = 0 })
+wd.wheelSpeed = 35
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'and the grip comes back when the water is gone')
 wheels, v, obj, log = nil, nil, nil, nil
