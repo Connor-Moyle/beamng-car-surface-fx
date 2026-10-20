@@ -748,10 +748,12 @@ end
 -- ---- lifecycle ----
 function M.onExtensionLoaded() end
 local pollTimer = 0
+local checkResets                                              -- (defined with onVehicleResetted below)
 function M.onUpdate(dt)
   flush(dt)
   carSurfaceFx_meshuv.tick()
   bodydirt.tick()
+  checkResets()
   pollTimer = pollTimer + (dt or 0)
   if pollTimer < 1.0 then return end
   pollTimer = 0
@@ -776,13 +778,30 @@ function M.onVehicleSpawned(id)
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
--- the game put the car back (a reset, recover in place, a garage repair): the body is whole again, so the scratches and the panel marks go (the dirt stays). A restore of a respawned car
--- is left alone for a few seconds, because a spawn can reset the car once.
+-- the car was reset or recovered: the marks follow the car's REAL damage. If it is whole again (free roam R, a garage or body shop repair) the scratches and the panel marks go (the
+-- dirt stays); a recovery or tow that keeps the physical damage keeps them too. The vehicle reports its damage a moment after the reset, so this looks again 0.7 s later, at
+-- map.objects[id].damage (the vehicle's dissipated energy; 0 on a new car). An unknown damage keeps the marks. A restore on a respawned car is left alone for 5 seconds (a spawn can reset once).
+local WHOLE = 20
+local resetAt = {}
 function M.onVehicleResetted(id)
   if restoredAt[id] and os.clock() - restoredAt[id] < 5 then return end
-  M.repair(id)
+  resetAt[id] = os.clock() + 0.7
 end
-function M.onVehicleDestroyed(id) injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
+local function damageOf(id)
+  local m = rawget(_G, 'map')
+  local o = m and m.objects and m.objects[id]
+  return o and tonumber(o.damage) or nil
+end
+function checkResets()
+  for id, t in pairs(resetAt) do
+    if t <= os.clock() then
+      resetAt[id] = nil
+      local dmg = damageOf(id)
+      if dmg and dmg < WHOLE then M.repair(id) end
+    end
+  end
+end
+function M.onVehicleDestroyed(id) resetAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
 function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 
