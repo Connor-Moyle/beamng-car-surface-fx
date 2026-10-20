@@ -546,7 +546,8 @@ end
 local LIGHT_DIR_FALLBACK = 2.35                                   -- radians, when the light runs straight into the panel
 local KIND_CODE = { plastic = 1, fibreglass = 2, carbon = 3, metal = 4 }
 local KIND_LETTER = { 'p', 'f', 'c', 'm' }
-function M.dent(id, cid, sev, rM, maxMarks, light, kind)
+-- spreadM (optional): scatter the mark up to that many metres around the node, for the extra marks of a hard hit
+function M.dent(id, cid, sev, rM, maxMarks, light, kind, spreadM)
   local car = cars[id]
   local e = car and car.lut and car.lut[cid]
   if not e then return false end
@@ -561,7 +562,12 @@ function M.dent(id, cid, sev, rM, maxMarks, light, kind)
     if du * du + dv * dv > 1e-6 * e[9] * e[9] then ang = math.atan2(-dv, du) end      -- (the canvas runs down: y = 1 - v)
   end
   local r = max(0.004, min(0.2, rM * e[9]))
-  local rec = { q(e[1]), q(1 - e[2]), q(r, 10000), q(ang, 100), q(sev, 100), KIND_CODE[kind] or 4 }
+  local ox, oy = 0, 0
+  if spreadM and spreadM > 0 then
+    local a, d = math.random() * 6.2832, spreadM * e[9] * math.sqrt(math.random())      -- (texture units: e[9] is per metre)
+    ox, oy = math.cos(a) * d, math.sin(a) * d
+  end
+  local rec = { q(max(0, min(1, e[1] + ox))), q(max(0, min(1, 1 - e[2] + oy))), q(r, 10000), q(ang, 100), q(sev, 100), KIND_CODE[kind] or 4 }
   draw(veh, 'csfxDent', { x = rec[1], y = rec[2], r = rec[3], ang = rec[4], d = rec[5], k = KIND_LETTER[rec[6]] })
   local m = mem(id)
   m.dents = m.dents or {}

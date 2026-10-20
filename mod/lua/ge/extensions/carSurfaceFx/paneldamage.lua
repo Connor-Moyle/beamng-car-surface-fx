@@ -93,6 +93,19 @@ local function flush(vid, p)
       end
     end
   end
+  -- a harder hit has more contact area than distinct nodes: the rest of the budget is scattered round the hardest contacts (energy-weighted: the hardest get most)
+  if drawn > 0 then
+    local primaries = {}
+    for _, h in ipairs(p.list) do if seen[h.cid] then primaries[#primaries + 1] = h end end
+    local want = budget - drawn
+    local i = 0
+    while want > 0 and #primaries > 0 and i < 40 do
+      local h = primaries[(i % math.min(#primaries, 3)) + 1]
+      i = i + 1
+      local sev = rules.severity(h.E, settings.minEnergy)
+      if M.damageNode(vid, h.cid, h.E * 0.7, h.kind, nil, rules.spread(sev)) then want = want - 1 end
+    end
+  end
   if drawn > 0 then counts.impacts = (counts.impacts or 0) + 1 quietUntil[vid] = now() + 1.5 end       -- (the rattle of a resting car queues contacts too, but leaves no marks and starts no quiet time)
 end
 
@@ -116,7 +129,7 @@ function M.onUpdate(dt)
 end
 
 -- the API: a dent on node cid of car vid for a hit of energyJ joules. kind and dir are optional (kind: 'metal' (paint chips), 'plastic', 'fibreglass' or 'carbon'; dir is not used yet).
-function M.damageNode(vid, cid, energyJ, kind, dir)
+function M.damageNode(vid, cid, energyJ, kind, dir, spreadM)
   if not settings.enabled then return false end
   kind = kind or rules.kindOf(nil)
   if not rules.KINDS[kind] or settings[kind] ~= true then return false end
@@ -124,7 +137,7 @@ function M.damageNode(vid, cid, energyJ, kind, dir)
   if not sc then counts.noMap = counts.noMap + 1 return false end
   local sev = rules.severity(energyJ, settings.minEnergy)
   if sev <= 0 then counts.tooSoft = counts.tooSoft + 1 return false end
-  local ok = sc.dent(vid, cid, sev, rules.radius(sev, settings.amount), settings.maxMarks, rules.LIGHT, kind)
+  local ok = sc.dent(vid, cid, sev, rules.radius(sev, settings.amount), settings.maxMarks, rules.LIGHT, kind, spreadM)
   if ok then counts.drawn = counts.drawn + 1 else counts.noMap = counts.noMap + 1 end
   return ok
 end

@@ -1,9 +1,12 @@
 -- Panel damage: the GE module (carSurfaceFx/paneldamage.lua) against a stand-in for the scratch module and the game
-local calls = {}
+local calls, sat = {}, {}
 log = function() end
 getAllVehicles = function() return {} end
 carSurfaceFx_scratch = {
-  dent = function(id, cid, sev, r, maxMarks, light, kind) calls[#calls + 1] = { id = id, cid = cid, sev = sev, r = r, maxMarks = maxMarks, kind = kind } return true end,
+  dent = function(id, cid, sev, r, maxMarks, light, kind, spread)
+    if spread then sat[#sat + 1] = { id = id, cid = cid, sev = sev, spread = spread } return true end         -- the scattered extra marks of a hard hit, counted apart
+    calls[#calls + 1] = { id = id, cid = cid, sev = sev, r = r, maxMarks = maxMarks, kind = kind } return true
+  end,
   nearestNode = function(id, pos, d) if pos and pos.x == 1 then return 77, 0.1 end return nil end,
   repair = function(id) calls[#calls + 1] = { repair = id } end,
 }
@@ -77,7 +80,7 @@ P.configure({ enabled = true, metal = true, plastic = true, fibreglass = true, c
 for i = 1, 300 do P.hit(7, 300 + i, 2, 400, 1200, 800, 2, 1 + (i % 50) * 0.2) end
 assert(#calls == 0, 'nothing is drawn while the impact is still being collected')
 clock = clock + 1.0 P.onUpdate(0.1)
-assert(#calls >= 1 and #calls <= 8, 'a 300 contact impact leaves a handful of marks: ' .. #calls)
+assert(#calls >= 1 and #calls <= 16, 'a 300 contact impact leaves a few marks (at most 16): ' .. #calls)
 for i = 2, #calls do assert(calls[i].sev <= calls[i - 1].sev + 1e-9, 'the hardest first') end
 local n1 = #calls
 clock = clock + 0.3
@@ -121,4 +124,16 @@ for i = 1, 6 do P.hit(12, 950 + i, 2, 150, 1200, 800, 2, 0.3) end
 P.impactEnd(12, 0)
 clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls == n2, 'a resting rattle with no speed change leaves nothing')
+-- a harder hit scatters more marks round its contacts (energy-weighted), up to the budget
+calls, sat = {}, {}
+clock = clock + 3
+for i = 1, 3 do P.hit(13, 1000 + i, 2, 500, 1200, 800, 2, 10) end         -- 40 km/h class: about 300 J
+clock = clock + 1.0 P.onUpdate(0.1)
+local soft_n = #calls + #sat
+assert(#calls == 3 and #sat >= 8 and soft_n <= 16 and sat[1].spread > 0.2, 'three contacts, the rest of the budget scattered round them: ' .. #calls .. ' + ' .. #sat)
+calls, sat = {}, {}
+clock = clock + 3
+for i = 1, 3 do P.hit(13, 1100 + i, 2, 500, 1200, 800, 2, 3) end          -- 10 km/h class
+clock = clock + 1.0 P.onUpdate(0.1)
+assert(#calls + #sat < soft_n and #calls + #sat >= 3, 'a gentler hit leaves fewer marks')
 print('carSurfaceFx panel damage: ok')

@@ -16,12 +16,12 @@ function M.effectiveMass(mass, nodes)
   return clamp(mass / nodes * 4, 5, 60)
 end
 
--- how many marks one impact leaves: the hardest few of its contacts, more for a harder hit (1 at the minimum, one more for every doubling of the energy, 8 at most)
+-- how many marks one impact leaves: 1 at the minimum, two more for every doubling of the energy (5 at 10 km/h, 9 at 20, 13 at 40), 16 at most; the hardest contacts get them, scattered round when there are fewer contacts than that
 function M.markBudget(maxEnergy, minEnergy)
   minEnergy = math.max(1, tonumber(minEnergy) or 4)
   local e = tonumber(maxEnergy) or 0
   if e < minEnergy then return 0 end
-  return clamp(1 + math.floor(math.log(e / minEnergy) / math.log(2)), 1, 8)
+  return clamp(1 + math.floor(2 * math.log(e / minEnergy) / math.log(2)), 1, 16)
 end
 
 -- the speed a hit counts with (m/s): the change of the car's own speed over the last 0.6 s when it is a real change (1 m/s or more: a crash, a wall stop, being hit while parked), else
@@ -50,9 +50,12 @@ function M.severity(energy, minEnergy)
   return clamp(0.1 + 0.9 * math.log(energy / minEnergy) / math.log(M.SPAN), 0.1, 1)
 end
 
--- the radius of the dent in metres: 4 cm for a tap to 14 cm for a crease, times the amount setting
+-- how far (metres) the extra marks of a hard hit scatter from a contact: 5 cm to 30 cm
+function M.spread(sev) return 0.05 + 0.25 * clamp(tonumber(sev) or 0, 0, 1) end
+
+-- the radius of a mark in metres: 4 cm for a tap to 22 cm for a crease, times the amount setting
 function M.radius(sev, amount)
-  return (0.04 + 0.10 * clamp(tonumber(sev) or 0, 0, 1)) * clamp(tonumber(amount) or 1, 0.3, 3)
+  return (0.04 + 0.18 * clamp(tonumber(sev) or 0, 0, 1)) * clamp(tonumber(amount) or 1, 0.3, 3)
 end
 
 -- the kind of mark a panel takes. info = { materialName, partName, nodeMaterial } (any may be nil). This slice knows metal only; the rest of the design (carbon, fibreglass, plastic)
