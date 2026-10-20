@@ -2,4 +2,5 @@
 return {
  'tire',
  'tire_01a',
+ 'tire_01f',
 }

@@ -10,7 +10,7 @@ OUT = os.path.join(HERE, '..', 'mod')
 ART = '/art/surfacefx/tyres/'
 # The tyre materials whose atlas the overlays of make_tyre_stage_textures.py fit (the tread is the central band of the 1024 x 512 map): only these get stage materials. The other tyre materials of the
 # game have other atlases (checked by eye on a contact sheet; some are radial) and keep their normal look.
-FAMILY = ('tire', 'tire_01a')
+FAMILY = ('tire', 'tire_01a', 'tire_01f')
 WEAR, WEAR_R, CORD, CORD_N = ART + 'tyre_wear_c.data.png', ART + 'tyre_wear_r.data.png', ART + 'tyre_cord_c.data.png', ART + 'tyre_cord_n.normal.png'
 # state -> (strength of the car's own tread normal, colour detail map, its strength, roughness detail strength, detail normal map, its strength)
 # Only two states exist, because the engine accepts a switch target only if it was made part of the car at spawn (carSurfaceFx_tyres.onJbeamLoadingPhase2 puts them in the glowMap: on = worn,
