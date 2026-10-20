@@ -174,6 +174,23 @@ assert(same, 'the car side and the GE side use the same particle numbers')
 X.test('sparks')
 assert(#particles > 3, 'the test throws sparks by hand')
 
+-- the tap through the game's own particlefilter.nodeCollision(p) (what main.lua calls for every collision): preferred when the module is there
+do
+  local order = {}
+  particlefilter = { nodeCollision = function(p) order[#order + 1] = 'orig' end }
+  onNodeCollision = nil
+  local C2 = dofile('mod/lua/vehicle/extensions/carSurfaceFxContact.lua')
+  C2.onExtensionLoaded()
+  local ev2
+  C2.subscribe('pf', function(ev) order[#order + 1] = 'sub' ev2 = { node = ev.node, perp = ev.perp, force = ev.normalForce, m1 = ev.mat1, m2 = ev.mat2 } end)
+  C2.setActive(true)
+  particlefilter.nodeCollision({ id1 = 9, pos = nil, normal = nil, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 3.5, slipVel = 1, normalForce = 4200, depth = 0, materialID1 = 2, materialID2 = 13 })
+  assert(order[1] == 'orig' and order[2] == 'sub', 'the game handler runs first, then the subscriber')
+  assert(ev2.node == 9 and ev2.perp == 3.5 and ev2.force == 4200 and ev2.m1 == 2 and ev2.m2 == 13, 'the numbers of the collision reach the subscriber')
+  assert(C2.status():find('tap particlefilter', 1, true) and C2.status():find('collisions seen 1', 1, true) and C2.status():find('published 1', 1, true), 'the status line says which tap and how many')
+  particlefilter = nil
+end
+
 -- restore
 vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFile, jsonWriteFile, debugDrawer = saved.vec3, saved.ColorF, saved.Engine, saved.be, saved.core_camera,
   saved.castRayStatic, saved.getAllVehicles, saved.jsonReadFile, saved.jsonWriteFile, saved.debugDrawer

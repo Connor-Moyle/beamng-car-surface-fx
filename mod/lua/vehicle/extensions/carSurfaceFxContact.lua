@@ -12,7 +12,7 @@ local M = {}
 local subs, names = {}, {}                  -- subscribers in order
 local ev = {}
 local wrapped, active = false, false
-local seen = { calls = 0, published = 0, maxPerp = 0, last = 0 }      -- for M.status(): does the game call onNodeCollision at all, and do hits get past the gate
+local seen = { calls = 0, published = 0, maxPerp = 0, last = 0, via = 'not wrapped' }      -- for M.status(): does the game call onNodeCollision at all, and do hits get past the gate
 local wheelNodes = nil
 
 local function publish(e)
@@ -29,7 +29,7 @@ function M.unsubscribe(name)
 end
 function M.count() return #subs end
 -- one line for the in-game check (vehicle console): carSurfaceFxContact.status()
-function M.status() return string.format('wrapped %s active %s subscribers %d | onNodeCollision calls %d, published %d, highest perp %.2f m/s, last %.2f', tostring(wrapped), tostring(active), #subs, seen.calls, seen.published, seen.maxPerp, seen.last) end
+function M.status() return string.format('tap %s, wrapped %s active %s subscribers %d | collisions seen %d, published %d, highest perp %.2f m/s, last %.2f', seen.via, tostring(wrapped), tostring(active), #subs, seen.calls, seen.published, seen.maxPerp, seen.last) end
 
 -- the wheels' own nodes touch the ground all the time and are never a crash
 local function isWheelNode(id)
@@ -48,27 +48,46 @@ local function isWheelNode(id)
 end
 M.isWheelNode = isWheelNode
 
+-- what one node collision publishes (the numbers the game's own onNodeCollision gets)
+local function handle(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
+  seen.calls = seen.calls + 1 seen.last = perpVel or 0 if (perpVel or 0) > seen.maxPerp then seen.maxPerp = perpVel end
+  if not active or #subs == 0 then return end
+  ev.kind, ev.node, ev.mat1, ev.mat2, ev.perp, ev.slip, ev.normalForce = 'node', id1, m1, m2, perpVel or 0, slipVel or 0, normalForce or 0
+  ev.otherMat = m2
+  if slipVec then ev.slipDirX, ev.slipDirY, ev.slipDirZ = slipVec.x, slipVec.y, slipVec.z else ev.slipDirX, ev.slipDirY, ev.slipDirZ = nil, nil, nil end   -- the sliding direction in the world
+  ev.speed = nodeVel and math.sqrt((nodeVel.x or 0) ^ 2 + (nodeVel.y or 0) ^ 2 + (nodeVel.z or 0) ^ 2) or 0
+  local ok, p = pcall(function() return obj:getAbsNodePosition(id1) end)
+  if ok and p then ev.x, ev.y, ev.z = p.x, p.y, p.z else ev.x, ev.y, ev.z = 0, 0, 0 end
+  local n, nv = normal, nodeVel
+  ev.nx, ev.ny, ev.nz = n and n.x or 0, n and n.y or 0, n and n.z or 1
+  ev.vx, ev.vy, ev.vz = nv and nv.x or 0, nv and nv.y or 0, nv and nv.z or 0
+  ev.beam, ev.energy = nil, nil
+  seen.published = seen.published + 1
+  publish(ev)
+end
+
+-- Where the game's collisions are tapped. The vehicle's main.lua onNodeCollision hands every collision to particlefilter.nodeCollision(p) (a table of the numbers), so wrapping that
+-- module function is the surest tap (it does not matter how the engine finds the global). With no particlefilter the global onNodeCollision is wrapped instead. Chain-safe: the
+-- previous handler always runs first. Once only.
 local function wrapNodeCollision()
   if wrapped then return end
   wrapped = true
+  local pf = rawget(_G, 'particlefilter')
+  if pf and type(pf.nodeCollision) == 'function' then
+    local orig = pf.nodeCollision
+    pf.nodeCollision = function(p, ...)
+      orig(p, ...)
+      if p then handle(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
+    end
+    seen.via = 'particlefilter'
+    return
+  end
   local orig = onNodeCollision
   onNodeCollision = function(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
     if orig then orig(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2) end
-    seen.calls = seen.calls + 1 seen.last = perpVel or 0 if (perpVel or 0) > seen.maxPerp then seen.maxPerp = perpVel end
-    if not active or #subs == 0 then return end
-    ev.kind, ev.node, ev.mat1, ev.mat2, ev.perp, ev.slip, ev.normalForce = 'node', id1, m1, m2, perpVel or 0, slipVel or 0, normalForce or 0
-    ev.otherMat = m2
-    if slipVec then ev.slipDirX, ev.slipDirY, ev.slipDirZ = slipVec.x, slipVec.y, slipVec.z else ev.slipDirX, ev.slipDirY, ev.slipDirZ = nil, nil, nil end   -- the sliding direction in the world
-    ev.speed = nodeVel and math.sqrt((nodeVel.x or 0) ^ 2 + (nodeVel.y or 0) ^ 2 + (nodeVel.z or 0) ^ 2) or 0
-    local ok, p = pcall(function() return obj:getAbsNodePosition(id1) end)
-    if ok and p then ev.x, ev.y, ev.z = p.x, p.y, p.z else ev.x, ev.y, ev.z = 0, 0, 0 end
-    local n, nv = normal, nodeVel
-    ev.nx, ev.ny, ev.nz = n and n.x or 0, n and n.y or 0, n and n.z or 1
-    ev.vx, ev.vy, ev.vz = nv and nv.x or 0, nv and nv.y or 0, nv and nv.z or 0
-    ev.beam, ev.energy = nil, nil
-    seen.published = seen.published + 1
-    publish(ev)
+    handle(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
   end
+  seen.via = 'onNodeCollision'
 end
 
 -- the game calls this on every loaded vehicle extension when a beam breaks
