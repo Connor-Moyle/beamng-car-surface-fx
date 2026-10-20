@@ -1,4 +1,5 @@
 -- The game side of the tyres (carSurfaceFx/tyres.lua) with stub engine calls: loading the car module, the state coming back, the hook, the career API.
+log = function() end
 local sent, hooks = {}, {}
 local veh = { queueLuaCommand = function(_, c) sent[#sent + 1] = c end }
 be = { getObjectByID = function(_, id) return id == 7 and veh or nil end, getPlayerVehicleID = function() return 7 end }

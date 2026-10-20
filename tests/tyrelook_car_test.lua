@@ -4,7 +4,7 @@ local names = dofile('mod/lua/common/csfx_tyrelook_names.lua')
 assert(#names >= 1 and names[1], 'the list of tyre materials is generated')
 wheels = { wheels = { [0] = { name = 'FL', node1 = 50, treadNodes = { 1, 2 } }, [1] = { name = 'FR', node1 = 51, treadNodes = { 3, 4 } } } }
 -- the mesh order is the reverse of the wheel order on purpose
-v = { data = { flexbodies = { { mesh = 'tire_01a_15x7_24', _group_nodes = { 3, 4, 51 } }, { mesh = 'tire_01a_15x7_24D', _group_nodes = { 1, 2, 50 } }, { mesh = 'body', _group_nodes = { 9 } } } } }
+v = { data = { _materials = { triggers = {} }, flexbodies = { { mesh = 'tire_01a_15x7_24', _group_nodes = { 3, 4, 51 } }, { mesh = 'tire_01a_15x7_24D', _group_nodes = { 1, 2, 50 } }, { mesh = 'body', _group_nodes = { 9 } } } } }
 particles = { materials = {}, getMaterialIDByName = function() return 2 end }
 obj = { getMeshesContainingMaterial = function(_, m) return m == 'tire_01a' and 'tire_01a_15x7_24 tire_01a_15x7_24D other' or '' end,
   queueGameEngineLua = function(_, c) sent[#sent + 1] = c end, getId = function() return 7 end, setNodeMaterial = function(_, cid, id) metal[cid] = id end }
@@ -21,7 +21,7 @@ L.set(0, 0)
 assert(#sent == 4, 'no repeat while the stage is the same')
 L.set(0, 3) L.restore()
 assert(L.stages() == '', 'restore puts everything back')
-assert(L.info() == '0:tire_01a@tire_01a_15x7_24D 1:tire_01a@tire_01a_15x7_24', 'info lists the meshes: ' .. L.info())
+assert(L.info() == '0:tire_01a@tire_01a_15x7_24D 1:tire_01a@tire_01a_15x7_24 glow=0', 'info lists the meshes: ' .. L.info())
 print('carSurfaceFxTyreLook: ok')
 -- a stage set by hand is not undone by the tyre module's reports; restore() hands it back
 L.set(1, 5)

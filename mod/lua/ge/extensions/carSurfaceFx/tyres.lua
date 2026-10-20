@@ -79,6 +79,7 @@ function M.onJbeamLoadingPhase2(loadingProgress, objID, vehicle)
   for _, name in ipairs(LOOK_NAMES) do
     if not vehicle.glowMap[name] then vehicle.glowMap[name] = { off = name, on = 'csfx_' .. name .. '_worn', on_intense = 'csfx_' .. name .. '_belts', simpleFunction = 'csfx_never' } end
   end
+  log('I', 'carSurfaceFx_tyres', 'wear look: glowMap entries added for car ' .. tostring(objID))
 end
 function M.look(id, wi, stage, list)
   local v = vehOf(id)

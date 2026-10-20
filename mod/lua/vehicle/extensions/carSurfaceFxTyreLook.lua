@@ -80,13 +80,23 @@ function M.set(wi, stage, auto)         -- auto: from the tyre module's reports;
 end
 
 function M.stages() local t = {} for wi, s in pairs(stageOf) do t[#t + 1] = wi .. '=' .. s end table.sort(t) return table.concat(t, ' ') end
+local function glowSwitches()          -- the switches the engine built at spawn from the glowMap entries our game side added (none: the car loaded before the tyres were on, or the hook did not run)
+  local n, ex = 0, {}
+  local tr = v.data._materials and v.data._materials.triggers or {}
+  for _, t in pairs(tr) do
+    if t.on and tostring(t.on):find('^csfx_') then n = n + 1 if #ex < 4 then ex[#ex + 1] = tostring(t.orgMat) .. '@' .. tostring(t.mesh) .. '#' .. tostring(t.msc) end end
+  end
+  return 'glow=' .. n .. (n > 0 and (' [' .. table.concat(ex, ' ') .. ']') or '')
+end
 function M.info()       -- for game tests: per wheel the switches found (original material, switch id); empty means no tyre mesh was matched
   if not sw then build() end
   local t = {}
   for wi, l in pairs(sw) do local p = {} for _, s in ipairs(l) do p[#p + 1] = s.orig .. '@' .. s.mesh end t[#t + 1] = wi .. ':' .. table.concat(p, ',') end
   table.sort(t)
   local out = table.concat(t, ' ')
-  if not out:find('@', 1, true) then       -- nothing matched: show what the matching saw
+  local matched = out:find('@', 1, true)
+  out = out .. ' ' .. glowSwitches()
+  if not matched then       -- nothing matched: show what the matching saw
     local seen = {}
     for wi, wd in pairs(wheels.wheels or {}) do seen[#seen + 1] = 'wheel ' .. wi .. ' name=' .. tostring(wd.name) end
     for _, fb in ipairs(tyreList()) do
