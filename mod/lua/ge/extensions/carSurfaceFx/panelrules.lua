@@ -3,7 +3,7 @@
 local M = {}
 
 function M.defaults()
-  return { enabled = false, metal = true, amount = 1.0, minEnergy = 60, maxMarks = 40 }
+  return { enabled = false, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1.0, minEnergy = 60, maxMarks = 40 }
 end
 
 local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
@@ -41,10 +41,12 @@ end
 -- goes in this one function. Returns the kind, or nil when that kind is not built yet or the node is not a body panel (rubber, glass).
 local NODE = { METAL = 2, PLASTIC = 3, RUBBER = 4, GLASS = 5 }
 M.NODE = NODE
+M.KINDS = { metal = true, plastic = true, fibreglass = true, carbon = true }
 function M.kindOf(info)
   local nm = info and info.nodeMaterial
   if nm == NODE.RUBBER or nm == NODE.GLASS then return nil end
-  return 'metal'                                                  -- (the fallback of the design: unknown or plastic is drawn as metal until the plastic kind exists)
+  if nm == NODE.PLASTIC then return 'plastic' end                 -- (fibreglass and carbon are known only from the panel's material name, which the API takes as `kind`)
+  return 'metal'                                                  -- the fallback of the design
 end
 
 -- the light on the car, in the car's own left / back / up components: from above and a little ahead (back is negative ahead). The real sun direction is a later refinement
@@ -53,8 +55,7 @@ M.LIGHT = { 0, -0.4, 1 }
 -- whether a hit becomes a mark now: the master, the kind's switch, the energy over the minimum, and the per-node cooldown (t, readyAt)
 function M.accept(cfg, kind, energy, t, readyAt)
   if not (cfg and cfg.enabled) then return false end
-  if kind == 'metal' and not cfg.metal then return false end
-  if kind ~= 'metal' then return false end
+  if not M.KINDS[kind] or cfg[kind] ~= true then return false end
   if (energy or 0) < cfg.minEnergy then return false end
   if (readyAt or 0) > (t or 0) then return false end
   return true

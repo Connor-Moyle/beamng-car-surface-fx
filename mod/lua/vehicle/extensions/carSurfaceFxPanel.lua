@@ -1,9 +1,9 @@
 -- Car Surface FX, vehicle side: panel damage (docs/PANEL_DAMAGE.md). Listens through carSurfaceFxContact (the one shared wrapper) for a body node hitting something and tells the
 -- GE side (carSurfaceFx_paneldamage.hit): which node, how fast it hit, how hard it pressed, and the car's mass and node count (the energy is worked out there, in panelrules.lua).
--- Thin slice: metal nodes only. The same small gates as the other effects: a per-node cooldown, no wheels, no rubber.
+-- Metal and plastic nodes (fibreglass and carbon come from the panel's material, a later step). The same small gates as the other effects: a per-node cooldown, no wheels, no rubber.
 local M = {}
 
-local MAT = { METAL = 2, RUBBER = 4 }
+local MAT = { METAL = 2, PLASTIC = 3, RUBBER = 4 }
 
 local cfg = { enabled = false, minPerp = 1.0, cooldown = 0.4 }
 local nodeReady = {}
@@ -22,7 +22,7 @@ end
 
 local function onEvent(ev)
   if not cfg.enabled or ev.kind ~= 'node' then return end
-  if ev.mat1 ~= MAT.METAL or ev.mat2 == MAT.RUBBER or ev.perp < cfg.minPerp then return end
+  if (ev.mat1 ~= MAT.METAL and ev.mat1 ~= MAT.PLASTIC) or ev.mat2 == MAT.RUBBER or ev.perp < cfg.minPerp then return end
   if carSurfaceFxContact and carSurfaceFxContact.isWheelNode and carSurfaceFxContact.isWheelNode(ev.node) then return end
   local t = os.clock()
   if (nodeReady[ev.node] or 0) > t then return end

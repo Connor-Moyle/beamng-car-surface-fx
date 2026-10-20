@@ -47,16 +47,16 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial)
   return M.damageNode(vid, cid, E, kind)
 end
 
--- the API: a dent on node cid of car vid for a hit of energyJ joules. kind and dir are optional (kind: 'metal' for now; dir is not used yet).
+-- the API: a dent on node cid of car vid for a hit of energyJ joules. kind and dir are optional (kind: 'metal' (paint chips), 'plastic', 'fibreglass' or 'carbon'; dir is not used yet).
 function M.damageNode(vid, cid, energyJ, kind, dir)
   if not settings.enabled then return false end
   kind = kind or rules.kindOf(nil)
-  if kind ~= 'metal' or not settings.metal then return false end
+  if not rules.KINDS[kind] or settings[kind] ~= true then return false end
   local sc = scratch()
   if not sc then counts.noMap = counts.noMap + 1 return false end
   local sev = rules.severity(energyJ, settings.minEnergy)
   if sev <= 0 then counts.tooSoft = counts.tooSoft + 1 return false end
-  local ok = sc.dent(vid, cid, sev, rules.radius(sev, settings.amount), settings.maxMarks, rules.LIGHT)
+  local ok = sc.dent(vid, cid, sev, rules.radius(sev, settings.amount), settings.maxMarks, rules.LIGHT, kind)
   if ok then counts.drawn = counts.drawn + 1 else counts.noMap = counts.noMap + 1 end
   return ok
 end
@@ -76,13 +76,15 @@ function M.clear(vid)
 end
 
 -- ---- the probe hooks (docs/PANEL_DAMAGE.md section 7), for the in-game check ----------------------------------------------------------------------------------------------
--- carSurfaceFx_paneldamage.probe('dent', sev)         a test dent on the mapped node nearest the car's centre, 0.9 m up; sev 0.1 .. 1 (default 0.6)
+-- (each takes a last argument, the kind: 'metal' (default), 'plastic', 'fibreglass', 'carbon')
+-- carSurfaceFx_paneldamage.probe('dent', sev)         a test mark on the mapped node nearest the car's centre, 0.9 m up; sev 0.1 .. 1 (default 0.6)
 -- carSurfaceFx_paneldamage.probe('row', n)            n dents (default 10) along the car's length, 0.9 m out to the side and 0.7 m up: the position and seam check
 -- carSurfaceFx_paneldamage.probe('fill', n)           n dents on mapped nodes (default 40), for the cost check: watch the frame time
 -- carSurfaceFx_paneldamage.probe('log', true|false)   record the real hits (speed, force, mass, energy, depth); status() lists the last ones
 -- carSurfaceFx_paneldamage.probe('clear')
 -- Each returns a line of text. The master switch must be on first (Mods menu > Panel damage).
-function M.probe(what, arg)
+function M.probe(what, arg, kind)
+  kind = kind or 'metal'
   local veh = getPlayerVehicle and getPlayerVehicle(0)
   if what == 'log' then logOn = arg ~= false hitLog = {} return 'hit log ' .. (logOn and 'on' or 'off') end
   if what == 'clear' then if veh then M.clear(veh:getId()) end return 'cleared' end
@@ -97,7 +99,7 @@ function M.probe(what, arg)
     local pos = veh:getPosition() + vec3(0, 0, 0.9)
     local cid, d = sc.nearestNode(id, pos, 3)
     if not cid then return 'no mapped node near the car centre (does the car have a source .dae?)' end
-    return 'dent on node ' .. cid .. string.format(' (%.2f m away) depth %.2f: ', d or 0, sev) .. tostring(M.damageNode(id, cid, E, 'metal'))
+    return 'dent on node ' .. cid .. string.format(' (%.2f m away) depth %.2f: ', d or 0, sev) .. tostring(M.damageNode(id, cid, E, kind))
   elseif what == 'row' then
     local n, drawn = math.floor(tonumber(arg) or 10), 0
     local dir, up = veh:getDirectionVector(), vec3(0, 0, 1)
@@ -106,7 +108,7 @@ function M.probe(what, arg)
     for i = 0, n - 1 do
       local p = c + dir * (-2 + 4 * i / math.max(1, n - 1)) + side * 0.9 + up * 0.7
       local cid = sc.nearestNode(id, p, 0.6)
-      if cid and M.damageNode(id, cid, settings.minEnergy * 6, 'metal') then drawn = drawn + 1 end
+      if cid and M.damageNode(id, cid, settings.minEnergy * 6, kind) then drawn = drawn + 1 end
     end
     return 'row: ' .. drawn .. ' of ' .. n .. ' dents drawn'
   elseif what == 'fill' then
@@ -114,7 +116,7 @@ function M.probe(what, arg)
     local list = sc.mappedNodes and sc.mappedNodes(id) or {}
     for i = 1, n do
       local cid = list[1 + (i * 7919) % math.max(1, #list)]
-      if cid and M.damageNode(id, cid, settings.minEnergy * 6, 'metal') then drawn = drawn + 1 end
+      if cid and M.damageNode(id, cid, settings.minEnergy * 6, kind) then drawn = drawn + 1 end
     end
     return 'fill: ' .. drawn .. ' of ' .. n .. ' dents drawn; ' .. sc.dentCount(id) .. ' on the car'
   end
@@ -127,7 +129,7 @@ function M.status()
     local r = hitLog[i]
     rows[#rows + 1] = string.format('perp %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.force, r.mass, r.nodes, r.E, r.sev)
   end
-  return { enabled = settings.enabled, metal = settings.metal, counts = counts, last = lastHit, log = rows }
+  return { enabled = settings.enabled, metal = settings.metal, plastic = settings.plastic, fibreglass = settings.fibreglass, carbon = settings.carbon, counts = counts, last = lastHit, log = rows }
 end
 
 function M.onVehicleSpawned() M.configure(settings) end

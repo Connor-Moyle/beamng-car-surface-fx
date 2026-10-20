@@ -1,6 +1,6 @@
 # Panel damage decals (design, texture only)
 
-Status: design for review. Nothing is built. Scope (Connor): the look of a hit on a body panel, drawn as a texture. No physics change, no mesh change. Dents on metal (soft taps and big hits), cracks and snaps on plastic, cracks on fibreglass, splits on carbon, chosen by the panel's material. Off by default, one master switch and one switch per kind.
+Status: thin slice built, in game test 2026-10-20 (see section 9). Scope (Connor): the look of a hit on a body panel, drawn as a texture. No physics change, no mesh change. Dents on metal (soft taps and big hits), cracks and snaps on plastic, cracks on fibreglass, splits on carbon, chosen by the panel's material. Off by default, one master switch and one switch per kind.
 
 ## 1. What is possible (checked in the game's files and in our own code)
 
@@ -98,3 +98,16 @@ Each is one console command on a normal car on West Coast USA; a screenshot and 
 3. The stamps in `scratch.html/js` and the GE module `paneldamage.lua` with `damageAt/damageNode/clear/probe`; the vehicle side subscribes through `carSurfaceFxContact` (one more subscriber, same cooldown rules).
 4. The Mods page, master and per-kind switches (default off), tests for every row (every value read, every switch tagged).
 5. A 80 game check with screenshots per kind.
+
+## 9. What the first game test showed, and what changed (2026-10-20)
+
+The first build drew a dent as a shaded and a lit half on the paint canvas. In the game (80, Low graphics, noon) it read as a dark smudge, like a dirt spot: no relief, the sun side and the shade side looked the same, and it was invisible on black paint. Shading on a colour map cannot look like a dent without a normal change. So the metal dent is dropped and the kinds are drawn marks, as section 4 describes: paint chips and short scratches on metal, a star of cracks with pale stress edges on plastic, crazing on fibreglass, a ragged split on carbon. Each is drawn on all three pages: the dark core on the base page, a wider pale edge by punching the palette page, and a faint light line on the lit page, so it shows on black paint too (`tools/dent_preview.js` composes the pages the way the shader does and draws all four kinds on red, blue, white and black). Plastic nodes (node material 3) now take the plastic mark; fibreglass and carbon are used when a caller passes the kind (the panel's material name is still to be mapped).
+
+Repair: a reset, recover in place or a garage repair makes the game call `onVehicleResetted`, and the scratch module now takes the scratches and the panel marks off then (the dirt stays). Before this nothing called `carSurfaceFx.repair`, so scratches were never cleared either. A mark set put back on a respawned car is protected for 5 seconds, so a reset right after the spawn does not remove it.
+
+### Can the game's own dynamic decals give a real dent? (offline check, answer: no)
+
+Read in `lua/ge/extensions/editor/api/dynamicDecals.lua` (0.40) and `editor/dynamicDecals/*`:
+- **Slots:** the engine texture set a vehicle takes, `veh:setTextureSet("@DynamicTexture", set)`, is four maps only: `@DynamicTextureBaseColor`, `@DynamicTextureColorPalette`, `@DynamicTextureMetallic`, `@DynamicTextureRoughness` (the `.skin.dynamicTextures` preset materials, for example `content/IGNORE/sunburst2/dynamicDecals/main.materials.json`). There is no normal or height slot: the material keeps its fixed `normalMap` file. A decal's own normal texture and "normal intensity" only shape how the decal is projected; the export code for a normal map (`_n.normal.png`) is commented out.
+- **Runtime:** the projection is live in memory (the editor shows decals as you place them) and writing to disk is a separate step (`exportTextures`), so applying a layer needs no baking to disk. But it works only through the editor tool (`editor_dynamicDecalsTool`, the player's vehicle, editor mode on) and only on materials switched to the `.skin.dynamicTextures` preset, which means swapping the car's materials (a livery), the reload that 0.40 does for any material change.
+- **Verdict:** it can lay colour, metallic and roughness at runtime, so it could draw a mark or a glossier or duller patch, but never a real normal dent, and it needs the livery material swap and the editor. Not worth it. A real dent needs a mesh or normal change that no API we have gives; the honest options are the drawn marks above, or the game's own damage, which already bends the mesh.

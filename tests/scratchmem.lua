@@ -35,6 +35,16 @@ assert(M.count(7) == 0 and #M.getState(7).splats == 1, 'repair removes the scrat
 M.washSplats(nil, 0, 0)
 assert(M.getState(7) == nil, 'washing everything leaves nothing to save')
 
+-- a reset of the car (the game put it back whole) takes the scratches and the panel marks off; right after a restore it is ignored (a spawn can reset once)
+M.restore(7, { marks = { { 0.1, 0.1, 0.2, 0.2, 0.002 } }, dents = { { 0.5, 0.5, 0.05, 0.4, 0.6, 1 }, { 0.6, 0.5, 0.05, 0.4, 0.6 } } })
+assert(M.dentCount(7) == 2 and M.getState(7).dents[1][6] == 1 and M.getState(7).dents[2][6] == 4, 'panel marks are remembered with their kind (4, metal, when none is given)')
+M.onVehicleResetted(7)
+assert(M.count(7) == 1 and M.dentCount(7) == 2, 'a reset right after a restore leaves the marks')
+local realClock = os.clock
+os.clock = function() return realClock() + 10 end
+M.onVehicleResetted(7)
+os.clock = realClock
+assert(M.count(7) == 0 and M.dentCount(7) == 0, 'a later reset takes the scratches and the panel marks off')
 for i = 1, 100 do M.restore(7, { marks = { { i / 1000, 0, 0, 0, 0.001 } } }) end
 assert(M.count(7) == 1, 'restore replaces what was there')
 M.onVehicleDestroyed(7)

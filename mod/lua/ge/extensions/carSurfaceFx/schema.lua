@@ -476,11 +476,14 @@ function M.build(S, owner)
 
   -- ---- Panel damage (the dents of carSurfaceFx/paneldamage.lua; a thin slice, off until it has been seen in the game)
   add({
-    F('panel', 'crash', 'Panel damage', 'bool', 'Dents on the body from hits (test)', 'A hit on a body panel leaves a dent on the paint: a shaded and a lit half, bigger and deeper the harder the hit. Texture only, the car is not changed. Needs "Scratches and wheel-arch dirt splats" on (it draws on the same paint canvas). Off by default.', 'paneldamage.enabled', { apply = 'spawn' }),
-    F('panel_metal', 'crash', 'Panel damage', 'bool', 'Dents on metal panels (test)', 'The metal kind of panel damage. The only kind so far.', 'paneldamage.metal'),
-    F('panel_amount', 'crash', 'Panel damage', 'slider', 'Dent size', 'How big the dents are (1 is a hand-sized dent for a hard hit, a few centimetres for a tap).', 'paneldamage.amount', { min = 0.5, max = 2, step = 0.1, unit = 'x' }),
-    F('panel_min', 'crash', 'Panel damage', 'slider', 'Smallest hit that dents', 'Hits with less energy than this leave nothing (a parking tap). In joules.', 'paneldamage.minEnergy', { min = 10, max = 400, step = 10, unit = 'J', advanced = true }),
-    F('panel_max', 'crash', 'Panel damage', 'slider', 'Most dents on a car', 'The oldest dents are dropped past this many on one car.', 'paneldamage.maxMarks', { min = 5, max = 120, step = 5, advanced = true }),
+    F('panel', 'crash', 'Panel damage', 'bool', 'Marks on the body from hits (test)', 'A hit on a body panel leaves a drawn mark on the paint: paint chips and scratches on metal, a star of cracks on plastic, crazing on fibreglass, a split on carbon. Bigger the harder the hit. Texture only, the car is not changed, and a repair or a reset takes the marks off. Needs "Scratches and wheel-arch dirt splats" on (it draws on the same paint canvas). Off by default.', 'paneldamage.enabled', { apply = 'spawn' }),
+    F('panel_metal', 'crash', 'Panel damage', 'bool', 'Paint chips on metal panels (test)', 'Chips down to bare metal and a few scratch lines where metal is hit.', 'paneldamage.metal'),
+    F('panel_plastic', 'crash', 'Panel damage', 'bool', 'Cracks on plastic panels (test)', 'A star of cracks with pale stress edges where a plastic panel is hit (bumpers, trim).', 'paneldamage.plastic'),
+    F('panel_fibreglass', 'crash', 'Panel damage', 'bool', 'Crazing on fibreglass panels (test)', 'Fine cracks all round the hit on a fibreglass panel. Only drawn where the game or another mod names the panel as fibreglass.', 'paneldamage.fibreglass'),
+    F('panel_carbon', 'crash', 'Panel damage', 'bool', 'Splits on carbon panels (test)', 'A ragged split along the weave of a carbon panel. Only drawn where the game or another mod names the panel as carbon.', 'paneldamage.carbon'),
+    F('panel_amount', 'crash', 'Panel damage', 'slider', 'Mark size', 'How big the marks are (1 is hand-sized for a hard hit, a few centimetres for a tap).', 'paneldamage.amount', { min = 0.5, max = 2, step = 0.1, unit = 'x' }),
+    F('panel_min', 'crash', 'Panel damage', 'slider', 'Smallest hit that marks', 'Hits with less energy than this leave nothing (a parking tap). In joules.', 'paneldamage.minEnergy', { min = 10, max = 400, step = 10, unit = 'J', advanced = true }),
+    F('panel_max', 'crash', 'Panel damage', 'slider', 'Most marks on a car', 'The oldest marks are dropped past this many on one car.', 'paneldamage.maxMarks', { min = 5, max = 120, step = 5, advanced = true }),
   })
 
   -- every on/off switch is a feature toggle: the Active features page lists them (grouped by the mod); a switch labelled (test) is left off the page
