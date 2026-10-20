@@ -101,7 +101,7 @@ assert(not Hl.available() and Hl.why():find('no updateGrid') and logs[#logs]:fin
 -- with Street Legal's gate present: no flush while it says no (the edits stay dirty), a flush when free, and the gate is told
 block.updateGrid = function(_, a, b) grids[#grids + 1] = { a.x, a.y, b.x, b.y } end
 local open_, told = false, 0
-package.loaded['sl/core/gpugate'] = { terrainEditOk = function() return open_ end, planesTouched = function() told = told + 1 end }
+package.loaded['sl/core/gpugate'] = { terrainEditOk = function() return open_ end, terrainEdited = function() told = told + 1 end }
 package.loaded['carSurfaceFx/hollows'] = nil
 Hl = require('carSurfaceFx/hollows')
 Hl.stamp(on, -1018.5, -1016.5, 'mud', 1)

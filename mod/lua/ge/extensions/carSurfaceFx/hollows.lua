@@ -72,7 +72,7 @@ function M.update(cfg, dt)
   if not list then return end
   local ok, err = pcall(apply, list, box)
   if not ok then fail(err) end
-  if g then g.planesTouched(now) end                                -- (the wet world leaves the GPU alone for a moment after our edit)
+  if g and g.terrainEdited then g.terrainEdited(now) end                                -- (the wet world leaves the GPU alone for a moment after our edit)
 end
 
 -- put every height back (the original of each touched vertex) and tell the engine, then forget it all

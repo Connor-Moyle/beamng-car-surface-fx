@@ -56,7 +56,7 @@ end
 function M.stockKind(name)
   local n = tostring(name or ''):lower()
   if n:find('snow') then return 'snow' end
-  if n:find('ice') then return 'ice' end
+  if n:find('%f[%a]ice') then return 'ice' end
   if n:find('mud') then return 'mud' end
   if n:find('sand') then return 'sand' end
   if n:find('gravel') or n:find('scree') then return 'gravel' end
