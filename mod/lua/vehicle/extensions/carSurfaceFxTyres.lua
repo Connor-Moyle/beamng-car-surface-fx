@@ -10,6 +10,7 @@ local TICK = 0.1                    -- seconds between wear / temperature / grip
 local REPORT = 0.5                  -- seconds between reports to the game side
 local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching wears nothing
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
+local CORNER_RATIO = 0.3              -- slip under this share of the wheel surface speed: cornering, not wheelspin
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks (the engine's own METAL on asphalt rule uses 2.5 too)
@@ -128,16 +129,19 @@ local function credit(e, dt)
   if e.wd.isTireDeflated or t.blown then return 0 end
   local fz = tonumber(wd.downForce) or 0
   if fz < MIN_DOWNFORCE then return 0 end
+  local burn = e.burnW and e.burnUntil > os.clock() and e.burnW or 0          -- test hook (M.testBurn): a wheelspin burnout fed in as watts, spread over the whole ring
+  if burn > 0 then for j = 1, 2 * e.t.n do R.addEnergy(e.t, j, burn * dt / (2 * e.t.n), false) end end
   local p = R.slipPower(abs(tonumber(wd.lastSlip) or 0), fz, 1, cfg.deadZone)
-  if p <= 0 then return 0 end
+  if p <= 0 then return burn end
   local j = e.slotOf[wd.lastTreadContactNode]
-  if not j then return p end                       -- (power still heats the tyre, no node to wear)
+  if not j then return p + burn end                -- (power still heats the tyre, no node to wear)
   local mate = j % 2 == 1 and j + 1 or j - 1       -- the other lane of the sector
   local slip = abs(tonumber(wd.lastSlip) or 0)
-  local lock = abs(tonumber(wd.wheelSpeed) or 0) < LOCK_RATIO * slip       -- the wheel barely turns while the ground goes by: locked sliding (low flat-spot wear)
+  local ws = abs(tonumber(wd.wheelSpeed) or 0)
+  local lock = ws < LOCK_RATIO * slip or slip < CORNER_RATIO * ws       -- locked sliding, or cornering (the wheel turns with the ground and only scrubs sideways): the low wear rate; only wheelspin wears spinWear times faster
   R.addEnergy(t, j, p * dt * 0.5, lock)
   R.addEnergy(t, mate, p * dt * 0.5, lock)
-  return p
+  return p + burn
 end
 
 local powerSum = {}                                -- wheel index -> W integrated over the tick (J)
@@ -316,6 +320,12 @@ function M.setWheelWater(wi, depth)
   local e = tyres[wi]
   if not e then return false end
   e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
+  return true
+end
+function M.testBurn(wi, watts, secs)              -- test hook: feed one wheel a burnout of this many watts for secs seconds (default 60), watts nil/0 stops it; the module's own wear, heat, smoke and fire follow
+  local e = tyres and tyres[wi]
+  if not e then return false end
+  e.burnW, e.burnUntil = (watts or 0) > 0 and watts or nil, os.clock() + (secs or 60)
   return true
 end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C

@@ -287,4 +287,24 @@ T.setEnv({ wet = 0, water = 0 })
 T.setCompound('fullwet')
 assert(T.grip() ~= '' and T.water() ~= '' and T.status():find('tyres 1', 1, true), 'readouts right after setCompound: [' .. T.grip() .. '] [' .. T.water() .. '] ' .. T.status())
 T.setCompound(nil)
+-- the burnout test hook heats the tyre and wears it, and stops by itself; cornering wears slower than wheelspin
+T.setCompound('road') T.repair() T.updateGFX(0.1)
+wd.isTireDeflated, wd.wheelSpeed, wd.lastSlip, wd.downForce = false, 0, 0, 4000
+T.setEnv({ wet = 0, water = 0 })
+local fed = 0
+for wi = 0, 8 do if T.testBurn(wi, 100000, 100) then fed = fed + 1 end end
+assert(fed > 0, 'the hook found a wheel')
+local ts0 = tonumber(T.status():match('hottest (%d+)'))
+for _ = 1, 100 do T.updateGFX(0.1) end
+assert(tonumber(T.status():match('hottest (%d+)')) > ts0 + 100, 'a burnout of 100 kW makes the tyre hot: ' .. T.status())
+for wi = 0, 8 do T.testBurn(wi, 0) end
+T.setConfig({ enabled = true, wearRate = 3 })
+local function wearOf(ws, slip)
+  T.repair()
+  wd.wheelSpeed, wd.lastSlip = ws, slip
+  for _ = 1, 100 do T.updateGFX(0.1) end
+  return 8 - tonumber(T.status():match('worst tread ([%d%.]+)'))
+end
+local wSpin, wCorner = wearOf(8, 8), wearOf(15, 3)
+assert(wSpin > 0 and wCorner >= 0 and wCorner / 3 < wSpin / 8, 'wheelspin wears more per slip than cornering: ' .. wSpin .. ' vs ' .. wCorner)
 wheels, v, obj, log = nil, nil, nil, nil
