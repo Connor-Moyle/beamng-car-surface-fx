@@ -242,6 +242,10 @@ local before = sparks
 T.setTread(1, 0)
 for _ = 1, 12 do T.updateGFX(0.1) end
 assert(sparks == before, 'a tyre with tread throws none')
+wd.name = 'RR'
+T.setTread(0, 'rr')
+assert(T.dump():find('RR Ts %S+ fire %S+ h 0.00'), "a wheel by the car's own name: " .. T.dump())
+T.setTread(1, 'RR')
 T.setTread(0, 0)
 for _ = 1, 3 do T.updateGFX(0.1) end
 assert(not T.status():find('worst tread -', 1, true), 'worst tread is never shown below 0: ' .. T.status())

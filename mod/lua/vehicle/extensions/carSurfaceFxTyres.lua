@@ -306,7 +306,7 @@ end
 function M.setTread(frac, wi)
   frac = min(1, max(0, tonumber(frac) or 1))
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then
+    if wi == nil or wi == k or (type(wi) == 'string' and tostring(e.wd.name):upper() == wi:upper()) then      -- a key of wheels.wheels or the car's own wheel name
       pcall(M.putOut, k)
       for j = 1, 2 * e.t.n do e.t.h[j] = frac * e.t.c.h0 end
       e.t.blown, e.t.cord, e.t.fire, e.t.hold = false, 0, nil, 0

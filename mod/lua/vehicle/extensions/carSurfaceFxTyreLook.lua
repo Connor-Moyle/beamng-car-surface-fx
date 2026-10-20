@@ -78,7 +78,13 @@ local function setMetal(wi, on)
 end
 
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone
+local function wheelKey(w)              -- a wheel by its key in wheels.wheels or by the car's own name for it (FR, RL, ...): the key order comes from each car's jbeam
+  if type(w) ~= 'string' then return w end
+  for k, wd in pairs(wheels.wheels or {}) do if tostring(wd.name):upper() == w:upper() then return k end end
+  return w
+end
 function M.set(wi, stage, auto)         -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore()
+  wi = wheelKey(wi)
   if disabled or (auto and pinned[wi]) then return end
   if not auto then pinned[wi] = true end
   if not sw then build() end
