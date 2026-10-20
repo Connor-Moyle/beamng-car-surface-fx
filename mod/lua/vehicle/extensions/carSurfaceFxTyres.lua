@@ -372,12 +372,14 @@ function M.repair(wi)
   end
 end
 function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local out = {}
   for wi, e in pairs(tyres or {}) do out[#out + 1] = string.format('%s %s own %.2f in force %.2f', tostring(wi), tostring(e.wd.name), e.water or 0, max(env.water, e.water or 0)) end
   table.sort(out)
   return table.concat(out, ' | ')
 end
 function M.grip()                                  -- the mean friction factor written on each tyre (1 = the car's own stock friction): a grip check that needs no driving
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local out = {}
   for wi, e in pairs(tyres or {}) do
     local sum, n = 0, 0
@@ -388,6 +390,7 @@ function M.grip()                                  -- the mean friction factor w
   return table.concat(out, ' | ')
 end
 function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local out = {}
   for wi, e in pairs(tyres or {}) do
     local minH = math.huge
@@ -399,6 +402,7 @@ function M.dump()                                  -- one line per tyre: wheel i
   return table.concat(out, ' | ')
 end
 function M.status()
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local n, worst, hot = 0, math.huge, 0
   for _, e in pairs(tyres or {}) do
     n = n + 1

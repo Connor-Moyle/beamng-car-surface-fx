@@ -265,4 +265,8 @@ T.setEnv({ wet = 0, water = 0 })
 wd.wheelSpeed = 35
 for _ = 1, 30 do T.updateGFX(0.1) end
 assert(tonumber(T.grip():match('(%d%.%d+)$')) > gWaterAq, 'and the grip comes back when the water is gone')
+-- right after a compound change (the tyres are rebuilt on the next frame) the readouts still answer
+T.setCompound('fullwet')
+assert(T.grip() ~= '' and T.water() ~= '' and T.status():find('tyres 1', 1, true), 'readouts right after setCompound: [' .. T.grip() .. '] [' .. T.water() .. '] ' .. T.status())
+T.setCompound(nil)
 wheels, v, obj, log = nil, nil, nil, nil

@@ -37,3 +37,13 @@ obj.setNodeMaterial = function() error('boom') end
 particles.getMaterialIDByName = function() error('no list') end
 L.set(1, 5)
 assert(events[#events]:find('lookEvent(7,1,"metal","2 nodes, material id 2, 2 failed: ', 1, true), 'failures are reported to the game side: ' .. tostring(events[#events]))
+-- a flip that could not be made the first time (the wheel's nodes not ready) is made by the next report, though the stage has not changed
+wheels.wheels[0].treadNodes = nil
+L.restore()
+L.set(0, 5, true)
+wheels.wheels[0].treadNodes = { 1, 2 }
+obj.setNodeMaterial = function(_, cid, id) metal[cid] = id end
+particles.getMaterialIDByName = function() return 2 end
+metal[1], metal[2] = nil, nil
+L.set(0, 5, true)
+assert(metal[1] == 2 and metal[2] == 2, 'the nodes become METAL on the next report once they exist')

@@ -82,12 +82,12 @@ function M.set(wi, stage, auto)         -- auto: from the tyre module's reports;
   if not auto then pinned[wi] = true end
   if not sw then build() end
   stage = math.max(0, math.min(5, math.floor(tonumber(stage) or 0)))
+  pcall(setMetal, wi, stage >= 5)                         -- every call: it does nothing when the nodes already are as wanted, and a flip that could not be made the first time (nodes not ready) is made on the next report
   if stageOf[wi] == stage then return end
   stageOf[wi] = stage
   local pairsOut = {}
   for _, s in ipairs(sw[wi] or {}) do pairsOut[#pairsOut + 1] = string.format('{%q,%q}', s.orig, s.mesh) end
   if #pairsOut > 0 then obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.look(%d,%d,%d,{%s}) end', obj:getId(), wi, stage, table.concat(pairsOut, ','))) end
-  pcall(setMetal, wi, stage >= 5)
 end
 
 function M.stages() local t = {} for wi, s in pairs(stageOf) do t[#t + 1] = wi .. '=' .. s end table.sort(t) return table.concat(t, ' ') end
