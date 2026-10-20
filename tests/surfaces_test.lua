@@ -49,4 +49,9 @@ getMissionFilename = function() return '/levels/elsewhere/x.json' end
 assert(S.rescan()[41] == 'ice', 'another level, another file')
 
 FS, jsonReadFile, getMissionFilename, core_environment, package.loaded['particles'] = saved.FS, saved.jsonReadFile, saved.getMissionFilename, saved.core_environment, saved.particles
+assert(S.stockKind('DIRT') == 'dirt' and S.stockKind('GRAVEL') == 'gravel' and S.stockKind('SAND') == 'sand' and S.stockKind('ASPHALT') == 'tarmac' and S.stockKind('RUBBER') == nil and S.stockKind('ICE') == 'ice' and S.stockKind(nil) == nil, 'stock material names have kinds')
+package.loaded['particles'] = { getMaterialsParticlesTable = function() return { [15] = { name = 'DIRT' }, [10] = { name = 'ASPHALT' }, [4] = { name = 'RUBBER' } } end }
+getMissionFilename = function() return '/levels/elsewhere/x.json' end
+S.rescan()
+assert(S.kindOf(15) == 'dirt' and S.kindOf(10) == 'tarmac' and S.kindOf(4) == nil and S.kindOf(99) == nil, 'kindOf: stock ids resolve by the game material name')
 print('carSurfaceFx surfaces: ok')

@@ -52,6 +52,20 @@ function M.merge(list, level)
   return out
 end
 
+-- the game's own material name (particles.json: DIRT, GRAVEL, SAND, ASPHALT ...) -> a kind, or nil. idTable() holds only a map's extra ids, so this covers the stock ones.
+function M.stockKind(name)
+  local n = tostring(name or ''):lower()
+  if n:find('snow') then return 'snow' end
+  if n:find('ice') then return 'ice' end
+  if n:find('mud') then return 'mud' end
+  if n:find('sand') then return 'sand' end
+  if n:find('gravel') or n:find('scree') then return 'gravel' end
+  if n:find('grass') then return 'grass' end
+  if n:find('dirt') or n:find('dust') then return 'dirt' end
+  if n:find('asphalt') or n:find('concrete') or n:find('tarmac') then return 'tarmac' end
+  return nil
+end
+
 -- name -> kind turned into collision-type id -> kind. groundModels = { NAME = { cdata = { collisiontype = id } } }; particleNames = { [id] = { name = 'DIRT' } } (the game's own materials).
 -- knownIds: ids the car side already classifies by the game's own names (the fixed materials): the guess is only for ids beyond them.
 -- Returns the table and a list of lines saying what was done (for the status).
@@ -120,6 +134,14 @@ function M.idTable()
   cache, cacheNotes = M.resolve(M.merge(readFiles(), level), gms, particleNames, known)
   cacheLevel = level
   return cache
+end
+-- the kind of a ground by its collision-type id: a map's own entry, else the game's own material of that id (nil: unknown)
+function M.kindOf(id)
+  local k = M.idTable()[id]
+  if k then return k end
+  local ok, names = pcall(function() return require('particles').getMaterialsParticlesTable() end)
+  local m = ok and names and names[id]
+  return m and M.stockKind(m.name) or nil
 end
 function M.literalNow() return M.literal(M.idTable()) end
 function M.notes() M.idTable() return cacheNotes end
