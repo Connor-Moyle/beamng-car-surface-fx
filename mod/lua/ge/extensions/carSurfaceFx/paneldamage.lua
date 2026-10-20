@@ -106,7 +106,7 @@ function M.probe(what, arg, kind, kind2)
   if not settings.enabled then return 'panel damage is off' end
   local id = veh:getId()
   local sev = math.max(0.1, math.min(1, tonumber(arg) or 0.6))
-  local E = settings.minEnergy * 20 ^ ((sev - 0.1) / 0.9)
+  local E = settings.minEnergy * rules.SPAN ^ ((sev - 0.1) / 0.9)
   if what == 'dent' then
     local pos = veh:getPosition() + vec3(0, 0, 0.9)
     local cid, d = sc.nearestNode(id, pos, 3)

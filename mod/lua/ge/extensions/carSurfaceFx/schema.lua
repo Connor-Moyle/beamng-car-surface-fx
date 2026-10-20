@@ -482,7 +482,7 @@ function M.build(S, owner)
     F('panel_fibreglass', 'crash', 'Panel damage', 'bool', 'Crazing on fibreglass panels (test)', 'Fine cracks all round the hit on a fibreglass panel. Only drawn where the game or another mod names the panel as fibreglass.', 'paneldamage.fibreglass'),
     F('panel_carbon', 'crash', 'Panel damage', 'bool', 'Splits on carbon panels (test)', 'A ragged split along the weave of a carbon panel. Only drawn where the game or another mod names the panel as carbon.', 'paneldamage.carbon'),
     F('panel_amount', 'crash', 'Panel damage', 'slider', 'Mark size', 'How big the marks are (1 is hand-sized for a hard hit, a few centimetres for a tap).', 'paneldamage.amount', { min = 0.5, max = 2, step = 0.1, unit = 'x' }),
-    F('panel_min', 'crash', 'Panel damage', 'slider', 'Smallest hit that marks', 'Hits with less energy than this leave nothing (a parking tap). In joules.', 'paneldamage.minEnergy', { min = 10, max = 400, step = 10, unit = 'J', advanced = true }),
+    F('panel_min', 'crash', 'Panel damage', 'slider', 'Smallest hit that marks', 'Hits with less energy than this leave nothing (resting against a wall, a nudge). In joules of the speed change of the car: about 5 J is a 5 km/h bump, 20 J a 10 km/h hit, 300 J a 40 km/h crash. Marks grow from this to about 75 times it.', 'paneldamage.minEnergy', { min = 1, max = 100, step = 1, unit = 'J', advanced = true }),
     F('panel_max', 'crash', 'Panel damage', 'slider', 'Most marks on a car', 'The oldest marks are dropped past this many on one car.', 'paneldamage.maxMarks', { min = 5, max = 120, step = 5, advanced = true }),
   })
 

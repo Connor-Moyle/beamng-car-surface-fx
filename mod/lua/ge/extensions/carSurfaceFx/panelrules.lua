@@ -3,7 +3,7 @@
 local M = {}
 
 function M.defaults()
-  return { enabled = false, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1.0, minEnergy = 60, maxMarks = 40 }
+  return { enabled = false, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1.0, minEnergy = 4, maxMarks = 40 }
 end
 
 local function clamp(x, lo, hi) return x < lo and lo or (x > hi and hi or x) end
@@ -17,11 +17,11 @@ function M.effectiveMass(mass, nodes)
 end
 
 -- the speed a hit counts with (m/s): the change of the car's own speed over the last 0.6 s when it is a real change (1 m/s or more: a crash, a wall stop, being hit while parked), else
--- the node's perpendicular speed capped at 2 m/s (against a resting contact that speed jitters up to 8 m/s, so on its own it called a 3 km/h tap a crash)
+-- the node's perpendicular speed capped at 1 m/s (against a resting contact that speed jitters up to 8 m/s, so on its own it called a 3 km/h tap a crash; 1 m/s is 2.5 J, under the minimum)
 function M.closingSpeed(perp, dv)
   dv = tonumber(dv)
   if dv and dv >= 1 then return dv end
-  return math.min(math.abs(tonumber(perp) or 0), 2)
+  return math.min(math.abs(tonumber(perp) or 0), 1)
 end
 
 -- joules: the energy of the hit node's speed into the panel, or what the normal force gives over a small give (2 mm), whichever is more. A calibration that sets size and
@@ -33,11 +33,13 @@ function M.energy(perp, normalForce, mass, nodes)
   return math.max(byV, byF)
 end
 
--- 0 (barely a mark) .. 1 (a deep crease), from the energy over the minimum: a tap at the minimum is 0.1, 20 times the minimum is 1
+-- 0 (barely a mark) .. 1 (a deep crease), from the energy over the minimum: a hit at the minimum is 0.1, SPAN times the minimum is 1, smoothly between (with the energy of a car's speed
+-- change: about 5 J at 5 km/h (faint), 20 J at 10 km/h (small), 80 J at 20 km/h, 300 J at 40 km/h (1)). The minimum of 4 J leaves the resting contact below it
+M.SPAN = 75
 function M.severity(energy, minEnergy)
-  minEnergy = math.max(1, tonumber(minEnergy) or 60)
+  minEnergy = math.max(1, tonumber(minEnergy) or 4)
   if (tonumber(energy) or 0) < minEnergy then return 0 end
-  return clamp(0.1 + 0.9 * math.log(energy / minEnergy) / math.log(20), 0.1, 1)
+  return clamp(0.1 + 0.9 * math.log(energy / minEnergy) / math.log(M.SPAN), 0.1, 1)
 end
 
 -- the radius of the dent in metres: 4 cm for a tap to 14 cm for a crease, times the amount setting
