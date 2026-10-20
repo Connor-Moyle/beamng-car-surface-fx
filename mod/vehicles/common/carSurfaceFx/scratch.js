@@ -223,7 +223,7 @@
     sctx.stroke();
   }
   // both widths at once: the wide pale edge, then the dark core on the base page
-  function crack(pts, w, a) { stroke(pts, w * 2.6, a * 0.55, false); stroke(pts, w * 1.3, a, true); }
+  function crack(pts, w, a) { stroke(pts, w * 4.4, a * 0.7, false); stroke(pts, w * 1.2, a, true); }     // a wide pale edge (the only thing that shows on black paint), a narrow dark core
   function drawDent(o) {
     var x = o.x * W, y = o.y * W, r = Math.max(6, o.r * W), d = Math.max(0.05, Math.min(1, o.d)), k = o.k || 'm', sd = o.x * 977 + o.y * 131, i, pts;
     var w = Math.max(1.4, r * 0.035), a = 0.55 + 0.4 * d;
@@ -247,7 +247,7 @@
       var half = 5 + Math.floor(d * 4), step = r * 0.2;
       var fwd = crackPath(x, y, o.ang, half, step, 0.25, sd), back = crackPath(x, y, o.ang + Math.PI, half, step, 0.25, sd + 9);
       pts = back.slice(1).reverse().concat(fwd);
-      stroke(pts, w * 4, a * 0.55, false); stroke(pts, w * 2.6, a, true);          // the split: pale fibre edge, dark core
+      stroke(pts, w * 6.5, a * 0.7, false); stroke(pts, w * 2.4, a, true);          // the split: pale fibre edge, dark core
       for (i = 0; i < 4; i++) { var e = i < 2 ? fwd[fwd.length - 1] : back[back.length - 1], ae = o.ang + (i < 2 ? 0 : Math.PI) + (hash(sd, i, 12) - 0.5) * 0.8; crack(crackPath(e[0], e[1], ae, 3, r * 0.08, 0.4, sd + i + 20), w * 0.6, a * 0.8); }
     } else {                                                        // metal: paint chips down to the metal along the hit, and a few short scratches
       var nc = 3 + Math.floor(d * 5);

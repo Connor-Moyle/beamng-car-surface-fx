@@ -3,8 +3,9 @@
 -- (nx, ny, nz: the surface normal; slipDirX, slipDirY, slipDirZ: the sliding direction)
 -- ev is a table that is REUSED for every event (copy what you need, never keep it):
 --   a node collision: { kind = 'node', node, mat1, mat2, otherMat, perp, slip, speed, normalForce, x, y, z, nx, ny, nz, vx, vy, vz }
+--     nodeMat is this car's node material and hitMat what it touched (worked out from the car's own node data, mat1 and mat2 are the game's two ids in the game's order);
 --     (x, y, z: the node's world position; nx, ny, nz: the surface normal, nz > 0.7 is ground; vx, vy, vz: the node's velocity; perp and slip m/s, normalForce N;
---      mat1 is this car's node material, mat2 (= otherMat) what it touched, the game's particles.json ids)
+--      the game's particles.json ids)
 --   a beam break:     { kind = 'beam', beam, energy }
 -- onNodeCollision is wrapped once, chain-safe (the previous handler runs first); onBeamBroke is the game's own extension hook. Every subscriber is called under pcall.
 local M = {}
@@ -54,6 +55,12 @@ local function handle(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slip
   if not active or #subs == 0 then return end
   ev.kind, ev.node, ev.mat1, ev.mat2, ev.perp, ev.slip, ev.normalForce = 'node', id1, m1, m2, perpVel or 0, slipVel or 0, normalForce or 0
   ev.otherMat = m2
+  -- which of the two ids is this car's node and which is what it touched: the game's order is not what the first version of this file assumed (a tyre on asphalt arrived as
+  -- asphalt, rubber). The car's own data says what the node is made of; without it the second id is the node's.
+  local nd = v and v.data and v.data.nodes and v.data.nodes[id1]
+  local nm = nd and tonumber(nd.nodeMaterial)
+  if nm and (nm == m1 or nm == m2) then ev.nodeMat = nm else ev.nodeMat = m2 end
+  ev.hitMat = (ev.nodeMat == m2) and m1 or m2
   if slipVec then ev.slipDirX, ev.slipDirY, ev.slipDirZ = slipVec.x, slipVec.y, slipVec.z else ev.slipDirX, ev.slipDirY, ev.slipDirZ = nil, nil, nil end   -- the sliding direction in the world
   ev.speed = nodeVel and math.sqrt((nodeVel.x or 0) ^ 2 + (nodeVel.y or 0) ^ 2 + (nodeVel.z or 0) ^ 2) or 0
   local ok, p = pcall(function() return obj:getAbsNodePosition(id1) end)
