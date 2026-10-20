@@ -287,4 +287,34 @@ local fw = R.new('road', 16) fw.Ts = 500 R.fireStep(fw, 5, 0, cfg)
 local out for _ = 1, 100 do out = R.fireStep(fw, 0.1, 1, cfg) or out if out then break end end
 assert(out == 'out', 'rain puts it out: ' .. tostring(out))
 
+-- ---- the switches and the look stages from the settings
+local nd = R.defaults() nd.debris.enabled = false
+local dd = R.new('road', 16) dd.Ts = 250 dd.shed = 1000
+local gOff = R.takeDebris(dd, nd)
+assert(gOff == 0 and dd.shed == 0, 'rubber debris can be switched off')
+local lk = R.defaults() lk.look.wornBelow = 0.8
+local lx = R.new('road', 16) lx.h[9] = 8 * 0.75             -- 75% left: not worn by default (stage 1), worn with the limit at 0.8 (stage 3)
+assert(R.stage(lx, cfg) == 1 and R.stage(lx, lk) == 3, 'the worn limit follows the setting: ' .. R.stage(lx, lk))
+local lw = R.defaults() lw.look.wornBelow = 0.2
+local ly = R.new('road', 16) ly.h[9] = 8 * 0.4
+assert(R.stage(ly, cfg) == 3 and R.stage(ly, lw) == 2, 'a lower limit keeps a tyre looking not worn for longer')
+local lb = R.new('road', 16) lb.h[9] = 0.4
+assert(R.stage(lb, cfg) >= 4 and R.stage(lb, lw) >= 4, 'under half a millimetre is always worn out')
+assert(R.defaults().look.wornBelow == 0.5 and R.defaults().look.enabled == true, 'the look defaults')
+
+-- ---- wear, temperature and wet grip: each switch on its own
+local sw = R.defaults() sw.wearEnabled = false
+local sx = R.new('road', 16) sx.E[1] = 5000 sx.EL[1] = 5000
+local h0 = sx.h[1]
+R.wearStep(sx, { surface = 'asphalt', pressure = 1, pNom = 1 }, sw)
+assert(sx.h[1] == h0, 'wear off: the tread stays')
+local st = R.defaults() st.tempGripEnabled = false
+assert(R.tempGrip(R.COMPOUNDS.road, -10, st) == 1 and R.tempGrip(R.COMPOUNDS.road, 150, st) == 1 and R.tempGrip(R.COMPOUNDS.road, -10, cfg) < 1, 'temperature switch off: grip is the same at any temperature')
+local sg = R.defaults() sg.wetGripEnabled = false
+local tg = R.new('road', 16)
+local dryF = R.nodeGrip(tg, 1, false, cfg, { surface = 'asphalt', water = 0, v = 20 })
+local wetOn = R.nodeGrip(tg, 1, true, cfg, { surface = 'asphalt', water = 1, v = 40 })
+local wetOff = R.nodeGrip(tg, 1, true, sg, { surface = 'asphalt', water = 1, v = 40 })
+assert(wetOn < dryF and math.abs(wetOff - R.nodeGrip(tg, 1, false, sg, { surface = 'asphalt', water = 0, v = 40 })) < 1e-9, 'wet grip off: wet is as dry (also no aquaplaning)')
+
 print('carSurfaceFx tyre rules: ok')

@@ -1,4 +1,5 @@
 -- The game side of the tyres (carSurfaceFx/tyres.lua) with stub engine calls: loading the car module, the state coming back, the hook, the career API.
+log = function() end
 local sent, hooks = {}, {}
 local veh = { queueLuaCommand = function(_, c) sent[#sent + 1] = c end }
 be = { getObjectByID = function(_, id) return id == 7 and veh or nil end, getPlayerVehicleID = function() return 7 end }
@@ -17,6 +18,17 @@ assert(#sent == 1 and sent[1]:find('extensions.load("carSurfaceFxTyres")', 1, tr
 assert(sent[1]:find('setSurfaces', 1, true) and sent[1]:find('3=asphalt', 1, true) and sent[1]:find('9=dirt', 1, true) and not sent[1]:find('5=', 1, true), 'the ground models become a surface table, unknown ones left out')
 T.update(1.0, 0.4)
 assert(sent[#sent]:find('setEnv({wet=0.40})', 1, true), 'the weather reaches the car once a second')
+T.update(1.0, 1.0)
+assert(not sent[#sent]:find('water', 1, true), 'rain film off by default: no water sent')
+T.configure({ enabled = true, rainAquaplane = true })
+T.update(1.0, 1.0)
+assert(sent[#sent]:find('water=0.20', 1, true), 'full rain: a film of 0.2')
+T.update(1.0, 0.9)
+assert(sent[#sent]:find('water=0.10', 1, true), 'half way: 0.1')
+T.update(1.0, 0.5)
+assert((sent[#sent] .. sent[#sent - 1]):find('water=0.00', 1, true), 'below 0.8 the film is cleared')
+T.update(1.0, 0.5)
+assert(not sent[#sent]:find('water', 1, true), 'and not repeated')
 
 T.state(7, { { 0, 1, 80, 40, 0.1, false, false, 0, 0, 6.0, 8.0, 'road', 'FL' }, { 1, 2, 90, 45, 0, false, false } }, {})
 local g = T.getTyres(7)
@@ -60,4 +72,24 @@ T.state(7, { { 1, 2, 60, 45, 0, false, false } }, { { 1, 'ignite' } })        --
 T.setEmitters({})
 T.forget(7)
 assert(T.getTyres(7) == nil, 'forgotten when the car is destroyed')
+-- the wear look: stage materials go into the glowMap of a car that loads while the tyres are on; one switch per mesh, made here and kept; rules stages 0-2 give the material back, 3-4 worn, 5 belts
+local sw, calls = 0, {}
+veh.getSwitchableMaterial = function(_, o, _, m) sw = sw + 1 return 40 + sw end
+veh.switchMaterial = function(_, msc, m) calls[#calls + 1] = msc .. '=' .. m end
+veh.resetMaterials = function(_, msc) calls[#calls + 1] = msc .. '=reset' end
+T.look(7, 0, 3, { { 'tire_01a', 'tire_01a_x' } })
+T.look(7, 0, 5, { { 'tire_01a', 'tire_01a_x' } })
+T.look(7, 0, 1, { { 'tire_01a', 'tire_01a_x' } })
+assert(sw == 1 and table.concat(calls, ' ') == '41=csfx_tire_01a_worn 41=csfx_tire_01a_belts 41=reset', 'one switch per mesh: ' .. table.concat(calls, ' '))
+T.lookEvent(7, 0, 'metal', 32)
+local car = {}
+T.onJbeamLoadingPhase2(nil, 7, car)
+assert(car.glowMap.tire_01a.on == 'csfx_tire_01a_worn' and car.glowMap.tire_01a.on_intense == 'csfx_tire_01a_belts' and car.glowMap.tire_01a.simpleFunction == 'csfx_never' and car.glowMap.tire, 'the stage materials are put into the glowMap of a car that loads while the tyres are on')
+local own = { glowMap = { tire_01a = { off = 'x' } } }
+T.onJbeamLoadingPhase2(nil, 7, own)
+assert(own.glowMap.tire_01a.off == 'x', 'a car with its own glowMap entry for the tyre keeps it')
+T.configure({ enabled = false })
+local off = {}
+T.onJbeamLoadingPhase2(nil, 8, off)
+assert(off.glowMap == nil, 'tyres off: the car is not touched')
 print('carSurfaceFx tyres (game side): ok')

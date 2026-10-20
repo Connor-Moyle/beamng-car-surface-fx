@@ -45,4 +45,4 @@ The downloads were kept outside the mod and only the colour, displacement and ro
 
 Tyre wear normal maps (mod/art/surfacefx/tyres/, tools/make_tyre_textures.py): the tread, wear and belt weave are procedural (no photographs); the fine rubber grain in the roughness maps, which are not shipped yet, comes from ambientCG Rubber001, Rubber002 and Rubber004 (CC0).
 
-Tyre wear stage materials (mod/art/surfacefx/tyres/stages.materials.json, tools/make_tyre_stage_materials.py): no new textures; each variant references the car's own tyre textures and lays the procedural worn and belt detail normals above over them.
+Tyre wear stage materials (mod/vehicles/common/carSurfaceFx/stages.materials.json, tools/make_tyre_stage_materials.py) and overlays (mod/art/surfacefx/tyres/tyre_wear_c, tyre_wear_r, tyre_cord_c, tyre_cord_n as shipped DDS, tools/make_tyre_stage_textures.py): procedural, no photographs and no downloaded textures. The stage materials reference the game's own tire_01a textures by path and lay the overlays over them (only the tire, tire_01a and tire_01f materials, whose atlas the overlays fit).

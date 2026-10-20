@@ -12,6 +12,9 @@ local MIN_DOWNFORCE = 200           -- N: a wheel in the air or barely touching 
 local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debris event goes to the game side
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
+local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks (the engine's own METAL on asphalt rule uses 2.5 too)
+local SPARK_MAX = 4                  -- sparks per tick (10 Hz) at the most
+local SPARK_PARTICLE = 1            -- particles.json type 1: sparks
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
 
@@ -44,7 +47,9 @@ local function axleOf(wd)
 end
 local function fittedTo(wd) return fitAxle[axleOf(wd) or ''] or compound end
 
-local WATER_DEPTH = 0.4             -- how deep a wheel in water counts for aquaplaning (0..1); the car cannot see the puddle's depth
+local WATER_DEEP = 0.7              -- aquaplaning depth (0..1) of a wheel whose HUB is under water (the game's own water check, wheels.lua uses the same node)
+local PUDDLE_TTL = 0.5
+local WATER_SHALLOW = 0.3           -- of a wheel whose contact patch is under water but not its hub: a flooded road, a ford. The car cannot see a puddle's depth, only whether the water covers a node
 local function groundOf(wd)         -- the ground under a wheel: its contact material that is not the rubber, looked up in the table the game side sent (setSurfaces)
   local id = tonumber(wd.contactMaterialID1) or -1
   if id == RUBBER_MAT then id = tonumber(wd.contactMaterialID2) or -1 end
@@ -103,7 +108,7 @@ end
 local function applyGrip(wi, e, force)
   if e.wd.isTireDeflated then e.applied = {} return end
   local t, ext = e.t, extMult(wi)
-  local ctx = { water = max(env.water, e.water or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
+  local ctx = { water = max(env.water, e.water or 0, e.puddle or 0), v = abs(tonumber(e.wd.wheelSpeed) or 0), surface = e.surface or env.surface }
   local wet = max(env.wet, e.surface == 'wet' and 1 or 0)
   for j = 1, 2 * t.n do
     local fs, fk = R.nodeGrip(t, j, wet, cfg, ctx)
@@ -144,8 +149,14 @@ local function tick(dt)
     if not wd.isTireDeflated then
       local pr = pressureOf(wd)
       e.surface = groundOf(wd) or e.surface                         -- (kept while the wheel is in the air)
-      e.water = (wd.node1 and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE and pcalls(obj.inWater, obj, wd.node1)) and WATER_DEPTH or 0
-      local wetNow = env.wet > 0.3 or e.surface == 'wet' or e.water > 0
+      e.water = 0
+      if (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then
+        local contact = e.cids[e.slotOf[wd.lastTreadContactNode] or 1]
+        if wd.node1 and pcalls(obj.inWater, obj, wd.node1) then e.water = WATER_DEEP
+        elseif contact and pcalls(obj.inWater, obj, contact) then e.water = WATER_SHALLOW end
+      end
+      if e.puddleTtl then e.puddleTtl = e.puddleTtl - dt if e.puddleTtl <= 0 then e.puddle, e.puddleTtl = nil, nil end end   -- a puddle depth nobody renews fades after PUDDLE_TTL
+      local wetNow = env.wet > 0.3 or e.surface == 'wet' or max(env.water, e.water, e.puddle or 0) > 0
       local ctx = { surface = e.surface or env.surface, wet = wetNow, pressure = pr, pNom = e.pNom }
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
@@ -168,6 +179,11 @@ local function tick(dt)
       end
       local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (probe f2: particle 51, 52 when hotter): one puff per tick, more often the hotter
       if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 52 or 51, 0, 1) end) end
+      if (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
+        local n = min(SPARK_MAX, 1 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 3))
+        if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
+        pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -1, SPARK_PARTICLE, 0, 1) end end)
+      end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
     end
     R.clearEnergy(t)
@@ -192,9 +208,10 @@ local function sendState(events)
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
     local stage = e.t.blown and 5 or R.stage(e.t, cfg)
-    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, stage) end
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, (cfg.look and cfg.look.enabled == false) and 0 or stage, true) end      -- (the look switch off: the car's own tyre material)
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    minH = max(0, minH)                                         -- below 0 the tread is into the belts (cord margin): reported as 0
     parts[#parts + 1] = string.format('{%d,%d,%.1f,%.1f,%.2f,%s,%s,%.1f,%.0f,%.2f,%.2f,%q,%q}', wi, stage, e.t.Ts, e.t.Tc, worst, tostring(e.t.blown), tostring(e.t.fire ~= nil), hz, sn,
       minH, e.t.c.h0, e.t.compound, tostring(e.wd.name or ''))
   end
@@ -294,6 +311,13 @@ function M.setTread(frac, wi)
     end
   end
 end
+-- The puddle code of Street Legal (it knows where each puddle is) tells each wheel its water depth 0..1 (about 10-20 Hz); wi is the index in wheels.wheels. Not renewed for PUDDLE_TTL s = no puddle.
+function M.setWheelWater(wi, depth)
+  local e = tyres[wi]
+  if not e then return false end
+  e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
+  return true
+end
 function M.setEnv(tbl) for k, val in pairs(tbl or {}) do env[k] = val end end   -- wet 0..1, water 0..1, surface, ambient C, road C
 function M.setExternal(kind, wi, m)                -- another module's multiplier on one wheel's tread grip (1 = none)
   external[kind] = external[kind] or {}
@@ -356,7 +380,15 @@ function M.repair(wi)
     if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} end
   end
 end
+function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
+  local out = {}
+  for wi, e in pairs(tyres or {}) do out[#out + 1] = string.format('%s %s own %.2f in force %.2f', tostring(wi), tostring(e.wd.name), e.water or 0, max(env.water, e.water or 0, e.puddle or 0)) end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
 function M.grip()                                  -- the mean friction factor written on each tyre (1 = the car's own stock friction): a grip check that needs no driving
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local out = {}
   for wi, e in pairs(tyres or {}) do
     local sum, n = 0, 0
@@ -366,24 +398,37 @@ function M.grip()                                  -- the mean friction factor w
   table.sort(out)
   return table.concat(out, ' | ')
 end
-function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
+function M.gripWhy()                               -- what is behind each grip() number: ground, surface temperature, deepest wear, compound ratio, external factor, water in force, speed
   local out = {}
   for wi, e in pairs(tyres or {}) do
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    out[#out + 1] = string.format('%s %s %s surface %s Ts %.0f tread %.1f of %.1f ratio %.2f ext %.2f water %.2f v %.1f', tostring(wi), tostring(e.wd.name), e.t.compound, tostring(e.surface or env.surface), e.t.Ts, max(0, minH), e.t.c.h0, e.ratio, extMult(wi), max(env.water, e.water or 0, e.puddle or 0), abs(tonumber(e.wd.wheelSpeed) or 0))
+  end
+  table.sort(out)
+  return table.concat(out, ' | ')
+end
+function M.dump()                                  -- one line per tyre: wheel index, name, hottest surface, fire, deepest wear, blown, deflated (for tests in the game)
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
+  local out = {}
+  for wi, e in pairs(tyres or {}) do
+    local minH = math.huge
+    for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
+    minH = max(0, minH)
     out[#out + 1] = string.format('%s %s Ts %.0f fire %s h %.2f blown %s deflated %s', tostring(wi), tostring(e.wd.name), e.t.Ts, tostring(e.t.fire), minH, tostring(e.t.blown), tostring(e.wd.isTireDeflated))
   end
   table.sort(out)
   return table.concat(out, ' | ')
 end
 function M.status()
+  if enabled and not tyres then pcall(build) end                -- right after a compound change the tyres are rebuilt on the next frame: answer anyway
   local n, worst, hot = 0, math.huge, 0
   for _, e in pairs(tyres or {}) do
     n = n + 1
     for j = 1, 2 * e.t.n do worst = min(worst, e.t.h[j]) end
     hot = max(hot, e.t.Ts)
   end
-  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and worst or 0, hot, tostring(compound))
+  return string.format('enabled %s tyres %d worst tread %.2f mm hottest %.0f C compound %s', tostring(enabled), n, n > 0 and max(0, worst) or 0, hot, tostring(compound))
 end
 
 -- every tread node back to its stock friction (the module is switched off, or unloaded)

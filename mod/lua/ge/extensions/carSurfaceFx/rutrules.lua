@@ -79,21 +79,25 @@ function M.forget(grid) grid.cells, grid.n = {}, 0 end
 
 -- ---- chunks. A wheel's path is collected as samples { x, y, z }; `feed` adds one and returns the chunk when it is complete: enough samples, or the ground changed, or it jumped.
 -- state = { kind, points = {}, last = {x,y} }
-function M.newPath() return { kind = nil, points = {} } end
+-- A chunk says whether it is the first (fadeIn) and/or the last (fadeOut) of its run: the decal then fades over M.END_FADE metres at that end, so a run does not begin or stop in a square cut
+-- (the joints between two chunks of one run stay solid). shortcut: a run whose last chunk is too short to make (under 2 points) leaves its previous chunk with a square end.
+M.END_FADE = 0.5
+function M.newPath() return { kind = nil, points = {}, cut = false } end
 
 function M.feed(path, x, y, z, kind, cfg)
   local out
   local last = path.points[#path.points]
   if path.kind and (kind ~= path.kind or (last and (x - last[1]) ^ 2 + (y - last[2]) ^ 2 > 9)) then       -- the ground changed, or a jump of 3 m
-    if #path.points >= 2 then out = { kind = path.kind, points = path.points } end
-    path.points, path.kind = {}, nil
+    if #path.points >= 2 then out = { kind = path.kind, points = path.points, fadeIn = not path.cut, fadeOut = true } end
+    path.points, path.kind, path.cut = {}, nil, false
     last = nil
   end
   path.kind = kind
   if last and (x - last[1]) ^ 2 + (y - last[2]) ^ 2 < (cfg.step * 0.9) ^ 2 then return out end
   path.points[#path.points + 1] = { x, y, z }
   if #path.points >= cfg.chunkPoints and not out then
-    out = { kind = path.kind, points = path.points }
+    out = { kind = path.kind, points = path.points, fadeIn = not path.cut }
+    path.cut = true
     local tail = path.points[#path.points]
     path.points = { tail }                                              -- the next chunk starts where this one ended: no gap
   end
@@ -103,8 +107,8 @@ end
 -- a path that has been quiet: whatever is collected is a chunk too (nil when there is too little)
 function M.flush(path)
   local out
-  if path.kind and #path.points >= 2 then out = { kind = path.kind, points = path.points } end
-  path.points, path.kind = {}, nil
+  if path.kind and #path.points >= 2 then out = { kind = path.kind, points = path.points, fadeIn = not path.cut, fadeOut = true } end
+  path.points, path.kind, path.cut = {}, nil, false
   return out
 end
 
@@ -146,7 +150,8 @@ function M.chain(ch, kind, ax, ay, az, bx, by, bz, now, cfg)
   if (bx - last[1]) ^ 2 + (by - last[2]) ^ 2 < (cfg.step * 0.9) ^ 2 then return nil end
   c.points[#c.points + 1] = { bx, by, bz }
   if #c.points >= cfg.chunkPoints then
-    local out = { kind = kind, points = c.points, track = true }
+    local out = { kind = kind, points = c.points, track = true, fadeIn = not c.cut }
+    c.cut = true
     c.points = { { bx, by, bz } }                                        -- the next chunk starts where this one ended
     return out
   end
@@ -156,7 +161,7 @@ function M.chainFlush(ch, now, idle)
   local out, keep = {}, {}
   for _, c in ipairs(ch.list) do
     if now - (c.at or now) >= idle then
-      if #c.points >= 2 then out[#out + 1] = { kind = c.kind, points = c.points, track = true } end
+      if #c.points >= 2 then out[#out + 1] = { kind = c.kind, points = c.points, track = true, fadeIn = not c.cut, fadeOut = true } end
     else keep[#keep + 1] = c end
   end
   ch.list = keep

@@ -44,6 +44,7 @@ local M = {}
 local bodymap = require('carSurfaceFx/bodymap')
 local canvasV = require('carSurfaceFx/daeread').canvasV                  -- the .dae's v runs up, the canvas runs down
 local logTag = 'carSurfaceFx_scratch'
+local DEFAULT_GLOW_NITS = 45000
 local TAG_B, TAG_P, TAG_E = '@csfx_base', '@csfx_palette', '@csfx_emis'
 local PAGE = 'local://local/vehicles/common/carSurfaceFx/scratch.html'
 local PAGE_V = 35                                              -- bumped with every change of scratch.html/.js/paintwater.js: the browser caches pages by their address, a new number loads the new files
@@ -66,7 +67,7 @@ local function defaults()
     water       = true,                             -- rain drops running over the paint
     allVehicles = false,                            -- false = just the car you're in (matches Body Dirt)
     dirtGlow    = false,                            -- a third canvas in the paint's emissive slot: the dirt's own colour added as light (the colour map can only darken)
-    dirtGlowNits = 45000,
+    dirtGlowNits = DEFAULT_GLOW_NITS,
     panelLit    = false,                            -- set by carSurfaceFx while panel damage is on: the lit page is bound too, so marks show on dark paint (not a setting of its own)
   }
 end
@@ -476,7 +477,7 @@ end
 
 -- carSurfaceFx_scratch.glowTune(nits): the brightness of the lit dirt colour on the cars already bound (a test: how strong it must be to read as the dirt's own colour by day)
 function M.glowTune(nits)
-  nits = tonumber(nits) or settings.dirtGlowNits
+  nits = tonumber(nits) or DEFAULT_GLOW_NITS                     -- no argument: back to the default
   settings.dirtGlowNits = nits
   local n = 0
   for name, layers in pairs(bound) do

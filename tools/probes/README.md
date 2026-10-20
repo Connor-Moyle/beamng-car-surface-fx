@@ -38,3 +38,20 @@ Thresholds in `tyrerules.lua`: smoke from 150 C (full at 250), ignition when the
 | f10 | `CSFXP.fireStrong(2, 3)`, watch 10 s, screenshots at 3 s and 8 s, `CSFXP.fireClear()` | parked | the game's own fire on a tread node with a real burn rate: flames and smoke, does the tyre stay intact |
 | f11 | `CSFXP.ringNodes(0)` on a car whose `status()` shows `tyres 0` (the starter autobello) | send the whole text | what a wheel without tread nodes has to write friction on (nodes of the wheel, their materials and friction) |
 
+
+| g1 | `CSFXP.flexList()` | nothing | which flexmesh material calls exist and what `getFlexmeshMaterial(i)` returns for each tyre mesh (the plain switch of probe c changes nothing on screen) |
+| g2 | `CSFXP.flexSet('setFlexmeshMaterialByIndex', 2, 'tire_01a_old')`, then `('setFlexmeshMaterial', 2, 'tire_01a_old')`, then `('switchMaterialByIdx', 2, 'tire_01a_old')`; the index is 0-based and 1-based in turn (try 2 and 3) | a screenshot of the tyre after each; reset the car (R) afterwards | which call takes effect on the screen, and on which tyre |
+
+## Tyre wear look: game-side diagnosis (tools/probes/tyrelook_ge.lua)
+
+Run in GE (`run_lua`), not in the car: send the whole file as the code (it returns `D`), keep `D` in a global yourself (`CSFXD = ...`), then call `return CSFXD.list()` etc. A car is parked, camera on one wheel.
+1. `CSFXD.list()`: meshes (sorted, numbered), whether `csfx_tire_01a_worn/s5` exist (after the tyres module is on, or `CSFXD.load()`), their mapTo and detail map.
+2. Control: `CSFXD.try(1, 'tire_01a_old')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.try(1, 'csfx_tire_01a_belts')`, screenshot, `CSFXD.reset(1)`. Then `CSFXD.reload('csfx_tire_01a_belts')` and the same try again, screenshot.
+3. A loud material the car already has: take one name from `list()` ("car material ..."), `CSFXD.try(1, '<that name>')`: the tyre must visibly change (it proves the switch reaches the screen; if the tyre stays, the mesh numbering or camera is wrong).
+Report the text of every call and for each screenshot which tyre (driver's-seat left/right, front/rear) changed.
+
+## Tyre look: how the engine decodes the detail colour map (tyre_diag_*.png)
+
+Four flat grey maps in art/surfacefx/tyres: tyre_diag_c128.color.png, tyre_diag_d128.data.png (mid grey = no change in the shader's blend `base + (detail * 2 - 1) * strength` if it is read raw), tyre_diag_c200.color.png, tyre_diag_d200.data.png (lighter). With a car whose tyre is on the belts state (`set(1,5)`), on the live material in GE:
+`local m=scenetree.findObject('csfx_tire_01a_belts') m:setField('detailMap',0,'/art/surfacefx/tyres/tyre_diag_c128.color.png') m:setField('detailBaseColorMapStrength',0,'1') m:setField('detailNormalMapStrength',0,'0') m:setField('normalMapStrength',0,'1') Sim.upcast(m):reload()`
+Then shoot the tyre (side, lettering visible), and repeat with the other three maps. A mid-grey map that is read raw leaves the tyre looking stock; one read as sRGB makes it go darker; report, per map, stock / darker / lighter / coloured.

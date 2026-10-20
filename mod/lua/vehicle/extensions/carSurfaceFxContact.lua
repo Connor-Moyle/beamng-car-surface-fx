@@ -73,6 +73,14 @@ local function handle(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slip
   publish(ev)
 end
 
+-- the tap runs inside the game's own collision path: an error here must never reach it. The first error switches the tap off for this car, logged once.
+local tapBroken = nil
+local function safe(...)
+  if tapBroken then return end
+  local ok, err = pcall(handle, ...)
+  if not ok then tapBroken = tostring(err) seen.via = 'switched off after an error' pcall(log, 'E', 'carSurfaceFxContact', 'collision tap switched off: ' .. tapBroken) end
+end
+
 -- Where the game's collisions are tapped. The vehicle's main.lua onNodeCollision hands every collision to particlefilter.nodeCollision(p) (a table of the numbers), so wrapping that
 -- module function is the surest tap (it does not matter how the engine finds the global). With no particlefilter the global onNodeCollision is wrapped instead. Chain-safe: the
 -- previous handler always runs first. Once only.
@@ -84,7 +92,7 @@ local function wrapNodeCollision()
     local orig = pf.nodeCollision
     pf.nodeCollision = function(p, ...)
       orig(p, ...)
-      if p then handle(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
+      if p then safe(p.id1, p.pos, p.normal, p.nodeVel, p.perpendicularVel, p.slipVec, p.slipVel, p.slipForce, p.normalForce, p.depth, p.materialID1, p.materialID2) end
     end
     seen.via = 'particlefilter'
     return
@@ -92,7 +100,7 @@ local function wrapNodeCollision()
   local orig = onNodeCollision
   onNodeCollision = function(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
     if orig then orig(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2) end
-    handle(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
+    safe(id1, pos, normal, nodeVel, perpVel, slipVec, slipVel, slipForce, normalForce, depth, m1, m2)
   end
   seen.via = 'onNodeCollision'
 end

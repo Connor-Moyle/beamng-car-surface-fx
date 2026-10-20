@@ -160,6 +160,19 @@ onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 
 assert(geCalls('impacts.sparks%(%)') == 1 and #particles == 1 and particles[1].ptype == 1 and particles[1].count >= 2, 'metal grinding on metal throws the game\'s own spark particle: ' .. #particles)
 onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, 2, 14)
 assert(#particles == 1, 'not on dirt (and the cooldown)')
+-- the game's id order is not fixed: with the car's own node data, either order gives the same answer
+v.data.nodes[5] = { nodeMaterial = 2 }
+for _, ids in ipairs({ { 2, 10 }, { 10, 2 } }) do
+  particles = {}
+  for _ = 1, 3 do X.updateGFX(0.2) end
+  onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, ids[1], ids[2])
+  assert(#particles == 1, 'a metal node on asphalt sparks whichever id comes first: ' .. ids[1] .. ',' .. ids[2])
+  particles = {}
+  for _ = 1, 3 do X.updateGFX(0.2) end
+  onNodeCollision(5, nil, nil, { x = 0, y = 0, z = 0 }, 1, nil, 5, 0, 3000, 0, ids[1] == 2 and 14 or 14, ids[1] == 2 and 2 or 2)
+  assert(#particles == 0, 'and not on dirt either way')
+end
+v.data.nodes[5] = nil
 calls = {}
 for _ = 1, 3 do X.updateGFX(0.2) end
 particles = {}
@@ -197,6 +210,13 @@ do
   v.data.nodes[9] = nil
   particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 10, materialID2 = 4 })
   assert(ev2.nodeMat == 4 and ev2.hitMat == 10, 'an unknown node: the second id is the node (asphalt, rubber = a tyre)')
+  -- an error inside the tap never reaches the game's collision path: it is swallowed, the tap switches itself off
+  local before = #order
+  assert(pcall(particlefilter.nodeCollision, { id1 = 9, normal = 5, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 }), 'a failing handle does not raise in the call')
+  assert(C2.status():find('switched off', 1, true), 'and the status says the tap is off: ' .. C2.status())
+  local n0 = #order
+  particlefilter.nodeCollision({ id1 = 9, nodeVel = { x = 0, y = 0, z = 0 }, perpendicularVel = 2, normalForce = 1, materialID1 = 3, materialID2 = 10 })
+  assert(#order == n0 + 1 and order[#order] == 'orig', 'switched off: only the original handler runs')
   particlefilter = nil
 end
 

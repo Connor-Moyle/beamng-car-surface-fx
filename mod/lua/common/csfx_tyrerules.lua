@@ -28,12 +28,14 @@ M.COMPOUNDS = {
 function M.defaults()
   return {
     enabled = false,
+    wearEnabled = true, tempGripEnabled = true, wetGripEnabled = true,       -- the parts of the simulation, each its own switch: tread wear, temperature changing grip, rain changing grip
     wearRate = 1.0,                                         -- the time-scale of wear (research 1.4: real wear is invisible in play)
     surface = { asphalt = 1.0, concrete = 1.2, wet = 0.6, gravel = 0.5, dirt = 0.5, rock = 1.5, snow = 0.2, ice = 0.2 },
     spinWear = 4,                                           -- wheelspin and cornering slip wear this many times faster than a locked wheel's sliding (a burnout reaches the belts in about 2 minutes)
     deadZone = 0.3,                                         -- m/s of slip below which nothing is worn (rolling micro-slip)
     heatWearScale = 60, heatWearMax = 3,                    -- C over wearOn that doubles the wear, and the cap of the multiplier
     cordLimit = 1.0,                                        -- mm below zero (cord) before the tyre goes
+    rainAquaplane = false,                                    -- Mods settings: "Aquaplaning in heavy rain"; a thin film of water (depth up to 0.2) on the road above wetness 0.8
     heatRate = 1.0, coolRate = 1.0, rainCool = 4, sunRoad = 8,
     coldGrip = 1.0, hotGrip = 1.0, pressureEffect = 1.0,
     beltGrip = 0.55, beltSliding = 0.50,
@@ -41,8 +43,9 @@ function M.defaults()
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeOn = 90, smokeFull = 180, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
     blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
+    look = { enabled = true, wornBelow = 0.5 },      -- the worn tyre look: on or off, and the fraction of tread left below which a tyre looks worn (the belts show at no tread)
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
-    debris = { density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
+    debris = { enabled = true, density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
   }
 end
 
@@ -106,7 +109,7 @@ local WEAR_ALIAS = { mud = 'dirt', sand = 'dirt', grass = 'dirt' }       -- surf
 -- one wear tick: the energy gathered since the last tick wears the slots (and heats their sector's flash temperature); ctx = { surface = 'asphalt'.., wet = bool, pressure, pNom }
 -- Returns the deepest wear of any slot this tick (mm).
 function M.wearStep(t, ctx, cfg)
-  if t.blown then return 0 end
+  if t.blown or cfg.wearEnabled == false then return 0 end
   local c, worst = t.c, 0
   local sk = ctx.wet and 'wet' or (ctx.surface or 'asphalt')
   local ms = cfg.surface[sk] or cfg.surface[WEAR_ALIAS[sk] or ''] or 1
@@ -132,6 +135,7 @@ end
 -- takeDebris returns the grams to drop since the last call and the surface temperature it leaves at (the temperature the pile starts at).
 function M.takeDebris(t, cfg)
   local d = cfg.debris
+  if d.enabled == false then t.shed = 0 return 0, t.Ts end
   local frac = d.minFrac + (d.maxFrac - d.minFrac) * clamp((t.Ts - d.hotFrom) / (d.hotTo - d.hotFrom), 0, 1)
   local g = (t.shed or 0) * d.density * frac
   t.shed = 0
@@ -256,6 +260,7 @@ function M.totalEnergy(t) local s = 0 for j = 1, 2 * t.n do s = s + t.E[j] end r
 
 -- ---- grip (research 8.5): multipliers on the stock node friction
 function M.tempGrip(c, T, cfg)
+  if cfg and cfg.tempGripEnabled == false then return 1 end
   local cold = cfg and cfg.coldGrip or 1
   local hot = cfg and cfg.hotGrip or 1
   if T < c.lo then return 1 - (1 - c.grip20) * clamp((c.lo - T) / math.max(1, c.lo - 20), 0, 1.5) * cold end
@@ -293,8 +298,9 @@ function M.nodeGrip(t, j, wet, cfg, ctx)
   local c = t.c
   local fT = M.tempGrip(c, t.Ts + (t.flash[M.sectorOf(j)] or 0) * 0.5, cfg)
   if t.h[j] <= 0 then return cfg.beltGrip * fT, cfg.beltSliding * fT end
-  local fw = M.wearGrip(c, t.h[j], wet)
-  if ctx then fw = fw * M.aquaplane(c, t.h[j], ctx.water, ctx.v) * M.surfaceGrip(c, ctx.surface) end
+  local wetOn = cfg.wetGripEnabled ~= false
+  local fw = M.wearGrip(c, t.h[j], wetOn and wet)
+  if ctx then fw = fw * (wetOn and M.aquaplane(c, t.h[j], ctx.water, ctx.v) or 1) * M.surfaceGrip(c, ctx.surface) end
   local ff = 1
   if cfg.flat.enabled then
     local d = M.flatDepth(t, M.sectorOf(j))
@@ -310,8 +316,9 @@ function M.stage(t, cfg)
   for j = 1, 2 * t.n do if t.h[j] < minH then minH = t.h[j] end end
   if minH <= 0 then return 5 end
   local f, s = minH / t.c.h0, 0
-  for i, lim in ipairs(M.STAGE_FROM) do if f < lim then s = i end end
-  if minH <= (cfg and cfg.baldBelow or 0.5) then s = 4 end
+  local worn = (cfg and cfg.look and cfg.look.wornBelow) or M.STAGE_FROM[3]
+  for i, lim in ipairs({ M.STAGE_FROM[1], M.STAGE_FROM[2], worn, math.min(M.STAGE_FROM[4], worn) }) do if f < lim then s = i end end      -- (stage 3 is where the look turns worn: the setting)
+  if minH <= 0.5 then s = math.max(s, 4) end
   return s
 end
 

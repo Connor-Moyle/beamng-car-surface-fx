@@ -179,6 +179,7 @@ local function makeRoad(chunk, material, width, layer, ring, maxN)
     r:setField('overObjects', 0, 'true')
     r:setField('renderPriority', 0, 10 + layer)
     r:setField('textureLength', 0, tostring(sizeOf(chunk.kind).length))
+    if chunk.fadeIn or chunk.fadeOut then r:setField('startEndFade', 0, string.format('%f %f', chunk.fadeIn and rules.END_FADE or 0, chunk.fadeOut and rules.END_FADE or 0)) end      -- (metres: a run does not start or stop in a square cut)
     r:registerObject('')
     if scenetree and scenetree.MissionGroup then scenetree.MissionGroup:add(r) end
     for i, p in ipairs(chunk.points) do r:insertNode(vec3(p[1], p[2], p[3] + 0.02), width, i - 1) end
@@ -222,7 +223,7 @@ local function makeTrack(chunk)
   local material
   material, wasWet = rules.trackMaterial(chunk.kind, wetness(), wasWet, settings)
   local width = sizeOf('track_' .. chunk.kind).width * settings.tracks.widthScale
-  local ok, why = makeRoad({ points = chunk.points, kind = 'track_' .. chunk.kind }, material, width, 0, ringTrack, settings.tracks.maxRoads)
+  local ok, why = makeRoad({ points = chunk.points, kind = 'track_' .. chunk.kind, fadeIn = chunk.fadeIn, fadeOut = chunk.fadeOut }, material, width, 0, ringTrack, settings.tracks.maxRoads)
   if not ok then useFallback(why) end                               -- no decal fallback: marks.lua draws the plain decal when tracks.enabled is off
 end
 
