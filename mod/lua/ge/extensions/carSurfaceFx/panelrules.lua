@@ -16,6 +16,14 @@ function M.effectiveMass(mass, nodes)
   return clamp(mass / nodes * 4, 5, 60)
 end
 
+-- how many marks one impact leaves: the hardest few of its contacts, more for a harder hit (1 at the minimum, one more for every doubling of the energy, 8 at most)
+function M.markBudget(maxEnergy, minEnergy)
+  minEnergy = math.max(1, tonumber(minEnergy) or 4)
+  local e = tonumber(maxEnergy) or 0
+  if e < minEnergy then return 0 end
+  return clamp(1 + math.floor(math.log(e / minEnergy) / math.log(2)), 1, 8)
+end
+
 -- the speed a hit counts with (m/s): the change of the car's own speed over the last 0.6 s when it is a real change (1 m/s or more: a crash, a wall stop, being hit while parked), else
 -- the node's perpendicular speed capped at 1 m/s (against a resting contact that speed jitters up to 8 m/s, so on its own it called a 3 km/h tap a crash; 1 m/s is 2.5 J, under the minimum)
 function M.closingSpeed(perp, dv)

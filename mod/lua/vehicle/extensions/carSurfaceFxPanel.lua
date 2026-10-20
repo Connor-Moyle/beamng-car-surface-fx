@@ -43,7 +43,7 @@ local function speedChange(t)
       if hist[i][2] < lo then lo = hist[i][2] end
     end
   end
-  return math.max(hi - now, now - lo)
+  return math.max(hi - now, now - lo), hi, lo, now
 end
 
 local function onEvent(ev)
@@ -61,8 +61,8 @@ local function onEvent(ev)
   nodeReady[ev.node] = t + cfg.cooldown
   seen.sent = seen.sent + 1
   carNumbers()
-  local dv = speedChange(t)
-  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv))
+  local dv, vhi, vlo, vnow = speedChange(t)
+  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f, %.2f, %.2f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv, vhi, vlo))
 end
 
 local function ensureSubscribed()

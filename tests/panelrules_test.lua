@@ -29,4 +29,5 @@ local function E(perp, dv, f) return P.energy(P.closingSpeed(perp, dv), f, 1016,
 local rest, bump5, hit10, wall20, wall40 = E(7.9, 0.8, 600), E(1.5, 1.4, 300), E(5.8, 2.8, 430), E(5.7, 5.4, 500), E(7.7, 10.6, 650)
 assert(rest < 4 and bump5 >= 4 and hit10 > bump5 and wall20 > hit10 and wall40 > wall20, 'resting contact below the minimum; a 5 km/h bump marks faintly, 10 km/h more, 20, 40 growing')
 assert(P.severity(bump5, 4) < 0.25 and P.severity(hit10, 4) < 0.5 and P.severity(wall40, 4) > 0.9, 'faint, small, deep')
+assert(P.markBudget(3, 4) == 0 and P.markBudget(4, 4) == 1 and P.markBudget(8, 4) == 2 and P.markBudget(20, 4) == 3 and P.markBudget(300, 4) == 7 and P.markBudget(1e9, 4) == 8, 'marks per impact: one more for every doubling, 8 at most')
 print('carSurfaceFx panel rules: ok')

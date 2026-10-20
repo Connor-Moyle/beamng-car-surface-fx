@@ -12,6 +12,7 @@ local lastHit                                       -- the last hit seen, for th
 local topLog = {}                                    -- the 10 hardest hits since the log was switched on
 local hitLog = {}                                   -- the probe's log of hits: { perp, force, mass, nodes, E, sev }
 local logOn = false
+local pending, quietUntil = {}, {}                  -- vehId -> the contacts of the impact being collected / when the car may be marked again
 local readyAt = {}                                  -- vehId .. ':' .. cid -> os.clock() when the node may be marked again
 
 local function scratch() return rawget(_G, 'carSurfaceFx_scratch') end
@@ -32,13 +33,13 @@ function M.configure(t)
 end
 
 -- the car side's report of a body node that hit something
-function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv)
+function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
   counts.hits = counts.hits + 1
   local E = rules.energy(rules.closingSpeed(perp, dv), force, mass, nodes)
   local sev = rules.severity(E, settings.minEnergy)
   lastHit = { cid = cid, perp = perp, force = force, E = E, sev = sev }
   if logOn then
-    local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, dv = dv }
+    local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, dv = dv, vhi = vhi, vlo = vlo }
     hitLog[#hitLog + 1] = r
     if #hitLog > 200 then table.remove(hitLog, 1) end
     topLog[#topLog + 1] = r                         -- the hardest hits seen, kept apart (the last ones are the resting rattle against the wall)
@@ -49,7 +50,31 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv)
   local key = tostring(vid) .. ':' .. tostring(cid)
   if not rules.accept(settings, kind, E, now(), readyAt[key]) then counts.tooSoft = counts.tooSoft + 1 return false end
   readyAt[key] = now() + 0.4
-  return M.damageNode(vid, cid, E, kind)
+  -- one impact is hundreds of contacts: collect them for 0.35 s, then mark only the hardest few (M.onUpdate), and stay quiet for 1.5 s (the rattle against the wall afterwards)
+  if (quietUntil[vid] or 0) > now() then counts.quiet = (counts.quiet or 0) + 1 return false end
+  local p = pending[vid]
+  if not p then p = { t0 = now(), list = {} } pending[vid] = p end
+  p.list[#p.list + 1] = { cid = cid, E = E, kind = kind }
+  return true
+end
+
+local function flush(vid, p)
+  table.sort(p.list, function(a, b) return a.E > b.E end)
+  local budget = rules.markBudget(p.list[1] and p.list[1].E, settings.minEnergy)
+  local seen, drawn = {}, 0
+  for _, h in ipairs(p.list) do
+    if drawn >= budget then break end
+    if not seen[h.cid] then seen[h.cid] = true if M.damageNode(vid, h.cid, h.E, h.kind) then drawn = drawn + 1 end end
+  end
+  counts.impacts = (counts.impacts or 0) + 1
+  quietUntil[vid] = now() + 1.5
+end
+
+function M.onUpdate(dt)
+  if not next(pending) then return end
+  for vid, p in pairs(pending) do
+    if now() - p.t0 >= 0.35 then pending[vid] = nil flush(vid, p) end
+  end
 end
 
 -- the API: a dent on node cid of car vid for a hit of energyJ joules. kind and dir are optional (kind: 'metal' (paint chips), 'plastic', 'fibreglass' or 'carbon'; dir is not used yet).
@@ -137,7 +162,7 @@ function M.probe(what, arg, kind, kind2)
 end
 
 function M.status()
-  local function line(r) return string.format('node perp %.1f m/s, car speed change %.1f m/s, force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.dv or -1, r.force, r.mass, r.nodes, r.E, r.sev) end
+  local function line(r) return string.format('node perp %.1f m/s, car speed change %.1f m/s (%.1f..%.1f), force %.0f N, mass %.0f kg, %d nodes -> %.0f J, depth %.2f', r.perp, r.dv or -1, r.vlo or -1, r.vhi or -1, r.force, r.mass, r.nodes, r.E, r.sev) end
   local rows, top = {}, {}
   for i = math.max(1, #hitLog - 4), #hitLog do rows[#rows + 1] = line(hitLog[i]) end
   for _, r in ipairs(topLog) do top[#top + 1] = line(r) end
@@ -145,10 +170,10 @@ function M.status()
 end
 
 function M.onVehicleSpawned() M.configure(settings) end
-function M.onClientEndMission() readyAt = {} end
+function M.onClientEndMission() readyAt = {} pending, quietUntil = {}, {} end
 function M.onExtensionUnloaded()
   pcall(function() for _, veh in ipairs(getAllVehicles()) do veh:queueLuaCommand('if carSurfaceFxPanel then carSurfaceFxPanel.setConfig(false) end') end end)
 end
 
-require('carSurfaceFx/guard').wrap(M, TAG, { 'hit' })
+require('carSurfaceFx/guard').wrap(M, TAG, { 'hit', 'onUpdate' })
 return M
