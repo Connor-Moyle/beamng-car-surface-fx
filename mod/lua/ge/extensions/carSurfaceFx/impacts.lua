@@ -214,10 +214,13 @@ function M.onPreRender(dt)
   local cr2 = settings.cullRadius * settings.cullRadius
   if pileN > 0 and settings.glass.enabled then
     local color = colorOf('glass', settings.glass.color, settings.glass.opacity)
+    local shadowColor = colorOf('glassShadow', { 0.06, 0.07, 0.08 }, 0.55)
     local shown = texlist.shown(shardList, settings.glass.texture)
     for v = 1, #shown do
       local pool, n = pools['g' .. v], 0
       if not pool then pool = {} pools['g' .. v] = pool end
+      local under = pools['gs' .. v]                           -- a dark copy a hair beneath: white shards on pale concrete would not read at all
+      if not under then under = {} pools['gs' .. v] = under end
       for i = 1, pileN do
         local p = piles[i]
         if p and texlist.indexFor(#shown, p.seed) == v and (not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= cr2) then
@@ -228,9 +231,15 @@ function M.onPreRender(dt)
           e.forwardVec:set(math.cos(p.angle), math.sin(p.angle), 0)
           e.scale:set(p.r * 2, p.r * 2, DEPTH)
           e.color = color
+          local u = slot(under, n)
+          u.texture = e.texture
+          u.position:set(p.x + 0.012, p.y - 0.012, p.z)
+          u.forwardVec:set(math.cos(p.angle), math.sin(p.angle), 0)
+          u.scale:set(p.r * 2, p.r * 2, DEPTH)
+          u.color = shadowColor
         end
       end
-      if n > 0 then draw(pool, n) end
+      if n > 0 then draw(under, n) draw(pool, n) end
     end
   end
   if restN > 0 and settings.debris.enabled then
