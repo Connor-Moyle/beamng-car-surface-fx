@@ -40,8 +40,8 @@ function M.defaults()
     skidCount = 2000, trackCount = 3000,                        -- ring sizes: how many marks stay before the oldest are recycled
     wheelGap = 0.12,                                             -- reach toward the tyre in metres (grows with speed by itself)
     shade = 0.5,                                                 -- how dark marks made under cover or at night get (1 = not at all)
-    cullRadius = 100,                                            -- marks further than this from the camera are not drawn
-    maxDrawn = 800,                                              -- at most this many decals are drawn in a frame (shortcut: the first ones found in the buffer, not the nearest)
+    cullRadius = 60,                                             -- marks further than this from the camera are not drawn
+    maxDrawn = 300,                                              -- at most this many decals are drawn in a frame (the nearest ones, to the step of cullRadius / 32); each costs the engine time every frame
     others = { enabled = true, maxCars = 6, range = 120 },       -- traffic and AI cars mark too: the nearest maxCars within range metres
   }
 end
@@ -169,7 +169,40 @@ local function drawBatch(pool, n) Engine.Render.DynamicDecalMgr.addDecals(pool, 
 -- the seam for the other decal modules (the leaking fluids): the same engine call, so the scene lighting changes in one place
 function M.drawBatch(pool, n) return drawBatch(pool, n) end
 
-local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget)
+-- the squared distance of mark m from the camera when it may be drawn (inside the cull radius, not behind the camera), else nil
+local function seen(m, camX, camY, fx, fy, cr2)
+  if not camX then return 0 end
+  local ddx, ddy = m.x - camX, m.y - camY
+  local d2 = ddx * ddx + ddy * ddy
+  if d2 > cr2 then return nil end
+  if fx and d2 > 64 and ddx * fx + ddy * fy < 0 then return nil end      -- behind the camera (and not right beside it)
+  return d2
+end
+
+-- when more marks are in view than the budget allows, the nearest ones win: the squared distance inside which they fit (in 32 steps of the cull radius), or math.huge when all fit
+local HIST = 32
+local function nearLimit(camX, camY, fx, fy, cr2, budget)
+  if not camX then return math.huge end
+  local hist, total, step = {}, 0, math.sqrt(cr2) / HIST
+  for i = 1, HIST do hist[i] = 0 end
+  for _, kind in ipairs({ 'skid', 'track' }) do
+    local b = buf[kind]
+    for i = 1, b.count do
+      local m = b.marks[i]
+      local d2 = m and seen(m, camX, camY, fx, fy, cr2)
+      if d2 then local k = math.min(HIST, math.floor(math.sqrt(d2) / step) + 1) hist[k] = hist[k] + 1 total = total + 1 end
+    end
+  end
+  if total <= budget then return math.huge end
+  local acc = 0
+  for k = 1, HIST do
+    acc = acc + hist[k]
+    if acc > budget then local r = k * step return r * r end
+  end
+  return math.huge
+end
+
+local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget, lim2)
   local b, kp, ku = buf[kind], pools[kind], used[kind]
   for t in pairs(ku) do ku[t] = 0 end
   if b.count == 0 then return budget end
@@ -191,13 +224,8 @@ local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget)
     local m = marks[i]
     local l = m and look[m.terr]
     if l then
-      local draw = true
-      if camX then
-        local ddx, ddy = m.x - camX, m.y - camY
-        draw = ddx * ddx + ddy * ddy <= cr2
-        if draw and fx and ddx * ddx + ddy * ddy > 64 and ddx * fx + ddy * fy < 0 then draw = false end      -- behind the camera (and not right beside it)
-      end
-      if draw then
+      local d2 = seen(m, camX, camY, fx, fy, cr2)
+      if d2 and d2 <= lim2 then
         local pool, idx = kp[m.terr], ku[m.terr] + 1
         ku[m.terr] = idx
         budget = budget - 1
@@ -233,8 +261,10 @@ function M.onPreRender(dt)
     view.t, view.x, view.y, view.fx, view.fy, view.dirty = now, camX or 0, camY or 0, fx or 0, fy or 0, false
     view.marksAt = buf.skid.head + buf.track.head
     view.rebuilds = view.rebuilds + 1
-    local budget = rebuildKind('track', camX, camY, fx, fy, settings.cullRadius * settings.cullRadius, settings.maxDrawn)
-    rebuildKind('skid', camX, camY, fx, fy, settings.cullRadius * settings.cullRadius, budget)
+    local cr2 = settings.cullRadius * settings.cullRadius
+    local lim2 = nearLimit(camX, camY, fx, fy, cr2, settings.maxDrawn)
+    local budget = rebuildKind('track', camX, camY, fx, fy, cr2, settings.maxDrawn, lim2)
+    rebuildKind('skid', camX, camY, fx, fy, cr2, budget, lim2)
   end
   for _, kind in ipairs({ 'track', 'skid' }) do
     for t, p in pairs(pools[kind]) do local n = used[kind][t] if n > 0 then drawBatch(p, n) end end

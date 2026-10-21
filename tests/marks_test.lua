@@ -108,7 +108,7 @@ assert(M.set('mats.dirt.skid.width', 0.4) and M.get('mats.dirt.skid.width') == 0
 assert(M.set('mats.dirt.skid.width', 'wide') == false and M.set('nothing.here', 1) == false, 'a wrong type or path is refused')
 assert(M.set('mats.dirt.skid.color', { 1, 0, 0 }) and M.get('mats.dirt.skid.color')[1] == 1, 'colours are set as lists')
 -- the per-frame cost does not grow with the stored marks: the marks are picked once, then the same lists go to the engine every frame; a new mark, a moved or turned camera picks again
-M.configure({ enabled = true, maxDrawn = 5000 })
+M.configure({ enabled = true, maxDrawn = 5000, cullRadius = 100 })
 M.clear()
 cam.x, cam.y = 0, 0
 local fwd = { x = 1, y = 0, z = 0 }
@@ -126,6 +126,15 @@ cam.x = 5 drawn = 0 M.onPreRender(0.016)
 assert(M.rebuilds() >= r0 + 2, 'a camera that moved picks again')
 fwd = { x = -1, y = 0, z = 0 } drawn = 0 M.onPreRender(0.016)
 assert(drawn > 0 and drawn ~= first, 'a camera that turned round draws the other marks: ' .. drawn)
+-- over the budget the nearest marks win: 3000 marks 1..90 m ahead, budget 500 -> the ones drawn are the near ones
+M.configure({ enabled = true, maxDrawn = 500, cullRadius = 100 })
+M.clear()
+cam.x = 0 fwd = { x = 1, y = 0, z = 0 }
+for i = 1, 3000 do M.addSegment(1 + (i * 37) % 90, 0, 0, 1.5 + (i * 37) % 90, 0, 0, 'dirt', 1, 0.5) end
+local far = 0
+Engine.Render.DynamicDecalMgr.addDecals = function(pool, n) drawn = drawn + n for k = 1, n do if pool[k].position.x > 40 then far = far + 1 end end end
+drawn = 0 M.onPreRender(0.016)
+assert(drawn >= 400 and drawn <= 700 and far == 0, 'about the budget, all of them near: ' .. drawn .. ' drawn, ' .. far .. ' beyond 40 m')
 M.clear()
 drawn = 0 M.onPreRender(0.016)
 assert(drawn == 0, 'clear() empties what is submitted')
