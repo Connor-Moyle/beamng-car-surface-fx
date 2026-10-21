@@ -225,6 +225,13 @@ vec3, ColorF, Engine, be, core_camera, castRayStatic, getAllVehicles, jsonReadFi
   saved.getAllVehicles, saved.jsonReadFile, saved.jsonWriteFile
 _G.carSurfaceFx_marks = saved.carSurfaceFx_marks
 obj, wheels, v, damageTracker, energyStorage, electrics, powertrain = nil, nil, nil, nil, nil, nil, nil
+-- a destroyed car leaves nothing behind
+do
+  F.report(42, 1, 0, 0, 0, 1)
+  local with = F.tracked()
+  F.onVehicleDestroyed(42) F.onVehicleDestroyed(999)
+  assert(with >= 1 and F.tracked() == with - 1, 'a destroyed car frees its report: ' .. with .. ' -> ' .. F.tracked())
+end
 print('carSurfaceFx fluids: ok')
 do local st = R.newStore(20)
   assert(R.ringFade(st, 1) == 1, 'a ring that is not full fades nothing')

@@ -231,4 +231,12 @@ function M.onExtensionUnloaded()
 end
 
 require('carSurfaceFx/guard').wrap(M, TAG, { 'hit', 'onUpdate', 'impactEnd' })
+-- a car that is gone: its impact in collection, its quiet time, its retries and the per-node re-mark times go with it (the game calls this for every loaded extension)
+function M.onVehicleDestroyed(id)
+  pending[id], quietUntil[id], retry[id] = nil, nil, nil
+  local prefix = tostring(id) .. ':'
+  for k in pairs(readyAt) do if tostring(k):sub(1, #prefix) == prefix then readyAt[k] = nil end end
+end
+function M.tracked() local n = 0 for _ in pairs(readyAt) do n = n + 1 end for _ in pairs(pending) do n = n + 1 end for _ in pairs(quietUntil) do n = n + 1 end for _ in pairs(retry) do n = n + 1 end return n end
+
 return M
