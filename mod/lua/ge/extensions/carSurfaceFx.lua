@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 local gpugate = require('carSurfaceFx/gpugate')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
-local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
+local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1, dustOn = true, mudOn = true, rubberOn = true, grimeOn = true }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
     dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false, dirtGlow = false, dirtGlowNits = 45000 }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, paintWear = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 DEFAULTS.paneldamage = { enabled = false, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1.0, minEnergy = 4, maxMarks = 40 }      -- panel damage decals (carSurfaceFx/paneldamage.lua, docs/PANEL_DAMAGE.md): dents, off until proven in the game
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
@@ -367,7 +367,8 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   local air = airC()
   local d = rules.dirtBuild(old, dt * settings.mud.rate, { loose = loose, mud = mud, road = road, slip = slip, spin = tonumber(spin), snowing = settings.weather.snow and snowfall() * (settings.weather.snowRate or 1) / math.max(settings.mud.rate, 0.01) or 0, warm = air ~= nil and air > rules.SNOW_AIR,
     airC = air, tod = timeOfDay() }, speed, wet)
-  if not settings.mud.buildup then for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do d[k] = old[k] end end       -- only the weather kinds build without the build-up setting
+  local KIND_ON = { dust = settings.mud.dustOn, mud = settings.mud.mudOn, rubber = settings.mud.rubberOn, grime = settings.mud.grimeOn }
+  for _, k in ipairs({ 'dust', 'mud', 'rubber', 'grime' }) do if not settings.mud.buildup or KIND_ON[k] == false then d[k] = old[k] end end       -- only the weather kinds build without the build-up setting; a kind switched off in the Mods menu builds nothing
   if not settings.weather.snow then d.snow = old.snow end
   if not settings.weather.bugs then d.bugs = old.bugs end
   if water > 0 then d = rules.dirtWash(d, dt, 0, water) end

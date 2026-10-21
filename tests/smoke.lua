@@ -123,6 +123,14 @@ M.onVehicleSpawned(7) tick(10)                            -- respawn: attaches a
 M.debug() tick(5)
 for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end   -- a minute on a dirt road in the rain: mud
 assert(M.status():find('mud 0%.[1-9]') or M.status():find('mud 1'), 'mud built: ' .. M.status())
+M.wash(7)                                                  -- a kind switched off in the Mods menu builds nothing: a minute on the same road with dust and mud off leaves the car clean
+M.setSetting('mud', 'mudOn', false) M.setSetting('mud', 'dustOn', false)
+for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end
+local off = M.getState(7)
+assert(not (off and off.dirt) or ((off.dirt.dust or 0) == 0 and (off.dirt.mud or 0) == 0), 'no dust and no mud with their switches off')
+M.setSetting('mud', 'mudOn', true) M.setSetting('mud', 'dustOn', true)
+for _ = 1, 60 do M.onGround(7, 1, 0, 0, 0, 0, 20, 0.5, 0) tick(2) end
+assert(M.getState(7).dirt.mud > 0, 'and they build again once switched on')
 assert(paintCalls > 0, 'the paint was updated')
 assert(started[1] == 'carSurfaceFx_meshuv' and started[2] == 'carSurfaceFx_scratch', 'the scratch module started, map first')
 local grassStarted = false
@@ -261,10 +269,25 @@ for _, f in ipairs(registered.fields) do
     end
   end
 end
+local TEST_MASTERS = { paint_wear = true, panel = true, ruts_berms = true, ruts_hollows = true, ruts_tracks = true, ruts_gouges = true }      -- test features: the master switch is on the Active features page, off by default
 for _, f in ipairs(registered.fields) do
   if f.type == 'bool' then
-    local isTest = tostring(f.label):find('(test)', 1, true) ~= nil
-    assert((f.feature == true) ~= isTest, f.id .. ': an on/off switch is tagged as a feature, a switch labelled (test) is not')
+    local isTest = tostring(f.label):find('(test)', 1, true) ~= nil and not TEST_MASTERS[f.id]
+    assert((f.feature == true) ~= isTest, f.id .. ': an on/off switch is tagged as a feature, a switch labelled (test) is not (apart from the masters of the test features)')
+  end
+end
+-- every part of the mod has its own switch on the Active features page, with the default it ships with (Connor's rules: each part optional, Active features first)
+do
+  local byId = {}
+  for _, f in ipairs(registered.fields) do byId[f.id] = f end
+  local EXPECT = { rain = true, glass = false, overlay = true, dirt = true, dirt_dust = true, dirt_mud = true, dirt_rubber = true, dirt_grime = true, dirt_build = true, snow = false, frost = false, bugs = false, spray = false,
+    scratch = true, splats = true, marks = true, ruts = false, ruts_gouges = false, ruts_hollows = false, ruts_berms = false, ruts_tracks = false, leaks = true, leaks_mesh = false,
+    crash = false, crash_glass_on = true, crash_debris_on = true, crash_sparks_on = true, panel = false, paint_wear = false }
+  for id, def in pairs(EXPECT) do
+    local f = byId[id]
+    assert(f and f.type == 'bool', id .. ': a switch exists')
+    assert(f.feature == true, id .. ': it is on the Active features page')
+    assert(f.default == def, id .. ': ships ' .. tostring(def) .. ', not ' .. tostring(f.default))
   end
 end
 assert(nPresets >= 12, 'the frame-costing settings have presets: ' .. nPresets)

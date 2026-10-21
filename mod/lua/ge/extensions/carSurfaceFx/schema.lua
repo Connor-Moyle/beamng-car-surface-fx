@@ -192,6 +192,10 @@ function M.build(S, owner)
     F('dirt_glow', 'dirt', 'Dirt', 'bool', 'Lit snow (test)', 'Adds snow as light so it reads white on any paint colour, including dark ones. Dust and mud are not lit (they showed bright dots on dark paint). Not proven yet. Applies to cars spawned afterwards.', 'scratch.dirtGlow'),
     F('paint_wear', 'dirt', 'Dirt', 'bool', 'Worn paint (test)', 'Lets another mod (Part Wear) fade, dirty, scuff and rust the paint of a worn car. Off: the paint stays as it is. Not tested in game yet.', 'paintWear.enabled'),
     F('dirt_build', 'dirt', 'Dirt', 'bool', 'Dirt builds up while you drive', 'Dust on dirt roads, mud when it is wet, rubber from skids, grime on tarmac. Off: dirt only appears when another mod or a command sets it.', 'mud.buildup'),
+    F('dirt_dust', 'dirt', 'Dirt', 'bool', 'Dust', 'Dust builds on dry dirt, gravel and sand and washes off quickly. Off: no dust builds up.', 'mud.dustOn'),
+    F('dirt_mud', 'dirt', 'Dirt', 'bool', 'Mud', 'Mud builds on mud and on wet loose ground and stays longer. Off: no mud builds up.', 'mud.mudOn'),
+    F('dirt_rubber', 'dirt', 'Dirt', 'bool', 'Tyre rubber', 'Rubber from wheelspin, burnouts and skidding. Off: none builds up on the paint.', 'mud.rubberOn'),
+    F('dirt_grime', 'dirt', 'Dirt', 'bool', 'Road grime', 'A slow film from driving on tarmac, faster in the wet. Off: none builds up.', 'mud.grimeOn'),
     F('snow_speed', 'dirt', 'Dirt', 'slider', 'Snow build-up speed', 'How fast snow settles on a car that stands (1 is the normal speed: a full coat in about 3 minutes of heavy snow).', 'weather.snowRate', { min = 0.25, max = 4, step = 0.25, unit = 'x' }),
     F('dirt_speed', 'dirt', 'Dirt', 'slider', 'Dirt build-up speed', 'How fast dirt builds up (1 is the normal speed).', 'mud.rate', { min = 0.1, max = 3, step = 0.1, unit = 'x' }),
     F('dirt_strength', 'dirt', 'Dirt', 'slider', 'Dirt strength', 'How strongly the dirt shows on the paint.', 'mud.intensity', { min = 0, max = 1, step = 0.05, unit = '%', scale = 100 }),
@@ -488,7 +492,9 @@ function M.build(S, owner)
   })
 
   -- every on/off switch is a feature toggle: the Active features page lists them (grouped by the mod); a switch labelled (test) is left off the page
-  for _, f in ipairs(fields) do if f.type == 'bool' and not tostring(f.label):find('(test)', 1, true) then f.feature = true end end      -- (a row still labelled a test is not a feature)
+  -- the master switches of the test features are on the page too (off by default, the label says test); their sub-switches and options stay off it
+  local TEST_MASTERS = { paint_wear = true, panel = true, ruts_berms = true, ruts_hollows = true, ruts_tracks = true, ruts_gouges = true }
+  for _, f in ipairs(fields) do if f.type == 'bool' and (TEST_MASTERS[f.id] or not tostring(f.label):find('(test)', 1, true)) then f.feature = true end end      -- (any other row labelled a test is not a feature)
 
   return { mod = 'car_surface_fx', title = 'Car Surface FX', icon = 'wrench', order = 40, tabs = M.TABS, fields = fields }
 end

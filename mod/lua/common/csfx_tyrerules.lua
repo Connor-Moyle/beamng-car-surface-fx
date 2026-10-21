@@ -42,6 +42,7 @@ function M.defaults()
     beltGrip = 0.55, beltSliding = 0.50,
     flat = { enabled = true, minDepth = 0.2, gripLoss = 0.03 },
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
+    smokeEnabled = true, sparksEnabled = true,        -- Mods settings: "Tyre smoke", "Sparks from belt-worn tyres"
     smokeOn = 90, smokeFull = 180, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
     blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
     look = { enabled = true, wornBelow = 0.5 },      -- the worn tyre look: on or off, and the fraction of tread left below which a tyre looks worn (the belts show at no tread)
@@ -198,7 +199,7 @@ function M.blowoutTargets(nodes, centre, radius, skip, n)
 end
 
 -- smoke 0..1 from the surface temperature
-function M.smoke(Ts, cfg) return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
+function M.smoke(Ts, cfg) if cfg.smokeEnabled == false then return 0 end return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
 -- one fire tick. Ignites after the hottest surface (Ts + a quarter of the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
 -- (douse per s at wet 1) and it pops (blown) after popAfter s of fire. Returns 'ignite' / 'pop' / 'out' the tick it happens, else nil.
 local FLASH_FIRE = 0.25      -- a locked slide heats one spot to the flash cap in seconds; only a quarter of that counts toward a fire (a skid smokes and flats, a long burnout burns)

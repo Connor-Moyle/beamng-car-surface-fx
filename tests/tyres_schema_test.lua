@@ -55,6 +55,10 @@ assert(compoundFields > 150, 'the compounds are all there: ' .. compoundFields)
 assert(byPath['enabled'].default == false, 'the tyre simulation is off until it is switched on, as the game side treats a missing file')
 assert(byPath['blowout.enabled'].default == false, 'blowout damage is off by default')
 assert(byPath['blowout.maxForce'].max == 3000 and byPath['blowout.maxForce'].default <= 3000, 'the blowout force cap stays at 3000')
+for _, path in ipairs({ 'enabled', 'wearEnabled', 'flat.enabled', 'look.enabled', 'tempGripEnabled', 'wetGripEnabled', 'rainAquaplane', 'debris.enabled', 'smokeEnabled', 'sparksEnabled', 'fires', 'fireSpread', 'marbles.enabled', 'marbles.burn', 'blowout.enabled' }) do
+  assert(byPath[path] and byPath[path].type == 'bool' and byPath[path].feature == true, path .. ': every tyre part has its own switch on the Active features page')
+end
+assert(byPath['enabled'].default == false and byPath['marbles.enabled'].default == false and byPath['fireSpread'].default == false and byPath['blowout.enabled'].default == false and byPath['smokeEnabled'].default == true and byPath['sparksEnabled'].default == true, 'the tyre switches ship as agreed: simulation, marbles, spread and blowout off; smoke and sparks on')
 assert(byPath['fires'].label == 'Tyre fires' and byPath['fireSpread'].label == 'Fires can spread to the car', 'the fire labels')
 assert(byPath['enabled'] and not byPath['enabled'].advanced and byPath['wearRate'] and not byPath['wearRate'].advanced and byPath['surface.ice'].advanced, 'common values normal, the rest advanced')
 
