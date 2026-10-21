@@ -221,6 +221,7 @@ M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
 tick(1200)
 assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
 M.debug()
+assert(M.slotStats():find('material reloads [1-9]') and M.slotStats():find('glass canvases made'), 'the slot counters count the reloads of the run: ' .. M.slotStats())
 -- a ground report for a car that is not there (destroyed the same frame) brings no dirt table back
 alive = false
 M.onGround(12345, 1, 1, 0, 0, 0, 20, 0.5, 0)

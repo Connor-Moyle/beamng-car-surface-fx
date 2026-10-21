@@ -143,15 +143,18 @@ end
 -- the player's windows get the finer canvas when the setting says so (windscreen.canvasSize 1024: a bead is then about 2 mm of glass per texel); other cars always 512
 local function glassSizeFor(veh) return (veh:getID() == be:getPlayerVehicleID(0) and (settings.windscreen.canvasSize or 512) >= 1024) and 1024 or GLASS_SIZE end
 
+-- what the mod asks of the renderer (carSurfaceFx.slotStats()): material reloads (each one rebuilds a material instance) and glass canvases made and destroyed
+local slots = { reloads = 0, byMat = {}, recent = {}, made = 0, killed = 0 }
 local function canvases(info, on)
   for i = 0, be:getObjectCount() - 1 do
     local veh = be:getObject(i)
     if veh and wears(veh, info.name) then
       if on and not hasCanvas(veh, info.tag) then
         log_('I', 'water canvas ' .. info.tag .. ' for car ' .. veh:getID())
+        slots.made = slots.made + 1
         local _, src = rules.glassMap(info.stages[0], info.mode)
         veh:createUITexture(info.tag, GLASS_PAGE .. '?mode=' .. info.mode .. '&v=' .. GLASS_PAGE_V .. '&base=' .. urlEncode(src or ''), glassSizeFor(veh), glassSizeFor(veh), UI_TEXTURE_USAGE_AUTOMATIC, GLASS_FPS)
-      elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) end
+      elseif not on and hasCanvas(veh, info.tag) then veh:destroyUITexture(info.tag) slots.killed = slots.killed + 1 end
     end
   end
 end
@@ -180,6 +183,8 @@ local function setRung(info, r)
     m:setField('doubleSided', 0, (r > 0 and doubleSided) and '1' or tostring(info.doubleSided or '0'))
   end
   Sim.upcast(m):reload()
+  slots.reloads = slots.reloads + 1 slots.byMat[info.name] = (slots.byMat[info.name] or 0) + 1
+  slots.recent[#slots.recent + 1] = os.clock() while slots.recent[1] and slots.recent[1] < os.clock() - 60 do table.remove(slots.recent, 1) end
   gpugate.shared().reloaded(os.clock())                     -- (the leak puddle planes keep off the GPU for a moment after a reload)
   if info.glass and r == 0 then canvases(info, false) end
   info.rung = r
@@ -1163,6 +1168,18 @@ function M.bound()
   local out = {}
   for _, info in ipairs(car.mats) do out[#out + 1] = string.format('%s [%s] r%d', info.name, info.glass and 'glass' or (info.trim and 'trim' or 'paint'), info.rung or 0) end
   return table.concat(out, ' | ')
+end
+
+-- one line for the slot hunt (docs/WET_WORLD_REWRITE.md): how many material reloads and glass canvases the mod has asked for, and how many reloads in the last minute
+function M.slotStats()
+  local names = {}
+  for name, n in pairs(slots.byMat) do names[#names + 1] = { name, n } end
+  table.sort(names, function(a, b) return a[2] > b[2] end)
+  local top = {}
+  for i = 1, math.min(6, #names) do top[i] = names[i][1] .. ' x' .. names[i][2] end
+  local mine = 0
+  for _, info in pairs(mats) do mine = mine + 1 end
+  return string.format('material reloads %d (%d in the last minute), glass canvases made %d destroyed %d, %d materials known, %d cars, most reloaded: %s', slots.reloads, #slots.recent, slots.made, slots.killed, mine, (function() local n = 0 for _ in pairs(cars) do n = n + 1 end return n end)(), table.concat(top, ', '))
 end
 
 function M.status()
