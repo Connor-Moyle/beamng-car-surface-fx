@@ -117,7 +117,7 @@ local RULES = {}
 function RULES.mud(map, c, wi)
   local base = exp(-c.h / 0.16)                                           -- mostly low: heaviest on the sills and lower doors
   local up = c.nz > 0.7 and 0.15 or 1                                     -- little on flat upward faces
-  local w = base * up * 0.25
+  local w = base * up * (c.nz < -0.3 and 0.08 or 1) * 0.25                -- (a face that looks down is the underside: nobody sees it, and it soaked up most of the mud)
   if wi then                                                              -- the wheel that throws it: the panel behind it and its arch
     local dy, dx = behind(map, c, wi)
     local wh = map.wheels[wi]

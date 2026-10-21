@@ -266,7 +266,7 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- yet) the plain regions of the old placement are used.
 local COL = { mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 3000, 1.0, 0.04 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 4500, 1.0, 0.026 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
@@ -887,7 +887,7 @@ end
 function M.getSettings() return settings end
 
 function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
-function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
+function M.onVehicleSpawned(id) cars[id] = nil dirtBy[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
 function reset()
@@ -923,6 +923,7 @@ function M.debug(kind, value)
     if kind == k then
       forcedDirt = forcedDirt or rules.dirtNew()
       local old = deepcopy(forcedDirt)
+      if old[k] == value then old[k] = 0 end                    -- the same value again draws it again (a respawned car has a blank canvas)
       forcedDirt[k] = value
       if k == 'snow' or k == 'bugs' then weatherSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
       if k == 'mud' or k == 'dust' or k == 'rubber' or k == 'grime' then dirtSplats(be:getPlayerVehicleID(0), old, forcedDirt) end

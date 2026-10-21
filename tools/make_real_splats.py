@@ -82,7 +82,8 @@ def droplets(rng, n, count, rmin, rmax, ring=(0.5, 0.95)):
 def mud_cell(rng, img):
     r = radial(CELL)
     n = fbm(rng, CELL, 3, 5)
-    body = smooth(n * 0.9 + (1 - r ** 1.4) * 0.75 - 0.55, 0.0, 0.14)          # a lumpy blob with a soft broken edge
+    fine = fbm(rng, CELL, 14, 3)                                                # fine noise breaks the edge up into crumbs
+    body = smooth(n * 0.9 + (1 - r ** 1.4) * 0.75 - 0.55 + (fine - 0.5) * 0.7, 0.0, 0.05)      # a lumpy blob with a ragged broken edge
     drops = droplets(rng, CELL, int(rng.integers(10, 22)), 2, 7) * smooth(n, 0.25, 0.6)
     a = np.clip(np.maximum(body, drops), 0, 1)
     edge = np.clip(1 - smooth(body, 0.0, 0.6), 0, 1)[..., None]                # a darker rim where it is thin

@@ -104,7 +104,7 @@
       a = atlases[kind] = { img: new Image(), ok: false };
       a.img.onload = function () { a.ok = true; dirty = true; buildWear(); redraw(); };
       a.img.onerror = function () { a.bad = true; };
-      a.img.src = 'local://local/art/surfacefx/splats/' + kind + '.png?v=1';
+      a.img.src = 'local://local/art/surfacefx/splats/' + kind + '.png?v=2';
     }
     return a.ok ? a.img : null;
   }
