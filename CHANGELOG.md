@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.6 (2026-10-22)
+
+Changes since 0.4.5. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with a full set of stored marks, a standing and a driving camera):
+
+- The ground marks cost less: with the skid and track rings full, the frame time standing still was 2.30 ms over the marks-off 1.06, and is 1.67 now; driving was already 1.59 and is 1.52. Skid marks still look right and continuous at 0, 20, 40 and 55 m and when looking back, fading out towards 60 m (asphalt only).
+
+Changed:
+
+- Ground marks: the marks to draw are picked once every tenth of a second (or when the camera moves or turns, or a mark is added) and the same lists go to the engine every frame; before, every frame walked both rings once for each of the 8 surface types. Marks behind the camera are left out.
+- Ground marks: at most 300 decals are drawn at once (it was 800) and the cull distance is 60 m (it was 100), and when more are in view the nearest ones are drawn. A saved settings file with the old budget of 800 moves to 300 once (and 100 m to 60 m if it was still the old 100); a player who sets them again afterwards keeps the choice. They are in Mods > Car Surface FX > Skid marks.
+
+Built, not yet tested in game:
+
+- Skid marks on dirt, gravel and snow at the new distance, and a very fast turn of the camera (a flick can leave a gap for up to a tenth of a second).
+- The open items of 0.4.5 (how the metal dent reads on red and white paint, a side swipe, a pole hit, carbon and fibreglass panels, marks after a recovery that keeps the damage, mud spray trails, the rubber heap and glow, scuffs, grime on dark paint, and a side window breaking on other cars).
+
 ## 0.4.5 (2026-10-22)
 
 Changes since 0.4.4. Needs BeamNG.drive 0.40.
