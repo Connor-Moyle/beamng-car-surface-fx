@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.1 (2026-10-21)
+
+Fixes and changes since 0.4.0. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with screenshots):
+
+- Mud thrown from the tyres on dry loose ground reads as mud again (dark ragged patches over the sand film, heaviest on the lower doors, the rear arch and the rear bumper, roof and bonnet clean). 0.4.0 shipped a tighter height cut that left only an even tan sand film; it is taken out.
+- Snow draws on a car that replaced another with the same id (a respawn), and reaches a low bonnet.
+- A window that breaks in a real crash leaves shard piles on the ground: a head-on hit into a wall at about 112 km/h broke the windscreen and left two piles spread out in front of and beside the nose (seen on concrete).
+- Worn paint (off by default; for Part Wear to drive): on a white car rust, fade and grime at 0.9 are seen, 0.6 is clearly lighter, a reset and a respawn keep it, and switching the setting off or giving no values clears it. On a dark car rust is seen.
+
+Changed:
+
+- Mud: smaller splats with ragged edges from the CC0 photographs, clods use the real mud picture, and the underside (which nobody sees) no longer takes most of the mud. A respawned car starts its dirt build-up over. `carSurfaceFx.debug('groundmud', 1)` makes the wheels run on mud, to test the real build-up on dry ground.
+- Snow: the height floor is lower, so a low bonnet gets snow.
+- Worn paint: the places are picked on the visible body (almost all of them landed on the underside before), more of them, with stronger fade, grime and scuffs.
+- Glass: a big pane leaves one to four piles by the number of its broken beams, spread out the way the glass fell; a small window one.
+- The overlay test counts canvas calls instead of timing a frame.
+
+Built, not yet tested in the game:
+
+- Scuffs; fade and grime on dark paint (the paint canvas can only darken, so they are faint there); worn paint on a respawned dark car.
+- Rubber marbles, and panel damage by part (carbon, fibreglass, plastic; marks on parts the paint map does not know): off by default.
+- Mud after more than about 80 s of driving, and dust on its own.
+- Glass piles on asphalt, and a side window breaking in a real hit.
+- The chunks a burnout throws, and panel damage from a real hit.
+- The water film on the road in heavy rain (Tyres > Wet, off by default).
+- Leak puddles with the low cap and the GPU gate (the glossy planes are off by default).
+
 ## 0.4.0 (2026-10-21)
 
 Needs BeamNG.drive 0.40.
