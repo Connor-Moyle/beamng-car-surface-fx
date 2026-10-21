@@ -49,7 +49,7 @@ local function filmOf(id)
   return d and rules.clamp((d.dust or 0) * 0.7 + (d.grime or 0) * 1.3 + (d.mud or 0) * 0.5, 0, 1) or 0
 end
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
-local forcedGround                          -- debug: 0..1, every wheel counts as running on mud (the real build-up path on dry ground)
+local forcedGround, forcedSnowGround        -- debug: 0..1, every wheel counts as running on mud / on snow (the real build-up and slush paths on any ground)
 local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
 local sheetP = 0                           -- a sheet of water thrown over the windscreen by a puddle: decays in about a second
 local sprayP, sprayTarget, sprayT, forcedSpray = 0, 0, 0, nil   -- spray from the car ahead on the player's windscreen: smoothed, the last scan's, seconds since it, the debug value
@@ -335,7 +335,7 @@ end
 
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin, snowGround)
   groundCalls, groundAt = groundCalls + 1, os.clock()
-  slush(id, tonumber(snowGround) or 0, speed or 0)
+  slush(id, math.max(tonumber(snowGround) or 0, id == be:getPlayerVehicleID(0) and forcedSnowGround or 0), speed or 0)
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
@@ -927,7 +927,8 @@ end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround = nil, nil, nil, 0, nil, nil, nil, nil, nil return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround, forcedSnowGround = nil, nil, nil, 0, nil, nil, nil, nil, nil, nil return 'debug cleared' end
+  if kind == 'groundsnow' then forcedSnowGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on snow: ' .. tostring(forcedSnowGround) end
   if kind == 'groundmud' then forcedGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on mud: ' .. tostring(forcedGround) end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
   if kind == 'speed' then value = tonumber(value) or 0 forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end   -- m/s, not clamped
