@@ -57,6 +57,7 @@ end
 package.loaded['carSurfaceFx/berm'] = nil
 package.loaded['carSurfaceFx/markMaterials'] = { ensure = function() return true end }
 local berm = require('carSurfaceFx/berm')
+berm.clock = function() return 0 end                 -- a frozen clock: the time budget never ends a pass, so the counts are exact
 local on = B.defaults()
 on.enabled, on.maxBerms = true, 8
 local chunk = { kind = 'mud', points = pts }
