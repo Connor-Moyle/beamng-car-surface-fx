@@ -411,4 +411,8 @@ function M.onClientEndMission() M.clear() end
 
 M.TAG = TAG
 require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_fluids', { 'onPreRender', 'onUpdate' })
+-- a car that is gone: its report, its last-seen time and its carried drops go with it (the game calls this for every loaded extension)
+function M.onVehicleDestroyed(id) reports[id], lastAt[id], carry[id] = nil, nil, nil end
+function M.tracked() local n = 0 for _ in pairs(reports) do n = n + 1 end for _ in pairs(lastAt) do n = n + 1 end for _ in pairs(carry) do n = n + 1 end return n end
+
 return M

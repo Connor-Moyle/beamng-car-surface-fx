@@ -919,7 +919,7 @@ function checkResets()
     end
   end
 end
-function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil wears[id] = nil wearPos[id] = nil wearDue[id] = nil end
+function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil wears[id] = nil wearPos[id] = nil wearDue[id] = nil nodesSent[id] = nil lumSent[id] = nil end
 function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 

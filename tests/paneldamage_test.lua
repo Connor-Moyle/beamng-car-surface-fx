@@ -146,4 +146,13 @@ do
   P.hit(5, 24, 6, 5000, 1200, 800, 2, 5, 6, 1, 'covet_door_FL') flush()
   assert(#calls == before + 4 and calls[before + 1].kind == 'fibreglass' and calls[before + 2].kind == 'carbon' and calls[before + 3].kind == 'plastic' and calls[before + 4].kind == 'metal', 'the kind follows the part')
 end
+-- a destroyed car leaves nothing behind
+do
+  P.hit(9, 31, 6, 5000, 1200, 800, 2, 5)
+  P.hit(9, 32, 6, 5000, 1200, 800, 2, 5)
+  local with = P.tracked()
+  P.onVehicleDestroyed(9)
+  assert(with >= 3 and P.tracked() <= with - 3, 'a destroyed car frees its pending impact and node timers: ' .. with .. ' -> ' .. P.tracked())
+  P.onVehicleDestroyed(9) P.onVehicleDestroyed(99)
+end
 print('carSurfaceFx panel damage: ok')

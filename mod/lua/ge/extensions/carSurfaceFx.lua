@@ -890,7 +890,7 @@ function M.set(path, value)
 end
 function M.getSettings() return settings end
 
-function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
+function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil wiperBy[id] = nil wiperHold[id] = nil wiperNone[id] = nil screen.forget(id) end
 function M.onVehicleSpawned(id) cars[id] = nil dirtBy[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
