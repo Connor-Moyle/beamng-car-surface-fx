@@ -37,15 +37,15 @@
   "Stages": [
    {
     "baseColorMap": "/art/surfacefx/fluids/white.color.png",
-    "opacityMap": "/art/surfacefx/fluids/puddle_o_thin.data.png",
+    "opacityMap": "/art/surfacefx/fluids/puddle_o.data.png",
     "baseColorFactor": [
+     0.05,
+     0.3,
      0.1,
-     0.5,
-     0.18,
      1
     ],
-    "metallicFactor": 0.5,
-    "roughnessFactor": 0.03
+    "metallicFactor": 0.6,
+    "roughnessFactor": 0.02
    },
    {},
    {},
@@ -68,15 +68,15 @@
   "Stages": [
    {
     "baseColorMap": "/art/surfacefx/fluids/white.color.png",
-    "opacityMap": "/art/surfacefx/fluids/puddle_o_thin.data.png",
+    "opacityMap": "/art/surfacefx/fluids/puddle_o.data.png",
     "baseColorFactor": [
-     0.55,
-     0.44,
-     0.1,
+     0.3,
+     0.24,
+     0.06,
      1
     ],
-    "metallicFactor": 0.5,
-    "roughnessFactor": 0.04
+    "metallicFactor": 0.6,
+    "roughnessFactor": 0.02
    },
    {},
    {},

@@ -2,7 +2,7 @@
 
     python tools/make_fluid_assets.py [--out mod/art/surfacefx/fluids]
 
-puddle_o.data.png / puddle_o_thin.data.png: a soft, slightly irregular oval filling POOL of the plane (the edge softness is in the opacity map) inside a faint wet-stain ring that
+puddle_o.data.png: a soft, slightly irregular oval filling POOL of the plane (the edge softness is in the opacity map) inside a faint wet-stain ring that
 fades out at the plane's edge, white.color.png: a flat white base, rainbow.color.png and rainbow_o.data.png: the thin-film sheen of oil (faint, wide, slow swirls of muted hue, only
 toward the thin edge, none in the thick middle). main.materials.json: one material per fluid, the tint in baseColorFactor (it multiplies the base map), very low roughness so the
 surface mirrors the sky like a rain puddle. The textures are cooked to DDS by the game (tools/ingest_cooked_dds.py --dir=mod/art/surfacefx/fluids).
@@ -53,7 +53,6 @@ def main():
     os.makedirs(out, exist_ok=True)
     mask, pool, dd, th = oval()
     save_grey(mask, os.path.join(out, 'puddle_o.data.png'))
-    save_grey(mask * 0.6, os.path.join(out, 'puddle_o_thin.data.png'))
     Image.fromarray(np.full((16, 16, 3), 255, np.uint8), 'RGB').save(os.path.join(out, 'white.color.png'))
     # the sheen: real oil on concrete is a near-black pool with a faint film seen at low angles, in soft wide swirls (a third of the pool across), strongest near the thin edge and
     # none in the thick middle; the pool under it stays dark and glossy
@@ -89,8 +88,10 @@ def main():
                 'annotation': 'ASPHALT', 'castShadows': False, 'materialTag0': 'decal', 'materialTag1': 'road', 'materialTag2': 'beamng',
                 'translucent': True, 'translucentZWrite': zwrite, 'doubleSided': True, 'version': 1.5}
     mats = [mat('csfx_puddle_oil', [0.03, 0.028, 0.025, 1], 'puddle_o.data.png', 0.02, 0.9),
-            mat('csfx_puddle_coolant', [0.10, 0.50, 0.18, 1], 'puddle_o_thin.data.png', 0.03, 0.5),
-            mat('csfx_puddle_fuel', [0.55, 0.44, 0.10, 1], 'puddle_o_thin.data.png', 0.04, 0.5),
+            # coolant and fuel are clear liquids: a dark tint on the full mask, the gloss from a very smooth surface and only as much metallic as reads wet (a thin 60 % mask at
+            # half metallic read as a flat matte disc in the game, 80's close-up 2026-10-21)
+            mat('csfx_puddle_coolant', [0.05, 0.30, 0.10, 1], 'puddle_o.data.png', 0.02, 0.6),
+            mat('csfx_puddle_fuel', [0.30, 0.24, 0.06, 1], 'puddle_o.data.png', 0.02, 0.6),
             mat('csfx_puddle_sheen', [1, 1, 1, 1], 'rainbow_o.data.png', 0.08, 0.5, 'rainbow.color.png', zwrite=False)]      # the sheen writes no depth: the plane under it must not be hidden by its empty parts
     with open(os.path.join(out, 'main.materials.json'), 'w') as f:
         json.dump({m['name']: m for m in mats}, f, indent=1)

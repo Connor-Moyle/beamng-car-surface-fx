@@ -4,6 +4,7 @@
 
 - Oil sheen: a faint, pale film in wide slow swirls, only toward the thin edge of the pool and none in the thick middle (a third of the colour it had; it read as purple and green camouflage). The pool stays near-black and glossy.
 - Leak puddles: a soft darker wet ring on the ground round every pool (oil, coolant, fuel); the plane is a little wider for it.
+- Coolant and fuel pools: a darker tint on the full pool mask, a very smooth surface and a little more metallic, so a small pool reads as a wet glossy puddle (80's close-up showed a flat matte disc: the thin 60 % mask at half metallic). Not yet seen in the game.
 
 ## 0.4.1 (2026-10-21)
 
