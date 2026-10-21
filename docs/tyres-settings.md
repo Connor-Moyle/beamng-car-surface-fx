@@ -48,7 +48,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Fire & debris | marbles.burn | off | on/off | | a hot patch glows and burns (never lights a car) |
 | Fire & debris | marbles.maxPatches | 24 | 4 - 48 | A | patches on the road at once |
 | Fire & debris | marbles.maxG | 400 | 100 - 800 g | A | most rubber in one patch |
-| Fire & debris | marbles.lifeS | 600 | 60 - 1800 s | A | about how long a patch stays (rain: three times faster) |
+| Fire & debris | marbles.lifeS | 900 | 60 - 1800 s | A | about how long a patch stays (rain: three times faster) |
 | Fire & debris | blowout.enabled | **false** | on/off | N | "Blowouts damage nearby panels" (off until shown in game) |
 | Fire & debris | blowout.strength | 1.0 | 0 - 3 | N | force scale (still capped) |
 | Fire & debris | blowout.radius | 0.5 | 0.2 - 0.8 m | A | search radius around the wheel |

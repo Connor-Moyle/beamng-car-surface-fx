@@ -47,8 +47,8 @@ function M.defaults()
     look = { enabled = true, wornBelow = 0.5 },      -- the worn tyre look: on or off, and the fraction of tread left below which a tyre looks worn (the belts show at no tread)
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { enabled = true, density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
-    -- rubber marbles left on the road by a long burnout (Connor): the patches are kept by the game side, off by default; gripLoss is the grip lost at 100 g (twice that at 200 g and more); burn lets a hot patch burn for debris.pileBurnS
-    marbles = { enabled = false, gripLoss = 0.10, burn = false, lifeS = 600, maxPatches = 24, maxG = 400, mergeR = 1.5, minG = 2, burnLoss = 0.7 },
+    -- rubber marbles left on the road by a long burnout (Connor): the patches are kept by the game side, off by default; gripLoss is the grip lost at 100 g (twice that at 200 g and more); burn lets a hot patch burn for debris.pileBurnS; a patch hotter than glowT glows (look only); shredG is the tread a blowing tyre throws at once
+    marbles = { enabled = false, gripLoss = 0.10, burn = false, lifeS = 900, maxPatches = 24, maxG = 400, mergeR = 1.5, minG = 2, burnLoss = 0.7, glowT = 200, shredG = 120 },
   }
 end
 

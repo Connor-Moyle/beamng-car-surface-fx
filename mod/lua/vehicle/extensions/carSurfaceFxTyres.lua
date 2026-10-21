@@ -195,6 +195,14 @@ local function tick(dt)
         local px, py, pz = contactWorld(wd, e)
         events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT, px, py, pz } e.debrisG = 0
       end
+      if t.blown and not e.shredded then   -- a blown tyre wears no more, so the tread it shreds is thrown once, at its surface temperature
+        e.shredded = true
+        local sg = cfg.marbles and cfg.marbles.shredG or 0
+        if sg > 0 then
+          local px, py, pz = contactWorld(wd, e)
+          events = events or {} events[#events + 1] = { wi, 'debris', sg, t.Ts, px, py, pz }
+        end
+      end
       R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = max(abs(tonumber(wd.wheelSpeed) or 0), e.burnW and e.burnV or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
@@ -325,7 +333,7 @@ function M.setCompound(name, axle)
         pcall(M.putOut, wi)
         e.t = R.new(name or compound or e.stock, e.t.n, e.t.r, e.t.w, ambientC())
         e.ratio = R.swapRatio(e.stock, e.t.compound)
-        e.applied = {}
+        e.applied, e.shredded = {}, nil
       end
     end
     return
@@ -342,7 +350,7 @@ function M.setTread(frac, wi)
     if wi == nil or wi == k or (type(wi) == 'string' and tostring(e.wd.name):upper() == wi:upper()) then      -- a key of wheels.wheels or the car's own wheel name
       pcall(M.putOut, k)
       for j = 1, 2 * e.t.n do e.t.h[j] = frac * e.t.c.h0 end
-      e.t.blown, e.t.cord, e.t.fire, e.t.hold = false, 0, nil, 0
+      e.t.blown, e.t.cord, e.t.fire, e.t.hold = false, 0, nil, 0 e.shredded = nil
       R.clearEnergy(e.t)
       for i = 1, e.t.n do e.t.flash[i] = 0 end
       e.applied = {}
@@ -429,7 +437,7 @@ end
 function M.repair(wi)
   for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all
   for k, e in pairs(tyres or {}) do
-    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} e.burnW = nil end
+    if wi == nil or wi == k then e.t = R.new(fittedTo(e.wd) or e.stock, e.t.n, e.t.r, e.t.w, ambientC()) e.applied = {} e.burnW = nil e.shredded = nil end
   end
 end
 function M.water()                                 -- per wheel: the water depth it counts (0 none, 0.3 contact patch under water, 0.7 hub under water) and the depth in force with the environment's

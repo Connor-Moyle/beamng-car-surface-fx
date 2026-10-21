@@ -8,7 +8,7 @@ local list, nextId, clock, dirty = {}, 0, 0, false
 local pools = {}                                  -- texture -> { n = count, e = array of decal entries }
 local TEX = { 'art/decals/impacts/chip_1.png', 'art/decals/impacts/chip_2.png' }
 local GLOW = 'art/decals/fluids/puddle_1.png'
-local DEPTH, MAX_BITS, CULL = 1.5, 160, 80          -- decal depth, the most decals drawn a frame, the camera distance beyond which nothing is drawn
+local DEPTH, MAX_BITS, CULL = 1.5, 260, 80          -- decal depth, the most decals drawn a frame, the camera distance beyond which nothing is drawn
 
 function M.list() return list end
 function M.count() return #list end
@@ -47,7 +47,7 @@ function M.pack(force)
 end
 
 -- two cached colours (the dark bits) and a few of the glow, so a frame allocates nothing
-local DARK, GLOWC
+local DARK, GLOWC, SMEAR
 local function glowColour(phase)
   GLOWC = GLOWC or {}
   local i = math.floor((phase % 1) * 8) + 1
@@ -79,20 +79,29 @@ function M.draw(cfg, camX, camY, draw)
     if total >= MAX_BITS then break end
     if not camX or (p.x - camX) ^ 2 + (p.y - camY) ^ 2 <= CULL * CULL then
       local r = R.marbleRadius(p.g, cfg)
-      local bits = math.max(3, math.min(14, math.floor(p.g / 10) + 3))
+      local bits = math.max(4, math.min(48, math.floor(p.g / 3) + 6))      -- (a 400 g patch is 48 bits over its 1.5 m: a heap, not a few specks)
+      if total < MAX_BITS then          -- a dark smear under the bits so a patch reads as one
+        total = total + 1
+        local e = slot(GLOW)
+        e.position:set(p.x, p.y, p.z)
+        e.forwardVec:set(hash(p.id or 0, 1), hash(p.id or 0, 2), 0)
+        e.scale:set(r * 1.6, r * 1.6, DEPTH)
+        SMEAR = SMEAR or ColorF(0.02, 0.02, 0.02, 0.45)
+        e.color = SMEAR
+      end
       for i = 1, bits do
         if total >= MAX_BITS then break end
         total = total + 1
         local e = slot(TEX[1 + (i + (p.id or 0)) % #TEX])
         local a, d, ang = hash(p.id or 0, i) * 6.283, math.sqrt(hash(p.id or 0, i + 50)) * r, hash(p.id or 0, i + 99) * 6.283
-        local s = 0.10 + 0.14 * hash(p.id or 0, i + 7)
+        local s = 0.14 + 0.2 * hash(p.id or 0, i + 7)
         e.position:set(p.x + math.cos(a) * d, p.y + math.sin(a) * d, p.z)
         e.forwardVec:set(math.cos(ang), math.sin(ang), 0)
         e.scale:set(s, s, DEPTH)
         DARK = DARK or ColorF(0.04, 0.04, 0.04, 0.9)
         e.color = DARK
       end
-      if (p.burn or 0) > 0 and total < MAX_BITS then
+      if ((p.burn or 0) > 0 or (p.T or 0) >= cfg.marbles.glowT) and total < MAX_BITS then   -- (hot rubber glows before and without fire)
         total = total + 1
         local e = slot(GLOW)
         e.position:set(p.x, p.y, p.z)

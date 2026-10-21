@@ -33,7 +33,8 @@ local before = #sent
 T.update(0.1, 0)
 assert(#sent == before, 'nothing changed: nothing sent')
 T.onPreRender(0.016)
-assert(#drawn >= 1 and drawn[1].n >= 3, 'the bits are drawn')
+local n0 = 0 for _, d in ipairs(drawn) do n0 = n0 + d.n end
+assert(#drawn >= 1 and n0 >= 3, 'the bits are drawn')
 local tot = 0 for _, d in ipairs(drawn) do tot = tot + d.n end
 assert(tot <= 160, 'draw cap')
 -- one engine call per texture
@@ -54,8 +55,26 @@ drawn = {}
 T.onPreRender(0.016)
 local glow = false for _, d in ipairs(drawn) do if d.tex:find('puddle_1', 1, true) then glow = true end end
 assert(glow, 'a burning patch glows')
-for _ = 1, 7000 do M.step(T.getConfig(), 0.1, 20, 0) end
+for _ = 1, 15000 do M.step(T.getConfig(), 0.1, 20, 0) end
 assert(M.count() == 0, 'cleared over time')
+
+-- a long burnout's patch is a heap, not specks: a 400 g patch is drawn as many bits and a smear, and a hot one glows without any fire (burn off)
+T.configure({ marbles = { burn = false } })
+M.add(T.getConfig(), 400, 250, 30, 30, 0)
+drawn = {}
+T.onPreRender(0.016)
+local nb, glow2 = 0, false
+for _, d in ipairs(drawn) do nb = nb + d.n if d.tex:find('puddle_1', 1, true) then glow2 = true end end
+assert(nb >= 40, 'a big patch is many bits: ' .. nb)
+assert(glow2, 'a patch above glowT glows with no fire')
+M.clear()
+M.add(T.getConfig(), 400, 60, 30, 30, 0)
+drawn = {}
+T.onPreRender(0.016)
+local cool = 0 for _, d in ipairs(drawn) do if d.tex:find('puddle_1', 1, true) then cool = cool + d.n end end
+assert(cool == 1, 'a cool patch has only its smear, no glow: ' .. cool)
+M.clear()
+T.configure({ marbles = { burn = true } })
 
 -- an error in the draw switches the hook off once (the guard), and resume() brings it back
 local okDraw = Engine.Render.DynamicDecalMgr.addDecals
