@@ -238,6 +238,23 @@
   }
   // both widths at once: the wide pale edge, then the dark core on the base page
   function crack(pts, w, a) { stroke(pts, w * 4.4, a * 0.7, false); stroke(pts, w * 1.2, a, true); }     // a wide pale edge (the only thing that shows on black paint), a narrow dark core
+  // a dent's relief: a crisp crescent of shade on one side and a crescent of light on the other, round a faintly darkened bowl (a soft blob read as a dirt smudge). The light comes from the
+  // upper left of the canvas whatever the car does, so the dent is right for half the sun angles and flat for the rest: texture only, no normal.
+  function crescent(x, y, rx, ry, rot, sx, sy, op, style) {
+    sctx.save();
+    sctx.beginPath(); sctx.ellipse(x, y, rx, ry, rot, 0, 6.2832); sctx.clip();
+    sctx.globalCompositeOperation = op; sctx.fillStyle = style;
+    sctx.beginPath(); sctx.rect(0, 0, W, W); sctx.ellipse(x + sx, y + sy, rx, ry, rot, 0, 6.2832); sctx.fill('evenodd');
+    sctx.restore();
+  }
+  function dentRelief(x, y, r, d, ang) {
+    var rx = r * (0.55 + 0.25 * d), ry = r * (0.35 + 0.1 * d), s = Math.max(2, r * 0.13), a = 0.35 + 0.5 * d;
+    if (emis) { crescent(x, y, rx, ry, ang, s, s, 'source-over', 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.18 + ')'); return; }      // the light side, faint, so black paint shows it
+    if (palette) { crescent(x, y, rx, ry, ang, s, s, 'destination-out', 'rgba(0,0,0,' + a * 0.8 + ')'); return; }     // the light side: the paint tint is taken off, the pale base shows
+    sctx.save(); sctx.globalCompositeOperation = 'source-over'; sctx.fillStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + 0.12 * a + ')';
+    sctx.beginPath(); sctx.ellipse(x, y, rx, ry, ang, 0, 6.2832); sctx.fill(); sctx.restore();                        // the bowl
+    crescent(x, y, rx, ry, ang, -s, -s, 'source-over', 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + a * 0.75 + ')');      // the shade side
+  }
   function drawDent(o) {
     var x = o.x * W, y = o.y * W, r = Math.max(6, o.r * W), d = Math.max(0.05, Math.min(1, o.d)), k = o.k || 'm', sd = o.x * 977 + o.y * 131, i, pts;
     var w = Math.max(1.4, r * 0.035), a = 0.55 + 0.4 * d;
@@ -263,10 +280,11 @@
       pts = back.slice(1).reverse().concat(fwd);
       stroke(pts, w * 6.5, a * 0.7, false); stroke(pts, w * 2.4, a, true);          // the split: pale fibre edge, dark core
       for (i = 0; i < 4; i++) { var e = i < 2 ? fwd[fwd.length - 1] : back[back.length - 1], ae = o.ang + (i < 2 ? 0 : Math.PI) + (hash(sd, i, 12) - 0.5) * 0.8; crack(crackPath(e[0], e[1], ae, 3, r * 0.08, 0.4, sd + i + 20), w * 0.6, a * 0.8); }
-    } else {                                                        // metal: paint chips down to the metal along the hit, and a few short scratches
-      var nc = 4 + Math.floor(d * 6);
+    } else {                                                        // metal: a dent (shade and light crescents), paint chips down to the metal along the hit, and a few short scratches
+      dentRelief(x, y, r, d, o.ang);
+      var nc = 1 + Math.floor(d * 2);
       for (i = 0; i < nc; i++) {
-        var ac = hash(sd, i, 13) * 6.2832, dc = r * 0.5 * hash(sd, i, 14), cx = x + Math.cos(ac) * dc, cy = y + Math.sin(ac) * dc, cr = Math.max(3, r * (0.14 + 0.2 * hash(sd, i, 15)));
+        var ac = hash(sd, i, 13) * 6.2832, dc = r * 0.5 * hash(sd, i, 14), cx = x + Math.cos(ac) * dc, cy = y + Math.sin(ac) * dc, cr = Math.max(2, r * (0.06 + 0.1 * hash(sd, i, 15)));
         var poly = [];
         for (var j = 0; j < 6; j++) { var pa = j * 1.0472 + hash(sd, i * 7 + j, 16) * 0.8, pr = cr * (0.6 + 0.8 * hash(sd, i * 7 + j, 17)); poly.push([cx + Math.cos(pa) * pr, cy + Math.sin(pa) * pr * 0.7]); }
         poly.push(poly[0]);
