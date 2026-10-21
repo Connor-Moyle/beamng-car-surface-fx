@@ -51,7 +51,7 @@ local DARK, GLOWC, SMEAR
 local function glowColour(phase)
   GLOWC = GLOWC or {}
   local i = math.floor((phase % 1) * 8) + 1
-  if not GLOWC[i] then local s = math.sin((i - 1) / 8 * 6.283) GLOWC[i] = ColorF(1, 0.30 + 0.15 * s, 0.04, 0.55 + 0.25 * s) end
+  if not GLOWC[i] then local s = math.sin((i - 1) / 8 * 6.283) GLOWC[i] = ColorF(1, 0.30 + 0.15 * s, 0.04, 0.8 + 0.2 * s) end
   return GLOWC[i]
 end
 
@@ -87,7 +87,7 @@ function M.draw(cfg, camX, camY, draw)
         local fa = hash(p.id or 0, 1) * 6.283
         e.forwardVec:set(math.cos(fa), math.sin(fa), 0)
         e.scale:set(r * 1.6, r * 1.6, DEPTH)
-        SMEAR = SMEAR or ColorF(0.02, 0.02, 0.02, 0.45)
+        SMEAR = SMEAR or ColorF(0.02, 0.02, 0.02, 0.85)
         e.color = SMEAR
       end
       for i = 1, bits do

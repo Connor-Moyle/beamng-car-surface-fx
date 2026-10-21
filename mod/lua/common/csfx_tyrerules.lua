@@ -350,6 +350,7 @@ function M.marbleAdd(list, x, y, z, g, T, now, cfg)
   if best then
     local tot = best.g + g
     best.T = (best.T * best.g + T * g) / math.max(tot, 1e-6)       -- the temperature of the mix
+    best.x, best.y = (best.x * best.g + x * g) / math.max(tot, 1e-6), (best.y * best.g + y * g) / math.max(tot, 1e-6)   -- the centre moves to the centroid: two spinning wheels leave one heap between them
     best.g = math.min(tot, m.maxG)
     return best
   end

@@ -357,6 +357,7 @@ do
   local p1 = R.marbleAdd(list, 0, 0, 0, 30, 200, 0, c)
   local p2 = R.marbleAdd(list, 1.0, 0, 0, 30, 100, 1, c)
   assert(#list == 1 and p1 == p2 and near(p1.g, 60, 1e-9) == nil and math.abs(p1.T - 150) < 1e-9, 'a bit within 1.5 m joins the patch; temperature is the mix')
+  assert(math.abs(p1.x - 0.5) < 1e-9, 'the patch centre moves to the centroid of what it took: ' .. p1.x)
   R.marbleAdd(list, 5, 0, 0, 500, 100, 2, c)
   assert(#list == 2 and list[2].g == c.marbles.maxG, 'a far bit makes a new patch, capped at maxG')
   for i = 1, 40 do R.marbleAdd(list, 10 * i, 50, 0, 10, 20, 10 + i, c) end
