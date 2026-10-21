@@ -9,7 +9,7 @@ Proven in the game (connor-80, stationary camera frames):
 - Snow on the sides of a parked car is now a faint dusting of soft translucent flecks (it was hard white blobs), with the thick white cap still on the roof.
 - Slush thrown by the wheels on snowy ground reads as pale translucent splashes on a white car, and as off-white splashes on a dark blue car (a little bright there).
 - Sparks from a belt-worn tyre: our own spark code fires (the log line appears once for the wheel), nothing fires with the switch off, and the switch has no measurable cost in a burnout (four alternating runs: the script time differs by 0.06 ms, inside the spread).
-- Panel marks from real wall hits: chips and scratches on the paint at the place of the hit, and cracks, readable on a black car.
+- Panel marks from real wall hits on metal panels: chips, scratches and crack-like lines on the paint at the place of the hit (a Covet's door, a Vivace's bonnet and fender), readable on a black car. Cracks on plastic, fibreglass and carbon were only drawn by the test command, not seen from a real hit.
 
 Fixed:
 
