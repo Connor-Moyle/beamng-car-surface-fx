@@ -42,6 +42,9 @@ The downloads were kept outside the mod and only the colour, displacement and ro
 | snow splats, snow ruts and tracks | Snow008C | https://ambientcg.com/view?id=Snow008C | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-19 |
 | snow splats, snow ruts and tracks | Snow010C | https://ambientcg.com/view?id=Snow010C | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-19 |
 | snow splats, snow ruts and tracks | Snow013 | https://ambientcg.com/view?id=Snow013 | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-19 |
+| rust splats (paint wear, `mod/art/surfacefx/splats/rust.png`, `tools/make_rust_splats.py`) | Rust002 | https://ambientcg.com/view?id=Rust002 | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-21 |
+| rust splats (paint wear, `mod/art/surfacefx/splats/rust.png`, `tools/make_rust_splats.py`) | Rust004 | https://ambientcg.com/view?id=Rust004 | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-21 |
+| rust splats (paint wear, `mod/art/surfacefx/splats/rust.png`, `tools/make_rust_splats.py`) | Rust005 | https://ambientcg.com/view?id=Rust005 | ambientCG (Lennart Demes and contributors) | CC0 1.0 | 2026-10-21 |
 
 Tyre wear normal maps (mod/art/surfacefx/tyres/, tools/make_tyre_textures.py): the tread, wear and belt weave are procedural (no photographs); the fine rubber grain in the roughness maps, which are not shipped yet, comes from ambientCG Rubber001, Rubber002 and Rubber004 (CC0).
 
