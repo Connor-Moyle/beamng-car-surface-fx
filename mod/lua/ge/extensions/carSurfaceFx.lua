@@ -327,10 +327,21 @@ end
 
 local groundCalls, groundAt = 0, 0
 -- slush thrown by wheels on snowy ground: grey-white splats low behind the wheels, the mud's placement in the snow's picture
+local slushSeen = { calls = 0, splats = 0, refused = 0, last = 'never' }       -- for M.snowStatus()
 local function slush(id, snowGround, speed)
   if snowGround < 0.3 or speed < 2 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
   local n = math.floor(snowGround * math.min(speed, 25) * (settings.scratch.dirtRate or 1) * 2 + math.random())
-  if n > 0 then carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.8, PLACE.mud[3] * 1.2, { tex = 'snow' }) end
+  if n > 0 then
+    slushSeen.calls = slushSeen.calls + 1
+    if carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.8, PLACE.mud[3] * 1.2, { tex = 'snow' }) then slushSeen.splats = slushSeen.splats + n else slushSeen.refused = slushSeen.refused + 1 end
+    slushSeen.last = string.format('car %d, %d splats, speed %.1f, snow share %.2f', id, n, speed, snowGround)
+  end
+end
+-- one line for the console: carSurfaceFx.snowStatus() (the snow on the player's car, the forced ground, the slush and the melt washes so far)
+function M.snowStatus()
+  local id = be:getPlayerVehicleID(0)
+  local d = dirtBy[id]
+  return string.format('snow %.2f on car %s, forced ground %s, slush calls %d splats %d refused %d (last: %s), melt washes %d', d and d.snow or 0, tostring(id), tostring(forcedSnowGround), slushSeen.calls, slushSeen.splats, slushSeen.refused, slushSeen.last, scratchOn() and carSurfaceFx_scratch.slideCount and carSurfaceFx_scratch.slideCount() or -1)
 end
 
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin, snowGround)

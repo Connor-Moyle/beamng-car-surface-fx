@@ -553,7 +553,10 @@ function M.setPaintLum(id, lum)
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
+local slides = 0                                       -- melt washes sent to the pages (for snowStatus)
+function M.slideCount() return slides end
 function M.washSplats(id, fDust, fMud, slide)
+  if slide then slides = slides + 1 end
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then
       send(veh, ('csfxWash({dust:%.4f,mud:%.4f%s})'):format(fDust, fMud, slide and ',slide:1' or ''))
