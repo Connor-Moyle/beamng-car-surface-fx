@@ -41,6 +41,8 @@ assert(math.abs(g.wheels[1].frac - 0.75) < 1e-9 and g.wheels[1].tread == 6 and g
 assert(g.wheels[2].frac == nil and g.wheels[2].axle == nil, 'a wheel the car has not described yet has no fraction')
 assert(T.getTyres(99) == nil, 'an unknown car: nil')
 assert(#hooks == 0, 'nothing blown, no hook')
+T.state(99, { { 0, 1, 80, 40, 0.1, false, false } }, {})
+assert(T.get and T.get(99) == nil or not T.get, 'a report for a car that is not watched brings no state back')
 T.state(7, { { 0, 5, 80, 40, 0.1, true, false } }, { { 0, 'pop' } })
 local blown, ev = 0, 0
 for _, h in ipairs(hooks) do if h[1] == 'onCsfxTyreBlown' and h[2] == 7 and h[3] == 0 then blown = blown + 1 end if h[1] == 'onCsfxTyreEvent' and h[4] == 'pop' then ev = ev + 1 end end

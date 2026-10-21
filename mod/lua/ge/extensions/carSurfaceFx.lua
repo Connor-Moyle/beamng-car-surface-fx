@@ -348,6 +348,7 @@ end
 
 function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin, snowGround)
   groundCalls, groundAt = groundCalls + 1, os.clock()
+  if not be:getObjectByID(id) then return end                     -- a report for a car that was destroyed the same frame must not bring its tables back
   slush(id, math.max(tonumber(snowGround) or 0, id == be:getPlayerVehicleID(0) and forcedSnowGround or 0), speed or 0)
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0

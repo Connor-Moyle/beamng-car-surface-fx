@@ -180,6 +180,7 @@ end
 local carry, lastAt = {}, {}
 function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, overheat, oilRate, coolRate, fuelRate, fuelStored, cold, running, grip, coolLost)
   if not settings.enabled then return end
+  if not (getObjectByID and getObjectByID(vid)) then return end          -- a report from a car that was destroyed the same frame: no state for it
   local now = os.clock()
   local dt = clamp(now - (lastAt[vid] or now - 0.2), 0.02, 0.6)
   lastAt[vid] = now

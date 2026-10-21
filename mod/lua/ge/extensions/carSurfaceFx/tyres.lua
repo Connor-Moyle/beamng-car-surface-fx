@@ -154,6 +154,7 @@ end
 
 -- from the car, 2 Hz and at once on an event: list of { wi, stage, Ts, Tc, worstFlat, blown, onFire } and a list of { wi, 'ignite'|'pop'|'out'|'spread' }
 function M.state(id, ws, events)
+  if not watched[id] then return end                              -- a car that is gone (or never watched): its report brings no state back
   local s = states[id] or {}
   states[id] = s
   for _, w in ipairs(ws or {}) do

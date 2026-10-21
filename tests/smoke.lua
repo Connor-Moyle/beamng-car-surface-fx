@@ -221,6 +221,11 @@ M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
 tick(1200)
 assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
 M.debug()
+-- a ground report for a car that is not there (destroyed the same frame) brings no dirt table back
+alive = false
+M.onGround(12345, 1, 1, 0, 0, 0, 20, 0.5, 0)
+alive = true
+assert(M.level(12345).dirt == 0, 'no dirt table for a car that is gone')
 -- Part Wear's hooks: worn glass and worn wiper blades, off until called, cleared by a value that says new
 assert(M.setGlassWear(7, { pits = 0.5, haze = 0.2 }) == true, 'worn glass is stored')
 assert(M.setGlassWear(7, { pits = 0, haze = 0 }) == false and M.setGlassWear(7, {}) == false and M.setGlassWear(7, nil) == false, 'no wear clears it')
