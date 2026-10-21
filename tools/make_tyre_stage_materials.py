@@ -16,7 +16,7 @@ WEAR, WEAR_R, CORD, CORD_N = ART + 'tyre_wear_c.data.png', ART + 'tyre_wear_r.da
 # Only two states exist, because the engine accepts a switch target only if it was made part of the car at spawn (carSurfaceFx_tyres.onJbeamLoadingPhase2 puts them in the glowMap: on = worn,
 # on_intense = belts). worn: the flattened tread and sheen carry it, the colour only lifts a little; belts: pale weave colour and a strong weave normal.
 STAGES = {
-    'worn': (0.1, WEAR, 2.0, 0.7, None, 0),
+    'worn': (0.04, WEAR, 2.0, 0.7, None, 0),
     'belts': (0.05, CORD, 1.0, 0.0, CORD_N, 1.0),
 }
 
