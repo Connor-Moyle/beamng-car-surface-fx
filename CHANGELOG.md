@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.9 (2026-10-22)
+
+Changes since 0.4.8. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, stationary camera frames):
+
+- Snow on the sides of a parked car is now a faint dusting of soft translucent flecks (it was hard white blobs), with the thick white cap still on the roof.
+- Slush thrown by the wheels on snowy ground reads as pale translucent splashes on a white car, and as off-white splashes on a dark blue car (a little bright there).
+- Sparks from a belt-worn tyre: our own spark code fires (the log line appears once for the wheel), nothing fires with the switch off, and the switch has no measurable cost in a burnout (four alternating runs: the script time differs by 0.06 ms, inside the spread).
+- Panel marks from real wall hits: chips and scratches on the paint at the place of the hit, and cracks, readable on a black car.
+
+Fixed:
+
+- Slush: the paint page draws the snow picture in its own white and never used the colour that was passed, so slush was pure white; it now sits on the light page at a third of the light and slightly grey on the colour page.
+- Snow dusting: one faint pass with a faint light instead of three stacked full ones.
+
+Changed:
+
+- Panel damage: the dent shading on metal (0.4.5) is removed, it read as dark blotches. Dents come from BeamNG's own physics, the paint marks from us: chips and scratches on metal and cracks and splits on plastic, fibreglass and carbon. Panel damage stays off by default (test).
+- Tyre sparks throw 2 to 6 sparks per tick (it was 1 to 4).
+- README: what is on or off by default, what is tested, and the limits (dents are physics; worn paint and scuffs do not show on black paint; no drawn road water film).
+
+Built, not yet tested in game:
+
+- What the sparks look like: only a few specks were seen at 3 m, and in one burnout in place our code did not fire.
+- The marbles after a real burnout (only the test hook was used) and their smear.
+- Cracks on plastic, fibreglass and carbon from a real hit, a pole hit, marks after a recovery that keeps the damage, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the 60 m distance.
+- The slush on a dark car with a bit less light (it is on the bright side on dark blue).
+
 ## 0.4.8 (2026-10-22)
 
 Changes since 0.4.7. Needs BeamNG.drive 0.40.
