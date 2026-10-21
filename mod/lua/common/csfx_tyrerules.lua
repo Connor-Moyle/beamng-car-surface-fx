@@ -120,7 +120,7 @@ function M.wearStep(t, ctx, cfg)
   local ms = cfg.surface[sk] or cfg.surface[WEAR_ALIAS[sk] or ''] or 1
   if ctx.surface == 'rock' and (t.compound == 'mud' or t.compound == 'offroad') then ms = ms * 2 end
   local mp = M.pressureWear(ctx.pressure, ctx.pNom, cfg)
-  local roll = (ctx.dist or 0) > 0 and (cfg.rollWear or 0) * 1e-6 * ctx.dist * (c.k / M.COMPOUNDS.road.k) * ms * mp * cfg.wearRate or 0     -- plain rolling: the whole ring, whatever the slip
+  local roll = (ctx.dist or 0) > 0 and (cfg.rollWear or 0) * 1e-6 * ctx.dist * (c.k / M.COMPOUNDS.road.k) * ms * mp * cfg.wearRate * (cfg.wearScale or 1) or 0     -- plain rolling: the whole ring, whatever the slip
   for j = 1, 2 * t.n do
     local e = t.E[j]
     if roll > 0 and t.h[j] > -c.margin - cfg.cordLimit then
@@ -131,7 +131,7 @@ function M.wearStep(t, ctx, cfg)
       e = t.EL[j] + (e - t.EL[j]) * (cfg.spinWear or 1)
       local i = M.sectorOf(j)
       local g = M.heatWear(c, t.Ts + (t.flash[i] or 0), cfg)
-      local dh = c.k * (e / t.slotArea) * g * ms * mp * cfg.wearRate
+      local dh = c.k * (e / t.slotArea) * g * ms * mp * cfg.wearRate * (cfg.wearScale or 1)       -- (wearScale: the career's wear rate, set by Street Legal for the session, not a setting of this page)
       t.h[j] = math.max(-c.margin - cfg.cordLimit, t.h[j] - dh)
       t.shed = (t.shed or 0) + dh * t.slotArea
       if dh > worst then worst = dh end

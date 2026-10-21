@@ -234,6 +234,13 @@ local gHot, tHot = R.takeDebris(d, cfg)
 assert(gHot > gCool and d.shed == 0 and tHot == 250, 'hot rubber throws more debris: ' .. gCool .. ' ' .. gHot)
 do local off = R.defaults() off.smokeEnabled = false assert(R.smoke(300, off) == 0 and R.smoke(300, cfg) == 1, 'smoke can be switched off') end
 near(R.smoke(90, cfg), 0, 1e-9, 'no smoke at 90') near(R.smoke(135, cfg), 0.5, 1e-9, 'half smoke at 135') near(R.smoke(300, cfg), 1, 1e-9, 'full smoke')
+do   -- the career's wear scale multiplies the tread wear step
+  local d1, d2 = R.new('road', 16), R.new('road', 16)
+  local c2 = R.defaults() c2.wearScale = 2
+  R.addEnergy(d1, 5, 20000) R.addEnergy(d2, 5, 20000) R.wearStep(d1, {}, R.defaults()) R.wearStep(d2, {}, c2)
+  local w1, w2 = d1.c.h0 - d1.h[5], d2.c.h0 - d2.h[5]
+  near(w2 / w1, 2, 1e-6, 'a wear scale of 2 wears twice as fast')
+end
 local pile = { g = 50, T = 400 }
 assert(R.pileStep(pile, 0.1, 20, 0, cfg), 'a hot pile of 50 g catches')
 local cold = { g = 50, T = 100 } assert(not R.pileStep(cold, 0.1, 20, 0, cfg), 'a cool pile does not')

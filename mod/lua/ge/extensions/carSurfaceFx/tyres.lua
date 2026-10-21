@@ -60,6 +60,16 @@ function M.reload()
   return M.configure(f)
 end
 function M.getConfig() return cfg end
+-- the career's wear rate (one setting of Street Legal for all wear): a number > 0 that multiplies how fast the tread wears from now on, 1 = as set on the Tyres page. For the session only (the caller sends it
+-- again), it changes no tread already worn, and it is not one of the page's settings. Returns whether the value was taken.
+function M.setWearScale(k)
+  k = tonumber(k)
+  if not k or k ~= k or k <= 0 or k == math.huge then return false end
+  cfg.wearScale = k
+  for id in pairs(watched) do load_(id) end
+  return true
+end
+function M.getWearScale() return cfg.wearScale or 1 end
 function M.clearMarbles() marbles.clear() for id in pairs(watched) do send(id, 'if carSurfaceFxTyres then carSurfaceFxTyres.setMarbles({}) end') end end
 M.onClientEndMission = function() marbles.clear() end
 -- the patches are drawn as decals, through the marks module's one engine call when it is loaded
