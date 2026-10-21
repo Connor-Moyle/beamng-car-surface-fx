@@ -13,6 +13,7 @@ Proven in the game (connor-80, with screenshots):
 Changed:
 
 - Rust: placed by the car's own mesh (low, the arch lips, never the underside), with run-off stains running down the body.
+- A destroyed car leaves nothing behind in the mod's per-car tables (wipers, paint canvases' node and lightness records, leak reports, panel damage queues). Not yet tested in the game.
 - Coolant and fuel pools: a darker tint on the full pool mask, a very smooth surface and a little more metallic.
 
 Built, not yet tested in the game:
