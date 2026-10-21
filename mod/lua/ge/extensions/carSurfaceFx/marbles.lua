@@ -84,7 +84,8 @@ function M.draw(cfg, camX, camY, draw)
         total = total + 1
         local e = slot(GLOW)
         e.position:set(p.x, p.y, p.z)
-        e.forwardVec:set(hash(p.id or 0, 1), hash(p.id or 0, 2), 0)
+        local fa = hash(p.id or 0, 1) * 6.283
+        e.forwardVec:set(math.cos(fa), math.sin(fa), 0)
         e.scale:set(r * 1.6, r * 1.6, DEPTH)
         SMEAR = SMEAR or ColorF(0.02, 0.02, 0.02, 0.45)
         e.color = SMEAR
