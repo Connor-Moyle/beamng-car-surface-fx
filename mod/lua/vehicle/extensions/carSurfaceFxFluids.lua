@@ -18,6 +18,7 @@ local puddles = {}                         -- { {x, y, r, grip, radius}, ... } n
 local forced = {}                          -- debug: kinds forced to leak
 local timer = 0
 local engine, tipNode                      -- cached
+local lastCoolant                          -- the engine's coolant mass at the last report (kg)
 local looked = false
 local wheelTread, built = nil, false       -- wi -> { {nid, fc, sfc}, ... } with the baseline friction
 local mult = {}                            -- wi -> the multiplier now
@@ -156,7 +157,13 @@ local function report()
   if forced.fuel then rate, stored = 0.4, 1 end
   local oilRate = d and d.oilLeakRateOverall or 'nil'
   local coolRate = d and d.coolantLeakRateOverall or 'nil'
-  if forced.oil or forced.coolant then oilRate = forced.oil and 'nil' or oilRate coolRate = forced.coolant and 'nil' or coolRate end
+  -- the coolant the engine has lost since the last report (kg, from its own reservoir mass): a radiator that empties inside one report gap is counted in full, where rate x time is not
+  local coolLost = 'nil'
+  if d and type(d.coolantMass) == 'number' then
+    if lastCoolant then coolLost = string.format('%.4f', max(0, lastCoolant - d.coolantMass)) end
+    lastCoolant = d.coolantMass
+  end
+  if forced.oil or forced.coolant then oilRate = forced.oil and 'nil' or oilRate coolRate = forced.coolant and 'nil' or coolRate coolLost = forced.coolant and 'nil' or coolLost end
   if drops then
     -- the falling drops are the game's own: one burst from the leak point per fluid that is leaking now
     local function dripOf(kind, node)
@@ -174,9 +181,9 @@ local function report()
   local cold = temp < 60
   local running = rpm > 50
   if forced.exhaust then cold, running = true, true end
-  obj:queueGameEngineLua(string.format('if carSurfaceFx_fluids then carSurfaceFx_fluids.car(%d,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%s,%s,%s,%s,%s,%.3f,%.3f,%s,%s,%.3f)end',
+  obj:queueGameEngineLua(string.format('if carSurfaceFx_fluids then carSurfaceFx_fluids.car(%d,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%s,%s,%s,%s,%s,%.3f,%.3f,%s,%s,%.3f,%s)end',
     obj:getId(), sp, ex, ey, ez, tx, ty, tz, tostring(oilPan), tostring(oilCooler), tostring(radiator), tostring(overheat), tostring(oilRate), tostring(coolRate), rate, stored,
-    tostring(cold), tostring(running), lowest))
+    tostring(cold), tostring(running), lowest, coolLost))
 end
 
 local function frame(dt)
@@ -222,7 +229,7 @@ function M.updateGFX(dt)                                      -- our code never 
   local ok, err = pcall(frame, dt or 0)
   if not ok then failed = tostring(err) log('E', 'carSurfaceFxFluids', 'switched off after an error: ' .. failed) end
 end
-function M.onReset() restore() puddles = {} timer = 0 looked = false end      -- a reset gives every tyre its full grip at once
+function M.onReset() restore() puddles = {} timer = 0 looked = false lastCoolant = nil end      -- a reset gives every tyre its full grip at once (and refills the coolant: no spill from that)
 function M.onExtensionUnloaded() pcall(restore) end
 
 return M

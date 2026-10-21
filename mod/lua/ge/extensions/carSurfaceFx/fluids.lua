@@ -178,7 +178,7 @@ end
 
 -- a car's five-times-a-second report (carSurfaceFxFluids on the car): what it leaks now, from its damage and the engine's own fluid rates; the drips follow
 local carry, lastAt = {}, {}
-function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, overheat, oilRate, coolRate, fuelRate, fuelStored, cold, running, grip)
+function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, overheat, oilRate, coolRate, fuelRate, fuelStored, cold, running, grip, coolLost)
   if not settings.enabled then return end
   local now = os.clock()
   local dt = clamp(now - (lastAt[vid] or now - 0.2), 0.02, 0.6)
@@ -187,14 +187,17 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
     fuelRate = fuelRate, fuelStored = fuelStored, cold = cold, running = running })
   M.report(vid, leak.oil, leak.coolant, leak.fuel, leak.exhaust, grip)
   -- a rate the game gives (the engine's oil and coolant, the tanks' fuel: kg/s, about a litre a second each): the litres let out since the last report grow the pool under a parked car
-  -- (rules.spill); the drips of that leak only feed it. With only a damage flag known the drips grow the pool as before.
-  local known = { oil = tonumber(oilRate), coolant = tonumber(coolRate), fuel = ((fuelRate or 0) > 0 and (fuelStored or 1) > 0) and fuelRate or nil }
+  -- (rules.spill); the drips of that leak only feed it. Coolant uses the kg the engine's reservoir lost since the last report when the car sends it (a radiator empties in seconds,
+  -- most of it inside one report gap). With only a damage flag known the drips grow the pool as before.
+  local known = { oil = tonumber(oilRate), coolant = tonumber(coolRate), fuel = ((tonumber(fuelRate) or 0) > 0 and (tonumber(fuelStored) or 1) > 0) and tonumber(fuelRate) or nil }
+  local lost = tonumber(coolLost)
   if speed <= settings.stainSpeed then
     local gz
     for kind, rate in pairs(known) do
-      if rate > 0 then
+      local litres = (kind == 'coolant' and lost) or rate * dt
+      if litres > 0 then
         gz = gz or groundZ(ex, ey, ez)
-        if gz then rules.spill(store, ex, ey, gz, kind, rate * dt, settings, math.random()) end
+        if gz then rules.spill(store, ex, ey, gz, kind, litres, settings, math.random()) end
       end
     end
   end

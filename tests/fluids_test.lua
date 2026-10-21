@@ -137,6 +137,15 @@ for i = 1, 50 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false,
 local cs = F.status()
 local cr = tonumber(cs:match('coolant=%d%(r([%d%.]+)%)'))
 assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 L of coolant in 10 s: one pool about 0.6 m across: ' .. cs)
+-- the kg the engine's coolant reservoir lost since the last report win over the rate: a radiator that emptied inside one gap (rate 0 now, 5 kg gone) makes the same pool at once
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0, 0, 1, false, true, 1, 5)
+cr = tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)'))
+assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 kg lost in one report gap: the pool at once: ' .. F.status())
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1, 0)
+assert(math.abs(tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)')) - cr) < 1e-6, 'a rate with nothing lost from the reservoir adds nothing')
 
 -- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
 castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height
@@ -211,14 +220,25 @@ v = { data = { nodes = { [10] = { frictionCoef = 1.0, slidingFrictionCoef = 0.9 
 damageTracker = { getDamage = function(_, name) return name == 'oilpanLeak' end }
 energyStorage = { getStorages = function() return {} end }
 electrics = { values = { rpm = 800, watertemp = 90 } }
-powertrain = { getDevice = function() return { engineNodeID = 1, thermals = { debugData = { engineThermalData = { oilLeakRateOverall = 0.1, coolantLeakRateOverall = 0 } } } } end }
+local thermal = { oilLeakRateOverall = 0.1, coolantLeakRateOverall = 0, coolantMass = 6 }
+powertrain = { getDevice = function() return { engineNodeID = 1, thermals = { debugData = { engineThermalData = thermal } } } end }
 extensions = extensions or {}
 local C = dofile('mod/lua/vehicle/extensions/carSurfaceFxFluids.lua')
 C.setConfig(true, false, true)
 sent = {}
 C.updateGFX(0.25)
-assert(sent[1] and sent[1]:find('carSurfaceFx_fluids.car%(1,') and sent[1]:find('true,false,false,false,0.1,0,'), 'the car reports its damage and the engine\'s own leak rates: ' .. tostring(sent[1]))
+assert(sent[1] and sent[1]:find('carSurfaceFx_fluids.car%(1,') and sent[1]:find('true,false,false,false,0.1,0,') and sent[1]:find(',nil%)end'), 'the car reports its damage and the engine\'s own leak rates; no coolant lost yet known: ' .. tostring(sent[1]))
 assert(#dropParticles == 1 and dropParticles[1].ptype == 36 and dropParticles[1].count == 2, 'a leaking oil pan sheds the game\'s own oil-drop particles from the engine: ' .. #dropParticles)
+thermal.coolantMass = 2
+sent = {}
+C.updateGFX(0.25)
+assert(sent[1] and sent[1]:find(',4%.0000%)end'), 'the kg of coolant the engine lost since the last report go with it: ' .. tostring(sent[1]))
+thermal.coolantMass = 6
+C.onReset()
+sent = {}
+C.updateGFX(0.25)
+assert(sent[1] and sent[1]:find(',nil%)end'), 'a reset refills the coolant: nothing counted as lost')
+appliedCalls = {}                 -- (that reset put every tyre back to full grip: not part of the grip checks below)
 C.setConfig(true, false, true, false, 0.06, 2)
 dropParticles = {}
 C.updateGFX(0.25)
