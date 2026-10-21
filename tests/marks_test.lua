@@ -146,6 +146,9 @@ M.load()
 assert(M.get('maxDrawn') == 300 and M.get('cullRadius') == 60 and M.get('skidCount') == 500, 'the old defaults move to 300 / 60 once, the rest is kept')
 M.save()
 assert(files[SF].perfVersion == 1 and files[SF].maxDrawn == 300, 'and the file says so')
+files[SF] = { maxDrawn = 800, cullRadius = 160 }
+M.load()
+assert(M.get('maxDrawn') == 300 and M.get('cullRadius') == 160, 'the old budget moves, a radius the player changed stays')
 files[SF] = { maxDrawn = 800, cullRadius = 100, perfVersion = 1 }
 M.load()
 assert(M.get('maxDrawn') == 800 and M.get('cullRadius') == 100, 'a player who set the old values again keeps them')

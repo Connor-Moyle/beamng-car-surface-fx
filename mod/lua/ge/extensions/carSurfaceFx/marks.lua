@@ -349,10 +349,10 @@ function M.onVehicleSpawned(id, veh) if veh or getObjectByID then pcall(injectAl
 function M.onVehicleSwitched() pcall(injectAll) end
 
 -- One time: the file used to be written whole, so a player who never touched the decal budget has the OLD defaults saved (800 decals, 100 m) and would never get the cheaper new ones.
--- saved is the file's table; returns true when exactly the old defaults are saved and this file has not been through this step. A player who sets 800 / 100 again afterwards keeps it (the file then carries perfVersion 1).
+-- saved is the file's table; returns true when the old budget (800) is saved and this file has not been through this step; the radius moves only if it is the old 100. A player who sets 800 / 100 again afterwards keeps it (the file then carries perfVersion 1).
 function M.migratePerf(saved)
   if type(saved) ~= 'table' or (tonumber(saved.perfVersion) or 0) >= 1 then return false end
-  return saved.maxDrawn == 800 and saved.cullRadius == 100
+  return saved.maxDrawn == 800
 end
 
 -- ---- settings: a file of our own, filled once from the old mod's file (the values the player set there)
@@ -363,7 +363,7 @@ function M.load()
   if ok and type(saved) == 'table' then
     local movePerf = M.migratePerf(saved)
     mergeInto(settings, saved)
-    if movePerf then settings.maxDrawn, settings.cullRadius, dirty = 300, 60, true end
+    if movePerf then settings.maxDrawn, dirty = 300, true if saved.cullRadius == 100 then settings.cullRadius = 60 end end      -- (a radius the player changed stays)
     settings.perfVersion = 1
   else
     local ok2, old = pcall(jsonReadFile, OLD_FILE)
