@@ -1,6 +1,7 @@
 """Ships the game's own cooked DDS of the ground-mark textures instead of the PNGs (0.40 cooks a PNG at runtime; the same rule as the tyre overlays, see make_tyre_stage_textures.py).
 Run the game with every mark material drawn once (see docs/COOKING_MARKS.md), then:
-  python tools/ingest_cooked_dds.py <cooked folder: <user folder>/current/temp/art/surfacefx/marks> [--apply]
+  python tools/ingest_cooked_dds.py <cooked folder: <user folder>/current/temp/art/surfacefx/marks> [--apply] [--into <mod folder with the PNGs>]
+--into: another folder of PNGs (default mod/art/surfacefx/marks), e.g. mod/art/surfacefx/fluids; only PNGs under it are touched.
 For each PNG under mod/art/surfacefx/marks/ the cooked <same name>.dds is copied beside it and the PNG removed (the materials keep naming the .png, as the game's own materials name their DDS).
 Without --apply it only reports. A PNG with no cooked file is left alone and listed; exit 1 when any is missing."""
 import os, shutil, sys
@@ -52,10 +53,12 @@ if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     if not args:
         sys.exit(__doc__)
-    pairs, missing = plan(args[0])
+    into = sys.argv[sys.argv.index('--into') + 1] if '--into' in sys.argv else MARKS
+    args = [a for a in args if a != into]
+    pairs, missing = plan(args[0], into)
     print('%d to ship as DDS, %d with no cooked file' % (len(pairs), len(missing)))
     for m in missing:
-        print('  missing:', os.path.relpath(m, MARKS))
+        print('  missing:', os.path.relpath(m, into))
     if '--apply' in sys.argv:
         apply(pairs)
         print('applied')
