@@ -8,6 +8,7 @@ Proven in the game (connor-80, with screenshots):
 
 - Worn paint, rust (off by default; for Part Wear to drive): rust now gathers where water sits, on the lower door and the sill line and around the wheel-arch lips, never above the lower half of the door; many small spots at a low value, more and bigger ones at a high value; each spot is an irregular blob, and some have a run-off stain that wobbles, tapers and fades out. Seen on a white and a brown car at 0.3 and 0.9.
 - Oil leaks: the oil pool keeps a near-black glossy look with only a faint pale sheen toward its thin edge, and a soft darker wet ring round the pool.
+- Fuel and coolant pools: the fuel pool is a wet dark amber puddle with a wide darker wet ring that reflects the sky at a low angle, like water; the coolant pool is a glossy dark green with a wet look (seen as a close-up).
 
 Changed:
 
@@ -16,7 +17,7 @@ Changed:
 
 Built, not yet tested in the game:
 
-- The coolant and fuel pools after the change (a close-up of a small pool).
+- A coolant pool bigger than 8 cm, and the leak pools in rain.
 - Rust on a car other than the two tried; at 0.9 the rust on the lower door sits in a band of fairly even height.
 - Scuffs; fade and grime on dark paint (the paint canvas can only darken, so they are faint there); worn paint on a respawned dark car.
 - Rubber marbles, and panel damage by part (carbon, fibreglass, plastic): off by default.
