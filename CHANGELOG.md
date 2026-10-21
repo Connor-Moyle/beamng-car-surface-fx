@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.11 (2026-10-23)
+
+Changes since 0.4.10. Needs BeamNG.drive 0.40. None of it has been seen in the game yet (the offline tests cover it).
+
+Added:
+
+- Tyres: cold hardening of the rubber by compound: a summer tyre loses about 12 % of its grip at 0 C, a performance tyre about 20 %, a winter tyre almost nothing (three new compound fields on the Tyres page). A test now changes every setting of the Tyres page and every compound field in a scene of its own.
+- A body panel scraping along a wall now also leaves a dark scrape on the ground at the wall's foot (part of the gouges, switch "Scrape at the foot of a wall (test)", which are off by default).
+- `carSurfaceFx.slotStats()`: how many material reloads and glass canvases the mod has asked for (a console tool for the wet-world work).
+
+Changed:
+
+- Leak puddles: the puddles to draw are picked at most every quarter second (or when the camera moves 2 m or a puddle is added or removed) instead of every frame, and the colours are reused.
+- The terrain-deformation probe is dropped (docs/TERRAIN_DEFORM_DECISION.md); the port notes for wall scratches, marks from AI cars and tyre pressure effects are up to date (the last two were already built).
+
+Built, not yet tested in game:
+
+- All of the above: the cold grip numbers (from the research, not measured), the wall scrape on the ground, and the puddle drawing change (its cost with a full ring was already +0.03 ms).
+- The open items of 0.4.9 and 0.4.10.
+
 ## 0.4.10 (2026-10-23)
 
 Changes since 0.4.9. Needs BeamNG.drive 0.40. This release is mostly fixes found in a code review; apart from the one item under "Proven" none of it has been seen in the game yet (the offline tests cover it).

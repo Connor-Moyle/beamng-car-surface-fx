@@ -1,6 +1,6 @@
 # Car Surface FX
 
-Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup. This is version 0.4.10 (see CHANGELOG.md).
+Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup. This is version 0.4.11 (see CHANGELOG.md).
 
 - **Wet paint.** When it rains the paint gets darker and glossier, and fine water beads form on it. The beads grow and merge as the rain goes on and shrink away again as the car dries over a few minutes.
 - **Water on the windows.** Drops land on the glass, merge, and the big ones run down and leave small drops behind. Speed pushes them up the glass, hard braking throws them forward, cornering slides them sideways, and the wipers sweep them off. They dry up when the rain stops.
