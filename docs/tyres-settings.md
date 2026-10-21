@@ -49,13 +49,8 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Fire & debris | marbles.maxPatches | 24 | 4 - 48 | A | patches on the road at once |
 | Fire & debris | marbles.maxG | 400 | 100 - 800 g | A | most rubber in one patch |
 | Fire & debris | marbles.lifeS | 900 | 60 - 1800 s | A | about how long a patch stays (rain: three times faster) |
-| Fire & debris | blowout.enabled | **false** | on/off | N | "Blowouts damage nearby panels" (off until shown in game) |
-| Fire & debris | blowout.strength | 1.0 | 0 - 3 | N | force scale (still capped) |
-| Fire & debris | blowout.radius | 0.5 | 0.2 - 0.8 m | A | search radius around the wheel |
-| Fire & debris | blowout.maxNodes | 4 | 1 - 8 | A | nodes pushed |
-| Fire & debris | blowout.steps | 3 | 1 - 5 | A | physics steps of the push |
-| Fire & debris | blowout.maxForce | 3000 | 500 - 3000 N | A | hard cap per node (never raise the max above 3000) |
-| Fire & debris | blowout.chance0 / chance100 | 0.15 / 0.9 | 0 - 1 | A | chance at standstill / at 100 km/h |
+| Fire & debris | blowout.enabled | **false** | on/off | N | "Blowouts damage nearby panels": the panel marks beside a burst tyre (off until shown in game) |
+| Fire & debris | blowout.strength | 1.0 | 0 - 3 | N | strength of the marks |
 | Visuals | (stage thresholds `M.STAGE_FROM` {0.9,0.7,0.5,0.3}, tread fade) | | | A | not in cfg yet; will be added with the visual build |
 | Compounds | per compound: h0, k, lo, hi, grip20, drop, wearOn, dry0, dryF, wet0, wetF, aqua, loose, snow, base, crr | see COMPOUNDS | | A | overrides of the table for road, performance, semislick, slick, slicksoft, drag, offroad, mud, winter, rally, intermediate, fullwet |
 

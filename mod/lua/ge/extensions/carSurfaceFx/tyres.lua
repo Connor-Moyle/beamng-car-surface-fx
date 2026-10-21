@@ -151,7 +151,7 @@ function M.state(id, ws, events)
     local wasSmoking = s[w[1]] and s[w[1]].smoking
     s[w[1]] = { stage = w[2], Ts = w[3], Tc = w[4], worstFlat = w[5], blown = w[6], onFire = w[7], shakeHz = w[8], shakeN = w[9], tread = w[10], h0 = w[11], compound = w[12], name = w[13] }
     if w[6] and not wasBlown and extensions and extensions.hook then extensions.hook('onCsfxTyreBlown', id, w[1]) end
-    local sm = cfg.fires ~= false and not w[6] and R.smoke(w[3] or 0, cfg) or 0
+    local sm = not w[6] and R.smoke(w[3] or 0, cfg) or 0      -- (the Tyre smoke switch is in R.smoke; the fires switch is not its business)
     if sm > 0 or wasSmoking then emit('smoke', id, w[1], sm) end
     s[w[1]].smoking = sm > 0
   end

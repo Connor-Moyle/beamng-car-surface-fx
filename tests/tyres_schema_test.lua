@@ -51,10 +51,9 @@ for name, c in pairs(R.COMPOUNDS) do
 end
 assert(compoundFields > 150, 'the compounds are all there: ' .. compoundFields)
 
--- the cautions: blowout damage is off, and its force cap cannot be raised above 3000
+-- the caution: blowout damage is off
 assert(byPath['enabled'].default == false, 'the tyre simulation is off until it is switched on, as the game side treats a missing file')
 assert(byPath['blowout.enabled'].default == false, 'blowout damage is off by default')
-assert(byPath['blowout.maxForce'].max == 3000 and byPath['blowout.maxForce'].default <= 3000, 'the blowout force cap stays at 3000')
 for _, path in ipairs({ 'enabled', 'wearEnabled', 'flat.enabled', 'look.enabled', 'tempGripEnabled', 'wetGripEnabled', 'rainAquaplane', 'debris.enabled', 'smokeEnabled', 'sparksEnabled', 'fires', 'fireSpread', 'marbles.enabled', 'marbles.burn', 'blowout.enabled' }) do
   assert(byPath[path] and byPath[path].type == 'bool' and byPath[path].feature == true, path .. ': every tyre part has its own switch on the Active features page')
 end

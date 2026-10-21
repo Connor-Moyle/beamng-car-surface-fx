@@ -44,7 +44,7 @@ function M.defaults()
     -- smoke from smokeOn (full at smokeFull); fire after the surface holds igniteT for igniteHold s; a burning tyre pops after popAfter s; debris is rubber worn off (density g/mm3)
     smokeEnabled = true, sparksEnabled = true,        -- Mods settings: "Tyre smoke", "Sparks from belt-worn tyres"
     smokeOn = 90, smokeFull = 180, igniteT = 420, igniteHold = 4, burnT = 550, popAfter = 12, douse = 0.6,
-    blowout = { enabled = false, strength = 1.0, radius = 0.5, maxNodes = 4, steps = 3, maxForce = 3000, chance0 = 0.15, chance100 = 0.9 },   -- Mods: "Blowouts damage nearby panels" + strength
+    blowout = { enabled = false, strength = 1.0 },   -- Mods: "Blowouts damage nearby panels" + strength (the game side draws the panel marks; no force is applied to the car)
     look = { enabled = true, wornBelow = 0.5 },      -- the worn tyre look: on or off, and the fraction of tread left below which a tyre looks worn (the belts show at no tread)
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { enabled = true, density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
@@ -67,8 +67,9 @@ function M.snapshot(t)
 end
 function M.restore(t, blob)
   if type(blob) ~= 'table' or blob.n ~= t.n or type(blob.h) ~= 'table' then return false end
-  for j = 1, 2 * t.n do if type(blob.h[j]) == 'number' then t.h[j] = blob.h[j] end end
-  t.cord, t.blown = blob.cord or 0, blob.blown and true or false
+  local lo = -t.c.margin - 3                                               -- (the deepest wearStep goes: margin + the largest cordLimit)
+  for j = 1, 2 * t.n do local x = blob.h[j] if type(x) == 'number' and x == x then t.h[j] = clamp(x, lo, t.c.h0) end end       -- a saved NaN or out-of-range depth must not reach the grip
+  t.cord, t.blown = tonumber(blob.cord) or 0, blob.blown and true or false
   return true
 end
 
@@ -158,46 +159,6 @@ function M.pileStep(p, dt, ambient, wet, cfg)
   elseif p.g >= d.pileMinG and p.T >= d.pileIgniteT then p.burn = d.pileBurnS end
   return (p.burn or 0) > 0
 end
--- ---- a blowout hitting the panels near it (Connor, 2026-10-19). The vehicle side applies the result with obj:applyForceVector over `steps` physics steps, so the soft body deforms the panel for real.
--- speed m/s, pressure 0..1 of nominal; roll is a 0..1 random number (a parameter, so tests are exact). Returns nil (no hit) or { n nodes, force N each, steps }.
--- The chance climbs with speed (chance0 at a stand to chance100 at 100 km/h and above); the force is capped by maxForce whatever the strength setting says.
-function M.blowoutHit(speed, pressure, roll, cfg)
-  local b = cfg.blowout
-  if not b.enabled or b.strength <= 0 then return nil end
-  local k = clamp((speed or 0) / 27.8, 0, 1)
-  if roll >= b.chance0 + (b.chance100 - b.chance0) * k then return nil end
-  local force = math.min(b.maxForce, 800 * b.strength * (0.3 + 1.7 * k) * (0.5 + 0.5 * clamp(pressure or 1, 0, 1.5)))
-  return { n = math.max(1, math.floor(b.maxNodes * (0.4 + 0.6 * k) + 0.5)), force = force, steps = b.steps }
-end
--- a plain body-panel node: not fixed, not a coupler, hub or special node, and not in a wheel, suspension, hub, axle, brake or coupler group (forces on those bent cars before)
-local BAD_GROUP = { 'wheel', 'susp', 'hub', 'axle', 'brake', 'coupl', 'tow', 'steer', 'engine', 'trans' }
-function M.panelNode(nd)
-  if nd.fixed or nd.coupler or nd.couplerTag or nd.hub or nd.wheel or nd.special then return false end
-  local g = nd.group
-  if type(g) == 'table' then g = table.concat(g, ' ') end
-  if type(g) == 'string' then
-    g = g:lower()
-    for _, bad in ipairs(BAD_GROUP) do if g:find(bad, 1, true) then return false end end
-  end
-  return true
-end
--- which nodes to push: plain body-panel nodes (panelNode) within radius of the wheel centre, never the wheel's own (skip[cid]); nearest first, at most n.
--- nodes = { {cid=, x=, y=, z=}, .. }; returns the cids with a unit direction away from the wheel centre (flat on the vertical a little, so panels bulge out and up)
-function M.blowoutTargets(nodes, centre, radius, skip, n)
-  local list = {}
-  for _, nd in ipairs(nodes) do
-    if not skip[nd.cid] and M.panelNode(nd) then
-      local dx, dy, dz = nd.x - centre.x, nd.y - centre.y, nd.z - centre.z
-      local d = math.sqrt(dx * dx + dy * dy + dz * dz)
-      if d <= radius and d > 1e-6 then list[#list + 1] = { cid = nd.cid, d = d, dx = dx / d, dy = dy / d, dz = dz / d * 0.5 } end
-    end
-  end
-  table.sort(list, function(a, b) return a.d < b.d end)
-  local out = {}
-  for i = 1, math.min(n, #list) do out[i] = list[i] end
-  return out
-end
-
 -- smoke 0..1 from the surface temperature
 function M.smoke(Ts, cfg) if cfg.smokeEnabled == false then return 0 end return clamp((Ts - cfg.smokeOn) / (cfg.smokeFull - cfg.smokeOn), 0, 1) end
 -- one fire tick. Ignites after the hottest surface (Ts + a quarter of the worst flash) holds igniteT for igniteHold s; while burning the surface sits at burnT, water/rain (wet) douses it
@@ -254,13 +215,15 @@ function M.tempStep(t, ctx, cfg)
   local dTs = (P.as * Pslip + P.bs * Proll - hconv * (Ts - amb) - P.Groad * inContact * cool * (Ts - road) - P.Gsc * (Ts - Tc)) / P.Cs
   local dTc = ((1 - P.bs) * Proll + P.Gsc * (Ts - Tc) - P.Gin * cool * (Tc - amb) + (ctx.brake and P.Gbrake * (ctx.brake - Tc) or 0)) / P.Cc
   t.Ts, t.Tc = Ts + dTs * dt, Tc + dTc * dt
+  if not (t.Ts > -273 and t.Ts < 3000 and t.Tc > -273 and t.Tc < 3000) then t.Ts, t.Tc = amb, amb for i = 1, t.n do t.flash[i] = 0 end end   -- NaN or runaway input (a bad wheel speed): start over at the ambient, never keep it
   -- the flash temperature of each sector: its share of the slip power in, fast decay out
   local csec = P.Cs / t.n
   local share = (ctx.power or 0) > 0 and 1 or 0
   for i = 1, t.n do
     local e = t.E[2 * i - 1] + t.E[2 * i]
     local ps = (dt > 0 and e / dt or 0) * share
-    t.flash[i] = clamp((t.flash[i] or 0) + dt * (P.as * ps * (cfg.heatRate or 1) / csec) - (t.flash[i] or 0) * dt / P.tauFlash, 0, 400)
+    local f = clamp((t.flash[i] or 0) + dt * (P.as * ps * (cfg.heatRate or 1) / csec) - (t.flash[i] or 0) * dt / P.tauFlash, 0, 400)
+    t.flash[i] = f == f and f or 0
   end
 end
 
@@ -307,7 +270,8 @@ function M.surfaceGrip(c, surface) local f = LOOSE[surface or ''] return f and c
 function M.nodeGrip(t, j, wet, cfg, ctx)
   local c = t.c
   local fT = M.tempGrip(c, t.Ts + (t.flash[M.sectorOf(j)] or 0) * 0.5, cfg)
-  if t.h[j] <= 0 then return cfg.beltGrip * fT, cfg.beltSliding * fT end
+  local function fin(x) return x == x and x or 1 end                  -- never hand the engine a NaN friction
+  if t.h[j] <= 0 then return fin(cfg.beltGrip * fT), fin(cfg.beltSliding * fT) end
   local wetOn = cfg.wetGripEnabled ~= false
   local fw = M.wearGrip(c, t.h[j], wetOn and wet)
   if ctx then fw = fw * (wetOn and M.aquaplane(c, t.h[j], ctx.water, ctx.v) or 1) * M.surfaceGrip(c, ctx.surface) end
@@ -316,7 +280,7 @@ function M.nodeGrip(t, j, wet, cfg, ctx)
     local d = M.flatDepth(t, M.sectorOf(j))
     if d > cfg.flat.minDepth then ff = 1 - cfg.flat.gripLoss * clamp(d, 0, 1) end
   end
-  return fT * fw * ff, fT * fw * ff
+  return fin(fT * fw * ff), fin(fT * fw * ff)
 end
 
 -- ---- looks (research 8.7): 0 new .. 4 bald, 5 belts; the stage of the worst slot, by its fraction of the tread left
@@ -342,6 +306,7 @@ function M.marbleRadius(g, cfg) local m = cfg.marbles return 0.5 + (m.mergeR - 0
 -- add `g` grams at (x, y, z) at temperature T: into the patch within mergeR if there is one, else a new patch (the oldest goes when there are maxPatches). Returns the patch.
 function M.marbleAdd(list, x, y, z, g, T, now, cfg)
   local m = cfg.marbles
+  if not (g > 0 and x == x and y == y) then return nil end                -- no grams, or a NaN position: nothing to add
   local best, bd
   for _, p in ipairs(list) do
     local d = (p.x - x) ^ 2 + (p.y - y) ^ 2

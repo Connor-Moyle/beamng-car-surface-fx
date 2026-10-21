@@ -96,14 +96,8 @@ local ROWS = {
   row('fire', 'marbles.maxPatches', 'slider', 'Most marble patches', 'How many patches of marbles the road holds at once; the oldest goes first.', 4, 48, 1, '', true),
   row('fire', 'marbles.maxG', 'slider', 'Most rubber in a patch', 'A patch never holds more than this (grams).', 100, 800, 50, 'g', true),
   row('fire', 'marbles.lifeS', 'slider', 'Marbles last', 'About how long a patch of marbles stays on the road before it is gone.', 60, 1800, 30, 's', true),
-  row('fire', 'blowout.enabled', 'bool', 'Blowouts damage nearby panels', 'A tyre that bursts pushes on the body panels beside it. Off until it has been seen working in the game.'),
-  row('fire', 'blowout.strength', 'slider', 'Blowout force', 'How hard a burst tyre pushes (it is still capped).', 0, 3, 0.1, 'x'),
-  row('fire', 'blowout.radius', 'slider', 'Blowout reach', 'How far from the wheel the burst pushes, in metres.', 0.2, 0.8, 0.05, 'm', true),
-  row('fire', 'blowout.maxNodes', 'int', 'Most points pushed', 'How many points of the body a burst tyre pushes.', 1, 8, nil, nil, true),
-  row('fire', 'blowout.steps', 'int', 'Steps of the push', 'For how many physics steps the push lasts.', 1, 5, nil, nil, true),
-  row('fire', 'blowout.maxForce', 'slider', 'Hardest push on one point', 'A hard cap on the force on one point of the body, in newtons. It cannot be set above 3000.', 500, 3000, 100, 'N', true),
-  row('fire', 'blowout.chance0', 'slider', 'Panel damage chance, standing', 'The chance a burst damages panels at a standstill.', 0, 1, 0.05, '%', true),
-  row('fire', 'blowout.chance100', 'slider', 'Panel damage chance at 100 km/h', 'The chance a burst damages panels at 100 km/h.', 0, 1, 0.05, '%', true),
+  row('fire', 'blowout.enabled', 'bool', 'Blowouts damage nearby panels', 'A tyre that bursts marks the body panels beside it. Off until it has been seen working in the game.'),
+  row('fire', 'blowout.strength', 'slider', 'Blowout marks', 'How strong the marks beside a burst tyre are.', 0, 3, 0.1, 'x'),
 }
 
 -- per-compound fields: key -> min, max, step, label, tooltip

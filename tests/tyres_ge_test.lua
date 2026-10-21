@@ -12,7 +12,7 @@ local T = dofile('mod/lua/ge/extensions/carSurfaceFx/tyres.lua')
 T.update(0.1, 0.4)
 assert(#sent == 0, 'off: nothing is sent to any car')
 T.configure({ enabled = true, wearRate = 5, blowout = { enabled = true } })
-assert(T.getConfig().wearRate == 5 and T.getConfig().blowout.enabled and T.getConfig().blowout.maxForce == 3000, 'settings merge, nested too')
+assert(T.getConfig().wearRate == 5 and T.getConfig().blowout.enabled and T.getConfig().blowout.strength == 1.0, 'settings merge, nested too')
 T.update(0.1, 0.4)
 assert(#sent == 1 and sent[1]:find('extensions.load("carSurfaceFxTyres")', 1, true) and sent[1]:find('setConfig', 1, true), 'the player car gets the module and the settings')
 assert(sent[1]:find('setSurfaces', 1, true) and sent[1]:find('3=asphalt', 1, true) and sent[1]:find('9=dirt', 1, true) and not sent[1]:find('5=', 1, true), 'the ground models become a surface table, unknown ones left out')
@@ -67,6 +67,11 @@ assert(table.concat(log, ' ') == 'smoke1:0.50 flame1true debris1:2.5:180', 'smok
 log = {}
 T.state(7, { { 1, 2, 60, 45, 0, false, false } }, { { 1, 'pop' } })
 assert(table.concat(log, ' ') == 'smoke1:0.00 flame1false pop1 bang1 panel1:1.0', 'the smoke is told once when it stops, a pop puts the flame out and bangs, and (setting on) marks the panel: ' .. table.concat(log, ' '))
+T.configure({ fires = false })
+log = {}
+T.state(7, { { 1, 2, 135, 45, 0, false, false } }, {})
+assert(table.concat(log, ' ') == 'smoke1:0.50', 'the smoke does not depend on the fires switch: ' .. table.concat(log, ' '))
+T.configure({ fires = true })
 T.setEmitters({ flame = function() error('boom') end })
 T.state(7, { { 1, 2, 60, 45, 0, false, false } }, { { 1, 'ignite' } })        -- an emitter that fails changes nothing
 T.setEmitters({})
