@@ -1,8 +1,9 @@
 """Ships the game's own cooked DDS of the ground-mark textures instead of the PNGs (0.40 cooks a PNG at runtime; the same rule as the tyre overlays, see make_tyre_stage_textures.py).
 Run the game with every mark material drawn once (see docs/COOKING_MARKS.md), then:
-  python tools/ingest_cooked_dds.py <cooked folder: <user folder>/current/temp/art/surfacefx/marks> [--apply]
-For each PNG under mod/art/surfacefx/marks/ the cooked <same name>.dds is copied beside it and the PNG removed (the materials keep naming the .png, as the game's own materials name their DDS).
-Without --apply it only reports. A PNG with no cooked file is left alone and listed; exit 1 when any is missing."""
+  python tools/ingest_cooked_dds.py <cooked folder: <user folder>/current/temp/art/surfacefx/marks> [--apply] [--dir=mod/art/surfacefx/<folder>]
+For each PNG under mod/art/surfacefx/marks/ (or --dir) the cooked <same name>.dds is copied beside it and the PNG removed (the materials keep naming the .png, as the game's own materials
+name their DDS). Without --apply it only reports. A PNG with no cooked file is left alone and listed; exit 1 when any is missing.
+The leak puddle textures: --dir=mod/art/surfacefx/fluids with the cooked folder <user folder>/current/temp/art/surfacefx/fluids (each puddle material drawn once in the game)."""
 import os, shutil, sys
 
 MARKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'mod', 'art', 'surfacefx', 'marks')
@@ -52,10 +53,11 @@ if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     if not args:
         sys.exit(__doc__)
-    pairs, missing = plan(args[0])
+    folder = next((a[len('--dir='):] for a in sys.argv[1:] if a.startswith('--dir=')), MARKS)
+    pairs, missing = plan(args[0], folder)
     print('%d to ship as DDS, %d with no cooked file' % (len(pairs), len(missing)))
     for m in missing:
-        print('  missing:', os.path.relpath(m, MARKS))
+        print('  missing:', os.path.relpath(m, folder))
     if '--apply' in sys.argv:
         apply(pairs)
         print('applied')

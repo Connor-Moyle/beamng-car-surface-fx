@@ -282,7 +282,7 @@ function M.build(S, owner)
   end
   add({
     F('leaks', 'leaks', 'Leaks', 'bool', 'Leaking fluids and puddles', 'A car with a damaged oil pan, radiator or fuel tank drips on the ground, and a parked leaking car makes a puddle. Off: no drips and no puddles.', 'fluids.enabled'),
-    lk('leaks_mesh', 'Leaks', 'bool', 'Glossy puddles', 'A puddle is a glossy, reflective surface like a rain puddle, tinted by the fluid (oil black, coolant green, fuel amber). Off: flat decals only.', 'meshes'),
+    lk('leaks_mesh', 'Leaks', 'bool', 'Glossy puddles', 'A puddle is a glossy, reflective surface like a rain puddle, tinted by the fluid (oil black, coolant green, fuel amber). Off (the default): flat decals only.', 'meshes'),
     lk('leaks_sheen', 'Leaks', 'bool', 'Rainbow sheen on oil', 'A thin rainbow film on oil puddles (needs glossy puddles).', 'sheen'),
     lk('leaks_grip', 'Leaks', 'bool', 'Tyres slip in puddles', 'A tyre in a puddle really loses grip (not just a look). It changes how the car drives: braking in an oil puddle spins the car.', 'gripEnabled'),
     { id = 'leaks_texture', tab = 'leaks', group = 'Pictures', type = 'texture', label = 'Puddle picture', tooltip = 'The picture of a puddle. Drop your own white-on-transparent png (name starting with puddle) into art/decals/fluids and it shows up here; none means any of them, at random.',
@@ -413,7 +413,7 @@ function M.build(S, owner)
   add({
     lk('leaks_others_range', 'Other cars', 'slider', 'How near a car must be to leak', 'Cars further away than this do not leak.', 'others.range', { min = 20, max = 200, step = 5, unit = 'm', advanced = true }),
     lk('leaks_max_drops', 'Leaks', 'int', 'Most falling drops followed', 'A cap on the falling drops followed to where they land, for the frame rate.', 'maxDrops', { min = 4, max = 200, advanced = true }),
-    lk('leaks_max_meshes', 'Leaks', 'int', 'Most glossy puddles at once', 'The glossy puddle planes drawn at once; the rest stay as flat decals.', 'maxMeshes', { min = 0, max = 200, advanced = true }),
+    lk('leaks_max_meshes', 'Leaks', 'int', 'Most glossy puddles at once', 'The glossy puddle planes drawn at once (within 40 m of the camera); the rest stay as flat decals. Keep it low: many planes have crashed the graphics card in heavy rain.', 'maxMeshes', { min = 0, max = 40, advanced = true }),
     rt('ruts_chunk', 'Ruts', 'int', 'Samples in a rut piece', 'How many wheel positions make one rut piece. More is smoother and slower to appear.', 'chunkPoints', { min = 2, max = 20, advanced = true }),
     rt('ruts_dry', 'Ruts', 'slider', 'Dry look below', 'The ground goes back to its dry rut look below this wetness (a little under the wet look level, so it does not flicker).', 'dryBelow', { min = 0.05, max = 0.8, step = 0.05, advanced = true }),
     rt('ruts_step', 'Ruts', 'slider', 'Distance between samples', 'Metres a wheel travels between two samples of its path.', 'step', { min = 0.2, max = 2, step = 0.1, unit = 'm', advanced = true }),

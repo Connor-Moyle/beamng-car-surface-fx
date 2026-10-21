@@ -16,6 +16,7 @@ local rules = require('carSurfaceFx/rules')
 local screen = require('carSurfaceFx/screen')
 local grassRules = require('carSurfaceFx/grassRules')
 local glassflow = require('carSurfaceFx/glassflow')
+local gpugate = require('carSurfaceFx/gpugate')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
@@ -176,6 +177,7 @@ local function setRung(info, r)
     m:setField('doubleSided', 0, (r > 0 and doubleSided) and '1' or tostring(info.doubleSided or '0'))
   end
   Sim.upcast(m):reload()
+  gpugate.shared().reloaded(os.clock())                     -- (the leak puddle planes keep off the GPU for a moment after a reload)
   if info.glass and r == 0 then canvases(info, false) end
   info.rung = r
   info.reloadMs = (os.clock() - t0) * 1000
