@@ -185,6 +185,7 @@ local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget)
     end
   end
   local marks = b.marks
+  local fadeS, fadeE = settings.cullRadius * 0.82, settings.cullRadius        -- (a changed cull radius reaches the slots already made)
   for i = 1, b.count do
     if budget <= 0 then break end
     local m = marks[i]
@@ -202,7 +203,7 @@ local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget)
         budget = budget - 1
         local e = slot(pool, idx)
         local g, cc = l.g, l.cc
-        e.texture = l.tex
+        e.texture, e.fadeStart, e.fadeEnd = l.tex, fadeS, fadeE
         e.position:set(m.x, m.y, m.z)
         e.forwardVec:set(m.dx, m.dy, 0)
         e.scale:set(kind == 'skid' and g.width * (0.85 + 0.3 * m.inten) or g.width, m.len * g.length, DEPTH)
