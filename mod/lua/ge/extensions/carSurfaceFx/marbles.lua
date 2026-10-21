@@ -17,6 +17,7 @@ function M.clear() for i = #list, 1, -1 do list[i] = nil end dirty = true end
 function M.add(cfg, g, T, x, y, z)
   if not (cfg.marbles.enabled and x and y) then return nil end
   local p = R.marbleAdd(list, x, y, z or 0, g, T or 20, clock, cfg)
+  if not p then return nil end
   if not p.id then nextId = nextId + 1 p.id = nextId end
   dirty = true
   return p

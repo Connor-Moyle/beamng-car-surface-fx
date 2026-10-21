@@ -96,7 +96,7 @@ local function build()
     end
   end
   if pendingBlob then
-    for wi, blob in pairs(pendingBlob) do local k = tonumber(wi) if tyres[k] then R.restore(tyres[k].t, blob) end end
+    for wi, blob in pairs(pendingBlob) do local k = tonumber(wi) if tyres[k] and R.restore(tyres[k].t, blob) then tyres[k].shredded = tyres[k].t.blown or nil end end      -- (a tyre saved blown shed its tread before: not again)
     pendingBlob = nil
   end
 end
@@ -359,7 +359,7 @@ function M.setTread(frac, wi)
 end
 -- The puddle code of Street Legal (it knows where each puddle is) tells each wheel its water depth 0..1 (about 10-20 Hz); wi is the index in wheels.wheels. Not renewed for PUDDLE_TTL s = no puddle.
 function M.setWheelWater(wi, depth)
-  local e = tyres[wi]
+  local e = tyres and tyres[wi]
   if not e then return false end
   e.puddle, e.puddleTtl = max(0, min(1, tonumber(depth) or 0)), PUDDLE_TTL
   return true
@@ -432,7 +432,7 @@ function M.snapshot()                              -- wheel index -> JSON-safe s
   return out
 end
 function M.restoreSnapshot(blob)                   -- keys may be strings after a json round trip
-  if tyres then for wi, b in pairs(blob or {}) do local k = tonumber(wi) if tyres[k] then R.restore(tyres[k].t, b) end end else pendingBlob = blob end
+  if tyres then for wi, b in pairs(blob or {}) do local k = tonumber(wi) if tyres[k] and R.restore(tyres[k].t, b) then tyres[k].shredded = tyres[k].t.blown or nil end end else pendingBlob = blob end
 end
 function M.repair(wi)
   for k in pairs(tyres or {}) do if wi == nil or wi == k then pcall(M.putOut, k) end end                              -- fresh tread (a garage tyre change): one wheel, or all

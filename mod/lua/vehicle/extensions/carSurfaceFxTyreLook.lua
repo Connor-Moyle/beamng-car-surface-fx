@@ -7,7 +7,6 @@ local M = {}
 local sw                            -- wheel index -> { { orig, mesh } } once built
 local stageOf = {}                  -- wheel index -> the stage on show
 local pinned = {}                  -- wheel index -> true while a test has set its stage by hand (the tyre module's own reports leave it alone)
-local disabled = false
 
 -- The tyre flexbodies carry no group in the vehicle data (the Covet's are tire_01a_13x5_23, ..D, ..DD, ..DDD with group = nil), so a wheel's tyre mesh is found by a group ending in the wheel's
 -- name, or by the flexbody's node list (_group_nodes) holding the wheel's hub or tread nodes. The mesh order is NOT the wheel order (Covet: ..DD is rear left), so there is no guessing by order:
@@ -63,7 +62,7 @@ local function wheelKey(w)              -- a wheel by its key in wheels.wheels o
 end
 function M.set(wi, stage, auto)         -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore()
   wi = wheelKey(wi)
-  if disabled or (auto and pinned[wi]) then return end
+  if auto and pinned[wi] then return end
   if not auto then pinned[wi] = true end
   if not sw then build() end
   stage = math.max(0, math.min(5, math.floor(tonumber(stage) or 0)))
@@ -102,7 +101,6 @@ function M.info()       -- for game tests: per wheel the switches found (origina
   end
   return out
 end
-function M.setEnabled(on) disabled = not on if disabled then M.restore() end end
 
 function M.restore()
   for wi in pairs(stageOf) do pcall(M.set, wi, 0) end

@@ -369,4 +369,18 @@ for _ = 1, 10 do T.updateGFX(0.1) end
 writes = {}
 for _ = 1, 10 do T.updateGFX(0.1) end
 assert(math.abs((lastGrip() or clean) - clean) < 1e-6, 'a reset forgets the patches')
+-- a tyre saved blown comes back blown and does not throw its tread again; the puddle call before the tyres are built is no error
+T.setConfig({ enabled = true })
+T.repair()
+local bl = T.snapshot()[0] bl.blown = true
+T.restoreSnapshot({ [0] = bl })
+local n0 = #sent
+for _ = 1, 30 do T.updateGFX(0.1) end
+local again = 0
+for k = n0 + 1, #sent do for _ in sent[k]:gmatch('"debris",120%.00') do again = again + 1 end end
+assert(T.snapshot()[0].blown and again == 0, 'a saved blown tyre sheds nothing at load: ' .. again)
+T.setCompound('slick')
+assert(T.setWheelWater(0, 0.5) == false, 'before the tyres are built: refused, not an error')
+for _ = 1, 3 do T.updateGFX(0.01) end
+T.setCompound(nil)
 wheels, v, obj, log = nil, nil, nil, nil
