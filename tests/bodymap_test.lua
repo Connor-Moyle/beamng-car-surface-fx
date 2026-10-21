@@ -52,6 +52,9 @@ assert(n == 300 and flat == 1, 'snow lands only on the roof: ' .. flat)
 local mud = B.sample(map, 'mud', 400, rnd, 3)
 local h, rear = stat(mud)
 assert(h < 0.35, 'mud is low on the body: mean height ' .. h)
+local high = 0
+for _, s in ipairs(mud) do if cellAt(s.u, s.v).h > 0.5 then high = high + 1 end end
+assert(high / #mud < 0.08, 'almost no mud above half the car height: ' .. high / #mud)
 local py = 0
 for _, s in ipairs(mud) do py = py + cellAt(s.u, s.v).py end
 assert(py / #mud > 0.3, 'mud of a rear wheel is on the rear half: ' .. py / #mud)

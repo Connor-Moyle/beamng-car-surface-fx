@@ -122,14 +122,14 @@ function RULES.mud(map, c, wi)
     local dy, dx = behind(map, c, wi)
     local wh = map.wheels[wi]
     local dz = c.pz - wh.z
-    if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.22) * up * 1.0 end
+    if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.12) * up * 1.0 end
     if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.1 end                          -- the underside near the wheel (nobody sees it)
   else
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
   w = w + 1.8 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
-  return c.h > 0.55 and w * exp(-(c.h - 0.55) / 0.08) or w                    -- and none above the door handles: only dust gets that high
+  return c.h > 0.3 and w * exp(-(c.h - 0.3) / 0.07) or w                      -- and next to none above the wheel's middle (a low car's door handle is at 0.5): only dust gets that high
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
