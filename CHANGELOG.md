@@ -6,7 +6,7 @@ Changes since 0.4.4. Needs BeamNG.drive 0.40.
 
 Changed:
 
-- Panel damage, metal: a hit on a metal panel now draws a dent (a crescent of shade on one side and of light on the other round a faint bowl) with fewer paint chips, where it was a handful of chips that read as dirt. Still texture only, and the light side is a fixed direction on the panel, not the sun.
+- Panel damage (off by default: Mods > Car Surface FX > Crash, "Panel damage (test)"), metal: a hit on a metal panel now draws a dent (a crescent of shade on one side and of light on the other round a faint bowl) with fewer paint chips, where it was a handful of chips that read as dirt. Still texture only, and the light side is a fixed direction on the panel, not the sun.
 
 Seen in the game (connor-80, wall hits at 15 and 60 km/h on a covet and a white and a black vivace):
 
