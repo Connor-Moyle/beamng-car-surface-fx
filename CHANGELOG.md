@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.4 (2026-10-22)
+
+Changes since 0.4.3. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with screenshots):
+
+- Melting snow: a melt takes the snow on the car from 0.41 to 0.14 and it holds (81 slides counted).
+- Slush on snowy ground is pale grey-white on a blue car (it read tan and brown before); a little low on the sides, round the arches and on the sill. It is a light amount, faint from 3 m and clear up close.
+
+Fixed:
+
+- Slush: the lowest splats are drawn as bigger lumps, and they used the mud picture, which made slush tan. They use the snow picture now.
+- Slush stays when snow melts: a melt slides off only the snow lying on the car, not the slush the wheels threw.
+
+Built, not yet tested in game:
+
+- Mud spray trails (the first run was in dark light), the rubber marbles heap and glow, scuffs, grime on dark paint, panel damage from a real hit, and a side window breaking on cars other than the player's (needs the "others" impact setting).
+
 ## 0.4.3 (2026-10-22)
 
 Changes since 0.4.2. Needs BeamNG.drive 0.40.
