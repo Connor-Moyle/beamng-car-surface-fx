@@ -121,7 +121,6 @@
     var thin = b.t === 'snow' && !isSlush(b) && b.a <= 0.3;              // the thin dusting on the sides: faint flecks, one pass, and a faint light (a full one made hard white spots)
     sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? (thin ? 0.3 : 1) : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
     if (litDust) sctx.filter = 'brightness(0.45)';
-    else if (isSlush(b) && !palette) sctx.filter = 'brightness(0.6)';                  // slush is grey, not the white of snow
     else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
     sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
     // the base page is drawn heavier than the palette's punch (as ink() does for the plain splats): under a part-erased palette any white left in the base reads as a pale ring or dot, worst on dark paint
