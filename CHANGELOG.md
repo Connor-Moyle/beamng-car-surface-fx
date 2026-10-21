@@ -1,8 +1,34 @@
 # Changelog
 
-## Unreleased
+## 0.4.3 (2026-10-22)
 
-- Coolant and fuel pools follow the volume let out: the kilograms the engine's coolant reservoir lost since the last report (so a radiator that empties between two reports is counted in full) and the fuel tanks' leak rate grow the pool under a parked car, so a punctured radiator that dumps its coolant in seconds leaves one pool about 0.65 m across instead of an 8 cm spot (seen by 80: one coolant pool, 0.66 m across, there within 10 s). Oil keeps growing by its drips: the game's oil leak rate never runs dry, and rate × time filled the oil pool to its cap within a minute (80's check), so it is not used. One leak makes one pool (the drips scatter less and join the pool from further out). With only a damage flag known the drips grow the pool as before. Not yet seen: a clean coolant close-up, the oil pool back at its drip-fed size.
+Changes since 0.4.2. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with screenshots):
+
+- Leak pools follow the volume let out: a punctured radiator that dumps its coolant in seconds leaves one pool about 0.65 m across (a deep wet dark green with a soft darker ring) instead of an 8 cm spot, and the oil pool after 40 s parked is one puddle again (radius 0.36), not two at 0.8.
+- Glass on asphalt: a car's broken windows leave shards on the ground that read clearly on dark asphalt, with better contrast than on concrete.
+- A burnout throws rubber chunks: many flat black angular pieces about 5-10 cm lie on the road behind and beside the tyres, with the white smoke.
+- Snow: the dark print-like smudges are gone (the snow picture is lighter); the roof and boot lid carry a clean white cap.
+- Worn paint on a dark car: fade is seen a little (lighter, drier, dusty), a respawn with the same config keeps the wear without doubling it, and no values clears it.
+- The tyres read the water film in heavy rain and grip less (the film is not drawn on the road: wet roads are Street Legal's job).
+
+Changed:
+
+- Snow: a thin dusting on the sides besides the thick cap on the tops (faint in the first test, made stronger), a lighter snow picture, melting snow that slides off in sheets, and wheels on snowy ground that throw grey-white slush low behind them. Snow ground now has its own class (it was counted as dust).
+- Sprayed mud trails off into a few smaller drops, so a spray fans back from a wheel.
+- Rubber marbles: a long burnout leaves a visible heap (more and bigger bits and a dark smear), hot rubber glows from 200 C without fire, a blowing tyre throws its tread once, and patches last 15 minutes.
+- A destroyed car leaves nothing behind in the mod's per-car tables.
+- Console tools: carSurfaceFx.debug('groundmud', 1), debug('groundsnow', 1), debug('melt', f) and carSurfaceFx.snowStatus().
+
+Built, not yet tested in game:
+
+- Melting snow sliding off in sheets, the slush on snowy ground (the first runs were on a respawned car and showed nothing), the stronger snow dusting on the sides, and the mud spray trails (the first run was in dark light).
+- The new rubber marbles heap and glow (the earlier version showed only a few dark bits).
+- A side window breaking in a real hit (a T-bone at 67 km/h into a parked car broke none).
+- Scuffs, and grime on dark paint (too faint to see); worn paint's other effects on other cars.
+- Panel damage by part, and panel damage from a real hit.
+- Leak puddles with the low cap and the GPU gate (the glossy planes are off by default).
 
 ## 0.4.2 (2026-10-21)
 
