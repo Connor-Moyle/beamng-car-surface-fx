@@ -931,7 +931,7 @@ function M.debug(kind, value)
   if kind == 'melt' then                                                       -- snow melts to this share of what the car carries: patches slide off in sheets
     local id = be:getPlayerVehicleID(0)
     if scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(tonumber(value) or 0.5, 0, 1), 1, true) end
-    if dirtBy[id] then dirtBy[id].snow = dirtBy[id].snow * rules.clamp(tonumber(value) or 0.5, 0, 1) end
+    if dirtBy[id] then dirtBy[id].snow = (dirtBy[id].snow or 0) * rules.clamp(tonumber(value) or 0.5, 0, 1) end
     return 'snow melted to ' .. tostring(value)
   end
   if kind == 'groundsnow' then forcedSnowGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on snow: ' .. tostring(forcedSnowGround) end
