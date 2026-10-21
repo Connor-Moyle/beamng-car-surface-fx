@@ -159,6 +159,14 @@ for _ = 1, 300 do T.updateGFX(0.01) end
 local sawDebris
 for k = sentBefore + 1, #sent do if sent[k]:find('"debris"', 1, true) then sawDebris = true end end
 assert(sawDebris, 'worn rubber goes to the game side as debris events')
+-- a tyre that wears through is blown and wears no more, so it throws its tread once: one debris event of shredG grams (120), not one per tick
+local shred = 0
+for k = sentBefore + 1, #sent do for _ in sent[k]:gmatch('"debris",120%.00') do shred = shred + 1 end end
+assert(shred >= 1, 'a tyre that blows throws one burst of tread (' .. shred .. ')')
+for _ = 1, 50 do T.updateGFX(0.01) end
+local shred2 = 0
+for k = sentBefore + 1, #sent do for _ in sent[k]:gmatch('"debris",120%.00') do shred2 = shred2 + 1 end end
+assert(shred2 == shred, 'and only once per blown tyre: ' .. shred .. ' -> ' .. shred2)
 -- a tyre fire goes to the game's own fire system as one flammable tread node, and is taken out again
 fire = { debugData = { flammableNodes = {} }, igniteNode = function(cid, temp) fire.lit = { cid, temp } end }
 T.setConfig({ enabled = true })

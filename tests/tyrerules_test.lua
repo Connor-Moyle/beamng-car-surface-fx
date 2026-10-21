@@ -373,11 +373,11 @@ do
   -- decay: gone after lifeS (95 %), faster in the wet
   local d = {}
   R.marbleAdd(d, 0, 0, 0, 100, 20, 0, c)
-  for _ = 1, 600 do R.marbleStep(d, 1, 20, 0, c) end
+  for _ = 1, math.floor(c.marbles.lifeS) do R.marbleStep(d, 1, 20, 0, c) end
   assert(#d == 0 or d[1].g < 6, 'a patch is gone after lifeS')
   local w = {}
   R.marbleAdd(w, 0, 0, 0, 100, 20, 0, c)
-  for _ = 1, 200 do R.marbleStep(w, 1, 20, 1, c) end
+  for _ = 1, math.floor(c.marbles.lifeS / 3) do R.marbleStep(w, 1, 20, 1, c) end
   assert(#w == 0 or w[1].g < 6, 'rain clears it three times faster')
   -- burn: a hot big patch burns for pileBurnS and loses 70 % of its grams, a cool or small one does not
   local h = {}
