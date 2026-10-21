@@ -114,13 +114,13 @@
     var v = Math.floor(hash(b.x, b.y, 5) * 16), x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     var ang = (b.dx || b.dy) ? Math.atan2(b.dy, b.dx) + Math.PI / 2 + (hash(b.x, b.y, 6) - 0.5) * 0.6 : hash(b.x, b.y, 7) * 6.2832;
     var litDust = emis && b.t === 'dust';                                // lit dust: wide, faint and dim, so it is an even film on every paint and never a white dot
-    var size = r * (b.t === 'mud' ? 2.6 : litDust ? 3.4 : 2.2), stretch = (b.dx || b.dy) ? (b.t === 'mud' ? 2.6 : 1.35) : 1;       // sprayed mud is a streak along the spray
+    var size = r * (b.t === 'mud' ? 2.6 : litDust ? 3.4 : 2.2), stretch = (b.dx || b.dy) ? (b.t === 'mud' ? 2.3 : 1.35) : 1;       // sprayed mud is a streak along the spray
     sctx.save();
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
     if (litDust) sctx.filter = 'brightness(0.45)';
     else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
-    sctx.translate(x, y); sctx.rotate(ang); sctx.scale(stretch > 2 ? 0.65 : 1, stretch);
+    sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
     // the base page is drawn heavier than the palette's punch (as ink() does for the plain splats): under a part-erased palette any white left in the base reads as a pale ring or dot, worst on dark paint
     var passes = (palette || emis) ? 1 : 3;
     for (var q = 0; q < passes; q++) sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
