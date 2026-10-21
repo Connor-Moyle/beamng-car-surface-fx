@@ -469,7 +469,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
   end
   if #cakes > 0 then
-    drawSplats(veh, cakes, nil, { c = c, a = math.min(1, a + 0.1), k = 'cake' })
+    drawSplats(veh, cakes, nil, { c = c, a = math.min(1, a + 0.1), k = 'cake', t = 'mud' })
     for i = 1, #cakes, 3 do remember(m.splats, { q(cakes[i]), q(cakes[i + 1]), q(cakes[i + 2], 10000), q(a), 2 }) end
   end
   return true
