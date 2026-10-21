@@ -22,7 +22,7 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
 
 ## Install
 
-Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to link the folder into your BeamNG user folder as an unpacked mod named `carSurfaceFx`). The mod starts with the game and keeps running across level loads. Needs BeamNG.drive 0.39.
+Copy the `mod` folder's contents into a mod zip (or use `tools\install.ps1` to link the folder into your BeamNG user folder as an unpacked mod named `carSurfaceFx`). The mod starts with the game and keeps running across level loads. Needs BeamNG.drive 0.40.
 
 ## Settings
 
