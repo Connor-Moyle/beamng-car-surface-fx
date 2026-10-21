@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Leak pools follow the volume let out: when the game gives a leak rate (the engine's oil and coolant, the tanks' fuel) the litres since the last report grow the pool under a parked car (for coolant, the kilograms the engine's own reservoir lost, so a radiator that empties between two reports is counted in full), so a punctured radiator that dumps its coolant in seconds leaves a pool about 0.6 m across instead of an 8 cm spot; the drips of that leak only feed the pool. One leak makes one pool (the drips scatter less and join the pool from further out). With only a damage flag known the drips grow the pool as before. Not yet seen in the game.
+- Coolant and fuel pools follow the volume let out: the kilograms the engine's coolant reservoir lost since the last report (so a radiator that empties between two reports is counted in full) and the fuel tanks' leak rate grow the pool under a parked car, so a punctured radiator that dumps its coolant in seconds leaves one pool about 0.65 m across instead of an 8 cm spot (seen by 80: one coolant pool, 0.66 m across, there within 10 s). Oil keeps growing by its drips: the game's oil leak rate never runs dry, and rate × time filled the oil pool to its cap within a minute (80's check), so it is not used. One leak makes one pool (the drips scatter less and join the pool from further out). With only a damage flag known the drips grow the pool as before. Not yet seen: a clean coolant close-up, the oil pool back at its drip-fed size.
 
 ## 0.4.2 (2026-10-21)
 
