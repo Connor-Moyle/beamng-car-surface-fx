@@ -153,7 +153,7 @@ function RULES.bugs(map, c)
   return exp(-abs(c.h - 0.5) / 0.3) + (c.nz > 0.3 and c.h > 0.5 and 0.4 or 0)
 end
 function RULES.snow(map, c)
-  if c.nz < 0.78 or c.h < 0.4 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off
+  if c.nz < 0.78 or c.h < 0.25 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off
   return c.nz ^ 10
 end
 M.RULES = RULES
@@ -185,7 +185,7 @@ function M.sample(map, kind, n, rnd, wi, opts)
     local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
       -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
-      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.5)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.35)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
     if kind == 'rubber' and #out > 0 then return out end
   end
