@@ -3,6 +3,7 @@
 -- (Street Legal): getTyres, setCompound, setTread, snapshot / restore, and the hook onCsfxTyreBlown(vehId, wheelIdx). Debris, smoke and fire visuals are driven from the events here.
 local M = {}
 local R = require('csfx_tyrerules')
+local marbles = require('carSurfaceFx/marbles')
 
 local cfg = R.defaults()
 cfg.enabled = false                        -- off until the settings switch it on
@@ -59,6 +60,16 @@ function M.reload()
   return M.configure(f)
 end
 function M.getConfig() return cfg end
+function M.clearMarbles() marbles.clear() for id in pairs(watched) do send(id, 'if carSurfaceFxTyres then carSurfaceFxTyres.setMarbles({}) end') end end
+M.onClientEndMission = function() marbles.clear() end
+-- the patches are drawn as decals, through the marks module's one engine call when it is loaded
+function M.onPreRender(dt)
+  if not (cfg.marbles.enabled and marbles.count() > 0) then return end
+  if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
+  local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
+  local mk = rawget(_G, 'carSurfaceFx_marks')
+  marbles.draw(cfg, cam and cam.x, cam and cam.y, function(pl, n) if mk and mk.drawBatch then mk.drawBatch(pl, n) else Engine.Render.DynamicDecalMgr.addDecals(pl, n) end end)
+end
 
 function M.lookEvent(id, wi, what, n)                  -- one-off facts from the car's look and spark code, written here because the car's own log does not reach beamng.log
   log('I', 'carSurfaceFx_tyres', string.format('car %s wheel %s: %s (%s)', tostring(id), tostring(wi), tostring(what), tostring(n)))
@@ -101,8 +112,18 @@ function M.look(id, wi, stage, list)
 end
 -- called by carSurfaceFx every frame: the weather to the cars once a second, a snapshot of each car every 5 s (for the career save)
 local RAIN_FILM, filmSent = 0.2, false
+local marbleT = 0
 function M.update(dt, wet)
   lastWet = wet or lastWet
+  if cfg.marbles.enabled or marbles.count() > 0 then
+    local burning = marbles.step(cfg, dt, 20, lastWet)
+    marbleT = marbleT + dt
+    local packed = marbles.pack(marbleT >= 2)          -- when something changed, and every 2 s anyway (a respawned car)
+    if packed then
+      marbleT = 0
+      for id in pairs(watched) do send(id, 'if carSurfaceFxTyres then carSurfaceFxTyres.setMarbles(' .. packed .. ') end') end
+    end
+  end
   if cfg.enabled then local pid = be and be:getPlayerVehicleID(0) if pid and pid >= 0 then M.attach(pid) end end
   envT, snapT = envT + dt, snapT + dt
   if envT >= 1 then
@@ -138,7 +159,10 @@ function M.state(id, ws, events)
     if extensions and extensions.hook then extensions.hook('onCsfxTyreEvent', id, e[1], e[2]) end
     if e[2] == 'ignite' then emit('flame', id, e[1], true)
     elseif e[2] == 'out' or e[2] == 'pop' then emit('flame', id, e[1], false) if e[2] == 'pop' then emit('pop', id, e[1]) emit('bang', id, e[1]) if cfg.blowout.enabled then emit('panel', id, e[1], cfg.blowout.strength) end end
-    elseif e[2] == 'debris' then emit('debris', id, e[1], e[3], e[4]) end
+    elseif e[2] == 'debris' then
+      emit('debris', id, e[1], e[3], e[4])
+      if e[5] then marbles.add(cfg, e[3], e[4], e[5], e[6], e[7]) end          -- (the contact patch's world position, when the wheel was on the road)
+    elseif e[2] == 'scuff' then marbles.scuff(e[3], (e[4] or 0) / 100) end
   end
 end
 function M.gotSnapshot(id, json) local ok, t = pcall(jsonDecode, json) if ok and type(t) == 'table' then snaps[id] = t end end

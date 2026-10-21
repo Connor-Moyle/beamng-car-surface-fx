@@ -47,6 +47,8 @@ function M.defaults()
     look = { enabled = true, wornBelow = 0.5 },      -- the worn tyre look: on or off, and the fraction of tread left below which a tyre looks worn (the belts show at no tread)
     fires = true, fireSpread = false, spreadAfter = 4,        -- Mods settings: "Tyre fires", "Fires can spread to the car"; the car's nearest flammable node is lit after spreadAfter s of tyre fire
     debris = { enabled = true, density = 0.0011, minFrac = 0.3, maxFrac = 0.8, hotFrom = 120, hotTo = 220, pileTau = 15, pileIgniteT = 350, pileMinG = 20, pileBurnS = 12 },
+    -- rubber marbles left on the road by a long burnout (Connor): the patches are kept by the game side, off by default; gripLoss is the grip lost at 100 g (twice that at 200 g and more); burn lets a hot patch burn for debris.pileBurnS
+    marbles = { enabled = false, gripLoss = 0.10, burn = false, lifeS = 600, maxPatches = 24, maxG = 400, mergeR = 1.5, minG = 2, burnLoss = 0.7 },
   }
 end
 
@@ -332,5 +334,58 @@ end
 -- ---- the flat-spot shake (research 2.3, 8.6): the rate (Hz) once per revolution, and the radial force it pulls on the tyre
 function M.shakeHz(wheelSpeed, radius) return math.abs(wheelSpeed or 0) / (2 * math.pi * (radius or 0.31)) end
 function M.shakeForce(depthMm, kRad) return (kRad or 250) * (depthMm or 0) end         -- N, 250 N/mm
+
+-- ---- rubber marbles on the road (Connor 2026-10-21): patches {x, y, z, g, T, born, burn} that merge, decay, cool, burn and slow a tyre rolling over them. Pure: the GE module keeps the list and draws it.
+-- a patch of g grams: the radius of the patch grows from 0.5 m to mergeR with the load
+function M.marbleRadius(g, cfg) local m = cfg.marbles return 0.5 + (m.mergeR - 0.5) * clamp(g / m.maxG, 0, 1) end
+-- add `g` grams at (x, y, z) at temperature T: into the patch within mergeR if there is one, else a new patch (the oldest goes when there are maxPatches). Returns the patch.
+function M.marbleAdd(list, x, y, z, g, T, now, cfg)
+  local m = cfg.marbles
+  local best, bd
+  for _, p in ipairs(list) do
+    local d = (p.x - x) ^ 2 + (p.y - y) ^ 2
+    if d <= m.mergeR * m.mergeR and (not bd or d < bd) then best, bd = p, d end
+  end
+  if best then
+    local tot = best.g + g
+    best.T = (best.T * best.g + T * g) / math.max(tot, 1e-6)       -- the temperature of the mix
+    best.g = math.min(tot, m.maxG)
+    return best
+  end
+  if #list >= m.maxPatches then
+    local oi = 1
+    for i, p in ipairs(list) do if p.born < list[oi].born then oi = i end end
+    table.remove(list, oi)
+  end
+  local p = { x = x, y = y, z = z, g = math.min(g, m.maxG), T = T, born = now, burn = 0 }
+  list[#list + 1] = p
+  return p
+end
+-- one step of every patch: it cools (pileStep), decays over lifeS (three times faster in the wet), burns when it may, and goes below minG. Returns how many patches burn now.
+function M.marbleStep(list, dt, ambient, wet, cfg)
+  local m, burning = cfg.marbles, 0
+  for i = #list, 1, -1 do
+    local p = list[i]
+    local was = (p.burn or 0) > 0
+    local on = M.pileStep(p, dt, ambient, wet, cfg)
+    if not m.burn then p.burn, on = 0, false end
+    if was and not on then p.g = p.g * (1 - m.burnLoss) end          -- the fire used the rubber up
+    if on then burning = burning + 1 end
+    p.g = p.g * math.exp(-dt / (m.lifeS / (1 + 2 * clamp(wet or 0, 0, 1))) * 3)
+    if p.g < m.minG then table.remove(list, i) end
+  end
+  return burning
+end
+-- the share of a patch's grams a wheel scuffs away when it drives over it
+function M.marbleScuff(p, frac) p.g = p.g * (1 - clamp(frac or 0, 0, 1)) end
+-- the grip multiplier of a tyre on a patch of g grams (1 = none)
+function M.marbleGrip(g, cfg) local m = cfg.marbles return 1 - clamp(m.gripLoss, 0, 0.3) * clamp((g or 0) / 100, 0, 2) end
+-- the patch under the point (x, y): its index, or nil
+function M.marbleAt(list, x, y, cfg)
+  for i, p in ipairs(list) do
+    local r = M.marbleRadius(p.g, cfg)
+    if (p.x - x) ^ 2 + (p.y - y) ^ 2 <= r * r then return i, p end
+  end
+end
 
 return M
