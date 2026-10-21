@@ -156,6 +156,9 @@ function RULES.snow(map, c)
   if c.nz < 0.78 or c.h < 0.25 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off
   return c.nz ^ 10
 end
+-- paint wear (carSurfaceFx.setPaintWear): anywhere on the visible body, not the underside (the road film rule gives that most of the weight, and nobody sees it); the low one for rust
+function RULES.wear(map, c) return c.nz < -0.3 and 0 or 1 end
+function RULES.wearlow(map, c) return c.nz < -0.3 and 0 or (0.25 + exp(-c.h / 0.45)) end
 M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)

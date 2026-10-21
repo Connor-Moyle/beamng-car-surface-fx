@@ -48,6 +48,14 @@ local snow = B.sample(map, 'snow', 300, rnd)
 local _, _, flat, n = stat(snow)
 assert(n == 300 and flat == 1, 'snow lands only on the roof: ' .. flat)
 
+-- paint wear: never on a face that looks down, and the low rule keeps rust low
+for _, kind in ipairs({ 'wear', 'wearlow' }) do
+  local l, down = B.sample(map, kind, 300, rnd), 0
+  for _, s in ipairs(l) do if cellAt(s.u, s.v).nz < -0.3 then down = down + 1 end end
+  assert(#l == 300 and down == 0, kind .. ' wear is on the visible body: ' .. down)
+end
+assert(stat(B.sample(map, 'wearlow', 300, rnd)) < stat(B.sample(map, 'wear', 300, rnd)), 'low wear sits lower than the plain wear')
+
 -- mud thrown by the rear left wheel: low, and behind that wheel's middle
 local mud = B.sample(map, 'mud', 400, rnd, 3)
 local h, rear = stat(mud)

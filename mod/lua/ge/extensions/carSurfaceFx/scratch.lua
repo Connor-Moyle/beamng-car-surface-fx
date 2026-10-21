@@ -494,7 +494,7 @@ local function wearPlaces(id)
     end
     return out
   end
-  wearPos[id] = { fl = pick('dust', 70, 0.35), gl = pick('grime', 60, 0.25), sl = pick('dust', 50, 0.2), rl = pick('grime', 70, 0.035) }       -- rust and the road film both gather low on the body
+  wearPos[id] = { fl = pick('wear', 120, 0.4), gl = pick('wearlow', 120, 0.3), sl = pick('wear', 120, 0.25), rl = pick('wearlow', 140, 0.05) }       -- rust and the road film gather low on the body
   return wearPos[id]
 end
 -- w = { fade=, grime=, scuffs=, rust= } each 0..1; nil or all zeros takes the layer away

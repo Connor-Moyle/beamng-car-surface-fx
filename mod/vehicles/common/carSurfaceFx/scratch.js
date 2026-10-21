@@ -284,16 +284,16 @@
   }
   function drawWear() {
     if (!wear) return;
-    if (wear.fade > 0 && wear.fl) wearSplats(wear.fl, wear.fade, 'dust', 'dust', [0.78, 0.76, 0.70], 0.3 * wear.fade, 1);
-    if (wear.grime > 0 && wear.gl) wearSplats(wear.gl, wear.grime, 'grime', 'dust', [0.24, 0.23, 0.21], 0.5 * wear.grime, 1);
+    if (wear.fade > 0 && wear.fl) wearSplats(wear.fl, wear.fade, 'dust', 'dust', [0.78, 0.76, 0.70], 0.6 * wear.fade, 1);
+    if (wear.grime > 0 && wear.gl) wearSplats(wear.gl, wear.grime, 'grime', 'dust', [0.24, 0.23, 0.21], 0.8 * wear.grime, 1);
     if (wear.rust > 0 && wear.rl) wearSplats(wear.rl, wear.rust, 'rust', 'mud', [0.45, 0.2, 0.07], Math.min(1, 0.4 + wear.rust), 1);
     if (wear.scuffs > 0 && wear.sl && !emis) {
       var n = Math.ceil(wear.sl.length / 3 * wear.scuffs), l = [];
       for (var i = 0; i < n; i++) {
         var x = wear.sl[i * 3], y = wear.sl[i * 3 + 1], len = wear.sl[i * 3 + 2], a = hash(x, y, 8) * 6.2832;
-        l.push(x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2, x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2, 0.004);
+        l.push(x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2, x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2, 0.007);
       }
-      drawLines({ l: l, c: [0.8, 0.8, 0.78], a: 0.35 + 0.5 * wear.scuffs });
+      drawLines({ l: l, c: [0.8, 0.8, 0.78], a: 0.6 + 0.4 * wear.scuffs });
     }
   }
   function buildWear() {                                          // (again when a splat picture has loaded)
