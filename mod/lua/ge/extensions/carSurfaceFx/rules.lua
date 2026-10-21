@@ -168,11 +168,12 @@ function M.dirtPaint(p, d)
 end
 
 -- What a ground model puts on the car, by name (core_environment.groundModels keys). Returns class, weight: 'mud' / 'loose' (dust when dry, mud when wet) / 'road' / nil.
-local LOOSE = { { 'clay', 0.7 }, { 'dirt', 0.6 }, { 'sand', 0.5 }, { 'gravel', 0.5 }, { 'grass', 0.25 }, { 'snow', 0.15 }, { 'rock', 0.15 } }
+local LOOSE = { { 'clay', 0.7 }, { 'dirt', 0.6 }, { 'sand', 0.5 }, { 'gravel', 0.5 }, { 'grass', 0.25 }, { 'rock', 0.15 } }
 local ROAD = { 'asphalt', 'concrete', 'tarmac', 'road', 'cobble', 'paved', 'brick' }
 function M.groundClass(name)
   local n = tostring(name):lower()
   if n:find('mud', 1, true) then return 'mud', 1 end
+  if n:find('snow', 1, true) then return 'snow', 1 end                               -- (snow is not dust: it throws slush)
   for _, g in ipairs(LOOSE) do if n:find(g[1], 1, true) then return 'loose', g[2] end end
   for _, r in ipairs(ROAD) do if n:find(r, 1, true) then return 'road', 1 end end
   return nil, 0
