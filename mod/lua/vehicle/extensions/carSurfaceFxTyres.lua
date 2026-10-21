@@ -13,7 +13,7 @@ local DEBRIS_FLUSH_G = 1             -- grams of rubber worn off before one debr
 local CORNER_RATIO = 0.3              -- slip under this share of the wheel surface speed: cornering, not wheelspin
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
-local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks (the engine's own METAL on asphalt rule uses 2.5 too)
+local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks
 local SPARK_MAX = 4                  -- sparks per tick (10 Hz) at the most
 local SPARK_PARTICLE = 1            -- particles.json type 1: sparks
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
@@ -254,7 +254,7 @@ local function sendState(events)
     local worst = R.worstFlat(e.t)
     local hz, sn = M.shake(wi)
     local stage = e.t.blown and 5 or R.stage(e.t, cfg)
-    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, (cfg.look and cfg.look.enabled == false) and 0 or stage, true, cfg.sparksEnabled ~= false) end      -- (the look switch off: the car's own tyre material)
+    if carSurfaceFxTyreLook then pcall(carSurfaceFxTyreLook.set, wi, (cfg.look and cfg.look.enabled == false) and 0 or stage, true) end      -- (the look switch off: the car's own tyre material)
     local minH = math.huge
     for j = 1, 2 * e.t.n do minH = min(minH, e.t.h[j]) end
     minH = max(0, minH)                                         -- below 0 the tread is into the belts (cord margin): reported as 0

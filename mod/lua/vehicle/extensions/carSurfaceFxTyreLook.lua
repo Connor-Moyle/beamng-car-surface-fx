@@ -1,14 +1,11 @@
 -- Car Surface FX, vehicle side: how worn each tyre of this car looks. The tyre module reports a stage per wheel (0 new .. 4 bald, 5 belts); here each wheel's own tyre mesh is switched to the
 -- file-defined material csfx_<original>_s<stage> (vehicles/common/carSurfaceFx/stages.materials.json, loaded by the game with the first car, made by tools/make_tyre_stage_materials.py) with the engine's per-mesh switch, the way the glowMap on/off
--- materials switch. The switch itself is made on the game side (carSurfaceFx_tyres.look): called from the car's Lua it has no effect on the screen (found in game); here the meshes of each wheel are found. At the belts the tread nodes become METAL, so the engine's own spark and scrape rules (particles.json, METAL on asphalt) apply.
+-- materials switch. The switch itself is made on the game side (carSurfaceFx_tyres.look): called from the car's Lua it has no effect on the screen (found in game); here the meshes of each wheel are found. The tread nodes stay rubber at every stage: a belt-worn tyre still grips (poorly) as a tyre; a METAL flip made the engine drop the wheel's tyre force (found in game), so it is not done.
 local NAMES = require('csfx_tyrelook_names')
 local M = {}
 
-local RUBBER_MAT, METAL_NAME = 4, 'METAL'
 local sw                            -- wheel index -> { { orig, mesh } } once built
 local stageOf = {}                  -- wheel index -> the stage on show
-local metalOf = {}                  -- wheel index -> true while its tread nodes are METAL
-local metalFailSaid = {}            -- wheel index -> true once a failed flip has been written to the log (a failing one is retried on every report, said once)
 local pinned = {}                  -- wheel index -> true while a test has set its stage by hand (the tyre module's own reports leave it alone)
 local disabled = false
 
@@ -58,38 +55,18 @@ local function build()
   end
 end
 
-local function setMetal(wi, on)
-  local wd = wheels.wheels[wi]
-  if not (wd and wd.treadNodes) or (metalOf[wi] or false) == on then return end
-  local id = RUBBER_MAT
-  if on then
-    local ok, r = pcall(function() return particles.getMaterialIDByName(particles.materials or v.data.materials, METAL_NAME) end)
-    id = ok and tonumber(r) or 2                    -- 2 = METAL in the game's material list (research 7.6)
-  end
-  local failed, why = 0, nil
-  for _, cid in ipairs(wd.treadNodes) do
-    local ok, err = pcall(obj.setNodeMaterial, obj, cid, id)
-    if not ok then failed = failed + 1 why = why or tostring(err) end
-  end
-  if failed == 0 then metalOf[wi] = on metalFailSaid[wi] = nil elseif metalFailSaid[wi] then return else metalFailSaid[wi] = true end      -- a flip with failures is retried by the next report
-  -- the car's own log does not reach beamng.log: the game side writes the line (with the material id and any failures, so a missing effect can be told from a missing call)
-  obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,%q,%q) end', obj:getId(), wi, on and 'metal' or 'rubber',
-    string.format('%d nodes, material id %s, %d failed%s', #wd.treadNodes, tostring(id), failed, why and (': ' .. why:sub(1, 80)) or '')))
-end
-
 -- stage 0 puts the car's own material back; wear on a wheel that has no tyre mesh we know leaves the look alone
 local function wheelKey(w)              -- a wheel by its key in wheels.wheels or by the car's own name for it (FR, RL, ...): the key order comes from each car's jbeam
   if type(w) ~= 'string' then return w end
   for k, wd in pairs(wheels.wheels or {}) do if tostring(wd.name):upper() == w:upper() then return k end end
   return w
 end
-function M.set(wi, stage, auto, sparks)  -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore(). sparks false: the belts do not turn the tread to METAL (the game's sparks are off)
+function M.set(wi, stage, auto)         -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore()
   wi = wheelKey(wi)
   if disabled or (auto and pinned[wi]) then return end
   if not auto then pinned[wi] = true end
   if not sw then build() end
   stage = math.max(0, math.min(5, math.floor(tonumber(stage) or 0)))
-  pcall(setMetal, wi, stage >= 5 and sparks ~= false)                         -- every call: it does nothing when the nodes already are as wanted, and a flip that could not be made the first time (nodes not ready) is made on the next report
   if stageOf[wi] == stage then return end
   stageOf[wi] = stage
   local pairsOut = {}

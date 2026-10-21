@@ -73,7 +73,7 @@ local ROWS = {
 
   row('fire', 'debris.enabled', 'bool', 'Rubber debris', 'Worn rubber is thrown off the tyre as debris on the road.'),
   row('fire', 'smokeEnabled', 'bool', 'Tyre smoke', 'Hot tyres smoke in a burnout, thicker the hotter they get. Off: no smoke.'),
-  row('fire', 'sparksEnabled', 'bool', 'Sparks from belt-worn tyres', 'A tyre worn to its belts or burst throws sparks where it slides on the road: the tread turns to metal there, so the game itself makes the sparks (and our own as well). Off: the tread stays rubber and nothing sparks.'),
+  row('fire', 'sparksEnabled', 'bool', 'Sparks from belt-worn tyres', 'A tyre worn to its belts, or burst, throws sparks where it slides on the road. Off: no sparks.'),
   row('fire', 'fires', 'bool', 'Tyre fires', 'A tyre that gets hot enough catches fire.'),
   row('fire', 'fireSpread', 'bool', 'Fires can spread to the car', 'A tyre fire that burns long enough lights the nearest part of the car. The fire on the car is the game itself burning it, and may last until you reset.'),
   row('fire', 'spreadAfter', 'slider', 'Seconds before the car catches', 'How long a tyre fire burns before it lights the car.', 1, 20, 1, 's', true),
