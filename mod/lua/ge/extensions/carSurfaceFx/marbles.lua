@@ -46,6 +46,15 @@ function M.pack(force)
   return '{' .. table.concat(o, ',') .. '}'
 end
 
+-- two cached colours (the dark bits) and a few of the glow, so a frame allocates nothing
+local DARK, GLOWC
+local function glowColour(phase)
+  GLOWC = GLOWC or {}
+  local i = math.floor((phase % 1) * 8) + 1
+  if not GLOWC[i] then local s = math.sin((i - 1) / 8 * 6.283) GLOWC[i] = ColorF(1, 0.30 + 0.15 * s, 0.04, 0.55 + 0.25 * s) end
+  return GLOWC[i]
+end
+
 local function hash(a, b) local s = math.sin(a * 12.9898 + b * 78.233) * 43758.5453 return s - math.floor(s) end
 
 -- the decals of this frame: dark bits scattered over each patch within CULL of the camera, a glow under a burning one. One engine call draws decals of ONE texture, so each texture
@@ -80,7 +89,8 @@ function M.draw(cfg, camX, camY, draw)
         e.position:set(p.x + math.cos(a) * d, p.y + math.sin(a) * d, p.z)
         e.forwardVec:set(math.cos(ang), math.sin(ang), 0)
         e.scale:set(s, s, DEPTH)
-        e.color = ColorF(0.04, 0.04, 0.04, 0.9)
+        DARK = DARK or ColorF(0.04, 0.04, 0.04, 0.9)
+        e.color = DARK
       end
       if (p.burn or 0) > 0 and total < MAX_BITS then
         total = total + 1
@@ -88,7 +98,7 @@ function M.draw(cfg, camX, camY, draw)
         e.position:set(p.x, p.y, p.z)
         e.forwardVec:set(1, 0, 0)
         e.scale:set(r * 2, r * 2, DEPTH)
-        e.color = ColorF(1, 0.30 + 0.15 * math.sin(clock * 11 + (p.id or 0)), 0.04, 0.45 + 0.25 * math.sin(clock * 7 + (p.id or 0) * 2))
+        e.color = glowColour(clock * 1.7 + (p.id or 0) * 0.37)       -- a pulse: eight steps round the cycle
       end
     end
   end

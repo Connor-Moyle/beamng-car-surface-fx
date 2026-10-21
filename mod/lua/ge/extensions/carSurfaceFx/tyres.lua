@@ -207,4 +207,7 @@ function M.restore(id, blob)
   return true
 end
 
+-- onPreRender runs every frame: one error switches it off (logged once) instead of repeating for every player; update() is called by carSurfaceFx.update under its own safety net
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_tyres', { 'onPreRender' })
+
 return M

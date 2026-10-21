@@ -57,6 +57,18 @@ assert(glow, 'a burning patch glows')
 for _ = 1, 7000 do M.step(T.getConfig(), 0.1, 20, 0) end
 assert(M.count() == 0, 'cleared over time')
 
+-- an error in the draw switches the hook off once (the guard), and resume() brings it back
+local okDraw = Engine.Render.DynamicDecalMgr.addDecals
+Engine.Render.DynamicDecalMgr.addDecals = function() error('boom') end
+M.add(T.getConfig(), 100, 20, 20, 20, 0)
+T.onPreRender(0.016)
+assert(T.failure() and T.failure():find('boom', 1, true), 'the guard caught the error: ' .. tostring(T.failure()))
+T.onPreRender(0.016)
+Engine.Render.DynamicDecalMgr.addDecals = okDraw
+T.resume()
+assert(T.failure() == nil, 'resumed')
+M.clear()
+
 -- the cap
 for i = 1, 40 do M.add(T.getConfig(), 10, 20, 100 * i, 0, 0) end
 assert(M.count() == 24, 'at most 24 patches')
