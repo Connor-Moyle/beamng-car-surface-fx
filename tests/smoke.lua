@@ -221,6 +221,10 @@ M.onGround(7, 0, 0, 0, 0, 0, 0, 0.5, 0, 85)
 tick(1200)
 assert(M.status():find('frost 0%.00'), 'a warm engine cleared it: ' .. M.status())
 M.debug()
+-- Part Wear's hooks: worn glass and worn wiper blades, off until called, cleared by a value that says new
+assert(M.setGlassWear(7, { pits = 0.5, haze = 0.2 }) == true, 'worn glass is stored')
+assert(M.setGlassWear(7, { pits = 0, haze = 0 }) == false and M.setGlassWear(7, {}) == false and M.setGlassWear(7, nil) == false, 'no wear clears it')
+assert(M.setWiperWear(7, 0.4) == true and M.setWiperWear(7, 1) == false and M.setWiperWear(7, nil) == false, 'worn blades are stored, new ones clear it')
 -- the Mods menu schema: registered with the registry, every field complete and consistent with the mod's defaults
 local registered
 slrr_settings = {

@@ -9,7 +9,7 @@
   var W = canvas.width = window.innerWidth || 512, H = canvas.height = window.innerHeight || 512;
   var ctx = canvas.getContext('2d');
   var sim = CsfxSim.create(1800);
-  var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0 };
+  var p = { flow: null, frost: 0, rain: 0, wet: 0, speed: 0, aLong: 0, aLat: 0, wiper: 0, gx: 0, gy: 1, tint: 1, passes: 1, flood: 0, pits: 0, haze: 0, wipeKeep: 1 };
   var last = performance.now();
   var q = function (name) { var m = new RegExp('[?&]' + name + '=([^&]*)').exec(location.search); return m ? decodeURIComponent(m[1]) : ''; };
   var emissive = q('mode') === 'emissive', basePath = q('base');
@@ -118,7 +118,25 @@
     filmBuilt = true;
   }
 
-  window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); };
+  // worn glass (carSurfaceFx.setGlassWear, from Part Wear): a milky haze and small pits, drawn over everything from a layer made once for each pits/haze value (seeded: the same pits every time)
+  var wearLayer = null, wearKey = '';
+  function buildWear() {
+    wearKey = p.pits + '/' + p.haze;
+    wearLayer = null;
+    if (!(p.pits > 0.01 || p.haze > 0.01)) return;
+    wearLayer = document.createElement('canvas');
+    wearLayer.width = W; wearLayer.height = H;
+    var c = wearLayer.getContext('2d'), seed = 4321;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    if (p.haze > 0.01) { c.fillStyle = emissive ? 'rgba(255,255,255,' + (0.12 * p.haze) + ')' : 'rgba(235,240,245,' + (0.5 * p.haze) + ')'; c.fillRect(0, 0, W, H); }
+    var n = Math.round(Math.min(1, p.pits) * 600);
+    for (var i = 0; i < n; i++) {
+      var x = rnd() * W, y = rnd() * H, r = 0.7 + 1.6 * rnd() * rnd() * (0.5 + p.pits);
+      c.fillStyle = emissive ? 'rgba(255,255,255,0.25)' : 'rgba(250,252,255,' + (0.45 + 0.4 * rnd()) + ')';
+      c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.fill();
+    }
+  }
+  window.csfxSet = function (o) { for (var k in o) p[k] = o[k]; if (p.passes !== builtPasses) buildBg(); if (p.pits + '/' + p.haze !== wearKey) buildWear(); };
   window.csfxClear = function () { sim = CsfxSim.create(1800); };
 
   var imp = [], IMP_LIFE = 0.25;                                      // raindrop impacts: [x, y, age] rings that open and fade in a quarter second
@@ -191,6 +209,7 @@
       imp[kept++] = im;
     }
     imp.length = kept;
+    if (wearLayer) ctx.drawImage(wearLayer, 0, 0);
     if (p.frost < 0.05) frostFresh = false;
     else if (!frostFresh) { fctx.globalCompositeOperation = 'source-over'; fctx.clearRect(0, 0, 256, 256); fctx.drawImage(frostTex, 0, 0); frostFresh = true; }
     if (p.frost > 0.01 && p.wiper > 0.05 && sim.wipe !== wipePrev) {     // the blade's band, along the glass's axis (as in sim.js), is clear

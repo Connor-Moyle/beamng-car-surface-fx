@@ -37,6 +37,14 @@ assert(d.x[side] !== 0.5, 'cornering slides them sideways');
 d = S.create(); const w = S.add(d, 0.5, 0.5, 0.008);
 for (let i = 0; i < 180; i++) S.step(d, 1 / 60, P({ wiper: 1, wet: 1 }));
 assert.strictEqual(d.alive[w], 0, 'the wiper clears the drop');
+// worn blades (wipeKeep: the share of the drops a sweep clears): none cleared at 0, all at 1
+{
+  const worn = S.create(), fresh = S.create(), N = 60, ids = [], ids2 = [];
+  for (let i = 0; i < N; i++) { ids.push(S.add(worn, 0.05 + 0.9 * i / N, 0.5 + (i % 3) * 0.001, 0.008)); ids2.push(S.add(fresh, 0.05 + 0.9 * i / N, 0.5 + (i % 3) * 0.001, 0.008)); }
+  for (let i = 0; i < 180; i++) { S.step(worn, 1 / 60, P({ wiper: 1, wet: 1, wipeKeep: 0 })); S.step(fresh, 1 / 60, P({ wiper: 1, wet: 1, wipeKeep: 1 })); }
+  const left = (dd, list) => list.filter((k) => dd.alive[k]).length;
+  assert(left(worn, ids) > left(fresh, ids2), 'worn blades leave drops that new ones clear: ' + left(worn, ids) + ' vs ' + left(fresh, ids2));
+}
 
 d = S.create(); const e = S.add(d, 0.5, 0.5, 0.004);
 for (let i = 0; i < 60 * 60; i++) S.step(d, 1 / 60, P({ wet: 0 }));

@@ -114,7 +114,7 @@
         if (!d.alive[j]) continue;
         var c = d.x[j] * px + d.y[j] * py;                            // position across the glass, 0..1 when (px,py) is an axis
         if (px + py < 0) c = 1 + c;
-        if (c >= lo && c <= hi) d.alive[j] = 0;
+        if (c >= lo && c <= hi && (p.wipeKeep == null || p.wipeKeep >= 1 || Math.random() < p.wipeKeep)) d.alive[j] = 0;      // worn blades (wipeKeep < 1) clear only that share of what they cross
       }
     }
   }

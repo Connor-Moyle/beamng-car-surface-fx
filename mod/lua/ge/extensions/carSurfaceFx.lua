@@ -613,6 +613,21 @@ local function sprayShown() return sprayP * (settings.weather.sprayStrength or 1
 local glassDbg = false
 function M.glassDebug(on) glassDbg = on == 'drops' and 'drops' or (on and true or false) return 'glass debug ' .. tostring(glassDbg) end
 
+-- Part Wear's hooks (off until it calls them): worn glass (pits, haze 0..1) and worn wiper blades (the share of the drops a sweep clears, 1 = new). A call that says "new" clears.
+local glassWear, wiperWear = {}, {}
+function M.setGlassWear(id, w)
+  id = id or be:getPlayerVehicleID(0)
+  local pits, haze = type(w) == 'table' and rules.clamp(tonumber(w.pits) or 0, 0, 1) or 0, type(w) == 'table' and rules.clamp(tonumber(w.haze) or 0, 0, 1) or 0
+  glassWear[id] = (pits > 0 or haze > 0) and { pits = pits, haze = haze } or nil
+  return glassWear[id] ~= nil
+end
+function M.setWiperWear(id, factor)
+  id = id or be:getPlayerVehicleID(0)
+  local f = tonumber(factor)
+  wiperWear[id] = (f and f < 1) and rules.clamp(f, 0, 1) or nil
+  return wiperWear[id] ~= nil
+end
+
 function M.pushGlass(car, mo)
   local rain = forced or rules.target(nil, core_environment.getPrecipitation())      -- the rain falling now, not the wetness that lingers
   local wetG = wet
@@ -625,7 +640,8 @@ function M.pushGlass(car, mo)
     if info.glass and info.rung > 0 and hasCanvas(car.veh, info.tag) then                    -- (a new car's canvases are made over the next ticks: nothing is sent before they exist)
       local field = car.flow and (car.flow[info.mapTo] or car.flow[info.name])
       js = ('csfxSet(' .. jsonEncode({ glassMm = settings.rain.glassDropMm, amount = settings.rain.dropAmount * (settings.rain.glassAmount or 3), imp = settings.rain.impacts, dbg = glassDbg == 'drops' and 2 or (glassDbg and 1 or 0), uvPerM = field and field.uvPerM or 0.5, rain = clear and 0 or rain * settings.windscreen.intensity, wet = clear and 0 or wetG, speed = forcedSpeed or mo.speed, aLong = mo.aLong, aLat = mo.aLat,
-        wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP }) .. ')')
+        wiper = wipersOf(car.veh:getID(), rain), film = filmOf(car.veh:getID()), gx = rules.glassAxis.x, gy = rules.glassAxis.y, size = rules.glassSize, tint = rules.glassTint, passes = rules.glassPasses, flood = flood, frost = frostP, spray = sprayP,
+        pits = (glassWear[car.veh:getID()] or {}).pits or 0, haze = (glassWear[car.veh:getID()] or {}).haze or 0, wipeKeep = wiperWear[car.veh:getID()] or 1 }) .. ')')
       car.veh:queueJSUITexture(info.tag, js)
     end
   end
@@ -829,7 +845,7 @@ local function update(dtReal)
       if id == pvId then frostP = frostBy[id] end
       for _, info in ipairs(car.mats) do
         local w = want
-        if info.glass then w = ((want > 0 or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.windows and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
+        if info.glass then w = ((want > 0 or glassWear[id] ~= nil or frostShown() > 0.03 or sprayShown() > 0.03 or filmOf(id) > 0.04) and settings.windscreen.windows and next(rules.glassFields(info.stages[0], info.tag, info.mode))) and 1 or 0 end
         if info.rung ~= w and not info.pending then info.pending = true queue[#queue + 1] = { info, w } end
       end
       if id == be:getPlayerVehicleID(0) then
@@ -911,7 +927,7 @@ function M.set(path, value)
 end
 function M.getSettings() return settings end
 
-function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil wiperBy[id] = nil wiperHold[id] = nil wiperNone[id] = nil screen.forget(id) end
+function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil glassWear[id] = nil wiperWear[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil wiperBy[id] = nil wiperHold[id] = nil wiperNone[id] = nil screen.forget(id) end
 function M.onVehicleSpawned(id) cars[id] = nil dirtBy[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
