@@ -109,13 +109,13 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   s.reset();
   s.w.csfxWash({ dust: 0.1, mud: 1, slide: 1 });
   assert(slushAll > 0 && s.ops.arcs === slushAll, 'a melt leaves the slush: ' + s.ops.arcs + ' of ' + slushAll);
-  // the lit page carries the snow lying on the car but not the slush (as light it glowed white)
+  // the lit page carries the slush too, at a third of the light (the only way it gets paler than the paint)
   const lit = page('?m=e');
   lit.w.csfxBlobs({ l, c: [0.95, 0.96, 0.98], a: 0.9, k: 'dust', t: 'snow' });
   const litSnow = lit.ops.arcs;
   lit.reset();
   lit.w.csfxBlobs({ l, c: [0.62, 0.64, 0.67], a: 0.6, k: 'mud', t: 'snow' });
-  assert(litSnow > 0 && lit.ops.arcs === 0, 'snow is lit, slush is not: ' + litSnow + ' / ' + lit.ops.arcs);
+  assert(litSnow > 0 && lit.ops.arcs > 0, 'snow and slush are both on the lit page (slush at a third of the light): ' + litSnow + ' / ' + lit.ops.arcs);
 }
 // the steady wear layer: drawn under the dirt on a redraw, grows with its value, and a call with no values takes it away
 {

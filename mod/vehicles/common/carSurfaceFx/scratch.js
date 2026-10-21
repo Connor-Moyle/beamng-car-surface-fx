@@ -119,8 +119,9 @@
     sctx.save();
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var thin = b.t === 'snow' && !isSlush(b) && b.a <= 0.3;              // the thin dusting on the sides: faint flecks, one pass, and a faint light (a full one made hard white spots)
-    sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? (thin ? 0.3 : 1) : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
+    sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? (thin ? 0.3 : isSlush(b) ? 0.35 : 1) : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
     if (litDust) sctx.filter = 'brightness(0.45)';
+    else if (isSlush(b) && !palette && !emis) sctx.filter = 'brightness(0.85)';          // slush is a little grey, and the light page (below) makes it paler than the paint
     else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
     sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
     // the base page is drawn heavier than the palette's punch (as ink() does for the plain splats): under a part-erased palette any white left in the base reads as a pale ring or dot, worst on dark paint
@@ -131,7 +132,7 @@
   }
 
   function drawBlob(b) {
-    if (emis && (b.t !== 'snow' || isSlush(b))) return;                 // the lit page carries snow only (not slush, which would glow white): lit dust and mud made a pattern of bright dots on blue and black paint (80's black A/B, glow off was clean)
+    if (emis && b.t !== 'snow') return;                                 // the lit page carries snow only (slush at a third of the light: it is the only way a splash gets paler than the paint): lit dust and mud made a pattern of bright dots on blue and black paint (80's black A/B, glow off was clean)
     if (b.t && SPLAT_KINDS[b.t]) {
       var at = atlasFor(b.t);
       if (at) {
