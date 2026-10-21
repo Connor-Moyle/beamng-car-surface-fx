@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.8 (2026-10-22)
+
+Changes since 0.4.7. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with screenshots and logs):
+
+- The new switches: with Dust, Tyre rubber or Road grime switched off, that kind builds nothing while the others still grow; with Mud off no mud builds on forced mud ground (it rose 0.00 to 0.53 with the switch on); with Tyre smoke off a hot tyre makes no smoke, with it on it does. All six new switches and the masters of the test features are on the Active features page.
+- Rubber marbles (test hook with 60 kW on both rear tyres): dark angular bits lie behind the rear axle on both sides and under the car, with tyre smoke, and the patch sits between the wheels (the centre of the two patches, not at one wheel); each patch stops growing near 400 g.
+- Belt-worn tyres: the tread no longer loses its tyre force (see Fixed); our own spark code fires on a belt-worn wheel sliding at 4 to 18 m/s (the log line "sparks" appears once for the wheel) and does not fire with the switch off.
+
+Fixed:
+
+- Belt-worn tyres: at the belts stage the tread was switched to metal so that the game would throw its own metal sparks. That made the engine stop the wheel's tyre force altogether (no load, no grip, no slip) and it hid our own spark code, so it is removed. The tread stays rubber at every stage, the belts grip poorly as a tyre (the Belts grip settings), and the sparks come from our own code. The sparks seen in the earlier tests (0.4.x) were the game's metal sparks from that switch, not ours.
+- Rubber marbles: the smear's direction is a proper unit vector, a long burnout cannot pass the decal cap, the patch centre is the centre of the rubber thrown (two spinning wheels leave one heap between them), and the smear and the glow are stronger (they were faint).
+
+Built, not yet tested in game:
+
+- What our sparks look like (the camera lost the car in every test), and whether they fire in a burnout in place (they did not in one run: only in a slide).
+- The marbles' glow and smear after the change, and a real burnout (only the test hook was used).
+- The open items of 0.4.5 to 0.4.7 (the metal dent look on red and white paint, a pole hit, carbon and fibreglass panels, marks after a recovery that keeps the damage, mud spray trails, scuffs, grime on dark paint, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the 60 m distance).
+
 ## 0.4.7 (2026-10-22)
 
 Changes since 0.4.6. Needs BeamNG.drive 0.40.
