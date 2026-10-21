@@ -9,6 +9,7 @@ local hollows = require('carSurfaceFx/hollows')
 
 local FILE = '/art/surfacefx/marks/berm.materials.json'
 local MAX_BUILDS, BUDGET = 2, 0.006
+M.clock = os.clock                                  -- (a test passes a fixed clock: the budget made it flaky under fengari)
 
 local ring, head, n = {}, 0, 0                       -- the meshes made (a ring of ProceduralMesh objects)
 local pending, pendingN = {}, 0                      -- strips waiting for a build pass
@@ -88,8 +89,8 @@ end
 -- every frame (cheap when nothing is queued): make a few strips within the time budget
 function M.update(cfg)
   if failed or pendingN == 0 then return end
-  local t0, builds = os.clock(), 0
-  while pendingN > 0 and builds < MAX_BUILDS and os.clock() - t0 < BUDGET do
+  local t0, builds = M.clock(), 0
+  while pendingN > 0 and builds < MAX_BUILDS and M.clock() - t0 < BUDGET do
     local job = table.remove(pending, 1)
     pendingN = pendingN - 1
     builds = builds + 1
