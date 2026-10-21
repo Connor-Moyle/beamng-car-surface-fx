@@ -156,7 +156,7 @@ function M.sync(store, cfg, camX, camY, fade)
   for p, rec in pairs(recs) do                                                           -- planes whose puddle went (recycled, dried, faded, far)
     if not seen[p] and (rec.gen ~= p.gen or (may and drops < MAX_DROPS)) then drop(p, rec) drops = drops + 1 end
   end
-  if builds + drops > 0 then gate.planesTouched(os.clock()) end
+  if builds + drops > 0 then (gate.terrainEdited or gate.planesTouched)(os.clock()) end      -- (Street Legal's planesTouched also clears its own planes' starving timer: terrainEdited only holds the wet world)
 end
 
 function M.clear()

@@ -87,4 +87,21 @@ assert(M.count() == 1, 'two a pass taken away when it opens')
 M.sync(st, cfg2, 500, 500)
 assert(M.count() == 0, 'and the rest the pass after')
 M.clear() G.reset()
+
+-- with Street Legal's gate: a plane build is reported through terrainEdited (its planesTouched would clear its own planes' starving timer), and its hold is obeyed
+local told = { edited = 0, touched = 0 }
+local open_ = true
+package.loaded['sl/core/gpugate'] = { planesMayChange = function() return open_ end, reloaded = function() end, planesTouched = function() told.touched = told.touched + 1 end, terrainEdited = function() told.edited = told.edited + 1 end }
+G.forget()
+local st2 = R.newStore(4)
+R.drip(st2, 3, 0, 0, 'oil', 1, cfg2, false, 0.5).r = 0.4
+open_ = false
+M.sync(st2, cfg2, 0, 0)
+assert(M.count() == 0, "Street Legal's gate says wait: no plane")
+open_ = true
+M.sync(st2, cfg2, 0, 0)
+assert(M.count() == 1 and told.edited == 1 and told.touched == 0, "a build goes through Street Legal's terrainEdited, never its planesTouched")
+M.clear()
+package.loaded['sl/core/gpugate'] = nil
+G.forget()
 print('carSurfaceFx fluidmesh: ok')
