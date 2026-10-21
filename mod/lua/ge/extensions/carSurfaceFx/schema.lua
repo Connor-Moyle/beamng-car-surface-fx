@@ -456,7 +456,7 @@ function M.build(S, owner)
   -- Quick setup: the values of the things that cost frames at each of the four levels (the stored values, before any display scale)
   local PRESETS = {
     all_cars = { false, false, false, true }, glass_fine = { false, false, true, true }, overlay_size = { 2.4, 1.6, 1.3, 1.1 },
-    cull = { 60, 100, 140, 200 }, max_drawn = { 300, 600, 900, 1200 }, skid_count = { 800, 1500, 2200, 3000 }, track_count = { 1000, 2000, 3500, 5000 },
+    cull = { 40, 60, 80, 100 }, max_drawn = { 100, 300, 500, 800 }, skid_count = { 800, 1500, 2200, 3000 }, track_count = { 1000, 2000, 3500, 5000 },
     others_cars = { 0, 6, 8, 12 }, others_range = { 40, 120, 150, 200 }, leaks_max = { 40, 100, 150, 200 }, leaks_cull = { 40, 70, 100, 120 },
     leaks_others_cars = { 0, 4, 6, 8 }, grass_distance = { 30, 60, 90, 120 },
   }
