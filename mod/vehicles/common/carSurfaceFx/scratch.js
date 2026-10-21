@@ -378,7 +378,7 @@
     var keep = [];
     for (var i = 0; i < blobs.length; i++) {
       var b = blobs[i], f = o[b.k === 'cake' ? 'mud' : b.k] === undefined ? 1 : o[b.k === 'cake' ? 'mud' : b.k];
-      if (o.slide && b.t === 'snow') { if (hash(b.x, b.y, 99) <= f) keep.push(b); continue; }      // melting snow slides off in sheets: a share of the patches goes whole, the rest stays as thick
+      if (o.slide && b.t === 'snow') { if (hash(b.x, b.y, 99) <= f * f) { b.a *= Math.sqrt(f); keep.push(b); } continue; }      // melting snow slides off in sheets: most of the patches go whole (the share kept is f squared: the patches are big and overlap, so keeping f of them still covered the roof) and the rest thin a little
       b.a *= f;
       if (b.a > 0.04) keep.push(b);
     }
