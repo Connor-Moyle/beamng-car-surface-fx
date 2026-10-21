@@ -249,20 +249,23 @@ local function draw(pool, n)
   end
 end
 
-function M.onPreRender(dt)
-  if not settings.enabled then return end
-  if store.count == 0 then return end
-  if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then diag.err = diag.err or 'no DynamicDecalMgr' return end
-  diag.frames = diag.frames + 1
-  local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
-  local camX, camY = cam and cam.x, cam and cam.y
-  local cr2 = settings.cullRadius * settings.cullRadius
+-- The puddles to draw are picked at most every VIEW_S (and at once when the camera moved or a puddle was added or removed) into the pools; every frame in between only hands the same
+-- pools to the engine (it was a scan of the whole store for every fluid and every picture, and a new colour for every puddle, on every frame).
+local VIEW_S, VIEW_MOVE = 0.25, 2.0
+local view = { t = -1, x = 0, y = 0, count = -1, rebuilds = 0 }
+local used = {}                                      -- pool key -> how many slots are filled
+function M.invalidate() view.t = -1 end
+function M.rebuilds() return view.rebuilds end
+
+local function rebuild(camX, camY, cr2)
+  for key in pairs(used) do used[key] = 0 end
+  local shown = texlist.shown(variants, settings.texture)
   for _, kind in ipairs(rules.KINDS) do
     local c = colors[kind]
-    local shown = texlist.shown(variants, settings.texture)
     for v = 1, #shown do
-      local pool, n = pools[kind .. ':' .. v], 0
-      if not pool then pool = {} pools[kind .. ':' .. v] = pool end
+      local key = kind .. ':' .. v
+      local pool, n = pools[key], 0
+      if not pool then pool = {} pools[key] = pool end
       for i = 1, store.count do
         local p = store.list[i]
         if p and p.kind == kind and not p.meshed and texlist.indexFor(#shown, p.seed) == v and p.r > 0.02 then
@@ -276,12 +279,32 @@ function M.onPreRender(dt)
             local ca, sa = math.cos(p.angle or 0), math.sin(p.angle or 0)
             e.forwardVec:set(ca, sa, 0)
             e.scale:set(p.r * 2, p.r * 2 * 0.85, DEPTH)
-            e.color = ColorF(c[1], c[2], c[3], rules.alpha(p, settings) * rules.ringFade(store, i))
+            local col = e.color
+            local a = rules.alpha(p, settings) * rules.ringFade(store, i)
+            if col and col.r ~= nil then col.r, col.g, col.b, col.a = c[1], c[2], c[3], a else e.color = ColorF(c[1], c[2], c[3], a) end
           end
         end
       end
-      if n > 0 then draw(pool, n) end
+      used[key] = n
     end
+  end
+end
+
+function M.onPreRender(dt)
+  if not settings.enabled then return end
+  if store.count == 0 then return end
+  if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then diag.err = diag.err or 'no DynamicDecalMgr' return end
+  diag.frames = diag.frames + 1
+  local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
+  local camX, camY = cam and cam.x, cam and cam.y
+  local now = os.clock()
+  if view.t < 0 or now - view.t >= VIEW_S or store.count ~= view.count or (camX and ((camX - view.x) ^ 2 + (camY - view.y) ^ 2 > VIEW_MOVE * VIEW_MOVE)) then
+    view.t, view.x, view.y, view.count = now, camX or 0, camY or 0, store.count
+    view.rebuilds = view.rebuilds + 1
+    rebuild(camX, camY, settings.cullRadius * settings.cullRadius)
+  end
+  for key, n in pairs(used) do
+    if n > 0 then draw(pools[key], n) end
   end
 end
 

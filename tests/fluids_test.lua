@@ -197,6 +197,16 @@ F.onPreRender(0.016)
 assert(#batches == 0, 'far from the camera nothing is drawn')
 core_camera.getPosition = function() return { x = 10, y = 20, z = 0 } end
 
+-- the puddles to draw are picked once and the same lists go to the engine every frame (a still camera and no new puddle: no new pick)
+do
+  batches = {}
+  F.onPreRender(0.016)
+  local per, r0 = #batches, F.rebuilds()
+  batches = {}
+  for _ = 1, 60 do F.onPreRender(0.016) end
+  assert(#batches == per * 60 and F.rebuilds() <= r0 + 1, 'the same batches every frame, picked again at most once: ' .. #batches .. ' of ' .. per * 60 .. ', ' .. (F.rebuilds() - r0) .. ' picks')
+end
+
 -- the marks seam is used when the marks module is there
 local seamCalls = 0
 _G.carSurfaceFx_marks = { drawBatch = function(pool, n) seamCalls = seamCalls + 1 end }
