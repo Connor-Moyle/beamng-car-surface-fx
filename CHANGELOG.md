@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.5 (2026-10-22)
+
+Changes since 0.4.4. Needs BeamNG.drive 0.40.
+
+Changed:
+
+- Panel damage, metal: a hit on a metal panel now draws a dent (a crescent of shade on one side and of light on the other round a faint bowl) with fewer paint chips, where it was a handful of chips that read as dirt. Still texture only, and the light side is a fixed direction on the panel, not the sun.
+
+Seen in the game (connor-80, wall hits at 15 and 60 km/h on a covet and a white and a black vivace):
+
+- Real hits leave marks (counts rise with every hit); on the black car the marks at the front read clearly (lighter streaks and scuffs); a reset that repairs the car takes them off.
+
+Built, not yet tested in game:
+
+- How the new dent reads on red and white paint (the crumpled panel hid it in the first runs), a side swipe along a wall, a pole hit, a carbon or fibreglass panel, and marks staying after a recovery that keeps the damage.
+- The earlier list still open: mud spray trails, the rubber marbles heap and glow, scuffs, grime on dark paint, and a side window breaking on cars other than the player's.
+
 ## 0.4.4 (2026-10-22)
 
 Changes since 0.4.3. Needs BeamNG.drive 0.40.
