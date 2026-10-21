@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.4.10 (2026-10-23)
+
+Changes since 0.4.9. Needs BeamNG.drive 0.40. This release is mostly fixes found in a code review; apart from the one item under "Proven" none of it has been seen in the game yet (the offline tests cover it).
+
+Proven in the game (connor-80, dirt skid marks at the 60 m distance, johnson_valley):
+
+- Dirt and sand skid marks and tracks: crisp at 5 m, still two thin lines at 30 m, faint near the car at 55 m, fading into the sand further out, with no gap behind the car.
+
+Fixed (covered by offline tests, not seen in game):
+
+- A settings file that is there but cannot be read (locked by a sync or a virus scanner, half written after a crash) is no longer overwritten with the defaults: the defaults run for that session and the file is left as it is. Only a missing file gets the defaults.
+- One error in the update no longer switches the whole mod off for the session: it is logged and tried again, five in a row switch it off with a message on the screen, and a new level starts clean. The scratch, decal probe and swatch hooks that had no safety net now have one.
+- A report from a car that was destroyed in the same frame (ground, fluids, tyres) no longer brings its tables back.
+- Tyres: a NaN or out-of-range number can no longer reach the friction; a tyre saved blown does not throw its tread again when it is loaded; smoke follows the Tyre smoke switch only, not the Tyre fires switch (a change); the unused blowout force settings are removed (the panel marks are unchanged).
+- Level end: the lit canvas is destroyed only when the car has one (an engine error line before); the window glass "nothing found" line is a warning only for meshes that have glass-like materials (a character has none); three dead variables removed.
+- Quick setup: the draw distance and the decal budget of the skid marks follow the new defaults (40, 60, 80 and 100 m; 100, 300, 500 and 800 decals).
+
+Added (off until another mod calls them; covered by offline tests, not seen in game):
+
+- `carSurfaceFx.setGlassWear(id, { pits, haze })` and `carSurfaceFx.setWiperWear(id, factor)` for Part Wear: pitted and hazy window glass (the player's car), and wiper blades that clear only a share of the drops.
+- `carSurfaceFx_tyres.setWearScale(k)` and `getWearScale()`: one career-wide multiplier for the tread wear (session only), for Street Legal's wear rate setting.
+- `carSurfaceFx.debug('groundsurface', 'snow')` (or gravel, sand, ice, mud, grass, dirt, tarmac) draws every wheel mark as that surface on any map, so gravel and snow marks can be tested without such a map (`debug()` puts the real surface back).
+- The README lists every feature with its switch: ground deformation, grass, the full tyre set, and the hooks above.
+
+Changed:
+
+- Tyre sparks are thrown at 5 m/s (it was 1) for longer streaks. Not seen yet.
+
+Built, not yet tested in game:
+
+- Everything above except the dirt marks; also what the sparks look like, the marbles after a real burnout, cracks from a real hit on plastic, fibreglass and carbon, a pole hit, marks after a recovery that keeps the damage, a side window breaking on other cars, and gravel and snow skid marks (now testable with `debug('groundsurface', ...)`).
+
 ## 0.4.9 (2026-10-22)
 
 Changes since 0.4.8. Needs BeamNG.drive 0.40.

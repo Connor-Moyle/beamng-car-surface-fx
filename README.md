@@ -1,6 +1,6 @@
 # Car Surface FX
 
-Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup. This is version 0.4.9 (see CHANGELOG.md).
+Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup. This is version 0.4.10 (see CHANGELOG.md).
 
 - **Wet paint.** When it rains the paint gets darker and glossier, and fine water beads form on it. The beads grow and merge as the rain goes on and shrink away again as the car dries over a few minutes.
 - **Water on the windows.** Drops land on the glass, merge, and the big ones run down and leave small drops behind. Speed pushes them up the glass, hard braking throws them forward, cornering slides them sideways, and the wipers sweep them off. They dry up when the rain stops.
@@ -27,8 +27,10 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
 
 These are built and each has its own switch. What has been seen working in the game is listed under "Tested" below; the rest is experimental.
 
-- **Tyres:** wear, heat, grip, smoke, fire, pop, rubber chunks and sparks (Mods > Tyres).
-- **Worn paint** (fade, grime, scuffs, rust) on a car's body.
+- **Tyres** (Mods > Tyres, "Tyre simulation", off; presets Realistic, Arcade, Off). Each tyre is a ring of tread sections: *wear* from slip, wheelspin and heat; *flat spots* from locked wheels; eleven *compounds*; *temperature* that changes grip (cold and overheated tyres grip less); *wet grip* and *aquaplaning* in heavy rain; a *worn look* (worn rubber, then the belts); *smoke* in a burnout; *fires* (a tyre that gets hot enough burns and pops), which can *spread to the car*; *rubber chunks* and *rubber marbles* on the road after a long burnout, which can glow and burn; *sparks* from a belt-worn tyre; *blowouts* that push the panels beside them. Every part has its own switch.
+- **Ground deformation** (Mods > Ruts, "Wheel ruts in soft ground", off): *ruts* in mud, snow, sand, dirt and gravel (deeper for a heavy car and soft ground), with a switch for each ground; *soil banks* beside ruts, *terrain hollows* (the drawn ground sinks a little under the wheels), *lit tyre tracks* on soft ground and *gouges* where the body scrapes the ground are further switches (all test features, off).
+- **Grass** (Mods > Grass, off): grass bends under the wheels and wheelspin tears it out.
+- **Worn paint** (fade, grime, scuffs, rust) on a car's body, driven by another mod through `carSurfaceFx.setPaintWear`; likewise worn glass (`setGlassWear`: pits and haze) and worn wiper blades (`setWiperWear`: they clear fewer drops).
 - **Panel damage** (Mods > Car Surface FX > Crash, "Panel damage (test)"): a hit leaves a drawn mark on the paint: chips and scratches on metal, cracks on plastic, crazing on fibreglass, a split on carbon.
 - **Glass impacts**, **rubber marbles** after a long burnout, fire that spreads to the car.
 
@@ -87,7 +89,7 @@ Run in the game's Lua console.
 - `carSurfaceFx.getState(id)` / `carSurfaceFx.setState(id, state)` to keep a car's dirt and scratches when it is put away and brought back,
 - `carSurfaceFx.level(id)` for a readout (`dirtName`: clean, dusty, muddy; `scratchName`: none, light, heavy).
 
-`carSurfaceFx.apiVersion` is 2.
+`carSurfaceFx.apiVersion` is 2. For the tyres, `carSurfaceFx_tyres.setWearScale(k)` multiplies how fast the tread wears (1 = as set; for a career-wide wear rate) and `getWearScale()` reads it.
 
 ## Modder API (old Surface FX)
 
