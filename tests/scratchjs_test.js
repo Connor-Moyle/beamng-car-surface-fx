@@ -6,20 +6,21 @@ const path = require('path');
 const vm = require('vm');
 
 const frames = {};
-function page(query) {
-  const ops = { strokes: 0, arcs: 0, fills: 0 };
+function page(query, withImages) {
+  const ops = { strokes: 0, arcs: 0, fills: 0, images: 0 };
   const ctx = new Proxy({}, {
-    get: (t, k) => (k === 'stroke' ? () => ops.strokes++ : k === 'fill' ? () => ops.arcs++ : k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'createImageData' ? (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) : k === 'fillRect' ? () => ops.fills++ : () => {}),
+    get: (t, k) => (k === 'stroke' ? () => ops.strokes++ : k === 'fill' ? () => ops.arcs++ : k === 'drawImage' ? () => ops.images++ : k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'createImageData' ? (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) : k === 'fillRect' ? () => ops.fills++ : () => {}),
     set: () => true,
   });
   const canvas = { getContext: () => ctx };
   const win = {};
   const sandbox = { window: win, document: { getElementById: () => canvas, createElement: () => ({ getContext: () => ctx }) }, location: { search: query }, Math,
-    performance: { now: () => 0 }, requestAnimationFrame: (cb) => { frames.cb = cb; }, Float32Array, Uint8Array };
+    performance: { now: () => 0 }, requestAnimationFrame: (cb) => { frames.cb = cb; }, Float32Array, Uint8Array, queueMicrotask };
+  if (withImages) sandbox.Image = function () { const o = {}; Object.defineProperty(o, 'src', { set() { queueMicrotask(() => o.onload && o.onload()); } }); return o; };       // a picture that loads on the next tick
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'paintwater.js'), 'utf8'), sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'mod', 'vehicles', 'common', 'carSurfaceFx', 'scratch.js'), 'utf8'), sandbox);
-  return { w: win, ops, reset: () => { ops.strokes = ops.arcs = ops.fills = 0; } };
+  return { w: win, ops, reset: () => { ops.strokes = ops.arcs = ops.fills = ops.images = 0; } };
 }
 
 const p = page('?m=b');
@@ -129,3 +130,17 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   assert.strictEqual(c.ops.arcs, 0, 'a redraw copies the finished wear layer: ' + c.ops.arcs + ' blobs drawn');
 }
 console.log('carSurfaceFx scratch page: ok');
+
+// the cost of a full redraw of a muddy car with the real splat pictures: 6000 sprayed splats, a quarter of them with a trail of 3 smaller drops (one pass each), so about 3.75 pictures per splat
+(async () => {
+  const c = page('?m=b', true);
+  const l = [], d = [];
+  for (let i = 0; i < 6000; i++) { l.push(Math.random(), Math.random(), 0.01); d.push(0.6, 0.8); }
+  for (let k = 0; k < 150; k++) c.w.csfxBlobs({ l: l.slice(k * 120, k * 120 + 120), d: d.slice(k * 80, k * 80 + 80), c: [0.25, 0.17, 0.1], a: 0.9, k: 'mud', t: 'mud' });
+  await new Promise((r) => setImmediate(r));                          // the atlas has loaded
+  c.reset();
+  c.w.csfxWash({ dust: 1, mud: 1 });                                  // a full redraw
+  const per = c.ops.images / 6000;
+  assert(per > 0.5 && per < 4.5, 'pictures drawn per splat in a full redraw: ' + per);       // (a splat is drawn 3 times on the base page, plus its trail)
+  console.log('mud redraw with trails: ' + c.ops.images + ' pictures for 6000 splats (' + per.toFixed(2) + ' each)');
+})();

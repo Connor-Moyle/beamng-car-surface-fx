@@ -122,7 +122,7 @@
     else if (emis && b.t !== 'snow') sctx.filter = 'brightness(' + (0.5 * (0.8 + 0.8 * (1 - paintLum))).toFixed(2) + ')';
     sctx.translate(x, y); sctx.rotate(ang); sctx.scale(1, stretch);
     // the base page is drawn heavier than the palette's punch (as ink() does for the plain splats): under a part-erased palette any white left in the base reads as a pale ring or dot, worst on dark paint
-    var passes = (palette || emis) ? 1 : 3;
+    var passes = b.pass || ((palette || emis) ? 1 : 3);
     for (var q = 0; q < passes; q++) sctx.drawImage(img, (v % 4) * 256, Math.floor(v / 4) * 256, 256, 256, -size / 2, -size / 2, size, size);
     sctx.restore();
     dirty = true;
@@ -134,10 +134,10 @@
       var at = atlasFor(b.t);
       if (at) {
         drawReal(b, at);
-        if (b.k === 'mud' && (b.dx || b.dy) && !emis && hash(b.x, b.y, 80) > 0.55) {          // sprayed mud trails off the splat: a few smaller drops back along the line it came from, smaller and fainter, so a spray fans back from a wheel
-          for (var j = 1; j <= 4; j++) {
+        if (b.k === 'mud' && (b.dx || b.dy) && !emis && hash(b.x, b.y, 80) > 0.75) {          // sprayed mud trails off the splat: a few smaller drops back along the line it came from, smaller and fainter, so a spray fans back from a wheel
+          for (var j = 1; j <= 3; j++) {
             var t = j * (0.9 + 0.6 * hash(b.x, b.y, j + 81)) * b.r * 2.2, ang = Math.atan2(b.dy, b.dx);
-            drawReal({ x: b.x - Math.cos(ang) * t, y: b.y - Math.sin(ang) * t + (hash(b.x, b.y, j + 90) - 0.5) * b.r * 1.2, r: b.r * (0.62 - 0.12 * j), c: b.c, a: b.a * (0.8 - 0.15 * j), k: 'mud', t: b.t }, at);
+            drawReal({ x: b.x - Math.cos(ang) * t, y: b.y - Math.sin(ang) * t + (hash(b.x, b.y, j + 90) - 0.5) * b.r * 1.2, r: b.r * (0.62 - 0.12 * j), c: b.c, a: b.a * (0.8 - 0.15 * j), k: 'mud', t: b.t, pass: 1 }, at);
           }
         }
         return;
