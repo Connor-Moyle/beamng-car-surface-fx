@@ -40,6 +40,26 @@ for i = 1, 30 do R.drip(store, 100 + i * 5, 0, 0, 'fuel', 1, cfg, false, 0.5) en
 assert(store.count == 10, 'the ring holds max puddles')
 R.drip(store, 0, 0, 0, 'lava', 1, cfg, false, 0.5)
 assert(store.count == 10, 'an unknown fluid is ignored')
+local one = R.newStore(10)
+R.drip(one, 0, 0, 0, 'oil', 1, cfg, false, 0.5)
+R.drip(one, 0.25, 0.25, 0, 'oil', 1, cfg, false, 0.5)
+R.drip(one, -0.25, -0.25, 0, 'oil', 1, cfg, false, 0.5)
+assert(one.count == 1, 'the drips of one leak, scattered round the leak point, make one pool: ' .. one.count)
+
+-- the volume a leak lets out sets the pool: 5 L of coolant make a pool about 0.6 m across, the litres add up in the one pool, the drips of that leak feed it without growing it, the
+-- fluid's size caps it, fuel runs thinner than oil
+local sp = R.newStore(10)
+local pool = R.spill(sp, 0, 0, 0, 'coolant', 5, cfg, 0.5)
+assert(sp.count == 1 and math.abs(pool.r * 2 - 0.63) < 0.04, '5 L of coolant: a pool about 0.6 m across: ' .. pool.r * 2)
+for _ = 1, 10 do R.spill(sp, 0, 0, 0, 'coolant', 0.5, cfg, 0.5) end
+assert(sp.count == 1 and math.abs(pool.r * 2 - 0.885) < 0.04, 'the litres add up in the one pool: ' .. pool.r * 2)
+local before = pool.r
+R.drip(sp, 0.2, 0.15, 0, 'coolant', 0, cfg, false, 0.5)
+assert(sp.count == 1 and pool.r == before, 'a drip of a leak whose volume is known joins the pool without growing it')
+R.spill(sp, 0, 0, 0, 'coolant', 100, cfg, 0.5)
+assert(pool.r == cfg.kinds.coolant.size, 'a spill stops at the fluid\'s size')
+assert(R.spill(sp, 0, 0, 0, 'coolant', 0, cfg, 0.5) == nil and R.spill(sp, 0, 0, 0, 'lava', 1, cfg, 0.5) == nil, 'nothing spilt, or an unknown fluid: no pool')
+assert(R.spill(R.newStore(4), 9, 9, 0, 'fuel', 5, cfg, 0.5).r > R.spill(R.newStore(4), 0, 0, 0, 'oil', 5, cfg, 0.5).r, 'fuel runs thinner than oil: a wider pool for the same litres')
 
 local dry = R.newStore(10)
 local c = R.drip(dry, 0, 0, 0, 'coolant', 1, cfg, false, 0.5)
@@ -110,6 +130,26 @@ assert(F.count() >= 1 and F.count() <= 4 and st:find('oil=%d') and st:find('leak
 local r0 = tonumber(st:match('oil=%d%(r([%d%.]+)%)'))      -- the radius is a share of a leak that may be split over a few puddles (random jitter), so the test compares, it does not use a fixed size
 for i = 1, 400 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1) end
 assert(tonumber(F.status():match('oil=%d%(r([%d%.]+)%)')) > r0 + 0.05, 'and it grows while the car stays: ' .. r0 .. ' -> ' .. F.status())
+
+-- a parked car whose radiator leaks at the engine's own rate: the pool follows the litres let out (0.5 kg/s for 10 s = 5 L), one pool, however few drips were seen
+F.clear()
+for i = 1, 50 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1) end
+local cs = F.status()
+local cr = tonumber(cs:match('coolant=%d%(r([%d%.]+)%)'))
+assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 L of coolant in 10 s: one pool about 0.6 m across: ' .. cs)
+-- the kg the engine's coolant reservoir lost since the last report win over the rate: a radiator that emptied inside one gap (rate 0 now, 5 kg gone) makes the same pool at once
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0, 0, 1, false, true, 1, 5)
+cr = tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)'))
+assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 kg lost in one report gap: the pool at once: ' .. F.status())
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1, 0)
+assert(math.abs(tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)')) - cr) < 1e-6, 'a rate with nothing lost from the reservoir adds nothing')
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 'nil', 0, 1, false, true, 1, 5)
+assert(F.count() == 1 and tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)')) > 0.28, 'a mass drop with no rate reading still makes the pool: ' .. F.status())
 
 -- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
 castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height
@@ -184,14 +224,25 @@ v = { data = { nodes = { [10] = { frictionCoef = 1.0, slidingFrictionCoef = 0.9 
 damageTracker = { getDamage = function(_, name) return name == 'oilpanLeak' end }
 energyStorage = { getStorages = function() return {} end }
 electrics = { values = { rpm = 800, watertemp = 90 } }
-powertrain = { getDevice = function() return { engineNodeID = 1, thermals = { debugData = { engineThermalData = { oilLeakRateOverall = 0.1, coolantLeakRateOverall = 0 } } } } end }
+local thermal = { oilLeakRateOverall = 0.1, coolantLeakRateOverall = 0, coolantMass = 6 }
+powertrain = { getDevice = function() return { engineNodeID = 1, thermals = { debugData = { engineThermalData = thermal } } } end }
 extensions = extensions or {}
 local C = dofile('mod/lua/vehicle/extensions/carSurfaceFxFluids.lua')
 C.setConfig(true, false, true)
 sent = {}
 C.updateGFX(0.25)
-assert(sent[1] and sent[1]:find('carSurfaceFx_fluids.car%(1,') and sent[1]:find('true,false,false,false,0.1,0,'), 'the car reports its damage and the engine\'s own leak rates: ' .. tostring(sent[1]))
+assert(sent[1] and sent[1]:find('carSurfaceFx_fluids.car%(1,') and sent[1]:find('true,false,false,false,0.1,0,') and sent[1]:find(',nil%)end'), 'the car reports its damage and the engine\'s own leak rates; no coolant lost yet known: ' .. tostring(sent[1]))
 assert(#dropParticles == 1 and dropParticles[1].ptype == 36 and dropParticles[1].count == 2, 'a leaking oil pan sheds the game\'s own oil-drop particles from the engine: ' .. #dropParticles)
+thermal.coolantMass = 2
+sent = {}
+C.updateGFX(0.25)
+assert(sent[1] and sent[1]:find(',4%.0000%)end'), 'the kg of coolant the engine lost since the last report go with it: ' .. tostring(sent[1]))
+thermal.coolantMass = 6
+C.onReset()
+sent = {}
+C.updateGFX(0.25)
+assert(sent[1] and sent[1]:find(',nil%)end'), 'a reset refills the coolant: nothing counted as lost')
+appliedCalls = {}                 -- (that reset put every tyre back to full grip: not part of the grip checks below)
 C.setConfig(true, false, true, false, 0.06, 2)
 dropParticles = {}
 C.updateGFX(0.25)

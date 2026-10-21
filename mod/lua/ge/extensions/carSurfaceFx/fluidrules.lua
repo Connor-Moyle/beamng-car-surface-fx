@@ -76,7 +76,8 @@ local function area(r) return math.pi * r * r end
 local function radiusOf(a) return math.sqrt(a / math.pi) end
 
 -- one drip of `kind` lands at x, y, z. stain: a spot on the road from a moving car (never merges); else it feeds the nearest puddle of its kind within reach, or starts one.
--- amount: how much (1 = a normal drip). Returns the puddle.
+-- amount: how much (1 = a normal drip; 0 joins the puddle without growing it, for a leak whose volume comes through spill). Returns the puddle.
+M.REACH = 0.5                                                    -- m past a puddle's edge within which a drip joins it: the drips of one leak scatter up to 0.25 m round the leak point, so one leak makes one pool
 function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
   local k = cfg.kinds[kind]
   if not k or not k.enabled then return nil end
@@ -88,7 +89,7 @@ function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
       if p and p.kind == kind and not p.stain then
         local dx, dy = p.x - x, p.y - y
         local d = math.sqrt(dx * dx + dy * dy)
-        if d < p.r + 0.35 and d < bd then best, bd = p, d end
+        if d < p.r + M.REACH and d < bd then best, bd = p, d end
       end
     end
     if best then
@@ -108,6 +109,18 @@ function M.drip(store, x, y, z, kind, amount, cfg, stain, seed)
   p.variant = 1 + math.floor((seed or 0.5) * 3) % 3
   store.list[i], store.head = p, i
   if store.count < store.max then store.count = store.count + 1 end
+  return p
+end
+
+-- The volume a leak really lets out lands as pool area: a leak rate from the game (kg/s, about a litre a second each) times the seconds since the last report. A punctured radiator
+-- that dumps its litres in seconds leaves a pool the size of the spill, not of the few drips seen. SPREAD = m^2 of pool per litre on flat ground (MODELLED: 5 L of coolant make a pool
+-- about 0.6 m across; fuel runs thinner, oil thicker). The litres feed the pool of their kind at the leak point (within REACH, else a new one), capped at the fluid's size. Returns the pool.
+M.SPREAD = { oil = 0.05, coolant = 0.06, fuel = 0.08, exhaust = 0.02 }
+function M.spill(store, x, y, z, kind, litres, cfg, seed)
+  if not (litres and litres > 0) then return nil end
+  local p = M.drip(store, x, y, z, kind, 0, cfg, false, seed)
+  if not p then return nil end
+  p.r = math.min(cfg.kinds[kind].size, radiusOf(area(p.r) + (M.SPREAD[kind] or 0.05) * litres))
   return p
 end
 
