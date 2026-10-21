@@ -494,7 +494,14 @@ local function wearPlaces(id)
     end
     return out
   end
-  wearPos[id] = { fl = pick('wear', 120, 0.4), gl = pick('wearlow', 120, 0.3), sl = pick('wear', 120, 0.25), rl = pick('wearlow', 140, 0.05) }       -- rust and the road film gather low on the body
+  -- rust: a list of x, y, radius, run-off direction (x, y); two thirds small spots first (the page uses the first part of a list, so a little rust is many small spots), then bigger ones
+  local rl = {}
+  local rs = bodymap.sample(map, 'rust', 260, rnd)
+  for i, s in ipairs(rs) do
+    local r = (i <= 170 and 0.016 or 0.04) * (0.6 + 0.8 * rnd()) * s.s
+    rl[#rl + 1], rl[#rl + 2], rl[#rl + 3], rl[#rl + 4], rl[#rl + 5] = q(s.u, 10000), q(canvasV(s.v), 10000), q(r, 100000), q(s.dx or 0, 100), q(-(s.dy or 0), 100)       -- (the canvas has y turned over)
+  end
+  wearPos[id] = { fl = pick('wear', 120, 0.4), gl = pick('wearlow', 120, 0.3), sl = pick('wear', 120, 0.25), rl = rl }       -- the road film gathers low on the body
   return wearPos[id]
 end
 -- w = { fade=, grime=, scuffs=, rust= } each 0..1; nil or all zeros takes the layer away

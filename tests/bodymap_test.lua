@@ -56,6 +56,15 @@ for _, kind in ipairs({ 'wear', 'wearlow' }) do
 end
 assert(stat(B.sample(map, 'wearlow', 300, rnd)) < stat(B.sample(map, 'wear', 300, rnd)), 'low wear sits lower than the plain wear')
 
+-- rust: low, not on the underside, and every spot knows the way water runs (a unit direction on the texture)
+do
+  local rust = B.sample(map, 'rust', 400, rnd)
+  local rh, _, _, rn = stat(rust)
+  local down = 0
+  for _, s in ipairs(rust) do if cellAt(s.u, s.v).nz < -0.3 then down = down + 1 end end
+  assert(rn == 400 and down == 0 and rh < 0.45, 'rust is low on the visible body: ' .. rh .. ' underside ' .. down)
+  assert(rust[1].dx and math.abs(rust[1].dx ^ 2 + rust[1].dy ^ 2 - 1) < 1e-6, 'a rust spot has a run-off direction')
+end
 -- mud thrown by the rear left wheel: low, and behind that wheel's middle
 local mud = B.sample(map, 'mud', 400, rnd, 3)
 local h, rear = stat(mud)

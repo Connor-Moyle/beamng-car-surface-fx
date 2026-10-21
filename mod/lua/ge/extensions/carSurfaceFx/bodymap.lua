@@ -159,6 +159,13 @@ end
 -- paint wear (carSurfaceFx.setPaintWear): anywhere on the visible body, not the underside (the road film rule gives that most of the weight, and nobody sees it); the low one for rust
 function RULES.wear(map, c) return c.nz < -0.3 and 0 or 1 end
 function RULES.wearlow(map, c) return c.nz < -0.3 and 0 or (0.25 + exp(-c.h / 0.45)) end
+-- rust gathers where water sits: the sills and door bottoms (low), and the lips of the wheel arches (a ring about a wheel's radius out from its centre); never the underside, and little up high
+function RULES.rust(map, c)
+  if c.nz < -0.3 then return 0 end
+  local w = 0.04 + exp(-c.h / 0.18)
+  local d = nearWheel(map, c)
+  return w + 1.5 * exp(-((d - 0.45) / 0.2) ^ 2)
+end
 M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)
@@ -207,6 +214,11 @@ function M.sample(map, kind, n, rnd, wi, opts)
       local dux, dvx = c.jux * 0 + c.juy * 1 + c.juz * 0.5, c.jvx * 0 + c.jvy * 1 + c.jvz * 0.5
       local l = sqrt(dux * dux + dvx * dvx)
       if l > 1e-9 then s.dx, s.dy = dux / l, dvx / l else s.dx, s.dy = 0, 1 end
+    end
+    if kind == 'rust' then                                                 -- the way water runs: straight down the body, as a direction on the texture
+      local du, dv = -c.juz, -c.jvz
+      local l = sqrt(du * du + dv * dv)
+      if l > 1e-9 then s.dx, s.dy = du / l, dv / l else s.dx, s.dy = 0, 1 end
     end
     out[#out + 1] = s
   end

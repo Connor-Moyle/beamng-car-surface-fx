@@ -91,12 +91,14 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
 {
   const c = page('?m=b');
   const places = []; for (let i = 0; i < 40; i++) places.push(0.1 + i * 0.02, 0.3, 0.01);
+  const rplaces = []; for (let i = 0; i < 40; i++) rplaces.push(0.1 + i * 0.02, 0.5, i < 26 ? 0.01 : 0.02, 0, 1);       // rust: x, y, radius, run-off direction
   c.reset();
-  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 1, fl: places, gl: places, sl: places, rl: places });
+  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 1, fl: places, gl: places, sl: places, rl: rplaces });
   const full = c.ops.arcs;
   assert(full > 0, 'rust is drawn (procedural until the picture loads): ' + full);
+  assert(c.ops.strokes > 0, 'rust has run-off streaks: ' + c.ops.strokes);
   c.reset();
-  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 0.25, rl: places });
+  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 0.25, rl: rplaces });
   assert(c.ops.arcs > 0 && c.ops.arcs < full, 'a lower value uses fewer places: ' + c.ops.arcs + ' < ' + full);
   c.reset();
   c.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
@@ -107,7 +109,7 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   c.w.csfxWash({ dust: 1, mud: 1 });
   assert.strictEqual(c.ops.arcs, kept, 'no values: the wear layer is gone, only the dirt is redrawn');
   // the layer is drawn once, not on every redraw: with full wear a wash (a full redraw) draws none of its blobs again
-  c.w.csfxWear({ fade: 1, grime: 1, scuffs: 1, rust: 1, fl: places, gl: places, sl: places, rl: places });
+  c.w.csfxWear({ fade: 1, grime: 1, scuffs: 1, rust: 1, fl: places, gl: places, sl: places, rl: rplaces });
   c.w.csfxClear();
   c.reset();
   for (let i = 0; i < 20; i++) c.w.csfxWash({ dust: 1, mud: 1 });

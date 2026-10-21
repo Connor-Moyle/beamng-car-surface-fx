@@ -282,11 +282,28 @@
     var n = Math.ceil(list.length / 3 * v);
     for (var i = 0; i < n; i++) drawBlob({ x: list[i * 3], y: list[i * 3 + 1], r: list[i * 3 + 2] * rmul * (0.7 + 0.5 * v), c: c, a: a, k: k, t: t });
   }
+  // rust: places of 5 numbers (x, y, radius, the way water runs: dx, dy), small spots first. Each place is an irregular cluster (a spot with two satellites, from the real rust picture, a
+  // darker rim in the picture itself) and the bigger ones, and a share of the small ones, have a run-off streak: a thin stain running down from the spot.
+  function drawRust(list, v) {
+    var n = Math.ceil(list.length / 5 * v), bigFrom = Math.floor(list.length / 5 * 2 / 3), RUST = [0.45, 0.2, 0.07], STAIN = [0.34, 0.16, 0.07];
+    for (var i = 0; i < n; i++) {
+      var x = list[i * 5], y = list[i * 5 + 1], r = list[i * 5 + 2] * (0.8 + 0.4 * v), dx = list[i * 5 + 3], dy = list[i * 5 + 4], a = Math.min(1, 0.45 + 0.7 * v), s;
+      drawBlob({ x: x, y: y, r: r, c: RUST, a: a, k: 'mud', t: 'rust' });
+      for (s = 0; s < 2; s++) drawBlob({ x: x + (hash(x, y, s + 20) - 0.5) * r * 2.2, y: y + (hash(x, y, s + 30) - 0.5) * r * 2.2, r: r * (0.4 + 0.3 * hash(x, y, s + 40)), c: RUST, a: a, k: 'mud', t: 'rust' });
+      if (!emis && (dx || dy) && (i >= bigFrom || hash(x, y, 50) > 0.6)) {
+        var len = r * (3 + 5 * hash(x, y, 51)) * (0.5 + v), ex = x + dx * len, ey = y + dy * len;
+        ink(STAIN, 0.25 + 0.3 * v);
+        sctx.lineCap = 'round'; sctx.lineWidth = Math.max(1.5, r * W * 0.3);
+        sctx.beginPath(); sctx.moveTo(x * W, y * W); sctx.quadraticCurveTo((x + ex) / 2 * W + (hash(x, y, 52) - 0.5) * r * W * 0.8, (y + ey) / 2 * W, ex * W, ey * W); sctx.stroke();
+        dirty = true;
+      }
+    }
+  }
   function drawWear() {
     if (!wear) return;
     if (wear.fade > 0 && wear.fl) wearSplats(wear.fl, wear.fade, 'dust', 'dust', [0.78, 0.76, 0.70], 0.6 * wear.fade, 1);
     if (wear.grime > 0 && wear.gl) wearSplats(wear.gl, wear.grime, 'grime', 'dust', [0.24, 0.23, 0.21], 0.8 * wear.grime, 1);
-    if (wear.rust > 0 && wear.rl) wearSplats(wear.rl, wear.rust, 'rust', 'mud', [0.45, 0.2, 0.07], Math.min(1, 0.4 + wear.rust), 1);
+    if (wear.rust > 0 && wear.rl) drawRust(wear.rl, wear.rust);
     if (wear.scuffs > 0 && wear.sl && !emis) {
       var n = Math.ceil(wear.sl.length / 3 * wear.scuffs), l = [];
       for (var i = 0; i < n; i++) {
