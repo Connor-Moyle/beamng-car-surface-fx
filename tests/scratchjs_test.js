@@ -100,6 +100,15 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   c.w.csfxWash({ dust: 0.5, mud: 1, slide: 1 });
   const half = c.ops.arcs;
   assert(half > 0 && half < all, 'half of the snow patches slid off: ' + half + ' of ' + all);
+  // slush (the snow picture drawn as mud) is not snow lying on the car: a melt does not slide it off
+  const s = page('?m=b');
+  s.w.csfxBlobs({ l, c: [0.86, 0.88, 0.91], a: 0.8, k: 'mud', t: 'snow' });
+  s.reset();
+  s.w.csfxWash({ dust: 1, mud: 1, slide: 1 });
+  const slushAll = s.ops.arcs;
+  s.reset();
+  s.w.csfxWash({ dust: 0.1, mud: 1, slide: 1 });
+  assert(slushAll > 0 && s.ops.arcs === slushAll, 'a melt leaves the slush: ' + s.ops.arcs + ' of ' + slushAll);
 }
 // the steady wear layer: drawn under the dirt on a redraw, grows with its value, and a call with no values takes it away
 {
