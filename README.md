@@ -1,6 +1,6 @@
 # Car Surface FX
 
-Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup.
+Weather and wear on the body of every car, while you drive. It works at runtime on stock and modded vehicles alike: no per-car textures, no per-car setup. This is version 0.4.6 (see CHANGELOG.md).
 
 - **Wet paint.** When it rains the paint gets darker and glossier, and fine water beads form on it. The beads grow and merge as the rain goes on and shrink away again as the car dries over a few minutes.
 - **Water on the windows.** Drops land on the glass, merge, and the big ones run down and leave small drops behind. Speed pushes them up the glass, hard braking throws them forward, cornering slides them sideways, and the wipers sweep them off. They dry up when the rain stops.
@@ -12,13 +12,31 @@ Weather and wear on the body of every car, while you drive. It works at runtime 
   - *Road grime* is a slow film from driving on tarmac, faster in the wet.
 
   The paint takes the tint of whatever the car has collected, and the gloss goes with it. Dirt splats also build up around the wheel arches.
-- **Snow.** When it snows (precipitation with the air below 1.5 C) snow settles on the roof and hood of a car that stands, is mostly blown off above 8 m/s, and melts slowly when it is warm. Rain and a car wash take it off.
+- **Snow.** When it snows (precipitation with the air below 1.5 C) snow settles as a thick cap on the roof and hood of a car that stands and a thin dusting on the sides, is mostly blown off above 8 m/s, and melts when it is warm (sliding off in sheets). Wheels on snowy ground throw pale grey-white slush low behind them. Rain and a car wash take it off.
 - **Frost.** On a cold night (air below 2 C, engine cold) the windows frost over, on the outside glass and on the windscreen in the driver's view. It clears as the engine warms up, and rain clears it too.
 - **Bugs.** Fast driving in the dry leaves small dark splats on the nose; rain, water and a car wash take them off.
 - **Road spray.** On a wet road a car ahead of you (within 25 m, in your lane, going your way) throws spray on your windscreen: a fine mist and a shower of tiny drops, more the faster and the closer it is, and more from long vehicles such as trucks. Changes with the same switch as snow and frost.
 - **Puddle splash.** Driving through a puddle above about 10 m/s throws dirty water up the lower doors, sills and wheel arches on the side whose wheels went through, and a deep puddle at speed throws a sheet of water over the windscreen for a moment.
 - **Washing.** Rain washes the dirt off slowly (dust fastest, rubber hardly at all), driving through water and puddles washes it faster, and a car wash takes everything off.
+- **Leaks and pools.** A damaged radiator, oil pan or fuel tank drips, and the fluid that is let out leaves a pool on the ground that matches its volume (a radiator emptied in seconds leaves a pool about 0.65 m across), with a sheen on oil.
+- **Broken glass.** Windows that break leave piles of shards on the ground (more for a bigger pane), readable on concrete and on dark asphalt.
+- **Ground marks.** Skid marks and tyre tracks, drawn only near the camera (at most 300 decals out to 60 m, the nearest first) so they cost little frame time.
 - **Scratches.** Hard scrapes against walls and barriers leave real scratch marks where the body touched, in the direction it slid. Scratches stay until the car is repaired; washing never removes them.
+
+## Off by default (switch on in the Mods menu)
+
+These are built and each has its own switch. What has been seen working in the game is listed under "Tested" below; the rest is experimental.
+
+- **Tyres:** wear, heat, grip, smoke, fire, pop, rubber chunks and sparks (Mods > Tyres).
+- **Worn paint** (fade, grime, scuffs, rust) on a car's body.
+- **Panel damage** (Mods > Car Surface FX > Crash, "Panel damage (test)"): a hit leaves a drawn mark on the paint, a dent with light and shade on metal, cracks on plastic, crazing on fibreglass, a split on carbon.
+- **Glass impacts**, **rubber marbles** after a long burnout, fire that spreads to the car.
+
+## Tested in the game (screenshots by our tester)
+
+Leak pools (coolant and oil, with the sheen), glass shards on concrete and asphalt, a real windscreen break and a player's side-window break, snow caps without dark prints, melting snow, pale slush behind the wheels, mud from a wheel spray, worn paint (rust, fade, grime) on light and dark cars and kept over a respawn, tyre chunks in a burnout, panel marks from real wall hits (readable on a black car), and the ground-marks frame-time cut (standing with full rings 2.30 ms to 1.67 ms, marks off 1.06; skid marks stay right out to 55 m).
+
+Not yet tested: the new dent look on red and white paint, a side swipe or a pole hit, carbon and fibreglass panels, marks after a recovery that keeps damage, mud spray trails, the rubber heap and glow, scuffs, grime on dark paint, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the new 60 m distance.
 
 ## Install
 
@@ -83,6 +101,8 @@ The old app's own calls (`uiGetModules`, `uiSet`, `uiAction`, `uiSetGroup`, `uiA
 
 ## Known limits
 
+- **Dents are paint marks, not real dents.** The game's paint layer has no normal map we can change at runtime, so a dent is drawn as a crescent of shade and one of light on the colour map. It reads best in a low sun and is flatter in a straight-on light; the car's shape is changed only by the game's own damage.
+- **No water film on the road.** Wet roads are drawn by the map and Street Legal; this mod does not draw one. Heavy rain does lower tyre grip through the physics film when tyres are on.
 - The water beads on the paint do not run down the panels; they grow, merge and fade. The drops on the windows do move.
 - Wet paint is shared by every car of the same model (they use the same material), so two cars of one model get wet together.
 - Windows: the outside of the glass shows the drops clearly. From the driver's seat the inner windscreen pane cannot take the canvas (the game ignores it there), so the drops of the driver's view are drawn on the screen instead and follow the windscreen's outline; the side windows and rear glass show faint rings, and the outer pane is drawn from behind while it is wet.
