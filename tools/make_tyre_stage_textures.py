@@ -53,10 +53,10 @@ def save(a, name, mode=None):
     img.save(os.path.join(OUT, name))
 
 
-# worn: only a slight lift of the stock tread tone (linear, about +0.035 at the centre, patchy, less at the shoulders); the wear is carried by the flattened normal and the sheen map
+# worn: only a slight lift of the stock tread tone (linear, about +0.07 at the centre, patchy, less at the shoulders); the wear is carried by the flattened normal and the sheen map
 patch = noise(16, 6, 1) * 0.5 + noise(64, 24, 2) * 0.3 + noise(256, 12, 3) * 0.2
 streak = noise(8, 96, 4)
-delta = (0.022 + 0.02 * patch + 0.01 * streak) * shoulder * inband
+delta = (0.045 + 0.04 * patch + 0.02 * streak) * shoulder * inband
 wear = 0.5 + 0.5 * delta[..., None] * np.array([1.0, 0.97, 0.92])
 save(wear.astype(np.float32), 'tyre_wear_c.data.png')
 # sheen: the roughness detail (0.5 = no change, lower = shinier, the engine adds (d * 2 - 1) x strength to the stock roughness): a smooth worn tread is a little glossier, most at the centre
