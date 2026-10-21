@@ -169,10 +169,11 @@ local function bind(l)
   l.mat:reload()
 end
 
-local function hasCanvas(veh)
-  for _, t in ipairs(veh:getActiveUITextureTagNames() or {}) do if t == TAG_B then return true end end
+local function hasTag(veh, tag)
+  for _, t in ipairs(veh:getActiveUITextureTagNames() or {}) do if t == tag then return true end end
   return false
 end
+local function hasCanvas(veh) return hasTag(veh, TAG_B) end
 -- any car wearing a material we've re-pointed MUST have the two canvases (a missing one renders as garbage)
 local function ensureCanvases()
   if not next(bound) then return end
@@ -225,7 +226,7 @@ local function restoreAll()
   bound = {}; cars = {}
   local okV, vehs = pcall(getAllVehicles)
   for _, veh in ipairs(okV and vehs or {}) do
-    pcall(function() if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P); pcall(function() veh:destroyUITexture(TAG_E) end) end end)
+    pcall(function() if hasCanvas(veh) then veh:destroyUITexture(TAG_B); veh:destroyUITexture(TAG_P); if hasTag(veh, TAG_E) then veh:destroyUITexture(TAG_E) end end end)      -- (the lit canvas only exists with the lit page on: destroying a missing one is an engine error line)
   end
 end
 
