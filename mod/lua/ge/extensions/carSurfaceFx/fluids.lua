@@ -186,10 +186,11 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
   local leak = rules.leaks({ oilPan = oilPan, oilCooler = oilCooler, radiator = radiator, overheating = overheat, oilRate = tonumber(oilRate), coolantRate = tonumber(coolRate),
     fuelRate = fuelRate, fuelStored = fuelStored, cold = cold, running = running })
   M.report(vid, leak.oil, leak.coolant, leak.fuel, leak.exhaust, grip)
-  -- a rate the game gives (the engine's oil and coolant, the tanks' fuel: kg/s, about a litre a second each): the litres let out since the last report grow the pool under a parked car
-  -- (rules.spill); the drips of that leak only feed it. Coolant uses the kg the engine's reservoir lost since the last report when the car sends it (a radiator empties in seconds,
-  -- most of it inside one report gap). With only a damage flag known the drips grow the pool as before.
-  local known = { oil = tonumber(oilRate), coolant = tonumber(coolRate), fuel = ((tonumber(fuelRate) or 0) > 0 and (tonumber(fuelStored) or 1) > 0) and tonumber(fuelRate) or nil }
+  -- a volume the game gives grows the pool under a parked car (rules.spill); the drips of that leak only feed it. Coolant: the kg the engine's reservoir lost since the last report when
+  -- the car sends it (a radiator empties in seconds, most of it inside one report gap), else the rate (kg/s) times the gap. Fuel: the tanks' rate while fuel is stored (the tank runs dry,
+  -- so it is bounded). Oil: the drips as before: the engine's oil rate reads about a litre a second and never runs dry (80's check, 2026-10-21: rate x time filled the pool to its cap
+  -- in a minute), so rate x time would say nothing about the litres a sump holds. With only a damage flag known the drips grow the pool as before.
+  local known = { coolant = tonumber(coolRate), fuel = ((tonumber(fuelRate) or 0) > 0 and (tonumber(fuelStored) or 1) > 0) and tonumber(fuelRate) or nil }
   local lost = tonumber(coolLost)
   if lost and lost > 0 and known.coolant == nil then known.coolant = 0 end      -- (a mass drop with no rate reading still spills)
   if speed <= settings.stainSpeed then

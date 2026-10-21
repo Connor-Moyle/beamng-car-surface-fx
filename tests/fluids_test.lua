@@ -131,6 +131,12 @@ local r0 = tonumber(st:match('oil=%d%(r([%d%.]+)%)'))      -- the radius is a sh
 for i = 1, 400 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1) end
 assert(tonumber(F.status():match('oil=%d%(r([%d%.]+)%)')) > r0 + 0.05, 'and it grows while the car stays: ' .. r0 .. ' -> ' .. F.status())
 
+-- an oil pan leaking at the engine's own rate (it reads about a litre a second and never runs dry): the pool still grows by the drips, so 40 s give the drip-fed size, not 40 L of pool
+F.clear()
+for i = 1, 200 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 1.0, 'nil', 0, 1, false, true, 1) end
+local orr = tonumber(F.status():match('oil=%d%(r([%d%.]+)%)'))
+assert(orr and orr > 0.2 and orr < 0.45, 'oil at the engine\'s rate for 40 s: the drip-fed pool (about 0.36 m radius), not rate x time: ' .. F.status())
+
 -- a parked car whose radiator leaks at the engine's own rate: the pool follows the litres let out (0.5 kg/s for 10 s = 5 L), one pool, however few drips were seen
 F.clear()
 for i = 1, 50 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1) end
