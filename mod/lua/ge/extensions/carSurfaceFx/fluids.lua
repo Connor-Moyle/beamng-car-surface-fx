@@ -191,6 +191,7 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
   -- most of it inside one report gap). With only a damage flag known the drips grow the pool as before.
   local known = { oil = tonumber(oilRate), coolant = tonumber(coolRate), fuel = ((tonumber(fuelRate) or 0) > 0 and (tonumber(fuelStored) or 1) > 0) and tonumber(fuelRate) or nil }
   local lost = tonumber(coolLost)
+  if lost and lost > 0 and known.coolant == nil then known.coolant = 0 end      -- (a mass drop with no rate reading still spills)
   if speed <= settings.stainSpeed then
     local gz
     for kind, rate in pairs(known) do

@@ -146,6 +146,10 @@ assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 kg lost in one repo
 t = t + 0.2
 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1, 0)
 assert(math.abs(tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)')) - cr) < 1e-6, 'a rate with nothing lost from the reservoir adds nothing')
+F.clear()
+t = t + 0.2
+F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 'nil', 0, 1, false, true, 1, 5)
+assert(F.count() == 1 and tonumber(F.status():match('coolant=%d%(r([%d%.]+)%)')) > 0.28, 'a mass drop with no rate reading still makes the pool: ' .. F.status())
 
 -- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
 castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height
