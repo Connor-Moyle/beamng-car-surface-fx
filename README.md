@@ -29,14 +29,14 @@ These are built and each has its own switch. What has been seen working in the g
 
 - **Tyres:** wear, heat, grip, smoke, fire, pop, rubber chunks and sparks (Mods > Tyres).
 - **Worn paint** (fade, grime, scuffs, rust) on a car's body.
-- **Panel damage** (Mods > Car Surface FX > Crash, "Panel damage (test)"): a hit leaves a drawn mark on the paint, a dent with light and shade on metal, cracks on plastic, crazing on fibreglass, a split on carbon.
+- **Panel damage** (Mods > Car Surface FX > Crash, "Panel damage (test)"): a hit leaves a drawn mark on the paint: chips and scratches on metal, cracks on plastic, crazing on fibreglass, a split on carbon.
 - **Glass impacts**, **rubber marbles** after a long burnout, fire that spreads to the car.
 
 ## Tested in the game (screenshots by our tester)
 
 Leak pools (coolant and oil, with the sheen), glass shards on concrete and asphalt, a real windscreen break and a player's side-window break, snow caps without dark prints, melting snow, pale slush behind the wheels, mud from a wheel spray, worn paint (rust, fade, grime) on light and dark cars and kept over a respawn, tyre chunks in a burnout, panel marks from real wall hits (readable on a black car), and the ground-marks frame-time cut (standing with full rings 2.30 ms to 1.67 ms, marks off 1.06; skid marks stay right out to 55 m).
 
-Not yet tested: the new dent look on red and white paint, a side swipe or a pole hit, carbon and fibreglass panels, marks after a recovery that keeps damage, mud spray trails, the rubber heap and glow, scuffs, grime on dark paint, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the new 60 m distance.
+Not yet tested: a side swipe or a pole hit, carbon and fibreglass panels, marks after a recovery that keeps damage, mud spray trails, the rubber heap and glow, scuffs, grime on dark paint, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the new 60 m distance.
 
 ## Install
 
@@ -101,8 +101,8 @@ The old app's own calls (`uiGetModules`, `uiSet`, `uiAction`, `uiSetGroup`, `uiA
 
 ## Known limits
 
-- **Dents are paint marks, not real dents.** The game's paint layer has no normal map we can change at runtime, so a dent is drawn as a crescent of shade and one of light on the colour map. It reads best in a low sun and is flatter in a straight-on light; the car's shape is changed only by the game's own damage.
-- **Black paint hides worn paint and dents.** Marks are drawn on the paint's colour map, which can only darken it, so fade, scuffs, rust and the shade of a dent do not show on black paint (cracks and light lines show a little).
+- **Dents come from BeamNG's physics, paint marks from us.** The game bends the real panel in a crash; this mod adds what the physics cannot show, scratched and chipped paint, and cracks on plastic, fibreglass and carbon. A shaded "dent" drawn on the paint was tried and read as dirt (the paint layer has no normal map we can change), so it is not drawn.
+- **Black paint hides worn paint.** Marks are drawn on the paint's colour map, which can only darken it, so fade, scuffs and rust do not show on black paint (cracks and light lines show a little).
 - **No water film on the road.** Wet roads are drawn by the map and Street Legal; this mod does not draw one. Heavy rain does lower tyre grip through the physics film when tyres are on.
 - The water beads on the paint do not run down the panels; they grow, merge and fade. The drops on the windows do move.
 - Wet paint is shared by every car of the same model (they use the same material), so two cars of one model get wet together.
