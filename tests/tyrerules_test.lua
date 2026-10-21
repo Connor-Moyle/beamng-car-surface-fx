@@ -346,3 +346,54 @@ assert(kmA > kmR, 'Arcade (wearRate 0.3) wears slower than Realistic: ' .. kmA)
 local sR, sA = secondsToBelts(realistic), secondsToBelts(arcade)
 assert(sR >= 60 and sR <= 120, 'Realistic: a full burnout reaches the belts in 1-2 minutes: ' .. sR)
 assert(sA > sR, 'Arcade: a burnout takes longer: ' .. sA)
+
+-- ---- rubber marbles on the road: merge, cap, decay, burn, grip
+do
+  local c = R.defaults()
+  assert(c.marbles.enabled == false and c.marbles.burn == false, 'marbles ship off')
+  c.marbles.enabled, c.marbles.burn = true, true
+  local list = {}
+  local p1 = R.marbleAdd(list, 0, 0, 0, 30, 200, 0, c)
+  local p2 = R.marbleAdd(list, 1.0, 0, 0, 30, 100, 1, c)
+  assert(#list == 1 and p1 == p2 and near(p1.g, 60, 1e-9) == nil and math.abs(p1.T - 150) < 1e-9, 'a bit within 1.5 m joins the patch; temperature is the mix')
+  R.marbleAdd(list, 5, 0, 0, 500, 100, 2, c)
+  assert(#list == 2 and list[2].g == c.marbles.maxG, 'a far bit makes a new patch, capped at maxG')
+  for i = 1, 40 do R.marbleAdd(list, 10 * i, 50, 0, 10, 20, 10 + i, c) end
+  assert(#list == c.marbles.maxPatches, 'at most 24 patches: ' .. #list)
+  assert(list[1].born >= 3, 'the oldest patches were dropped first')
+  -- grip: none on a clean road, 0.9 at 100 g, 0.8 at 200 g and more, never below 1 - 2 x gripLoss
+  assert(R.marbleGrip(0, c) == 1 and math.abs(R.marbleGrip(100, c) - 0.9) < 1e-9 and math.abs(R.marbleGrip(400, c) - 0.8) < 1e-9, 'slight grip loss')
+  c.marbles.gripLoss = 5
+  assert(math.abs(R.marbleGrip(200, c) - 0.4) < 1e-9, 'the loss setting is capped at 0.3 per 100 g')
+  c.marbles.gripLoss = 0.10
+  -- at: the patch under a point
+  local q = {}
+  local pa = R.marbleAdd(q, 0, 0, 0, 100, 20, 0, c)
+  assert(R.marbleAt(q, 0.3, 0, c) == 1 and R.marbleAt(q, 3, 0, c) == nil, 'under the patch only')
+  -- decay: gone after lifeS (95 %), faster in the wet
+  local d = {}
+  R.marbleAdd(d, 0, 0, 0, 100, 20, 0, c)
+  for _ = 1, 600 do R.marbleStep(d, 1, 20, 0, c) end
+  assert(#d == 0 or d[1].g < 6, 'a patch is gone after lifeS')
+  local w = {}
+  R.marbleAdd(w, 0, 0, 0, 100, 20, 0, c)
+  for _ = 1, 200 do R.marbleStep(w, 1, 20, 1, c) end
+  assert(#w == 0 or w[1].g < 6, 'rain clears it three times faster')
+  -- burn: a hot big patch burns for pileBurnS and loses 70 % of its grams, a cool or small one does not
+  local h = {}
+  local hp = R.marbleAdd(h, 0, 0, 0, 100, 450, 0, c)
+  local burning = R.marbleStep(h, 0.1, 20, 0, c)
+  assert(burning == 1 and hp.burn > 0, 'a hot 100 g patch burns')
+  local g0 = hp.g
+  for _ = 1, 150 do R.marbleStep(h, 0.1, 20, 0, c) end
+  assert(hp.burn <= 0 and hp.g < g0 * 0.5, 'it burns out and the rubber is used up: ' .. hp.g .. ' of ' .. g0)
+  local cool = {}
+  R.marbleAdd(cool, 0, 0, 0, 100, 200, 0, c)
+  assert(R.marbleStep(cool, 0.1, 20, 0, c) == 0, 'a cool patch does not burn')
+  c.marbles.burn = false
+  local nb = {}
+  R.marbleAdd(nb, 0, 0, 0, 100, 450, 0, c)
+  assert(R.marbleStep(nb, 0.1, 20, 0, c) == 0, 'burn switch off: no fire')
+  R.marbleScuff(pa, 0.5)
+  assert(math.abs(pa.g - 50) < 1e-9, 'scuffing takes a share away')
+end

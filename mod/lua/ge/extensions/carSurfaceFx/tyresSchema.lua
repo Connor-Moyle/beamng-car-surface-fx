@@ -88,6 +88,12 @@ local ROWS = {
   row('fire', 'debris.pileIgniteT', 'slider', 'Rubber pile catches fire above', 'A hot pile of rubber catches fire above this temperature.', 150, 600, 10, 'C', true),
   row('fire', 'debris.pileMinG', 'slider', 'Smallest pile that can burn', 'A pile lighter than this cannot catch fire (grams).', 1, 200, 1, 'g', true),
   row('fire', 'debris.pileBurnS', 'slider', 'Rubber pile burns for', 'How long a burning pile lasts.', 2, 120, 1, 's', true),
+  row('fire', 'marbles.enabled', 'bool', 'Rubber marbles on the road', 'The rubber a long burnout throws off collects as small dark bits on the road, and is slowly cleared (rain clears it faster). Needs "Rubber debris".'),
+  row('fire', 'marbles.gripLoss', 'slider', 'Marbles reduce grip', 'The grip a tyre loses driving over 100 g of marbles (twice that over 200 g). 0 for none.', 0, 0.3, 0.01, '', false),
+  row('fire', 'marbles.burn', 'bool', 'Hot rubber can burn on the road', 'After an extreme burnout a hot patch of rubber on the road glows and burns for a few seconds. It never lights a car.'),
+  row('fire', 'marbles.maxPatches', 'slider', 'Most marble patches', 'How many patches of marbles the road holds at once; the oldest goes first.', 4, 48, 1, '', true),
+  row('fire', 'marbles.maxG', 'slider', 'Most rubber in a patch', 'A patch never holds more than this (grams).', 100, 800, 50, 'g', true),
+  row('fire', 'marbles.lifeS', 'slider', 'Marbles last', 'About how long a patch of marbles stays on the road before it is gone.', 60, 1800, 30, 's', true),
   row('fire', 'blowout.enabled', 'bool', 'Blowouts damage nearby panels', 'A tyre that bursts pushes on the body panels beside it. Off until it has been seen working in the game.'),
   row('fire', 'blowout.strength', 'slider', 'Blowout force', 'How hard a burst tyre pushes (it is still capped).', 0, 3, 0.1, 'x'),
   row('fire', 'blowout.radius', 'slider', 'Blowout reach', 'How far from the wheel the burst pushes, in metres.', 0.2, 0.8, 0.05, 'm', true),
@@ -143,7 +149,7 @@ function M.build(S, opts)
 
   local function groupOf(r)
     if r.tab == 'wear' then return r.path:find('^surface') and 'Wear by surface' or (r.path == 'enabled' and 'Tyre simulation' or 'Wear') end
-    if r.tab == 'fire' then return r.path:find('^blowout') and 'Blowouts' or (r.path:find('^debris') and 'Rubber debris' or 'Fire') end
+    if r.tab == 'fire' then return r.path:find('^blowout') and 'Blowouts' or (r.path:find('^debris') and 'Rubber debris' or (r.path:find('^marbles') and 'Rubber marbles' or 'Fire')) end
     return title(r.tab)
   end
   local fields = {}
