@@ -105,6 +105,12 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   c.reset();
   c.w.csfxWear({});
   c.w.csfxWash({ dust: 1, mud: 1 });
-  assert(c.ops.arcs < kept, 'no values: the wear layer is gone, only the dirt is redrawn');
+  assert.strictEqual(c.ops.arcs, kept, 'no values: the wear layer is gone, only the dirt is redrawn');
+  // the layer is drawn once, not on every redraw: with full wear a wash (a full redraw) draws none of its blobs again
+  c.w.csfxWear({ fade: 1, grime: 1, scuffs: 1, rust: 1, fl: places, gl: places, sl: places, rl: places });
+  c.w.csfxClear();
+  c.reset();
+  for (let i = 0; i < 20; i++) c.w.csfxWash({ dust: 1, mud: 1 });
+  assert.strictEqual(c.ops.arcs, 0, 'a redraw copies the finished wear layer: ' + c.ops.arcs + ' blobs drawn');
 }
 console.log('carSurfaceFx scratch page: ok');

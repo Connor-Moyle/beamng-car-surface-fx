@@ -498,6 +498,7 @@ local function wearPlaces(id)
 end
 -- w = { fade=, grime=, scuffs=, rust= } each 0..1; nil or all zeros takes the layer away
 function M.setPaintWear(id, w)
+  if not getObjectByID(id) then wears[id] = nil wearDue[id] = nil return end
   local new, any, same = {}, false, true
   for _, k in ipairs(WEAR_KEYS) do
     new[k] = q(min(1, max(0, tonumber(w and w[k]) or 0)), 100)
@@ -848,7 +849,13 @@ function M.onUpdate(dt)
     local car, veh = cars[id], getObjectByID(id)
     if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then sendNodes(id) nodesAt[id] = nil end
   end
-  for id, t in pairs(wearDue) do if t <= os.clock() and sendWear(id) then wearDue[id] = nil end end
+  for id, t in pairs(wearDue) do
+    if t <= os.clock() then
+      if not getObjectByID(id) then wearDue[id] = nil wears[id] = nil wearPos[id] = nil       -- the car is gone
+      elseif sendWear(id) then wearDue[id] = nil
+      else wearDue[id] = os.clock() + 1 end                    -- no canvas or body map yet: look again in a second
+    end
+  end
   for id, t in pairs(replayAt) do
     local car, veh = cars[id], getObjectByID(id)
     if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then replay(id) replayAt[id] = nil end

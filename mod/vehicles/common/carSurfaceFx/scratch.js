@@ -42,7 +42,9 @@
     sctx.strokeStyle = sctx.fillStyle = palette ? 'rgba(0,0,0,' + a + ')' : rgba(c, a);
   }
 
+  var wearC = null;                                 // the paint-wear layer drawn once on its own canvas (with the blank page under it); every redraw starts from a copy of it
   function blank() {
+    if (wearC) { sctx.globalCompositeOperation = 'copy'; sctx.drawImage(wearC, 0, 0); dirty = true; return; }
     sctx.globalCompositeOperation = 'source-over';
     sctx.fillStyle = palette ? '#f00' : (emis ? '#000' : '#fff');
     sctx.fillRect(0, 0, W, W);
@@ -100,7 +102,7 @@
     if (a === undefined && typeof Image === 'undefined') return null;
     if (a === undefined) {
       a = atlases[kind] = { img: new Image(), ok: false };
-      a.img.onload = function () { a.ok = true; dirty = true; redraw(); };
+      a.img.onload = function () { a.ok = true; dirty = true; buildWear(); redraw(); };
       a.img.onerror = function () { a.bad = true; };
       a.img.src = 'local://local/art/surfacefx/splats/' + kind + '.png?v=1';
     }
@@ -294,15 +296,24 @@
       drawLines({ l: l, c: [0.8, 0.8, 0.78], a: 0.35 + 0.5 * wear.scuffs });
     }
   }
+  function buildWear() {                                          // (again when a splat picture has loaded)
+    wearC = null;
+    if (!wear) return;
+    var main = sctx, c = document.createElement('canvas');
+    c.width = c.height = W;
+    sctx = c.getContext('2d');
+    blank(); drawWear();
+    sctx = main; wearC = c;
+  }
   window.csfxWear = function (o) {
     var on = o && (o.fade > 0 || o.grime > 0 || o.scuffs > 0 || o.rust > 0);
     wear = on ? o : null;
+    buildWear();
     redraw();
   };
 
   function redraw() {
     blank();
-    drawWear();
     for (var i = 0; i < lines.length; i++) drawLines(lines[i]);
     for (var j = 0; j < blobs.length; j++) drawBlob(blobs[j]);
     for (var k = 0; k < dents.length; k++) drawDent(dents[k]);
