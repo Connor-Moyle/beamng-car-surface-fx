@@ -186,6 +186,18 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
   local leak = rules.leaks({ oilPan = oilPan, oilCooler = oilCooler, radiator = radiator, overheating = overheat, oilRate = tonumber(oilRate), coolantRate = tonumber(coolRate),
     fuelRate = fuelRate, fuelStored = fuelStored, cold = cold, running = running })
   M.report(vid, leak.oil, leak.coolant, leak.fuel, leak.exhaust, grip)
+  -- a rate the game gives (the engine's oil and coolant, the tanks' fuel: kg/s, about a litre a second each): the litres let out since the last report grow the pool under a parked car
+  -- (rules.spill); the drips of that leak only feed it. With only a damage flag known the drips grow the pool as before.
+  local known = { oil = tonumber(oilRate), coolant = tonumber(coolRate), fuel = ((fuelRate or 0) > 0 and (fuelStored or 1) > 0) and fuelRate or nil }
+  if speed <= settings.stainSpeed then
+    local gz
+    for kind, rate in pairs(known) do
+      if rate > 0 then
+        gz = gz or groundZ(ex, ey, ez)
+        if gz then rules.spill(store, ex, ey, gz, kind, rate * dt, settings, math.random()) end
+      end
+    end
+  end
   local c = carry[vid] or {}
   carry[vid] = c
   for _, kind in ipairs(rules.KINDS) do
@@ -193,9 +205,9 @@ function M.car(vid, speed, ex, ey, ez, tx, ty, tz, oilPan, oilCooler, radiator, 
     if speed > settings.stainSpeed and leak[kind] > 0.03 then n, c[kind] = rules.drips(1, dt * math.min(1, leak[kind] * 2.5) * speed / 1.2 / rules.DRIPS_PER_SECOND, c[kind])      -- a moving car leaves a line of spots about 1.2 m apart (a weak leak, fewer)
     else n, c[kind] = rules.drips(leak[kind], dt, c[kind]) end
     for _ = 1, n do
-      local jx, jy = (math.random() - 0.5) * 0.5, (math.random() - 0.5) * 0.5
+      local jx, jy = (math.random() - 0.5) * 0.36, (math.random() - 0.5) * 0.36      -- (within rules.REACH of the pool at the leak point)
       if kind == 'exhaust' then M.addDrip(tx + jx * 0.3, ty + jy * 0.3, tz, kind, 1, speed)
-      else M.addDrip(ex + jx, ey + jy, ez, kind, 1, speed) end
+      else M.addDrip(ex + jx, ey + jy, ez, kind, known[kind] and 0 or 1, speed) end
     end
   end
 end

@@ -40,6 +40,26 @@ for i = 1, 30 do R.drip(store, 100 + i * 5, 0, 0, 'fuel', 1, cfg, false, 0.5) en
 assert(store.count == 10, 'the ring holds max puddles')
 R.drip(store, 0, 0, 0, 'lava', 1, cfg, false, 0.5)
 assert(store.count == 10, 'an unknown fluid is ignored')
+local one = R.newStore(10)
+R.drip(one, 0, 0, 0, 'oil', 1, cfg, false, 0.5)
+R.drip(one, 0.25, 0.25, 0, 'oil', 1, cfg, false, 0.5)
+R.drip(one, -0.25, -0.25, 0, 'oil', 1, cfg, false, 0.5)
+assert(one.count == 1, 'the drips of one leak, scattered round the leak point, make one pool: ' .. one.count)
+
+-- the volume a leak lets out sets the pool: 5 L of coolant make a pool about 0.6 m across, the litres add up in the one pool, the drips of that leak feed it without growing it, the
+-- fluid's size caps it, fuel runs thinner than oil
+local sp = R.newStore(10)
+local pool = R.spill(sp, 0, 0, 0, 'coolant', 5, cfg, 0.5)
+assert(sp.count == 1 and math.abs(pool.r * 2 - 0.63) < 0.04, '5 L of coolant: a pool about 0.6 m across: ' .. pool.r * 2)
+for _ = 1, 10 do R.spill(sp, 0, 0, 0, 'coolant', 0.5, cfg, 0.5) end
+assert(sp.count == 1 and math.abs(pool.r * 2 - 0.885) < 0.04, 'the litres add up in the one pool: ' .. pool.r * 2)
+local before = pool.r
+R.drip(sp, 0.2, 0.15, 0, 'coolant', 0, cfg, false, 0.5)
+assert(sp.count == 1 and pool.r == before, 'a drip of a leak whose volume is known joins the pool without growing it')
+R.spill(sp, 0, 0, 0, 'coolant', 100, cfg, 0.5)
+assert(pool.r == cfg.kinds.coolant.size, 'a spill stops at the fluid\'s size')
+assert(R.spill(sp, 0, 0, 0, 'coolant', 0, cfg, 0.5) == nil and R.spill(sp, 0, 0, 0, 'lava', 1, cfg, 0.5) == nil, 'nothing spilt, or an unknown fluid: no pool')
+assert(R.spill(R.newStore(4), 9, 9, 0, 'fuel', 5, cfg, 0.5).r > R.spill(R.newStore(4), 0, 0, 0, 'oil', 5, cfg, 0.5).r, 'fuel runs thinner than oil: a wider pool for the same litres')
 
 local dry = R.newStore(10)
 local c = R.drip(dry, 0, 0, 0, 'coolant', 1, cfg, false, 0.5)
@@ -110,6 +130,13 @@ assert(F.count() >= 1 and F.count() <= 4 and st:find('oil=%d') and st:find('leak
 local r0 = tonumber(st:match('oil=%d%(r([%d%.]+)%)'))      -- the radius is a share of a leak that may be split over a few puddles (random jitter), so the test compares, it does not use a fixed size
 for i = 1, 400 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, true, false, false, false, 'nil', 'nil', 0, 1, false, true, 1) end
 assert(tonumber(F.status():match('oil=%d%(r([%d%.]+)%)')) > r0 + 0.05, 'and it grows while the car stays: ' .. r0 .. ' -> ' .. F.status())
+
+-- a parked car whose radiator leaks at the engine's own rate: the pool follows the litres let out (0.5 kg/s for 10 s = 5 L), one pool, however few drips were seen
+F.clear()
+for i = 1, 50 do t = t + 0.2 F.car(1, 0, 10, 20, 0.4, 10, 22, 0.3, false, false, true, false, 'nil', 0.5, 0, 1, false, true, 1) end
+local cs = F.status()
+local cr = tonumber(cs:match('coolant=%d%(r([%d%.]+)%)'))
+assert(F.count() == 1 and cr and cr > 0.28 and cr < 0.36, '5 L of coolant in 10 s: one pool about 0.6 m across: ' .. cs)
 
 -- the falling drops: with a gap between the engine and the ground the drips fall first and land a moment later
 castRayStatic = function() return 1.4 end                         -- the ground is 0.8 m below the drip height

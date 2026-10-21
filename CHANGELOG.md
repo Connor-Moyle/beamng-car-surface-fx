@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Leak pools follow the volume let out: when the game gives a leak rate (the engine's oil and coolant, the tanks' fuel) the litres since the last report grow the pool under a parked car, so a punctured radiator that dumps its coolant in seconds leaves a pool about 0.6 m across instead of an 8 cm spot; the drips of that leak only feed the pool. One leak makes one pool (the drips scatter less and join the pool from further out). With only a damage flag known the drips grow the pool as before. Not yet seen in the game.
+
 ## 0.4.2 (2026-10-21)
 
 Changes since 0.4.1. Needs BeamNG.drive 0.40.
