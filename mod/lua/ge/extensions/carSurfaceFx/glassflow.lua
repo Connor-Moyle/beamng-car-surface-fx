@@ -186,7 +186,8 @@ function M.request(vehId, glassMat, cb)
       local glassy = {}
       for nm in pairs(stats.daeMats) do if nm:lower():find('glass', 1, true) then glassy[#glassy + 1] = nm end end
       table.sort(glassy)
-      log('W', TAG, line .. ' - NOTHING FOUND. glass-like materials in the .dae: [' .. table.concat(glassy, ', ') .. ']')
+      -- a vehicle with no mesh file or no glass-like material at all (the walking character) has nothing to find: an info line, not a warning
+      log(#glassy > 0 and 'W' or 'I', TAG, line .. ' - NOTHING FOUND. glass-like materials in the .dae: [' .. table.concat(glassy, ', ') .. ']')
     else
       log('I', TAG, line)
     end
