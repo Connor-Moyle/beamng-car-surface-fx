@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.7 (2026-10-22)
+
+Changes since 0.4.6. Needs BeamNG.drive 0.40.
+
+Changed:
+
+- Every part has its own switch in the Mods menu. New switches, all on as before: Dust, Mud, Tyre rubber and Road grime (Dirt page), Tyre smoke and Sparks from belt-worn tyres (Tyres page). A kind that is switched off builds nothing.
+- The Active features page now also lists the master switches of the test features (Worn paint, Panel damage, Soil banks beside ruts, Wheels press the ground down, Lit tyre tracks, Gouges). They are off by default and the labels still say test.
+
+Built, not yet tested in game:
+
+- The six new switches (nobody has toggled them in the game yet) and the Active features entries of the test features.
+- The open items of 0.4.5 and 0.4.6 (the metal dent look on red and white paint, a pole hit, carbon and fibreglass panels, marks after a recovery that keeps the damage, mud spray trails, the rubber heap and glow, scuffs, grime on dark paint, a side window breaking on other cars, and skid marks on dirt, gravel and snow at the 60 m distance).
+
 ## 0.4.6 (2026-10-22)
 
 Changes since 0.4.5. Needs BeamNG.drive 0.40.
