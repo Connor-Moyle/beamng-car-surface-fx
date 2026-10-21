@@ -119,6 +119,9 @@ local COMPOUND_KEYS = {
   { 'loose', 0.3, 1.5, 0.01, 'Grip on loose ground', 'Grip on gravel, dirt and sand, compared with a road tyre.' },
   { 'snow', 0.2, 1.5, 0.01, 'Grip on snow', 'Grip on snow and ice, compared with a road tyre.' },
   { 'crr', 0.005, 0.03, 0.001, 'Rolling resistance', 'How hard the tyre is to roll: bigger is slower on the straight.' },
+  { 'coldFrom', -30, 30, 1, 'Hardens below', 'The temperature below which the rubber starts to harden and lose grip (summer tyres about 7 degrees).', 'C' },
+  { 'coldK', 0, 0.05, 0.001, 'Grip lost per degree of cold', 'The grip lost for each degree below that temperature (0.017 is 12 % at 0 degrees).' },
+  { 'coldMax', 0, 0.6, 0.01, 'Most grip lost to cold', 'The most grip the cold can take from this tyre.' },
 }
 
 local COMPOUND_ORDER = { 'road', 'performance', 'semislick', 'slick', 'slicksoft', 'drag', 'offroad', 'mud', 'winter', 'rally', 'intermediate', 'fullwet' }

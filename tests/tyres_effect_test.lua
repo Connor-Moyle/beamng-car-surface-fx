@@ -135,7 +135,7 @@ local function compoundScene(name)
   local cfg = R.defaults()
   local o = {}
   o[#o + 1] = sig(t.h[1], c.h0)
-  for _, T in ipairs({ -40, -26, -10, 5, 9, 14, 19, 22, 24, 30, 60, 100, 140 }) do o[#o + 1] = sig(R.tempGrip(c, T, cfg)) end
+  for _, T in ipairs({ -70, -40, -26, -20, -16, -10, -4, 5, 9, 14, 19, 22, 24, 30, 60, 100, 140 }) do o[#o + 1] = sig(R.tempGrip(c, T, cfg)) end
   for _, h in ipairs({ 0.5, 2, c.h0 }) do for _, wet in ipairs({ false, true }) do o[#o + 1] = sig(R.wearGrip(c, h, wet)) end end
   for _, v in ipairs({ 8, 11, 14, 17, 20, 23, 26, 30, 34, 40, 50 }) do o[#o + 1] = sig(R.aquaplane(c, c.h0 * 0.5, 0.8, v), R.aquaplane(c, c.h0, 0.8, v)) end
   o[#o + 1] = sig(R.surfaceGrip(c, 'dirt'), R.surfaceGrip(c, 'snow'))
