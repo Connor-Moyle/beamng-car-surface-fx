@@ -15,6 +15,7 @@ local LOCK_RATIO = 0.3                -- wheel surface speed under this share of
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks
 local SPARK_MAX = 6                  -- sparks per tick (10 Hz) at the most
+local SPARK_SPEED = 5               -- m/s the sparks are thrown at (1 gave a few short specks: the speed sets the streak's length)
 local SPARK_PARTICLE = 1            -- particles.json type 1: sparks
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
@@ -223,7 +224,7 @@ local function tick(dt)
       if cfg.sparksEnabled ~= false and (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
         local n = min(SPARK_MAX, 2 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 2))
         if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
-        pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -1, SPARK_PARTICLE, 0, 1) end end)
+        pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -SPARK_SPEED, SPARK_PARTICLE, 0, 1) end end)
       end
       if t.blown and not wd.isPunctured and wheels.deflateTire then pcall(wheels.deflateTire, wd.wheelID or wi) end
     elseif t.fire then                                          -- the game's own fire burnt the tyre through first (spread on: its hub passed the pop temperature): our fire ends with the tyre, the car's own fire is the game's

@@ -126,7 +126,11 @@ end
 local function maxN(kind) return math.max(10, math.floor(kind == 'skid' and settings.skidCount or settings.trackCount)) end
 
 -- one wheel step, a quad from a to b; typ = surface name; kind 'skid' or 'track'; inten 0..1
+local forcedSurface = nil                                       -- a test: every mark is drawn as this surface (carSurfaceFx.debug('groundsurface', 'snow'))
+function M.forceSurface(name) forcedSurface = name and colors[name] and name or nil return forcedSurface end
+
 function M.addSegment(ax, ay, az, bx, by, bz, typ, isSkid, inten)
+  typ = forcedSurface or typ
   if not settings.enabled or not colors[typ] then return end
   local kind = (isSkid == 1 or isSkid == true) and 'skid' or 'track'
   if kind == 'track' then                                        -- soft ground: the ruts module draws the track as a lit road decal when its tracks switch is on

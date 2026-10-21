@@ -6,7 +6,6 @@
 local M = {}
 
 local rules = require('carSurfaceFx/grassRules')
-local logTag = 'carSurfaceFx_grass'
 
 local settings = rules.sanitize(nil)
 local cars = {}              -- vehicle id -> { offsets = { vec3 }, axle = { m }, widths = { m }, prev = { { x, y, z } or false }, n = wheels }

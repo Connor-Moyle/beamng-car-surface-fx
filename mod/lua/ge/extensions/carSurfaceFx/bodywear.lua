@@ -11,7 +11,6 @@ local totals = { seen = 0, hits = 0, light = 0, still = 0, tyre = 0, wheel = 0, 
 local last = {}                  -- the last few hits, newest last
 local LAST_N = 12
 local debugOn = false
-local injectT = 0
 
 function M.hit(id, node, kind, mat, force, slip, speed, a, b, c)
   totals.hits = totals.hits + 1

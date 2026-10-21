@@ -71,7 +71,7 @@ function M.onPreRender(dt)
   marbles.draw(cfg, cam and cam.x, cam and cam.y, function(pl, n) if mk and mk.drawBatch then mk.drawBatch(pl, n) else Engine.Render.DynamicDecalMgr.addDecals(pl, n) end end)
 end
 
-function M.lookEvent(id, wi, what, n)                  -- one-off facts from the car's look and spark code, written here because the car's own log does not reach beamng.log
+function M.lookEvent(id, wi, what, n)                  -- one-off facts from the car's spark code (the first spark of a wheel), written here because the car's own log does not reach beamng.log
   log('I', 'carSurfaceFx_tyres', string.format('car %s wheel %s: %s (%s)', tostring(id), tostring(wi), tostring(what), tostring(n)))
 end
 local lookMsc = {}                                -- vehicle id -> { 'material|mesh' -> switch id } (see M.look)

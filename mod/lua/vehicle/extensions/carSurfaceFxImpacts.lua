@@ -22,7 +22,6 @@ local probeUntil = 0                                          -- breakWindows (a
 local nodeCooldown = {}
 local sparkCooldown = {}
 local subscribed = false
-local lastBurst = 0
 
 local function ge(cmd) pcall(function() obj:queueGameEngineLua(cmd) end) end
 

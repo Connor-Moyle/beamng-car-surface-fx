@@ -107,6 +107,17 @@ assert(M.get('mats.dirt.skid.width') ~= nil and M.get('mats.lava.skid.width') ==
 assert(M.set('mats.dirt.skid.width', 0.4) and M.get('mats.dirt.skid.width') == 0.4, 'set by path')
 assert(M.set('mats.dirt.skid.width', 'wide') == false and M.set('nothing.here', 1) == false, 'a wrong type or path is refused')
 assert(M.set('mats.dirt.skid.color', { 1, 0, 0 }) and M.get('mats.dirt.skid.color')[1] == 1, 'colours are set as lists')
+-- a test tool: every mark can be drawn as another surface (gravel, snow...) on any map
+M.configure({ enabled = true })
+M.clear()
+assert(M.forceSurface('snow') == 'snow' and M.forceSurface('lava') == nil, 'a known surface is forced, an unknown one is refused (and clears it)')
+M.forceSurface('snow')
+M.addSegment(0, 0, 0, 1, 0, 0, 'dirt', 1, 0.5)
+assert(M.count('skid') == 1, 'the forced surface takes the mark')
+M.clear()
+M.forceSurface(nil)
+M.addSegment(0, 0, 0, 1, 0, 0, 'lava', 1, 0.5)
+assert(M.count('skid') == 0, 'unforced again: an unknown surface is ignored')
 -- the per-frame cost does not grow with the stored marks: the marks are picked once, then the same lists go to the engine every frame; a new mark, a moved or turned camera picks again
 M.configure({ enabled = true, maxDrawn = 5000, cullRadius = 100 })
 M.clear()

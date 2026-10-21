@@ -939,7 +939,7 @@ end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround, forcedSnowGround = nil, nil, nil, 0, nil, nil, nil, nil, nil, nil return 'debug cleared' end
+  if kind == nil then local mk = rawget(_G, 'carSurfaceFx_marks') if mk and mk.forceSurface then mk.forceSurface(nil) end forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround, forcedSnowGround = nil, nil, nil, 0, nil, nil, nil, nil, nil, nil return 'debug cleared' end
   if kind == 'melt' then                                                       -- snow melts to this share of what the car carries: patches slide off in sheets
     local id = be:getPlayerVehicleID(0)
     if scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(tonumber(value) or 0.5, 0, 1), 1, true) end
@@ -947,6 +947,13 @@ function M.debug(kind, value)
     return 'snow melted to ' .. tostring(value)
   end
   if kind == 'groundsnow' then forcedSnowGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on snow: ' .. tostring(forcedSnowGround) end
+  if kind == 'groundsurface' then                                              -- the ground marks treat every wheel mark as this surface (gravel, snow, sand, ice...): the marks of a surface the map does not have; 0 or nil puts the real one back
+    local mk = rawget(_G, 'carSurfaceFx_marks')
+    if not (mk and mk.forceSurface) then return 'the marks module is not running' end
+    local name = value ~= nil and value ~= 0 and tostring(value) or nil
+    local got = mk.forceSurface(name)
+    return got and ('wheel marks drawn as ' .. got) or (name and ('unknown surface ' .. name .. ' (dirt, sand, gravel, mud, grass, ice, snow, tarmac)') or 'wheel marks as the real ground')
+  end
   if kind == 'groundmud' then forcedGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on mud: ' .. tostring(forcedGround) end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
   if kind == 'speed' then value = tonumber(value) or 0 forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end   -- m/s, not clamped
