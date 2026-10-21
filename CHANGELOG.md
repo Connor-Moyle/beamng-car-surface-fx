@@ -1,10 +1,30 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 (2026-10-21)
 
-- Oil sheen: a faint, pale film in wide slow swirls, only toward the thin edge of the pool and none in the thick middle (a third of the colour it had; it read as purple and green camouflage). The pool stays near-black and glossy.
-- Leak puddles: a soft darker wet ring on the ground round every pool (oil, coolant, fuel); the plane is a little wider for it.
-- Coolant and fuel pools: a darker tint on the full pool mask, a very smooth surface and a little more metallic, so a small pool reads as a wet glossy puddle (80's close-up showed a flat matte disc: the thin 60 % mask at half metallic). Not yet seen in the game.
+Changes since 0.4.1. Needs BeamNG.drive 0.40.
+
+Proven in the game (connor-80, with screenshots):
+
+- Worn paint, rust (off by default; for Part Wear to drive): rust now gathers where water sits, on the lower door and the sill line and around the wheel-arch lips, never above the lower half of the door; many small spots at a low value, more and bigger ones at a high value; each spot is an irregular blob, and some have a run-off stain that wobbles, tapers and fades out. Seen on a white and a brown car at 0.3 and 0.9.
+- Oil leaks: the oil pool keeps a near-black glossy look with only a faint pale sheen toward its thin edge, and a soft darker wet ring round the pool.
+
+Changed:
+
+- Rust: placed by the car's own mesh (low, the arch lips, never the underside), with run-off stains running down the body.
+- Coolant and fuel pools: a darker tint on the full pool mask, a very smooth surface and a little more metallic.
+
+Built, not yet tested in the game:
+
+- The coolant and fuel pools after the change (a close-up of a small pool).
+- Rust on a car other than the two tried; at 0.9 the rust on the lower door sits in a band of fairly even height.
+- Scuffs; fade and grime on dark paint (the paint canvas can only darken, so they are faint there); worn paint on a respawned dark car.
+- Rubber marbles, and panel damage by part (carbon, fibreglass, plastic): off by default.
+- Mud after more than about 80 s of driving, and dust on its own.
+- Glass piles on asphalt, and a side window breaking in a real hit.
+- The chunks a burnout throws, and panel damage from a real hit.
+- The water film on the road in heavy rain (Tyres > Wet, off by default).
+- Leak puddles with the low cap and the GPU gate (the glossy planes are off by default).
 
 ## 0.4.1 (2026-10-21)
 
