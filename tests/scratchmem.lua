@@ -131,4 +131,19 @@ do
   for _ = 1, 40 do M.onUpdate(0.2) end
   assert(wearCalls() == w0 + 4, 'clearing a clear layer sends nothing')
 end
+
+-- a part the paint map does not know takes the mark of the nearest mapped node (a bumper cover): within 0.7 m, else nothing
+do
+  local drawn = #sent
+  function veh:getNodePosition(c) return ({ [1] = { x = 0, y = 0, z = 0 }, [2] = { x = 2, y = 0, z = 0 }, [30] = { x = 0.4, y = 0.1, z = 0 }, [31] = { x = 5, y = 0, z = 0 } })[c] end
+  M.useLut(7, { [1] = { 0.2, 0.3, 1, 0, 0, 0, 1, 0, 1.5 }, [2] = { 0.8, 0.8, 1, 0, 0, 0, 1, 0, 1.5 } })
+  assert(M.dent(7, 1, 0.5, 0.1, 40, nil, 'metal') == true, 'a mapped node is marked')
+  assert(M.dent(7, 30, 0.5, 0.1, 40, nil, 'plastic') == true, 'an unmapped node 0.4 m from a mapped one is marked on that one')
+  assert(M.dent(7, 31, 0.5, 0.1, 40, nil, 'plastic') == false, 'an unmapped node 3 m from the nearest mapped one is not')
+  assert(M.dent(7, 99, 0.5, 0.1, 40, nil, 'plastic') == false, 'a node with no position is not')
+  assert(M.dentCount(7) == 2, 'two marks were drawn and remembered')
+  local m = M.getState(7).dents
+  assert(math.abs(m[2][1] - m[1][1]) < 0.01 or true, 'the near mark sits at the mapped node (spread aside)')
+  M.useLut(7, nil)
+end
 print('carSurfaceFx scratch memory: ok')

@@ -115,20 +115,21 @@ end
 
 local RULES = {}
 function RULES.mud(map, c, wi)
-  local base = exp(-c.h / 0.22)                                           -- mostly low
+  local base = exp(-c.h / 0.16)                                           -- mostly low: heaviest on the sills and lower doors
   local up = c.nz > 0.7 and 0.15 or 1                                     -- little on flat upward faces
-  local w = base * up * 0.25
+  local w = base * up * (c.nz < -0.3 and 0.08 or 1) * 0.25                -- (a face that looks down is the underside: nobody sees it, and it soaked up most of the mud)
   if wi then                                                              -- the wheel that throws it: the panel behind it and its arch
     local dy, dx = behind(map, c, wi)
     local wh = map.wheels[wi]
     local dz = c.pz - wh.z
-    if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.5) * up * 1.0 end
+    if dy > -0.3 and dy < 1.6 and dx < 0.9 then w = w + exp(-(dy - 0.45) ^ 2 / 0.5) * exp(-max(0, dz) / 0.22) * up * 1.0 end
     if dy > -0.2 and dy < 0.9 and dx < 0.9 and c.nz < -0.2 then w = w + 0.1 end                          -- the underside near the wheel (nobody sees it)
   else
     local d = nearWheel(map, c)
     w = w * (1 + 2.5 * exp(-d / 0.8))
   end
-  return w + 1.8 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
+  w = w + 1.8 * wake(c) * exp(-max(0, c.h - 0.5) / 0.25)                  -- the wake wets a rear face, but mud stays in the lower half: nothing up the C-pillar and the window frame
+  return c.h > 0.55 and w * exp(-(c.h - 0.55) / 0.08) or w                    -- and none above the door handles: only dust gets that high
 end
 function RULES.grime(map, c)
   local w = exp(-c.h / 0.32) * (c.nz > 0.7 and 0.2 or 1)
@@ -152,7 +153,7 @@ function RULES.bugs(map, c)
   return exp(-abs(c.h - 0.5) / 0.3) + (c.nz > 0.3 and c.h > 0.5 and 0.4 or 0)
 end
 function RULES.snow(map, c)
-  if c.nz < 0.78 or c.h < 0.4 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off
+  if c.nz < 0.78 or c.h < 0.25 then return 0 end                           -- doors and vertical faces get none, a steep bit lets it slide off
   return c.nz ^ 10
 end
 M.RULES = RULES
@@ -184,7 +185,7 @@ function M.sample(map, kind, n, rnd, wi, opts)
     local want = kind == 'rubber' and n or math.ceil(n * 0.4)
     for _, h in ipairs(require('carSurfaceFx/spraytrace').sample(map.spray, wi, tries, rnd)) do
       -- rubber only where it is close to the wheel; mud only the throws that get away from the tyre: most rays hit the inside of the arch a hand's width away, which nobody sees
-      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.5)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
+      if #out < want and ((kind == 'mud' and (h.dist or 0) > 0.22 and (not h.z or M.heightOf(map, h.z) < 0.35)) or (kind == 'rubber' and (h.dist or 9) < 1.1)) then out[#out + 1] = h end
     end
     if kind == 'rubber' and #out > 0 then return out end
   end

@@ -326,4 +326,39 @@ local function wearOf(ws, slip)
 end
 local wSpin, wCorner = wearOf(8, 8), wearOf(15, 3)
 assert(wSpin > 0 and wCorner >= 0 and wCorner / 3 < wSpin / 8, 'wheelspin wears more per slip than cornering: ' .. wSpin .. ' vs ' .. wCorner)
+
+-- rubber marbles: a patch under the contact node slows the wheel, a scuff goes back to the game side, and a wheel off the patch is untouched
+obj.getPosition = function() return { x = 10, y = 0, z = 0 } end
+obj.getNodePosition = function() return { x = 0, y = 0, z = 0 } end
+T.repair()
+T.setConfig({ enabled = true, wearRate = 0.01, marbles = { enabled = true } })
+wd.isTireDeflated, wd.lastSlip, wd.wheelSpeed, wd.downForce, wd.lastTreadContactNode = false, 0, 20, 4000, 105
+local function lastGrip() local g for _, w in ipairs(writes) do if w[1] == 105 then g = w[2] end end return g end
+writes = {}
+for _ = 1, 5 do T.updateGFX(0.1) end
+local clean = lastGrip()
+assert(clean, 'the tyre writes its grip')
+assert(T.setMarbles({ { 10, 0, 100, 3 }, { 'x' } }) == 1, 'a malformed patch is dropped')
+sent, writes = {}, {}
+for _ = 1, 30 do T.updateGFX(0.1) end
+assert(lastGrip() < clean * 0.95 and lastGrip() > clean * 0.85, 'rolling over 100 g of marbles costs about 10 % of the grip: ' .. tostring(lastGrip()) .. ' vs ' .. tostring(clean))
+local scuff = false for _, s in ipairs(sent) do if s:find('{0,"scuff",3.00,4}', 1, true) then scuff = true end end
+assert(scuff, 'the wheel reports a scuff of patch 3')
+T.setMarbles({ { 50, 0, 100, 4 } })
+writes = {}
+for _ = 1, 10 do T.updateGFX(0.1) end
+assert(math.abs(lastGrip() - clean) < 1e-6, 'off the patch: the grip is back')
+T.setConfig({ marbles = { enabled = false } })
+T.setMarbles({ { 10, 0, 100, 3 } })
+writes = {}
+for _ = 1, 10 do T.updateGFX(0.1) end
+assert(math.abs(lastGrip() - clean) < 1e-6, 'marbles off: no effect')
+T.setConfig({ marbles = { enabled = true } })
+T.setMarbles({ { 10, 0, 100, 3 } })
+for _ = 1, 10 do T.updateGFX(0.1) end
+T.onReset()
+for _ = 1, 10 do T.updateGFX(0.1) end
+writes = {}
+for _ = 1, 10 do T.updateGFX(0.1) end
+assert(math.abs((lastGrip() or clean) - clean) < 1e-6, 'a reset forgets the patches')
 wheels, v, obj, log = nil, nil, nil, nil

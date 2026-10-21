@@ -35,11 +35,11 @@ function M.configure(t)
 end
 
 -- the car side's report of a body node that hit something
-function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
+function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo, part)
   counts.hits = counts.hits + 1
   local E = rules.energy(rules.closingSpeed(perp, dv), force, mass, nodes)
   local sev = rules.severity(E, settings.minEnergy)
-  lastHit = { cid = cid, perp = perp, force = force, E = E, sev = sev }
+  lastHit = { cid = cid, perp = perp, force = force, E = E, sev = sev, part = part }
   if logOn then
     local r = { perp = perp, force = force, mass = mass, nodes = nodes, E = E, sev = sev, dv = dv, vhi = vhi, vlo = vlo }
     hitLog[#hitLog + 1] = r
@@ -48,7 +48,7 @@ function M.hit(vid, cid, perp, force, mass, nodes, nodeMaterial, dv, vhi, vlo)
     table.sort(topLog, function(a, b) return a.E > b.E end)
     while #topLog > 10 do table.remove(topLog) end
   end
-  local kind = rules.kindOf({ nodeMaterial = nodeMaterial })
+  local kind = rules.kindOf({ nodeMaterial = nodeMaterial, partName = part })
   local key = tostring(vid) .. ':' .. tostring(cid)
   -- the minimum is applied when the impact is over (flush), after the whole speed change of the impact has lifted the contacts: each contact alone only saw part of it
   if not rules.accept(settings, kind, math.huge, now(), readyAt[key]) then counts.tooSoft = counts.tooSoft + 1 return false end

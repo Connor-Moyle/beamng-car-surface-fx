@@ -25,7 +25,8 @@ for _, f in ipairs(reg.fields) do
 end
 
 -- every value of the rules' cfg has a field (the debris shares are one slider; the rubber density is a constant)
-local NOT_SETTINGS = { ['debris.density'] = true, ['debris.minFrac'] = true, ['debris.maxFrac'] = true }
+local NOT_SETTINGS = { ['debris.density'] = true, ['debris.minFrac'] = true, ['debris.maxFrac'] = true,
+  ['marbles.burnLoss'] = true, ['marbles.mergeR'] = true, ['marbles.minG'] = true }      -- (the marbles' fixed constants: the share of a patch a fire uses up, the merge radius, the grams below which a patch is gone)
 local missing = {}
 local function walk(t, prefix)
   for k, v in pairs(t) do

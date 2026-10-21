@@ -48,6 +48,7 @@ local function filmOf(id)
   return d and rules.clamp((d.dust or 0) * 0.7 + (d.grime or 0) * 1.3 + (d.mud or 0) * 0.5, 0, 1) or 0
 end
 local frostBy, engineBy = {}, {}              -- vehicle id -> frost on its glass 0..1; its engine temperature in C as last reported
+local forcedGround                          -- debug: 0..1, every wheel counts as running on mud (the real build-up path on dry ground)
 local forcedFrost, forcedSnowing, forcedAir   -- debug: frost, snowfall 0..1, air temperature C
 local sheetP = 0                           -- a sheet of water thrown over the windscreen by a puddle: decays in about a second
 local sprayP, sprayTarget, sprayT, forcedSpray = 0, 0, 0, nil   -- spray from the car ahead on the player's windscreen: smoothed, the last scan's, seconds since it, the debug value
@@ -266,7 +267,7 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- yet) the plain regions of the old placement are used.
 local COL = { mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  mud = { 3000, 1.0, 0.04 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
+  mud = { 4500, 1.0, 0.026 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
 local function bodyDirt(id, kind, amount, wi)
@@ -328,6 +329,7 @@ function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end
   engineBy[id] = tonumber(engine)
+  if forcedGround and id == be:getPlayerVehicleID(0) then loose, mud = math.max(loose, forcedGround), math.max(mud, forcedGround) end
   if grassOn() then carSurfaceFx_grass.noteGround(id, loose, mud, slip, speed) end
   if (waterL or 0) + (waterR or 0) > 0 then splash(id, waterL or 0, waterR or 0, speed, 0.5 + 0.5 * math.min(1, (water or 0))) end
   if scratchOn() and settings.scratch.dirtEnabled and speed > 2 then      -- splats around the wheels while they run on loose ground or mud
@@ -886,8 +888,8 @@ function M.set(path, value)
 end
 function M.getSettings() return settings end
 
-function M.onVehicleDestroyed(id) cars[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
-function M.onVehicleSpawned(id) cars[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
+function M.onVehicleDestroyed(id) cars[id] = nil wearAsked[id] = nil dirtBy[id] = nil motion[id] = nil frostBy[id] = nil engineBy[id] = nil screen.forget(id) end
+function M.onVehicleSpawned(id) cars[id] = nil dirtBy[id] = nil end      -- a respawn gets new meshes and its own paint: attach again on the next update
 
 -- everything back to how the game had it
 function reset()
@@ -914,7 +916,8 @@ end
 
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
-  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray = nil, nil, nil, 0, nil, nil, nil, nil return 'debug cleared' end
+  if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround = nil, nil, nil, 0, nil, nil, nil, nil, nil return 'debug cleared' end
+  if kind == 'groundmud' then forcedGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on mud: ' .. tostring(forcedGround) end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
   if kind == 'speed' then value = tonumber(value) or 0 forcedSpeed = value > 0 and value or nil return 'the window and windscreen water sees speed ' .. tostring(forcedSpeed or "the car's own") end   -- m/s, not clamped
   value = rules.clamp(tonumber(value) or 1, 0, 1)
@@ -923,6 +926,7 @@ function M.debug(kind, value)
     if kind == k then
       forcedDirt = forcedDirt or rules.dirtNew()
       local old = deepcopy(forcedDirt)
+      if old[k] == value then old[k] = 0 end                    -- the same value again draws it again (a respawned car has a blank canvas)
       forcedDirt[k] = value
       if k == 'snow' or k == 'bugs' then weatherSplats(be:getPlayerVehicleID(0), old, forcedDirt) end
       if k == 'mud' or k == 'dust' or k == 'rubber' or k == 'grime' then dirtSplats(be:getPlayerVehicleID(0), old, forcedDirt) end

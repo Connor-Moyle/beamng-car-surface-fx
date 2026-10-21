@@ -25,6 +25,8 @@ local compound = nil                -- nil: every tyre keeps its stock class (wh
 local env = { wet = 0, water = 0, surface = 'asphalt', ambient = nil, road = nil }
 local tyres = nil                   -- wheel index -> { t = rules tyre, wd, cids = {j -> cid}, slotOf = {cid -> j}, base = {j -> {fc, sfc}}, applied = {j -> factor}, pNom }
 local external = {}                 -- kind -> { wheel index -> multiplier }
+local marbles = {}                 -- rubber patches on the road near this car, from the game side: { x, y, g, id } (R.marbleAt / R.marbleGrip read them)
+local SCUFF_EVERY, SCUFF_FRAC, SCUFF_SPEED = 0.5, 4, 1.5   -- a wheel rolling over a patch above SCUFF_SPEED m/s reports a scuff of SCUFF_FRAC % every SCUFF_EVERY s
 local surfaceOf = {}                 -- collision material id -> surface key of the rules (the game side sends it from the level's ground models)
 local pendingBlob = nil             -- a saved state waiting for the tyres to be built
 local timer, report, reapply = 0, 0, 0
@@ -145,6 +147,29 @@ local function credit(e, dt)
   return p + burn
 end
 
+local function contactWorld(wd, e)                -- world position of the tread node touching the road (nil in the air)
+  if (tonumber(wd.downForce) or 0) < MIN_DOWNFORCE then return nil end
+  local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1]
+  local ok, x, y, z = pcall(function() local p, q = obj:getPosition(), obj:getNodePosition(cid) return p.x + q.x, p.y + q.y, p.z + q.z end)
+  if ok then return x, y, z end
+end
+
+-- the rubber patches under the wheels: the grip multiplier of each (through `external`, applied with the tyre's own grip) and a scuff report now and then
+local function marbleStep(wi, e, dt, events)
+  local m = cfg.marbles
+  local x, y = nil, nil
+  if m and m.enabled and #marbles > 0 then x, y = contactWorld(e.wd, e) end
+  local i, p = nil, nil
+  if x then i, p = R.marbleAt(marbles, x, y, cfg) end
+  external.marbles = external.marbles or {}
+  external.marbles[wi] = p and R.marbleGrip(p.g, cfg) or nil
+  if p and abs(tonumber(e.wd.wheelSpeed) or 0) > SCUFF_SPEED then
+    e.scuffT = (e.scuffT or 0) + dt
+    if e.scuffT >= SCUFF_EVERY then e.scuffT = 0 events = events or {} events[#events + 1] = { wi, 'scuff', p.id or i, SCUFF_FRAC } end
+  end
+  return events
+end
+
 local powerSum = {}                                -- wheel index -> W integrated over the tick (J)
 
 local function tick(dt)
@@ -166,7 +191,10 @@ local function tick(dt)
       R.wearStep(t, ctx, cfg)
       local dg, dT = R.takeDebris(t, cfg)
       e.debrisG = (e.debrisG or 0) + dg
-      if e.debrisG >= DEBRIS_FLUSH_G then events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT } e.debrisG = 0 end
+      if e.debrisG >= DEBRIS_FLUSH_G then
+        local px, py, pz = contactWorld(wd, e)
+        events = events or {} events[#events + 1] = { wi, 'debris', e.debrisG, dT, px, py, pz } e.debrisG = 0
+      end
       R.tempStep(t, { dt = dt, power = (powerSum[wi] or 0) / dt, v = max(abs(tonumber(wd.wheelSpeed) or 0), e.burnW and e.burnV or 0), fz = tonumber(wd.downForce) or 0, ambient = ambientC(),
         road = env.road, wet = env.wet, brake = tonumber(wd.brakeSurfaceTemperature), pressure = pr, pNom = e.pNom }, cfg)
       local ev = R.fireStep(t, dt, env.wet, cfg)
@@ -195,6 +223,7 @@ local function tick(dt)
       events = events or {} events[#events + 1] = { wi, 'pop' }
       pcall(M.putOut, wi)
     end
+    events = marbleStep(wi, e, dt, events)
     R.clearEnergy(t)
     powerSum[wi] = 0
     applyGrip(wi, e, false)
@@ -225,7 +254,7 @@ local function sendState(events)
       minH, e.t.c.h0, e.t.compound, tostring(e.wd.name or ''))
   end
   local ev = {}
-  for _, x in ipairs(events or {}) do ev[#ev + 1] = x[3] and string.format('{%d,%q,%.2f,%.0f}', x[1], x[2], x[3], x[4] or 0) or string.format('{%d,%q}', x[1], x[2]) end
+  for _, x in ipairs(events or {}) do ev[#ev + 1] = x[5] and string.format('{%d,%q,%.2f,%.0f,%.2f,%.2f,%.2f}', x[1], x[2], x[3], x[4] or 0, x[5], x[6], x[7] or 0) or x[3] and string.format('{%d,%q,%.2f,%.0f}', x[1], x[2], x[3], x[4] or 0) or string.format('{%d,%q}', x[1], x[2]) end
   obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.state(%d,{%s},{%s}) end', obj:getId(), table.concat(parts, ','), table.concat(ev, ',')))
 end
 
@@ -339,6 +368,14 @@ function M.setExternal(kind, wi, m)                -- another module's multiplie
   external[kind][wi] = m ~= 1 and m or nil
   local e = tyres and tyres[wi]
   if e and enabled then applyGrip(wi, e, false) end
+end
+function M.setMarbles(list)                       -- the rubber patches near this car, { {x, y, g, id}, ... }: from the game side a few times a second; nil or {} clears them
+  marbles = {}
+  for _, p in ipairs(type(list) == 'table' and list or {}) do
+    if type(p) == 'table' and tonumber(p[1]) and tonumber(p[2]) and tonumber(p[3]) then marbles[#marbles + 1] = { x = p[1], y = p[2], g = p[3], id = p[4] } end
+  end
+  if #marbles == 0 then external.marbles = nil end
+  return #marbles
 end
 function M.setSurfaces(tbl) surfaceOf = {} for id, name in pairs(type(tbl) == 'table' and tbl or {}) do surfaceOf[tonumber(id)] = name end end
 -- a tyre fire reaches the car (only with the setting on): the flammable node of the car nearest to the wheel is lit; the game's own fire system takes it from there
@@ -465,6 +502,7 @@ function M.updateGFX(dt)                           -- our code never gets to dis
 end
 function M.onReset()                               -- the game gives the car back with new tyres (inflated, no damage): so do we (the career restores its own saved wear after a respawn)
   reapply = REAPPLY_FRAMES
+  marbles, external.marbles = {}, nil
   M.repair()
   local n = 0 for _ in pairs(tyres or {}) do n = n + 1 end
   log('D', 'carSurfaceFxTyres', 'reset: ' .. n .. ' tyres renewed')

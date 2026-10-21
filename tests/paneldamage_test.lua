@@ -136,4 +136,14 @@ clock = clock + 3
 for i = 1, 3 do P.hit(13, 1100 + i, 2, 500, 1200, 800, 2, 3) end          -- 10 km/h class
 clock = clock + 1.0 P.onUpdate(0.1)
 assert(#calls + #sat < soft_n and #calls + #sat >= 3, 'a gentler hit leaves fewer marks')
+
+-- the part the node belongs to decides the kind: a fibreglass hood and a carbon wing, a plastic mirror on a metal node, a door stays metal
+do
+  local before = #calls
+  P.hit(5, 21, 6, 5000, 1200, 800, 2, 5, 6, 1, 'covet_hood_fiberglass') flush()
+  P.hit(5, 22, 6, 5000, 1200, 800, 2, 5, 6, 1, 'md_series_dragwing_carbon') flush()
+  P.hit(5, 23, 6, 5000, 1200, 800, 2, 5, 6, 1, 'burnside_mirror_L') flush()
+  P.hit(5, 24, 6, 5000, 1200, 800, 2, 5, 6, 1, 'covet_door_FL') flush()
+  assert(#calls == before + 4 and calls[before + 1].kind == 'fibreglass' and calls[before + 2].kind == 'carbon' and calls[before + 3].kind == 'plastic' and calls[before + 4].kind == 'metal', 'the kind follows the part')
+end
 print('carSurfaceFx panel damage: ok')
