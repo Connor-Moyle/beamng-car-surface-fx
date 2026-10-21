@@ -87,4 +87,24 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   console.log('paint page JS: 6000 splats added in ' + add.toFixed(1) + ' ms (' + (add / 150).toFixed(2) + ' ms per piece of 40), a full redraw ' + redraw.toFixed(1) + ' ms');
   assert(add / 150 < 3, 'a piece of 40 splats costs under 3 ms of page JS: ' + (add / 150));
 }
+// the steady wear layer: drawn under the dirt on a redraw, grows with its value, and a call with no values takes it away
+{
+  const c = page('?m=b');
+  const places = []; for (let i = 0; i < 40; i++) places.push(0.1 + i * 0.02, 0.3, 0.01);
+  c.reset();
+  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 1, fl: places, gl: places, sl: places, rl: places });
+  const full = c.ops.arcs;
+  assert(full > 0, 'rust is drawn (procedural until the picture loads): ' + full);
+  c.reset();
+  c.w.csfxWear({ fade: 0, grime: 0, scuffs: 0, rust: 0.25, rl: places });
+  assert(c.ops.arcs > 0 && c.ops.arcs < full, 'a lower value uses fewer places: ' + c.ops.arcs + ' < ' + full);
+  c.reset();
+  c.w.csfxBlobs({ l: [0.5, 0.5, 0.03], c: [0.3, 0.2, 0.1], a: 0.5, k: 'mud' });
+  c.w.csfxWash({ dust: 1, mud: 1 });
+  const kept = c.ops.arcs;
+  c.reset();
+  c.w.csfxWear({});
+  c.w.csfxWash({ dust: 1, mud: 1 });
+  assert(c.ops.arcs < kept, 'no values: the wear layer is gone, only the dirt is redrawn');
+}
 console.log('carSurfaceFx scratch page: ok');

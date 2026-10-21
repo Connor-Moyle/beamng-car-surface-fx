@@ -475,6 +475,50 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   return true
 end
 
+-- ---- steady paint wear (carSurfaceFx.setPaintWear, docs/PAINT_WEAR.md): fade, grime, scuffs and rust 0..1 on the car's paint, drawn by the page as a layer under the dirt.
+-- The places are picked once per car (seeded by the car's id, so a respawn gives the same ones) from the body map and sent with the values; the page uses more of them as a value grows.
+local wears, wearPos, wearDue = {}, {}, {}                  -- id -> values | id -> places | id -> when to send
+local WEAR_KEYS = { 'fade', 'grime', 'scuffs', 'rust' }
+local function wearPlaces(id)
+  if wearPos[id] then return wearPos[id] end
+  local car = cars[id]
+  local map = car and car.map
+  if not map then return nil end
+  local seed = id * 7919 + 17
+  local function rnd() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+  local function pick(kind, n, radius)
+    local out = {}
+    for _, s in ipairs(bodymap.sample(map, kind, n, rnd)) do
+      out[#out + 1], out[#out + 2], out[#out + 3] = q(s.u, 10000), q(canvasV(s.v), 10000), q(radius * (0.6 + 0.8 * rnd()) * s.s, 100000)
+    end
+    return out
+  end
+  wearPos[id] = { fl = pick('dust', 70, 0.35), gl = pick('grime', 60, 0.25), sl = pick('dust', 50, 0.2), rl = pick('grime', 70, 0.035) }       -- rust and the road film both gather low on the body
+  return wearPos[id]
+end
+-- w = { fade=, grime=, scuffs=, rust= } each 0..1; nil or all zeros takes the layer away
+function M.setPaintWear(id, w)
+  local new, any, same = {}, false, true
+  for _, k in ipairs(WEAR_KEYS) do
+    new[k] = q(min(1, max(0, tonumber(w and w[k]) or 0)), 100)
+    any = any or new[k] > 0
+    if math.abs(new[k] - (wears[id] and wears[id][k] or 0)) >= 0.02 then same = false end
+  end
+  if same and (any or not wears[id]) then return end       -- unchanged (or still none): nothing to send
+  wears[id] = any and new or nil
+  wearDue[id] = os.clock()
+end
+local function sendWear(id)
+  local car, veh, w = cars[id], getObjectByID(id), wears[id]
+  if not (veh and hasCanvas(veh)) then return false end
+  if not w then draw(veh, 'csfxWear', {}) return true end
+  local p = wearPlaces(id)
+  if not p then return false end             -- the body map is not ready yet
+  draw(veh, 'csfxWear', { fade = w.fade, grime = w.grime, scuffs = w.scuffs, rust = w.rust, fl = p.fl, gl = p.gl, sl = p.sl, rl = p.rl })
+  return true
+end
+function M.paintWear(id) return wears[id] end
+
 -- carSurfaceFx_scratch.glowTune(nits): the brightness of the lit dirt colour on the cars already bound (a test: how strong it must be to read as the dirt's own colour by day)
 function M.glowTune(nits)
   nits = tonumber(nits) or DEFAULT_GLOW_NITS                     -- no argument: back to the default
@@ -804,6 +848,7 @@ function M.onUpdate(dt)
     local car, veh = cars[id], getObjectByID(id)
     if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then sendNodes(id) nodesAt[id] = nil end
   end
+  for id, t in pairs(wearDue) do if t <= os.clock() and sendWear(id) then wearDue[id] = nil end end
   for id, t in pairs(replayAt) do
     local car, veh = cars[id], getObjectByID(id)
     if t <= os.clock() and car and car.lut and veh and hasCanvas(veh) then replay(id) replayAt[id] = nil end
@@ -811,6 +856,7 @@ function M.onUpdate(dt)
 end
 function M.onVehicleSpawned(id)
   injectedAt[id] = nil
+  wearPos[id] = nil if wears[id] then wearDue[id] = os.clock() + 2 end       -- new mesh, new canvases: the wear is drawn again
   cars[id] = nil                                              -- new parts = new mesh; its canvases died with the old car
   ensureCanvases()
 end
@@ -837,7 +883,7 @@ function checkResets()
     end
   end
 end
-function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil end
+function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injectedAt[id] = nil cars[id] = nil memory[id] = nil replayAt[id] = nil nodesAt[id] = nil wears[id] = nil wearPos[id] = nil wearDue[id] = nil end
 function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 

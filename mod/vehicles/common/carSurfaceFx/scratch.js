@@ -94,7 +94,7 @@
   // brown mud on dark blue paint is invisible when it can only darken, and pale dust cannot lighten at all). Both pages draw the same shapes.
   // Real splat pictures (art/surfacefx/splats/<kind>.png, made by tools/make_real_splats.py from CC0 photographs, see docs/TEXTURE_CREDITS.md): 4 x 4 variants of 256 px, RGBA.
   // Until a picture has loaded (or if it is missing) the splat is drawn the procedural way below, and the page redraws when it arrives.
-  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1, grime: 1, rubber: 1 }, atlases = {};
+  var SPLAT_KINDS = { mud: 1, dust: 1, snow: 1, grime: 1, rubber: 1, rust: 1 }, atlases = {};
   function atlasFor(kind) {
     var a = atlases[kind];
     if (a === undefined && typeof Image === 'undefined') return null;
@@ -273,8 +273,36 @@
     drawDent(o);
   };
 
+  // The steady paint-wear layer (carSurfaceFx.setPaintWear): o = { fade, grime, scuffs, rust: 0..1, fl, gl, sl, rl: [x, y, r, ...] places on the body picked by the game side }. It is
+  // part of every redraw, under the dirt, so washing and repair leave it alone; a call with no values takes it away. The first n places of a list are used (n grows with the value).
+  var wear = null;
+  function wearSplats(list, v, t, k, c, a, rmul) {
+    var n = Math.ceil(list.length / 3 * v);
+    for (var i = 0; i < n; i++) drawBlob({ x: list[i * 3], y: list[i * 3 + 1], r: list[i * 3 + 2] * rmul * (0.7 + 0.5 * v), c: c, a: a, k: k, t: t });
+  }
+  function drawWear() {
+    if (!wear) return;
+    if (wear.fade > 0 && wear.fl) wearSplats(wear.fl, wear.fade, 'dust', 'dust', [0.78, 0.76, 0.70], 0.3 * wear.fade, 1);
+    if (wear.grime > 0 && wear.gl) wearSplats(wear.gl, wear.grime, 'grime', 'dust', [0.24, 0.23, 0.21], 0.5 * wear.grime, 1);
+    if (wear.rust > 0 && wear.rl) wearSplats(wear.rl, wear.rust, 'rust', 'mud', [0.45, 0.2, 0.07], Math.min(1, 0.4 + wear.rust), 1);
+    if (wear.scuffs > 0 && wear.sl && !emis) {
+      var n = Math.ceil(wear.sl.length / 3 * wear.scuffs), l = [];
+      for (var i = 0; i < n; i++) {
+        var x = wear.sl[i * 3], y = wear.sl[i * 3 + 1], len = wear.sl[i * 3 + 2], a = hash(x, y, 8) * 6.2832;
+        l.push(x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2, x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2, 0.004);
+      }
+      drawLines({ l: l, c: [0.8, 0.8, 0.78], a: 0.35 + 0.5 * wear.scuffs });
+    }
+  }
+  window.csfxWear = function (o) {
+    var on = o && (o.fade > 0 || o.grime > 0 || o.scuffs > 0 || o.rust > 0);
+    wear = on ? o : null;
+    redraw();
+  };
+
   function redraw() {
     blank();
+    drawWear();
     for (var i = 0; i < lines.length; i++) drawLines(lines[i]);
     for (var j = 0; j < blobs.length; j++) drawBlob(blobs[j]);
     for (var k = 0; k < dents.length; k++) drawDent(dents[k]);

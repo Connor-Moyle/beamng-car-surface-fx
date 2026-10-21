@@ -19,7 +19,7 @@ local glassflow = require('carSurfaceFx/glassflow')
 
 local SETTINGS_FILE = '/settings/carSurfaceFx.json'
 local DEFAULTS = { rain = { enabled = true, intensity = 1, bodyDropMm = 4.5, glassDropMm = 10, dropAmount = 1, glassAmount = 3, impacts = 0.5, anim = 1 }, mud = { enabled = true, intensity = 1, buildup = true, rate = 1 }, scratch = { enabled = true, intensity = 1, colour = { 0.72, 0.72, 0.70 }, opacity = 0.9, markSize = 1, dirtEnabled = true, dirtColour = { 0.28, 0.21, 0.14 }, dirtOpacity = 0.45,
-    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false, dirtGlow = false, dirtGlowNits = 45000 }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
+    dirtSize = 0.045, dirtRate = 1, water = true, allVehicles = false, dirtGlow = false, dirtGlowNits = 45000 }, windscreen = { enabled = true, windows = false, intensity = 1, overlay = true, overlayDropSize = 1.6, dropSize = 3.0, canvasSize = 1024, overlayStrength = 1 }, weather = { snow = false, snowRate = 1, frost = false, bugs = false, spray = false, frostStrength = 1, sprayStrength = 1 }, marks = { enabled = true }, fluids = { enabled = true }, impacts = { enabled = false }, paintWear = { enabled = false }, ruts = { enabled = false }, traffic = false, settingsVersion = 2, grass = grassRules.DEFAULTS }
 DEFAULTS.paneldamage = { enabled = false, metal = true, plastic = true, fibreglass = true, carbon = true, amount = 1.0, minEnergy = 4, maxMarks = 40 }      -- panel damage decals (carSurfaceFx/paneldamage.lua, docs/PANEL_DAMAGE.md): dents, off until proven in the game
 local SKIP = { 'glass', 'light', 'lens', 'lamp', 'signal', 'indicator', 'blinker', 'brake', 'reverse', 'fog', 'headl', 'taill', 'dome', 'window', 'windshield', 'plate', 'licen', 'number', 'decal' }   -- name parts that are never body paint
 local WET_KEYS = { 'baseColorFactor', 'roughnessFactor', 'clearCoatRoughnessFactor', 'detailNormalMap', 'detailNormalMapStrength', 'detailScale' }
@@ -717,8 +717,19 @@ function M.screenTrace(on) screenTrace = on and true or false traceT = 1 return 
 
 function M.tuneScreen(size) screenSize = tonumber(size) or screenSize return 'overlay drop size ' .. screenSize end
 
+-- Worn paint (docs/PAINT_WEAR.md): carSurfaceFx.setPaintWear(id, { fade=, grime=, scuffs=, rust= }) 0..1 each, a steady layer on the paint; zeros or nil take it away. Only with the setting on.
+local wearAsked, wearWas = {}, false
+local function wearApply(id) if scratchOn() then carSurfaceFx_scratch.setPaintWear(id, settings.paintWear and settings.paintWear.enabled and wearAsked[id] or nil) end end
+function M.setPaintWear(id, w) wearAsked[id] = w wearApply(id) end
+local function wearSync()
+  if not (settings and settings.paintWear) or settings.paintWear.enabled == wearWas then return end
+  wearWas = settings.paintWear.enabled
+  for id in pairs(wearAsked) do wearApply(id) end
+end
+
 -- starts and stops each module to match its switch (kept out of update(): LuaJIT allows 60 upvalues per function)
 local function syncModules()
+  wearSync()
   if scratchRestart then scratchRestart = false if scratchOn() then stopScratch() startScratch() end end
   if settings and settings.scratch.enabled ~= scratchOn() then if settings.scratch.enabled then startScratch() else stopScratch() end end
   if settings and settings.marks.enabled ~= marksOn() then if settings.marks.enabled then startMarks() else stopMarks() end end

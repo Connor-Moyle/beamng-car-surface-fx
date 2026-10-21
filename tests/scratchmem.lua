@@ -114,5 +114,21 @@ do
   for _ = 1, 40 do M.onUpdate(0.2) end                                               -- the pages get them one call per page frame
   assert(#sent > before + 4, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
   assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
+
+  -- steady paint wear: sent once per change, the same values twice send nothing, zeros take the layer away
+  local function wearCalls() local n = 0 for _, s in ipairs(sent) do if s:find('csfxWear', 1, true) then n = n + 1 end end return n end
+  local w0 = wearCalls()
+  M.setPaintWear(7, { fade = 0.5, grime = 0.3, scuffs = 0.4, rust = 0.8 })
+  for _ = 1, 40 do M.onUpdate(0.2) end
+  assert(wearCalls() == w0 + 2 and M.paintWear(7).rust == 0.8, 'a wear value goes to both pages once')
+  M.setPaintWear(7, { fade = 0.5, grime = 0.3, scuffs = 0.4, rust = 0.81 })
+  for _ = 1, 40 do M.onUpdate(0.2) end
+  assert(wearCalls() == w0 + 2, 'a change under 0.02 sends nothing')
+  M.setPaintWear(7, { fade = 0, grime = 0, scuffs = 0, rust = 0 })
+  for _ = 1, 40 do M.onUpdate(0.2) end
+  assert(wearCalls() == w0 + 4 and M.paintWear(7) == nil, 'zeros clear the layer')
+  M.setPaintWear(7, nil)
+  for _ = 1, 40 do M.onUpdate(0.2) end
+  assert(wearCalls() == w0 + 4, 'clearing a clear layer sends nothing')
 end
 print('carSurfaceFx scratch memory: ok')
