@@ -7,6 +7,7 @@ const { execFileSync } = require('child_process');
 
 execFileSync('node', [path.join(__dirname, '..', 'tools', 'build_overlay.js'), '--check'], { stdio: 'inherit' });     // the built file matches its sources
 
+const PER_FRAME_MAX = 1250;     // measured 1017 canvas calls per frame (the same every run); a regression that adds work per frame goes over
 const calls = { fills: 0, clip: 0, draws: 0, clears: 0, begin: 0, strokes: 0 };
 const ctx = new Proxy({}, {
   get: (t, k) => (k === 'fill' ? () => calls.fills++ : k === 'clip' ? () => calls.clip++ : k === 'drawImage' ? () => calls.draws++ : k === 'clearRect' ? () => calls.clears++ : k === 'beginPath' ? () => calls.begin++ : k === 'stroke' ? () => calls.strokes++
@@ -42,15 +43,14 @@ const c0 = calls.clears;
 for (let i = 0; i < 300; i++) { t += 10; rafCb(t); }
 assert(calls.clears - c0 < 120 && calls.clears - c0 > 60, 'throttled to 30 fps: ' + (calls.clears - c0) + ' draws for 300 frames');
 
-// the JavaScript of a frame (simulation, streaks, the draw calls themselves are free on the stub) stays well under 0.5 ms
-let ms = Infinity;      // the best of five runs of 120 frames: a busy machine slows one run, not all
-for (let r = 0; r < 5; r++) {
-  const t0 = process.hrtime.bigint();
-  for (let i = 0; i < 120; i++) { t += 34; rafCb(t); }
-  ms = Math.min(ms, Number(process.hrtime.bigint() - t0) / 1e6 / 120);
-}
-assert(ms < 0.8, 'frame cost ' + ms.toFixed(3) + ' ms');
-console.log('overlay frame JS cost: ' + ms.toFixed(3) + ' ms');
+// the work of a frame, counted instead of timed (a wall-clock bound failed on a busy machine): the canvas calls one frame makes stay under a fixed budget
+const work = () => Object.values(calls).reduce((a, n) => a + n, 0);
+const w0 = work();
+for (let i = 0; i < 120; i++) { t += 34; rafCb(t); }
+const perFrame = (work() - w0) / 120;
+console.log('overlay canvas calls per frame: ' + perFrame.toFixed(1));
+assert(perFrame > 0, 'frames draw something');
+assert(perFrame < PER_FRAME_MAX, 'canvas calls per frame: ' + perFrame.toFixed(1));
 
 // the wipers: arcs are cleared (two blades), and the drops in the swept area are gone
 o.handle('csfxScreen', { on: true, hull: [0.2, 0.2, 0.8, 0.2, 0.9, 0.6, 0.1, 0.6], rain: 1, wet: 1, wiper: 0 });
