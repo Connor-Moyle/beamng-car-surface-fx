@@ -162,9 +162,10 @@ function RULES.wearlow(map, c) return c.nz < -0.3 and 0 or (0.25 + exp(-c.h / 0.
 -- rust gathers where water sits: the sills and door bottoms (low), and the lips of the wheel arches (a ring about a wheel's radius out from its centre); never the underside, and little up high
 function RULES.rust(map, c)
   if c.nz < -0.3 then return 0 end
-  local w = 0.04 + exp(-c.h / 0.18)
+  local w = 0.02 + 2.0 * exp(-c.h / 0.12)
   local d = nearWheel(map, c)
-  return w + 1.5 * exp(-((d - 0.45) / 0.2) ^ 2)
+  w = w + 1.5 * exp(-((d - 0.42) / 0.15) ^ 2)
+  return c.h > 0.4 and w * exp(-(c.h - 0.4) / 0.08) or w                          -- (and none above the lower half of the door)
 end
 M.RULES = RULES
 

@@ -290,11 +290,16 @@
       var x = list[i * 5], y = list[i * 5 + 1], r = list[i * 5 + 2] * (0.8 + 0.4 * v), dx = list[i * 5 + 3], dy = list[i * 5 + 4], a = Math.min(1, 0.45 + 0.7 * v), s;
       drawBlob({ x: x, y: y, r: r, c: RUST, a: a, k: 'mud', t: 'rust' });
       for (s = 0; s < 2; s++) drawBlob({ x: x + (hash(x, y, s + 20) - 0.5) * r * 2.2, y: y + (hash(x, y, s + 30) - 0.5) * r * 2.2, r: r * (0.4 + 0.3 * hash(x, y, s + 40)), c: RUST, a: a, k: 'mud', t: 'rust' });
-      if (!emis && (dx || dy) && (i >= bigFrom || hash(x, y, 50) > 0.6)) {
-        var len = r * (3 + 5 * hash(x, y, 51)) * (0.5 + v), ex = x + dx * len, ey = y + dy * len;
-        ink(STAIN, 0.25 + 0.3 * v);
-        sctx.lineCap = 'round'; sctx.lineWidth = Math.max(1.5, r * W * 0.3);
-        sctx.beginPath(); sctx.moveTo(x * W, y * W); sctx.quadraticCurveTo((x + ex) / 2 * W + (hash(x, y, 52) - 0.5) * r * W * 0.8, (y + ey) / 2 * W, ex * W, ey * W); sctx.stroke();
+      if (!emis && (dx || dy) && (i >= bigFrom ? hash(x, y, 50) > 0.25 : hash(x, y, 50) > 0.8)) {
+        // the stain runs down from under the spot, wobbling, and fades as it goes (segments of falling alpha and width); its length differs a lot from one spot to the next
+        var k = hash(x, y, 51), len = r * (1.5 + 9 * k * k) * (0.5 + v), segs = 6, px = x + dx * r * 0.6, py = y + dy * r * 0.6, wob = (hash(x, y, 52) - 0.5) * 0.9, sd;
+        for (sd = 0; sd < segs; sd++) {
+          var f = (sd + 1) / segs, nx = px + dx * len / segs + (-dy) * wob * len / segs * (hash(x, y, 60 + sd) - 0.3), ny = py + dy * len / segs + dx * wob * len / segs * (hash(x, y, 60 + sd) - 0.3);
+          ink(STAIN, (0.45 + 0.3 * v) * (1 - f) * (1 - f * 0.3));
+          sctx.lineCap = 'round'; sctx.lineWidth = Math.max(1.2, r * W * (0.45 - 0.3 * f) * (0.6 + 0.8 * hash(x, y, 70)));
+          sctx.beginPath(); sctx.moveTo(px * W, py * W); sctx.lineTo(nx * W, ny * W); sctx.stroke();
+          px = nx; py = ny;
+        }
         dirty = true;
       }
     }
