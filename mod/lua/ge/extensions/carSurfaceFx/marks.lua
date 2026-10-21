@@ -49,7 +49,7 @@ end
 local settings = M.defaults()
 local colors = {}                                                -- type -> { skid, track, skidS, trackS } (ColorF, rebuilt when a colour changes)
 local variantsSkid, variantsTrack = {}, {}                       -- type -> texture file names found in its folder
-local buf = {}                                                   -- 'skid' / 'track' -> { marks, head, count, pool, poolSize }
+local buf = {}                                                   -- 'skid' / 'track' -> { marks, head, count }
 local curShade = false
 local shadeT = 0
 local nativeOrig = nil                                           -- ground model name -> its real skidMarks flag while the game's marks are hidden
@@ -98,8 +98,14 @@ end
 function M.variants() M.scanVariants() return variantsSkid, variantsTrack end
 
 -- ---- colours: only rebuilt when a colour, an opacity or the shade changes
+local REBUILD_S, MOVE_M = 0.1, 2.0
+local pools = { skid = {}, track = {} }                         -- kind -> type -> the engine's decal list (slots only: the engine reads the array part)
+local used = { skid = {}, track = {} }                          -- kind -> type -> how many slots are filled
+local view = { t = -1, x = 0, y = 0, fx = 0, fy = 0, dirty = true, rebuilds = 0, marksAt = 0 }
+local clock = os.clock
 local function rebuildColors()
   colors = {}
+  view.dirty = true
   local sh = settings.shade
   for _, t in ipairs(M.TYPES) do
     local m = settings.mats[t]
@@ -114,7 +120,7 @@ end
 -- ---- ring buffers
 local function initBuffers()
   buf = {}
-  for _, k in ipairs({ 'skid', 'track' }) do buf[k] = { marks = {}, head = 0, count = 0, pool = {}, poolSize = 0 } end
+  for _, k in ipairs({ 'skid', 'track' }) do buf[k] = { marks = {}, head = 0, count = 0 } end
 end
 local function maxN(kind) return math.max(10, math.floor(kind == 'skid' and settings.skidCount or settings.trackCount)) end
 
@@ -139,14 +145,22 @@ function M.addSegment(ax, ay, az, bx, by, bz, typ, isSkid, inten)
 end
 
 function M.count(kind) return buf[kind] and buf[kind].count or 0 end
-function M.clear() initBuffers() end
+function M.clear() initBuffers() view.dirty = true end
 
 -- ---- drawing
-local function ensureSlot(b, idx)
-  if idx <= b.poolSize then return end
-  b.pool[idx] = { texture = TRACK_TEX, position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
-    fadeStart = settings.cullRadius * 0.82, fadeEnd = settings.cullRadius }
-  b.poolSize = idx
+-- The decals are submitted every frame (the engine draws them for one frame), but WHICH marks are drawn and the pool entries that describe them are only rebuilt at most REBUILD_S
+-- apart and when the camera has moved or a mark was added, in ONE pass over each ring (it was one pass per surface type, every frame: 8 x 5000 marks). Between rebuilds the frame just hands
+-- the same filled pools to the engine. Marks behind the camera are left out.
+function M.invalidate() view.dirty = true end
+
+local function slot(pool, idx)
+  local e = pool[idx]
+  if not e then
+    e = { texture = TRACK_TEX, position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(0.2, 0.2, DEPTH),
+      fadeStart = settings.cullRadius * 0.82, fadeEnd = settings.cullRadius }
+    pool[idx] = e
+  end
+  return e
 end
 
 -- the one place a batch of decals goes to the engine (all with one texture)
@@ -155,51 +169,75 @@ local function drawBatch(pool, n) Engine.Render.DynamicDecalMgr.addDecals(pool, 
 -- the seam for the other decal modules (the leaking fluids): the same engine call, so the scene lighting changes in one place
 function M.drawBatch(pool, n) return drawBatch(pool, n) end
 
-local budget = 0
-local function renderKind(kind, camX, camY, cr2)
-  local b = buf[kind]
-  if b.count == 0 or budget <= 0 then return end
+local function rebuildKind(kind, camX, camY, fx, fy, cr2, budget)
+  local b, kp, ku = buf[kind], pools[kind], used[kind]
+  for t in pairs(ku) do ku[t] = 0 end
+  if b.count == 0 then return budget end
+  local look = {}
   for _, t in ipairs(M.TYPES) do
     local mm, cc = settings.mats[t], colors[t]
     if mm and cc then
-      local g = mm[kind]
       local tex
       if kind == 'skid' then tex = matDir(t) .. mm.variant
       else tex = (mm.trackVariant and mm.trackVariant ~= '') and (matDir(t) .. mm.trackVariant) or TRACK_TEX end
-      local idx = 0
-      for i = 1, b.count do
-        local m = b.marks[i]
-        if m and m.terr == t and budget > 0 then
-          local draw = true
-          if camX then local ddx, ddy = m.x - camX, m.y - camY draw = ddx * ddx + ddy * ddy <= cr2 end
-          if draw then
-            idx = idx + 1
-            budget = budget - 1
-            ensureSlot(b, idx)
-            local e = b.pool[idx]
-            e.texture = tex
-            e.position:set(m.x, m.y, m.z)
-            e.forwardVec:set(m.dx, m.dy, 0)
-            e.scale:set(kind == 'skid' and g.width * (0.85 + 0.3 * m.inten) or g.width, m.len * g.length, DEPTH)
-            e.color = m.shad and (kind == 'skid' and cc.skidS or cc.trackS) or (kind == 'skid' and cc.skid or cc.track)
-          end
-        end
-      end
-      if idx > 0 then drawBatch(b.pool, idx) end
+      look[t] = { tex = tex, g = mm[kind], cc = cc }
+      if not kp[t] then kp[t], ku[t] = {}, 0 end
     end
   end
+  local marks = b.marks
+  for i = 1, b.count do
+    if budget <= 0 then break end
+    local m = marks[i]
+    local l = m and look[m.terr]
+    if l then
+      local draw = true
+      if camX then
+        local ddx, ddy = m.x - camX, m.y - camY
+        draw = ddx * ddx + ddy * ddy <= cr2
+        if draw and fx and ddx * ddx + ddy * ddy > 64 and ddx * fx + ddy * fy < 0 then draw = false end      -- behind the camera (and not right beside it)
+      end
+      if draw then
+        local pool, idx = kp[m.terr], ku[m.terr] + 1
+        ku[m.terr] = idx
+        budget = budget - 1
+        local e = slot(pool, idx)
+        local g, cc = l.g, l.cc
+        e.texture = l.tex
+        e.position:set(m.x, m.y, m.z)
+        e.forwardVec:set(m.dx, m.dy, 0)
+        e.scale:set(kind == 'skid' and g.width * (0.85 + 0.3 * m.inten) or g.width, m.len * g.length, DEPTH)
+        e.color = m.shad and (kind == 'skid' and cc.skidS or cc.trackS) or (kind == 'skid' and cc.skid or cc.track)
+      end
+    end
+  end
+  return budget
 end
+
+function M.rebuilds() return view.rebuilds end
 
 function M.onPreRender(dt)
   if not settings.enabled then return end
   if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
-  local camX, camY
+  local camX, camY, fx, fy
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()        -- culled around the camera, so free-cam and replays keep their marks
-  if cam then camX, camY = cam.x, cam.y end
-  local cr2 = settings.cullRadius * settings.cullRadius
-  budget = settings.maxDrawn
-  renderKind('track', camX, camY, cr2)
-  renderKind('skid', camX, camY, cr2)
+  if cam then
+    camX, camY = cam.x, cam.y
+    local f = core_camera.getForward and core_camera.getForward()
+    if f then local l = math.sqrt(f.x * f.x + f.y * f.y) if l > 0.2 then fx, fy = f.x / l, f.y / l end end      -- looking straight up or down: no behind-the-camera cull
+  end
+  local now = clock()
+  local moved = camX and ((camX - view.x) ^ 2 + (camY - view.y) ^ 2 > MOVE_M * MOVE_M)
+  local turned = fx and (fx * view.fx + fy * view.fy < 0.95)
+  if view.dirty or moved or turned or (now - view.t >= REBUILD_S and view.marksAt ~= buf.skid.head + buf.track.head) then
+    view.t, view.x, view.y, view.fx, view.fy, view.dirty = now, camX or 0, camY or 0, fx or 0, fy or 0, false
+    view.marksAt = buf.skid.head + buf.track.head
+    view.rebuilds = view.rebuilds + 1
+    local budget = rebuildKind('track', camX, camY, fx, fy, settings.cullRadius * settings.cullRadius, settings.maxDrawn)
+    rebuildKind('skid', camX, camY, fx, fy, settings.cullRadius * settings.cullRadius, budget)
+  end
+  for _, kind in ipairs({ 'track', 'skid' }) do
+    for t, p in pairs(pools[kind]) do local n = used[kind][t] if n > 0 then drawBatch(p, n) end end
+  end
 end
 
 -- ---- darker marks under cover and at night (a stand-in until decals take the scene's light)
@@ -331,7 +369,7 @@ function M.configure(s)
   settings.cullRadius = math.max(40, math.floor(settings.cullRadius))
   settings.shade = clamp(settings.shade, 0.1, 1)
   rebuildColors()
-  for _, b in pairs(buf) do b.pool, b.poolSize = {}, 0 end            -- pool slots carry the fade distance
+  pools, used = { skid = {}, track = {} }, { skid = {}, track = {} } view.dirty = true                  -- pool slots carry the fade distance
   applyTakeover(settings.enabled and settings.takeover)
   dirty = true
   pcall(injectAll)

@@ -107,6 +107,29 @@ assert(M.get('mats.dirt.skid.width') ~= nil and M.get('mats.lava.skid.width') ==
 assert(M.set('mats.dirt.skid.width', 0.4) and M.get('mats.dirt.skid.width') == 0.4, 'set by path')
 assert(M.set('mats.dirt.skid.width', 'wide') == false and M.set('nothing.here', 1) == false, 'a wrong type or path is refused')
 assert(M.set('mats.dirt.skid.color', { 1, 0, 0 }) and M.get('mats.dirt.skid.color')[1] == 1, 'colours are set as lists')
+-- the per-frame cost does not grow with the stored marks: the marks are picked once, then the same lists go to the engine every frame; a new mark, a moved or turned camera picks again
+M.configure({ enabled = true, maxDrawn = 5000 })
+M.clear()
+cam.x, cam.y = 0, 0
+local fwd = { x = 1, y = 0, z = 0 }
+core_camera.getForward = function() return fwd end
+for i = 1, 3000 do M.addSegment(i % 90 + 1, 0, 0, i % 90 + 1.5, 0, 0, (i % 2 == 0) and 'dirt' or 'sand', i % 3 == 0 and 1 or 0, 0.5) end
+for i = 1, 200 do M.addSegment(-50 - i % 40, 0, 0, -50.5 - i % 40, 0, 0, 'dirt', 1, 0.5) end        -- 200 skids behind the camera (it looks along +x)
+drawn, batches = 0, 0
+local r0 = M.rebuilds()
+M.onPreRender(0.016)
+local first = drawn
+assert(first == 3000 and M.rebuilds() == r0 + 1, 'the marks behind the camera are left out, the rest drawn: ' .. first)
+for _ = 1, 100 do drawn = 0 M.onPreRender(0.016) assert(drawn == first, 'every frame submits the same decals') end
+assert(M.rebuilds() <= r0 + 2, 'a still camera and no new marks do not pick again: ' .. (M.rebuilds() - r0) .. ' rebuilds in 101 frames')
+cam.x = 5 drawn = 0 M.onPreRender(0.016)
+assert(M.rebuilds() >= r0 + 2, 'a camera that moved picks again')
+fwd = { x = -1, y = 0, z = 0 } drawn = 0 M.onPreRender(0.016)
+assert(drawn > 0 and drawn ~= first, 'a camera that turned round draws the other marks: ' .. drawn)
+M.clear()
+drawn = 0 M.onPreRender(0.016)
+assert(drawn == 0, 'clear() empties what is submitted')
+core_camera.getForward = nil
 -- a throwing hook switches the module off, logs once and is not called again
 local logs, calls = {}, 0
 function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
