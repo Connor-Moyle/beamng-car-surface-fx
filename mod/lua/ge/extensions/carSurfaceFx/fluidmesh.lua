@@ -11,6 +11,7 @@ local MATERIAL = { oil = 'csfx_puddle_oil', coolant = 'csfx_puddle_coolant', fue
 local SHEEN = 'csfx_puddle_sheen'
 local GRID = 5                                  -- corners across a plane
 local LIFT, SHEEN_LIFT = 0.03, 0.045            -- metres above the ground (2 cm z-fights at a distance)
+local POOL = 0.72                               -- the pool fills this share of the plane's half-size; the rest is the wet-stain ring (tools/make_fluid_assets.py POOL)
 local MAX_BUILDS, MAX_DROPS, BUDGET = 1, 2, 0.006   -- planes made and taken away per pass (0.25 s), and the seconds a pass may use: planes like these are a GPU-crash suspect in Street Legal, so they trickle
 M.RADIUS = 40                                   -- m from the camera within which a puddle gets a plane (the decals reach cullRadius)
 
@@ -141,7 +142,7 @@ function M.sync(store, cfg, camX, camY, fade)
         end
         if rec then
           seen[p] = true
-          local k = r / rec.built
+          local k = r / (rec.built * POOL)
           if not rec.k or math.abs(k - rec.k) > 0.02 * math.max(1, k) then scale(rec, k) end
           if math.abs(p.x - rec.x) + math.abs(p.y - rec.y) > 0.03 then
             rec.x, rec.y = p.x, p.y
