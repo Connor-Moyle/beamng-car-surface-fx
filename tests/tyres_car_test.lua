@@ -383,4 +383,19 @@ T.setCompound('slick')
 assert(T.setWheelWater(0, 0.5) == false, 'before the tyres are built: refused, not an error')
 for _ = 1, 3 do T.updateGFX(0.01) end
 T.setCompound(nil)
+-- the settings sparksEnabled and look.enabled: belts sliding throw sparks only with the sparks setting on; with the look setting off the car keeps its own tyre material (stage 0)
+local sparks, looks = 0, {}
+obj.addParticleByNodesRelative = function(_, _, _, _, ptype) if ptype == 1 then sparks = sparks + 1 end end
+carSurfaceFxTyreLook = { set = function(_, stage) looks[#looks + 1] = stage end }
+T.setConfig({ enabled = true, wearRate = 0, sparksEnabled = true, look = { enabled = true } })
+T.updateGFX(0.1)      -- (the tyres are rebuilt on the first frame after a compound change)
+T.setTread(0)
+wd.lastSlip, wd.downForce = 8, 4000
+for _ = 1, 20 do T.updateGFX(0.1) end
+assert(sparks > 0 and looks[#looks] == 5, 'sparksEnabled: a belt-worn tyre sliding throws sparks, and the look is the belts: ' .. sparks .. ' ' .. tostring(looks[#looks]))
+sparks = 0
+T.setConfig({ sparksEnabled = false, look = { enabled = false } })
+for _ = 1, 20 do T.updateGFX(0.1) end
+assert(sparks == 0 and looks[#looks] == 0, 'sparksEnabled off: no sparks; look.enabled off: stage 0, the own material of the car')
+obj.addParticleByNodesRelative, carSurfaceFxTyreLook = nil, nil
 wheels, v, obj, log = nil, nil, nil, nil
