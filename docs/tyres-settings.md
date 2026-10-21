@@ -52,7 +52,7 @@ Source of truth: `M.defaults()` in `mod/lua/common/csfx_tyrerules.lua`. Keys are
 | Fire & debris | blowout.enabled | **false** | on/off | N | "Blowouts damage nearby panels": the panel marks beside a burst tyre (off until shown in game) |
 | Fire & debris | blowout.strength | 1.0 | 0 - 3 | N | strength of the marks |
 | Visuals | (stage thresholds `M.STAGE_FROM` {0.9,0.7,0.5,0.3}, tread fade) | | | A | not in cfg yet; will be added with the visual build |
-| Compounds | per compound: h0, k, lo, hi, grip20, drop, wearOn, dry0, dryF, wet0, wetF, aqua, loose, snow, base, crr | see COMPOUNDS | | A | overrides of the table for road, performance, semislick, slick, slicksoft, drag, offroad, mud, winter, rally, intermediate, fullwet |
+| Compounds | per compound: h0, k, lo, hi, grip20, drop, wearOn, dry0, dryF, wet0, wetF, aqua, loose, snow, base, crr, coldFrom, coldK, coldMax | see COMPOUNDS | | A | overrides of the table for road, performance, semislick, slick, slicksoft, drag, offroad, mud, winter, rally, intermediate, fullwet |
 
 ## Presets (one table of cfg overrides each)
 - **Realistic** (default): the defaults above, `blowout.enabled` false until proven.

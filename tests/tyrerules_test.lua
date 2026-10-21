@@ -143,7 +143,7 @@ assert(big.Ts < 200, 'dt is clamped')
 local c = R.COMPOUNDS.slick
 near(R.tempGrip(c, 95, cfg), 1, 1e-9, 'in the window, full grip')
 assert(R.tempGrip(c, 20, cfg) < 0.8 and R.tempGrip(c, 20, cfg) >= c.grip20 - 1e-9, 'a cold slick gives its cold grip')
-assert(R.tempGrip(c, -30, cfg) < R.tempGrip(c, 20, cfg) and R.tempGrip(c, -30, cfg) > 0.5, 'colder is worse, but not a cliff')
+assert(R.tempGrip(c, -30, cfg) < R.tempGrip(c, 20, cfg) and R.tempGrip(c, -30, cfg) >= 0.5, 'colder is worse, down to the floor of half the grip')
 near(R.tempGrip(c, 115, cfg), 1 - 0.05, 1e-9, 'ten degrees over: a drop of 5%')
 near(R.tempGrip(c, 400, cfg), 0.6, 1e-9, 'and a floor of 60%')
 local gentle = R.defaults() gentle.hotGrip = 0
@@ -394,4 +394,27 @@ do
   assert(r.h[1] == r.c.h0 and r.h[2] == r.c.h0 and r.h[3] == -r.c.margin - 3 and r.h[4] == 4 and r.cord == 0, 'a NaN, too deep or too shallow saved depth is kept within the tyre')
   local list = {}
   assert(R.marbleAdd(list, 0, 0, 0, 0 / 0, 20, 0, c0) == nil and R.marbleAdd(list, 0 / 0, 0, 0, 10, 20, 0, c0) == nil and R.marbleAdd(list, 0, 0, 0, -5, 20, 0, c0) == nil and #list == 0, 'no NaN, empty or negative patch')
+end
+
+-- ---- the cold hardening: a summer tyre loses about 12 % at 0 C, a performance one more, a winter tyre almost nothing; the Cold grip setting scales it; the switch for temperature grip removes it
+do
+  local c0 = R.defaults()
+  local function g(name, T, cfg) return R.tempGrip(R.COMPOUNDS[name], T, cfg or c0) end
+  assert(g('road', 20) == 1 and g('winter', 0) == 1 and g('offroad', 20) == 1, 'no loss in the warm, or for a winter tyre at 0 C')
+  assert(math.abs(g('road', 0) - 0.88) < 0.015, 'a summer tyre: about 12 % lost at 0 C: ' .. g('road', 0))
+  assert(g('performance', 0) < g('road', 0) and math.abs(g('performance', 0) - 0.80) < 0.03, 'a performance summer tyre: about 20 %: ' .. g('performance', 0))
+  assert(g('winter', -20) > 0.9 and g('winter', -20) > g('road', -20), 'a winter tyre keeps its grip in the frost')
+  assert(g('road', 3) > g('road', 0) and g('road', 0) > g('road', -10), 'colder is worse')
+  assert(g('road', -60) >= 0.5 and g('slicksoft', -60) >= 0.5, 'never below half the grip')
+  assert(g('slick', 0) < g('road', 0) and g('offroad', 0) > g('road', 0), 'a slick suffers most, an off-road tyre less than a summer one')
+  local half = R.defaults() half.coldGrip = 0.5
+  assert(math.abs((1 - g('road', 0, half)) * 2 - (1 - g('road', 0))) < 0.01, 'the Cold grip setting scales the loss')
+  local off = R.defaults() off.tempGripEnabled = false
+  assert(g('road', -10, off) == 1, 'temperature grip off: no cold loss')
+  for _, name in ipairs({ 'road', 'performance', 'semislick', 'slick', 'slicksoft', 'drag', 'offroad', 'mud', 'winter', 'intermediate', 'fullwet', 'rally' }) do
+    local k = R.COMPOUNDS[name]
+    assert(k.coldFrom and k.coldK and k.coldMax, 'every compound has its cold values: ' .. name)
+    local prev = 2
+    for T = 40, -40, -1 do local x = g(name, T) assert(x <= prev + 1e-9 or T >= k.lo - 0, name .. ': a warmer tyre in the window may not be worse than a colder one above ' .. T) prev = x end
+  end
 end

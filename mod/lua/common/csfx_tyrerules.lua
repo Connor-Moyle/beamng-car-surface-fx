@@ -25,6 +25,17 @@ M.COMPOUNDS = {
   rally       = { base = 0.97, h0 = 9.0,  margin = 0.5, k = 0.0375, lo = 10,  hi = 80,  grip20 = 0.97, drop = 0.02, wearOn = 105, dry0 = 1.00, wet0 = 0.80, crr = 0.012, wetF = 1.0, aqua = 22, loose = 1.1, snow = 0.85 },
 }
 
+-- ---- the cold hardening of the rubber: below coldFrom (C) a tyre loses coldK of its grip per degree, at most coldMax. SOURCES: summer tyres begin to harden below about 7 C (Continental, tyre maker's
+-- statement; Porsche's dealer pages say the same of summer and all-season tyres); a controlled test above freezing found 4-5 m more from 120 km/h on dry asphalt for a tyre of the wrong season
+-- (autonavigator.hu summer and winter tyre tests). MODELLED, no source gives these numbers: the size is set so that a summer (road) tyre loses about 12 % at 0 C and a performance summer tyre about 20 %
+-- (the brief: 10-25 % near freezing, hardening below about 7 C), an all-weather or off-road tyre much less, a winter tyre almost nothing. The totals count the warm-up window below as well (tempGrip: a road
+-- tyre's window already costs 3 % at 0 C, a performance tyre's 10 %), so the coldK here are what is left over; a race slick, made for heat, is poor in the cold through its window.
+local COLD = {
+  road = { 7, 0.0133, 0.30 }, performance = { 7, 0.0152, 0.35 }, semislick = { 12, 0.0090, 0.25 }, slick = { 15, 0.0080, 0.15 }, slicksoft = { 15, 0.0090, 0.10 }, drag = { 15, 0.0090, 0.18 },
+  offroad = { 3, 0.0070, 0.20 }, mud = { 0, 0.0050, 0.15 }, winter = { -10, 0.0040, 0.15 }, intermediate = { 5, 0.0060, 0.25 }, fullwet = { 5, 0.0060, 0.25 }, rally = { 5, 0.0100, 0.25 },
+}
+for name, v in pairs(COLD) do local k = M.COMPOUNDS[name] k.coldFrom, k.coldK, k.coldMax = v[1], v[2], v[3] end
+
 function M.defaults()
   return {
     enabled = false,
@@ -236,9 +247,10 @@ function M.tempGrip(c, T, cfg)
   if cfg and cfg.tempGripEnabled == false then return 1 end
   local cold = cfg and cfg.coldGrip or 1
   local hot = cfg and cfg.hotGrip or 1
-  if T < c.lo then return 1 - (1 - c.grip20) * clamp((c.lo - T) / math.max(1, c.lo - 20), 0, 1.5) * cold end
+  local hard = 1 - cold * clamp(((c.coldFrom or -273) - T) * (c.coldK or 0), 0, c.coldMax or 0)      -- the rubber hardening in the cold, on top of the warm-up window below
+  if T < c.lo then return math.max(0.5, (1 - (1 - c.grip20) * clamp((c.lo - T) / math.max(1, c.lo - 20), 0, 1.5) * cold) * hard) end
   if T > c.hi then return math.max(0.6, 1 - c.drop * (T - c.hi) / 10 * hot) end
-  return 1
+  return hard
 end
 -- wet = true/false or 0..1 (how wet the surface is). Dry: dry0 at 0 mm to dryF (default 1) at full tread. Wet: wet0 at 0 mm to wetF (the compound against a road tyre on the same wet road) at full tread.
 function M.wearGrip(c, h, wet)
