@@ -108,6 +108,7 @@ def snow_cell(rng, img):
     sparkle = droplets(rng, CELL, int(rng.integers(8, 16)), 2, 5, (0.3, 0.9)) * 0.7 * smooth(n, 0.3, 0.7)
     a = np.clip(np.maximum(body, sparkle), 0, 1)
     c = grade(crop(rng, img), (0.93, 0.95, 0.99), 0.75, 1.0)
+    c = np.clip(0.55 + 0.45 * c, 0, 1)                                              # snow is white: the photographs' dark pits made dark prints on the paint
     return np.dstack([c, a])
 
 

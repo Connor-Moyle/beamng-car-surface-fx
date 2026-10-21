@@ -267,9 +267,9 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { snowdust = { 0.95, 0.96, 0.98 }, slush = { 0.72, 0.73, 0.76 }, mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { snowdust = { 0.95, 0.96, 0.98 }, slush = { 0.86, 0.88, 0.91 }, mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  snowdust = { 260, 0.3, 0.05 },
+  snowdust = { 400, 0.55, 0.05 },
   mud = { 4500, 1.0, 0.026 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
@@ -928,6 +928,12 @@ end
 -- carSurfaceFx.debug('rain', 1.0) / ('mud', 0.8) force a value; debug() puts the weather back
 function M.debug(kind, value)
   if kind == nil then forced, forcedDirt, wiperForced, flood, forcedFrost, forcedSnowing, forcedAir, forcedSpray, forcedGround, forcedSnowGround = nil, nil, nil, 0, nil, nil, nil, nil, nil, nil return 'debug cleared' end
+  if kind == 'melt' then                                                       -- snow melts to this share of what the car carries: patches slide off in sheets
+    local id = be:getPlayerVehicleID(0)
+    if scratchOn() then carSurfaceFx_scratch.washSplats(id, rules.clamp(tonumber(value) or 0.5, 0, 1), 1, true) end
+    if dirtBy[id] then dirtBy[id].snow = dirtBy[id].snow * rules.clamp(tonumber(value) or 0.5, 0, 1) end
+    return 'snow melted to ' .. tostring(value)
+  end
   if kind == 'groundsnow' then forcedSnowGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on snow: ' .. tostring(forcedSnowGround) end
   if kind == 'groundmud' then forcedGround = (tonumber(value) or 0) > 0 and rules.clamp(tonumber(value), 0, 1) or nil return 'wheels run on mud: ' .. tostring(forcedGround) end
   if kind == 'air' then forcedAir = tonumber(value) return 'air temperature forced to ' .. tostring(value) end
