@@ -22,6 +22,10 @@ function M.hit(id, node, kind, mat, force, slip, speed, a, b, c)
     local ruts = rawget(_G, 'carSurfaceFx_ruts')                  -- a panel on the ground gouges it (the ruts module draws it, when its gouges switch is on)
     if ruts and ruts.gouge then ruts.gouge(id, node, mat, force) totals.drawn = totals.drawn + 1 end
   end
+  if kind == 'wall' then
+    local ruts = rawget(_G, 'carSurfaceFx_ruts')                  -- a panel scraping a wall leaves a scrape at its foot on the ground (when the gouges are on)
+    if ruts and ruts.wallScrape then ruts.wallScrape(id, node, force) end
+  end
   local scratch = rawget(_G, 'carSurfaceFx_scratch')
   if scratch and kind ~= 'ground' then                          -- a body panel against a wall or another car leaves scratches; the ground is for gouges (to come)
     scratch.hit(id, node, force, slip, a, b, c)

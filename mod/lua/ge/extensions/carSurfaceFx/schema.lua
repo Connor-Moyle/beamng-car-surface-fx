@@ -346,6 +346,7 @@ function M.build(S, owner)
     rt('ruts_tracks_step', 'Tyre tracks', 'slider', 'Track piece point spacing', 'The distance between the points of a track piece, in metres.', 'tracks.step', { min = 0.2, max = 1.5, step = 0.05, unit = 'm', advanced = true }),
     rt('ruts_tracks_points', 'Tyre tracks', 'int', 'Points in a track piece', 'How many points make one track piece.', 'tracks.chunkPoints', { min = 3, max = 10, advanced = true }),
     rt('ruts_gouges', 'Gouges', 'bool', 'Gouges where the body scrapes (test)', 'A car body dragged over tarmac or soft ground leaves a scrape or furrow in the ground. Needs ruts on. Not proven in the game yet.', 'gouges.enabled'),
+    rt('ruts_gouges_walls', 'Gouges', 'bool', 'Scrape at the foot of a wall (test)', 'A body panel scraping along a wall also leaves a dark scrape on the ground at the foot of the wall. Needs gouges on. Not proven in the game yet.', 'gouges.walls'),
     rt('ruts_gouges_force', 'Gouges', 'slider', 'How hard a scrape must be', 'The least force, in newtons, that leaves a gouge. A light touch leaves nothing.', 'gouges.minForce', { min = 100, max = 3000, step = 100, unit = 'N', advanced = true }),
     rt('ruts_gouges_wmin', 'Gouges', 'slider', 'Narrowest gouge', 'The width of a light scrape, in metres.', 'gouges.widthMin', { min = 0.1, max = 0.6, step = 0.05, unit = 'm', advanced = true }),
     rt('ruts_gouges_wmax', 'Gouges', 'slider', 'Widest gouge', 'The width of a hard scrape, in metres.', 'gouges.widthMax', { min = 0.3, max = 1.5, step = 0.05, unit = 'm', advanced = true }),

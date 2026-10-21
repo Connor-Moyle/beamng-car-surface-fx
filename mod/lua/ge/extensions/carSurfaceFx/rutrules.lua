@@ -25,7 +25,7 @@ function M.defaults()
     others = { enabled = false, maxCars = 3, range = 50 },
     hollows = hollowrules.defaults(),                                  -- visual terrain hollows under the wheels (hollows.lua); off until seen in game
     tracks = { enabled = false, maxRoads = 150, step = 0.5, chunkPoints = 5, widthScale = 0.5 },            -- the faint tyre tracks on soft ground as lit road decals (ruts.trackSegment, from marks.lua)
-    gouges = { enabled = false, step = 0.3, chunkPoints = 4, minForce = 400, widthMin = 0.25, widthMax = 0.7 },      -- the body scraping the ground (ruts.gouge, from the body wear hits)
+    gouges = { enabled = false, walls = true, step = 0.3, chunkPoints = 4, minForce = 400, widthMin = 0.25, widthMax = 0.7 },      -- the body scraping the ground (ruts.gouge, from the body wear hits)
     berms = { enabled = false, maxBerms = 120, heightScale = 1.0, lift = 0.01 },      -- soil lips beside the track (berm.lua, bermrules.lua); off until seen in game
     kinds = {
       mud = { enabled = true, soft = 1.00 }, snow = { enabled = true, soft = 0.85 }, sand = { enabled = true, soft = 0.75 },

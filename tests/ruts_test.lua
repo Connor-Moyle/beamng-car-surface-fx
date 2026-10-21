@@ -210,6 +210,29 @@ do
   local dirt
   for _, o in pairs(objects) do if o.fields.material == 'csfx_gouge_dirt_dry' then dirt = o end end
   assert(dirt and dirt.nodes[1].w > tar.nodes[1].w, 'a furrow in dirt, wider with a harder hit')
+  -- a scrape along a wall leaves a scrape on the ground at its foot
+  local oldRay = castRayStatic
+  castRayStatic = function() return 0.5 end
+  pv.getNodePosition = function() return setmetatable({ x = 100 + slide, y = 0, z = 0.6 }, mt) end
+  local before = U.roadCount()
+  slide = slide + 50
+  for i = 1, 12 do slide = slide + 0.4 U.wallScrape(1, 5, 3000) end
+  U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() > before, 'a wall scrape leaves a gouge at its foot')
+  U.set('gouges.walls', false)
+  before = U.roadCount()
+  slide = slide + 50
+  for i = 1, 12 do slide = slide + 0.4 U.wallScrape(1, 5, 3000) end
+  U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == before, 'and nothing with its own switch off')
+  U.set('gouges.walls', true)
+  castRayStatic = function() return 5 end
+  slide = slide + 50
+  for i = 1, 12 do slide = slide + 0.4 U.wallScrape(1, 5, 3000) end
+  U.onUpdate(0.5) U.onUpdate(0.5)
+  assert(U.roadCount() == before, 'no ground under the contact: nothing')
+  castRayStatic = oldRay
+  pv.getNodePosition = function() return setmetatable({ x = 100 + slide, y = 0, z = 0.1 }, mt) end
   wetValue = 0.8
   slide = slide + 50
   slideOver(7, 3000, 12) U.onUpdate(0.5) U.onUpdate(0.5)

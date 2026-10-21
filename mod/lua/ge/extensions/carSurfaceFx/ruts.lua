@@ -298,6 +298,28 @@ function M.gouge(vid, node, mat, force)
   end
 end
 
+-- a body panel scraping along a wall (from carSurfaceFx_bodywear: a 'wall' hit): a dark scrape on the ground at the foot of the wall, along the way the car slides (the ground is found
+-- with a ray down from the contact; a wall hit with no ground under it leaves nothing). Part of the gouges (their switch, their force limit); gouges.walls switches only this part off.
+function M.wallScrape(vid, node, force)
+  local g = settings.gouges
+  if not (settings.enabled and g.enabled and g.walls ~= false) or (force or 0) < g.minForce then return end
+  local veh = be:getObjectByID(vid)
+  if not veh then return end
+  local ok, pos = pcall(function() return veh:getPosition() + veh:getNodePosition(node) end)
+  if not ok or not pos then return end
+  local okR, d = pcall(castRayStatic, vec3(pos.x, pos.y, pos.z + 0.2), vec3(0, 0, -1), 3)
+  if not okR or not d or d >= 3 then return end
+  local key = 'w' .. vid .. ':' .. node
+  local path = paths[key]
+  if not path then path = rules.newPath() paths[key] = path end
+  path.at, path.gouge, path.width = os.clock(), true, rules.gougeWidth(force, g) * 0.6
+  local chunk = rules.feed(path, pos.x, pos.y, pos.z + 0.2 - d, 'asphalt', g)
+  if chunk then
+    chunk.gouge, chunk.width = true, path.width
+    if pendingN < 40 then pendingN = pendingN + 1 pending[pendingN] = chunk end
+  end
+end
+
 -- forget everything WITHOUT touching the scene: for a level that is ending or has just begun, whose objects and terrain the engine is destroying or has already replaced (no deleteObject, no
 -- height writes on a dying terrain block); M.clear() is for a mid-level stop, where they are alive and are taken away properly
 function M.drop()
