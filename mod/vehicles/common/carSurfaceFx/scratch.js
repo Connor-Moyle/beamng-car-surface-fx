@@ -238,8 +238,7 @@
   }
   // both widths at once: the wide pale edge, then the dark core on the base page
   function crack(pts, w, a) { stroke(pts, w * 4.4, a * 0.7, false); stroke(pts, w * 1.2, a, true); }     // a wide pale edge (the only thing that shows on black paint), a narrow dark core
-  // a dent's relief: a crisp crescent of shade on one side and a crescent of light on the other, round a faintly darkened bowl (a soft blob read as a dirt smudge). The light comes from the
-  // upper left of the canvas whatever the car does, so the dent is right for half the sun angles and flat for the rest: texture only, no normal.
+  // a dent's relief: a crisp crescent of shade on one side and a crescent of light on the other, round a faintly darkened bowl (a soft blob read as a dirt smudge). 
   function crescent(x, y, rx, ry, rot, sx, sy, op, style) {
     sctx.save();
     sctx.beginPath(); sctx.ellipse(x, y, rx, ry, rot, 0, 6.2832); sctx.clip();
@@ -248,12 +247,12 @@
     sctx.restore();
   }
   function dentRelief(x, y, r, d, ang) {
-    var rx = r * (0.55 + 0.25 * d), ry = r * (0.35 + 0.1 * d), s = Math.max(2, r * 0.13), a = 0.35 + 0.5 * d;
-    if (emis) { crescent(x, y, rx, ry, ang, s, s, 'source-over', 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.18 + ')'); return; }      // the light side, faint, so black paint shows it
-    if (palette) { crescent(x, y, rx, ry, ang, s, s, 'destination-out', 'rgba(0,0,0,' + a * 0.8 + ')'); return; }     // the light side: the paint tint is taken off, the pale base shows
+    var rx = r * (0.55 + 0.25 * d), ry = r * (0.35 + 0.1 * d), s = Math.max(2, r * 0.13), a = 0.35 + 0.5 * d, sx = Math.cos(ang) * s, sy = Math.sin(ang) * s;
+    if (emis) { crescent(x, y, rx, ry, ang, sx, sy, 'source-over', 'rgba(' + ch(0.3) + ',' + ch(0.3) + ',' + ch(0.31) + ',' + a * 0.18 + ')'); return; }      // the light side, faint, so black paint shows it
+    if (palette) { crescent(x, y, rx, ry, ang, sx, sy, 'destination-out', 'rgba(0,0,0,' + a * 0.8 + ')'); return; }     // the light side: the paint tint is taken off, the pale base shows
     sctx.save(); sctx.globalCompositeOperation = 'source-over'; sctx.fillStyle = 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + 0.12 * a + ')';
     sctx.beginPath(); sctx.ellipse(x, y, rx, ry, ang, 0, 6.2832); sctx.fill(); sctx.restore();                        // the bowl
-    crescent(x, y, rx, ry, ang, -s, -s, 'source-over', 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + a * 0.75 + ')');      // the shade side
+    crescent(x, y, rx, ry, ang, -sx, -sy, 'source-over', 'rgba(' + ch(0.04) + ',' + ch(0.04) + ',' + ch(0.05) + ',' + a * 0.75 + ')');      // the shade side
   }
   function drawDent(o) {
     var x = o.x * W, y = o.y * W, r = Math.max(6, o.r * W), d = Math.max(0.05, Math.min(1, o.d)), k = o.k || 'm', sd = o.x * 977 + o.y * 131, i, pts;
