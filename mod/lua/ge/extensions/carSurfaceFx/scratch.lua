@@ -927,4 +927,6 @@ function M.onVehicleDestroyed(id) resetAt[id] = nil restoredAt[id] = nil injecte
 function M.onClientEndMission()   dropAll() end
 function M.onExtensionUnloaded()  restoreAll() end
 
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_scratch', { 'onUpdate' })
+
 return M

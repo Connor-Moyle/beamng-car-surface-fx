@@ -347,6 +347,36 @@ for _, n in ipairs(started) do if n == 'carSurfaceFx_marks' then hasMarks = true
 assert(hasMarks, 'the marks module started')
 M.debug() tick(400)                                       -- the weather decides (600 drops): still wet, no error
 assert(not M.status():find('SWITCHED OFF'), 'no error: ' .. M.status() .. ' ' .. table.concat(logs, ' | '))
+-- an error in the update is logged and tried again; five in a row switch the mod off, and a new level starts clean
+do
+  local gpv, nerr, noff = be.getPlayerVehicleID, 0, 0
+  be.getPlayerVehicleID = function() error('boom') end
+  for _ = 1, 4 do M.onUpdate(1) end
+  for _, l in ipairs(logs) do if l:find('error in the update', 1, true) then nerr = nerr + 1 end if l:find('switched off after 5', 1, true) then noff = noff + 1 end end
+  assert(nerr >= 4 and noff == 0, 'four errors in a row are logged and the mod keeps trying: ' .. nerr .. ' / ' .. noff)
+  M.onUpdate(1)
+  for _, l in ipairs(logs) do if l:find('switched off after 5', 1, true) then noff = noff + 1 end end
+  assert(noff == 1, 'the fifth in a row switches it off')
+  be.getPlayerVehicleID = gpv
+  assert(M.status():find('SWITCHED OFF'), 'and it says so')
+  M.onClientStartMission()
+  assert(not M.status():find('SWITCHED OFF'), 'a new level starts clean')
+  for i = #logs, 1, -1 do if logs[i]:find('the update', 1, true) or logs[i]:find('switched off after 5', 1, true) then table.remove(logs, i) end end      -- (the errors above were on purpose)
+end
+-- a settings file that is there but does not read is never written over; a missing one gets the defaults
+do
+  local writes, oldWrite, oldData = 0, jsonWriteFile, fileData
+  function jsonWriteFile(f) if tostring(f):find('carSurfaceFx.json', 1, true) then writes = writes + 1 end end
+  fileData = nil
+  FS = { fileExists = function() return true end }
+  M.reloadSettings()
+  assert(writes == 0, 'an unreadable settings file is left alone: ' .. writes .. ' writes')
+  FS = { fileExists = function() return false end }
+  M.reloadSettings()
+  assert(writes == 1, 'a missing one gets the defaults: ' .. writes)
+  FS, fileData, jsonWriteFile = nil, oldData, oldWrite
+  M.reloadSettings()
+end
 M.onExtensionUnloaded()
 assert(rawget(_G, 'carSurfaceFx_scratch') == nil, 'the scratch module is unloaded with the mod')
 assert(rawget(_G, 'carSurfaceFx_grass') == nil, 'the grass module is unloaded with the mod')

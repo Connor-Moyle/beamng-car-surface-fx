@@ -85,4 +85,6 @@ end
 
 function M.onExtensionUnloaded() M.clear() end
 
+require('carSurfaceFx/guard').wrap(M, 'carSurfaceFx_decalProbe', { 'onPreRender' })
+
 return M

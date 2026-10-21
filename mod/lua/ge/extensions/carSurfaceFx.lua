@@ -70,10 +70,12 @@ local function grassOn() return rawget(_G, 'carSurfaceFx_grass') ~= nil end
 -- the settings file, <user>/settings/carSurfaceFx.json, is the one store; the Mods menu (Wrench Works' slrr_settings, see carSurfaceFx/schema.lua) reads and writes it
 local screenSize = 4.5
 
+local settingsUnreadable = false                  -- the file is there but did not read as a table (locked by a sync or a virus scanner, half written after a crash): it is never written over
 local function loadSettings()
   settings = deepcopy(DEFAULTS)
   local s = jsonReadFile(SETTINGS_FILE)
-  if type(s) ~= 'table' then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize return end
+  settingsUnreadable = type(s) ~= 'table' and FS ~= nil and FS.fileExists ~= nil and FS:fileExists(SETTINGS_FILE) == true
+  if type(s) ~= 'table' then if not settingsUnreadable then jsonWriteFile(SETTINGS_FILE, DEFAULTS, true) else log_('W', 'settings/carSurfaceFx.json is there but could not be read: the defaults run and the file is left as it is') end rules.glassSize, screenSize = settings.windscreen.dropSize, settings.windscreen.overlayDropSize return end
   for k, d in pairs(DEFAULTS) do
     if type(d) == 'table' and type(s[k]) == 'table' then
       for key, dv in pairs(d) do
@@ -867,19 +869,27 @@ local function update(dtReal)
   rung = want
 end
 
--- One error switches the mod off (everything put back) and is logged once, instead of repeating every frame; carSurfaceFx.resume() tries again.
+-- One error is logged and the next frame tries again; five in a row switch the mod off (everything put back), with a message on the screen, instead of repeating every frame.
+-- carSurfaceFx.resume() tries again, and a new level starts clean.
 local failed
+local errorsInARow, MAX_ERRORS = 0, 5
 function M.onUpdate(dtReal)
   if failed then return end
   local ok, err = pcall(update, dtReal)
-  if not ok then
+  if ok then errorsInARow = 0 return end
+  errorsInARow = errorsInARow + 1
+  log_('E', 'error in the update (' .. errorsInARow .. ' in a row): ' .. tostring(err))
+  if errorsInARow >= MAX_ERRORS then
     failed = tostring(err)
-    log_('E', 'switched off after an error: ' .. failed .. ' (carSurfaceFx.resume() to try again)')
+    log_('E', 'switched off after ' .. errorsInARow .. ' errors in a row: ' .. failed .. ' (carSurfaceFx.resume() to try again)')
     pcall(reset)
+    local uim = rawget(_G, 'ui_message')
+    if uim then pcall(uim, 'Car Surface FX stopped after repeated errors (see beamng.log). carSurfaceFx.resume() starts it again.', 10, 'csfx') end
   end
 end
 
-function M.resume() failed = nil return 'resumed' end
+function M.resume() failed = nil errorsInARow = 0 return 'resumed' end
+function M.onClientStartMission() failed = nil errorsInARow = 0 end
 
 -- the Mods menu of Wrench Works (slrr_settings) lists our settings; it is registered at load and again when the registry says it is ready. Without Wrench Works nothing is
 -- registered and the mod runs on its defaults and its json file. A leftover group of an earlier build in the game's Options page is taken out.
@@ -921,7 +931,7 @@ function M.set(path, value)
   key = parts[#parts]
   if type(t) ~= 'table' or type(t[key]) ~= type(value) then return false end
   t[key] = value
-  jsonWriteFile(SETTINGS_FILE, settings, true)
+  if not settingsUnreadable then jsonWriteFile(SETTINGS_FILE, settings, true) end
   M.reloadSettings()
   return true
 end
