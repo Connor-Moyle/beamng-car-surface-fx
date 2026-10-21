@@ -14,7 +14,7 @@ local CORNER_RATIO = 0.3              -- slip under this share of the wheel surf
 local LOCK_RATIO = 0.3                -- wheel surface speed under this share of the slip speed counts as locked
 local APPLY_EPS = 0.005             -- a change under 0.5 % is not worth the call
 local SPARK_SLIP = 2.5               -- m/s of slip over which belts or a bare rim throw sparks
-local SPARK_MAX = 4                  -- sparks per tick (10 Hz) at the most
+local SPARK_MAX = 10                 -- sparks per tick (10 Hz) at the most
 local SPARK_PARTICLE = 1            -- particles.json type 1: sparks
 local RUBBER_MAT = 4            -- the tyre's own material id; the ground is the other one (as in carSurfaceFxWheels)
 local REAPPLY_FRAMES = 2            -- after a reset the engine restores its own friction first (our onReset runs before its resets): write again two frames later
@@ -221,7 +221,7 @@ local function tick(dt)
       local lvl = R.smoke(t.Ts, cfg)                              -- smoke of a burnout (particle 22, 6 when hotter: the game's white rubber smoke): one puff per tick, more often the hotter
       if lvl > 0 and not t.blown and math.random() < lvl then pcall(function() obj:addParticleByNodesRelative(e.cids[e.slotOf[wd.lastTreadContactNode] or 1], wd.node1, -1, lvl >= 0.8 and 6 or 22, 0, 1) end) end
       if cfg.sparksEnabled ~= false and (t.blown or R.stage(t, cfg) >= 5) and (tonumber(wd.lastSlip) or 0) > SPARK_SLIP and (tonumber(wd.downForce) or 0) >= MIN_DOWNFORCE then   -- belts (or the rim) sliding: sparks at the contact patch
-        local n = min(SPARK_MAX, 1 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 3))
+        local n = min(SPARK_MAX, 3 + math.floor(((tonumber(wd.lastSlip) or 0) - SPARK_SLIP) / 2))
         if not e.sparked then e.sparked = true obj:queueGameEngineLua(string.format('if carSurfaceFx_tyres then carSurfaceFx_tyres.lookEvent(%d,%d,"sparks",%.1f) end', obj:getId(), wi, tonumber(wd.lastSlip) or 0)) end   -- once per wheel: the proof in beamng.log
         pcall(function() local cid = e.cids[e.slotOf[wd.lastTreadContactNode] or 1] for _ = 1, n do obj:addParticleByNodesRelative(cid, wd.node1, -1, SPARK_PARTICLE, 0, 1) end end)
       end

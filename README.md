@@ -102,6 +102,7 @@ The old app's own calls (`uiGetModules`, `uiSet`, `uiAction`, `uiSetGroup`, `uiA
 ## Known limits
 
 - **Dents are paint marks, not real dents.** The game's paint layer has no normal map we can change at runtime, so a dent is drawn as a crescent of shade and one of light on the colour map. It reads best in a low sun and is flatter in a straight-on light; the car's shape is changed only by the game's own damage.
+- **Black paint hides worn paint and dents.** Marks are drawn on the paint's colour map, which can only darken it, so fade, scuffs, rust and the shade of a dent do not show on black paint (cracks and light lines show a little).
 - **No water film on the road.** Wet roads are drawn by the map and Street Legal; this mod does not draw one. Heavy rain does lower tyre grip through the physics film when tyres are on.
 - The water beads on the paint do not run down the panels; they grow, merge and fade. The drops on the windows do move.
 - Wet paint is shared by every car of the same model (they use the same material), so two cars of one model get wet together.

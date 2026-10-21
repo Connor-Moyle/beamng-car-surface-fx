@@ -267,9 +267,9 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { snowdust = { 0.95, 0.96, 0.98 }, slush = { 0.86, 0.88, 0.91 }, mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { snowdust = { 0.95, 0.96, 0.98 }, slush = { 0.62, 0.64, 0.67 }, mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
-  snowdust = { 400, 0.55, 0.05 },
+  snowdust = { 900, 0.22, 0.032 },      -- a thin dusting: many small faint flecks (80's frames: 400 hard white blobs of 0.55 read as cow patches)
   mud = { 4500, 1.0, 0.026 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
@@ -333,7 +333,7 @@ local function slush(id, snowGround, speed)
   local n = math.floor(snowGround * math.min(speed, 25) * (settings.scratch.dirtRate or 1) * 2 + math.random())
   if n > 0 then
     slushSeen.calls = slushSeen.calls + 1
-    if carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.8, PLACE.mud[3] * 1.2, { tex = 'snow' }) then slushSeen.splats = slushSeen.splats + n else slushSeen.refused = slushSeen.refused + 1 end
+    if carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.6, PLACE.mud[3] * 1.2, { tex = 'snow' }) then slushSeen.splats = slushSeen.splats + n else slushSeen.refused = slushSeen.refused + 1 end
     slushSeen.last = string.format('car %d, %d splats, speed %.1f, snow share %.2f', id, n, speed, snowGround)
   end
 end
