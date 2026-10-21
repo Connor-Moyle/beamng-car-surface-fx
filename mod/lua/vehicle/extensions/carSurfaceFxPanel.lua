@@ -65,7 +65,10 @@ local function onEvent(ev)
   carNumbers()
   local dv, vhi, vlo, vnow = speedChange(t)
   if not imp then imp = { t0 = t, top = vhi, lo = vnow } end        -- follow this impact to its end (updateGFX reports it)
-  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f, %.2f, %.2f) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv, vhi, vlo))
+  local nd = v and v.data and v.data.nodes and v.data.nodes[ev.node]
+  local part = nd and type(nd.partOrigin) == 'string' and nd.partOrigin or ''       -- the jbeam part the node belongs to: says carbon, fibreglass or a plastic trim part
+  seen.part = part
+  ge(string.format('if carSurfaceFx_paneldamage then carSurfaceFx_paneldamage.hit(%d, %d, %.2f, %.0f, %.0f, %d, %d, %.2f, %.2f, %.2f, %q) end', obj:getId(), ev.node, ev.perp, ev.normalForce, mass, nodes, ev.nodeMat, dv, vhi, vlo, part))
 end
 
 local function ensureSubscribed()
@@ -102,7 +105,7 @@ function M.updateGFX(dt)
 end
 
 -- one line for the in-game check (vehicle console): carSurfaceFxPanel.status()
-function M.status() local h = {} for k, n in pairs(byMat) do h[#h + 1] = k .. ':' .. n end table.sort(h) return string.format('at speed by node material {%s} | ', table.concat(h, ' ')) .. string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last node material %s, hit %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end
+function M.status() local h = {} for k, n in pairs(byMat) do h[#h + 1] = k .. ':' .. n end table.sort(h) return string.format('at speed by node material {%s} last part %s | ', table.concat(h, ' '), tostring(seen.part)) .. string.format('enabled %s subscribed %s minPerp %.2f | events %d, node events %d, sent to the game %d | rejected: too slow %d, material %d, wheel %d, cooldown %d | hits at speed %d, last node material %s, hit %s', tostring(cfg.enabled), tostring(subscribed), cfg.minPerp, seen.events, seen.nodeEv, seen.sent, seen.rejSlow, seen.rejMat, seen.rejWheel, seen.rejCool, seen.hardN, tostring(seen.hardMat1), tostring(seen.hardMat2)) end
 
 function M.onReset() nodeReady = {} hist = {} end
 function M.onExtensionUnloaded() if carSurfaceFxContact then pcall(carSurfaceFxContact.unsubscribe, 'panel') end subscribed = false end

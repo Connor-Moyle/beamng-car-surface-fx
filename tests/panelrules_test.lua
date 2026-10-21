@@ -31,4 +31,21 @@ assert(rest < 4 and bump5 >= 4 and hit10 > bump5 and wall20 > hit10 and wall40 >
 assert(P.severity(bump5, 4) < 0.25 and P.severity(hit10, 4) < 0.5 and P.severity(wall40, 4) > 0.9, 'faint, small, deep')
 assert(P.markBudget(3, 4) == 0 and P.markBudget(4, 4) == 1 and P.markBudget(8, 4) == 3 and P.markBudget(20, 4) == 5 and P.markBudget(76, 4) == 9 and P.markBudget(288, 4) == 13 and P.markBudget(1e9, 4) == 16, 'marks per impact: two more for every doubling, 16 at most')
 assert(P.spread(0) < P.spread(1) and P.spread(1) <= 0.3, 'a harder hit scatters wider')
+
+-- the part table: the kind a node's part says (names from the stock cars, tools/list_panel_parts.py), before the node material
+assert(P.kindOfPart('md_series_dragwing_carbon') == 'carbon' and P.kindOfPart('pickup_stockcarwing_carbon') == 'carbon', 'carbon wings are carbon')
+assert(P.kindOfPart('covet_hood_fiberglass') == 'fibreglass' and P.kindOfPart('covet_tailgate_fiberglass') == 'fibreglass' and P.kindOfPart('midsize_trunk_fiberglass') == 'fibreglass', 'fibreglass hoods and tailgates')
+assert(P.kindOfPart('burnside_mirror_L') == 'plastic' and P.kindOfPart('moonhawk_fenderflare_FL') == 'plastic' and P.kindOfPart('covet_bigwing_03b') == 'plastic' and P.kindOfPart('barstow_grille') == 'plastic' and P.kindOfPart('midsize_bigsplitter_01a_L') == 'plastic', 'trim parts are plastic')
+assert(P.kindOfPart('pickup_bullbarlight_grille') == nil and P.kindOfPart('bx_badge_F_grille_fixed_ibishu') == nil and P.kindOfPart('bluebuck_lettering_fascia_F') == nil and P.kindOfPart('flipramp') == nil, 'a word inside a light, a badge, lettering or a bar is not a plastic panel')
+assert(P.kindOfPart('covet_bumper_F') == nil and P.kindOfPart('pickup_pushbumper_F') == nil and P.kindOfPart('covet_door_FL') == nil and P.kindOfPart('') == nil and P.kindOfPart(nil) == nil and P.kindOfPart(5) == nil, 'bumpers and doors are left to the node material; no part, no kind')
+assert(P.kindOf({ nodeMaterial = P.NODE.METAL, partName = 'covet_hood_fiberglass' }) == 'fibreglass' and P.kindOf({ nodeMaterial = P.NODE.PLASTIC, partName = 'md_series_dragwing_carbon' }) == 'carbon', 'the part beats the node material')
+assert(P.kindOf({ nodeMaterial = P.NODE.METAL, partName = 'burnside_mirror_L' }) == 'plastic' and P.kindOf({ nodeMaterial = P.NODE.METAL, partName = 'covet_door_FL' }) == 'metal' and P.kindOf({ nodeMaterial = P.NODE.RUBBER, partName = 'covet_bumper_F' }) == 'plastic', 'a mirror is plastic on a metal node; a door stays metal; a rubber bumper cover is plastic')
+assert(P.kindOf({ nodeMaterial = P.NODE.GLASS, partName = 'covet_hood_fiberglass' }) == nil, 'glass is never a panel')
+
+-- the nearest mapped point (for a part the paint layer does not paint)
+local pts = { { 0, 0, 0, 1 }, { 0.5, 0, 0, 2 }, { 3, 0, 0, 3 } }
+local near, d = P.nearestPoint(pts, 0.4, 0.1, 0, 0.7)
+assert(near == 2 and d < 0.15, 'the nearest point wins')
+assert(P.nearestPoint(pts, 1.6, 0, 0, 0.7) == nil and P.nearestPoint({}, 0, 0, 0, 0.7) == nil, 'nothing within the distance: nothing')
+assert(P.nearestPoint(pts, 2.4, 0, 0, 0.7) == 3 and P.NEAR_M == 0.7, 'the default distance is 0.7 m')
 print('carSurfaceFx panel rules: ok')

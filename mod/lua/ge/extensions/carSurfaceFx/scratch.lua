@@ -432,6 +432,7 @@ local function drawSplats(veh, list, dirs, props)
     draw(veh, 'csfxBlobs', { l = l, d = dirs and d or nil, c = props.c, a = props.a, k = props.k, t = props.t })
   end
 end
+function M.useLut(id, lut) cars[id] = { lut = lut } end                                       -- (for the tests: a car's node map without the mesh reading)
 function M.useMap(id, map) cars[id] = cars[id] or {} cars[id].map = map end                    -- (for the tests: a car's body map without the mesh reading)
 local dd = { calls = 0, refused = 0, sent = 0, clods = 0, last = 'never' }              -- what dirtAt did, for diagnose()
 function M.dirtAt(id, kind, n, wi, c, a, size, opts)
@@ -592,11 +593,32 @@ local LIGHT_DIR_FALLBACK = 2.35                                   -- radians, wh
 local KIND_CODE = { plastic = 1, fibreglass = 2, carbon = 3, metal = 4 }
 local KIND_LETTER = { 'p', 'f', 'c', 'm' }
 -- spreadM (optional): scatter the mark up to that many metres around the node, for the extra marks of a hard hit
+-- A node the paint map does not know (a part the paint layer does not paint: a bumper cover, a mirror housing) takes the entry of the nearest mapped node, at most 0.7 m away, so the mark
+-- shows on the painted panel beside the part that was hit. The mapped nodes' positions are listed once per car; the answer per node is kept.
+local function nearEntry(car, veh, cid)
+  car.near = car.near or {}
+  local hit = car.near[cid]
+  if hit ~= nil then return hit or nil end
+  local rules = require('carSurfaceFx/panelrules')
+  if not car.points then
+    car.points = {}
+    for c in pairs(car.lut) do
+      local ok, p = pcall(function() return veh:getNodePosition(c) end)
+      if ok and p then car.points[#car.points + 1] = { p.x, p.y, p.z, c } end
+    end
+  end
+  local ok, p = pcall(function() return veh:getNodePosition(cid) end)
+  local best = ok and p and rules.nearestPoint(car.points, p.x, p.y, p.z, rules.NEAR_M)
+  car.near[cid] = best and car.lut[best] or false
+  return best and car.lut[best] or nil
+end
+
 function M.dent(id, cid, sev, rM, maxMarks, light, kind, spreadM)
   local car = cars[id]
-  local e = car and car.lut and car.lut[cid]
-  if not e then return false end
   local veh = getObjectByID(id)
+  local e = car and car.lut and car.lut[cid]
+  if car and car.lut and not e and veh then e = nearEntry(car, veh, cid) end
+  if not e then return false end
   if not veh or not hasCanvas(veh) then return false end
   -- the light in the car's own left / back / up components, turned into a direction across the texture here (as the scratch hit does for a slip direction)
   local ang = LIGHT_DIR_FALLBACK
