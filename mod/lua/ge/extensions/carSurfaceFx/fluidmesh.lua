@@ -4,13 +4,15 @@
 local M = {}
 
 local mm = require('carSurfaceFx/markMaterials')
+local gpugate = require('carSurfaceFx/gpugate')
 
 local FILE = '/art/surfacefx/fluids/main.materials.json'
 local MATERIAL = { oil = 'csfx_puddle_oil', coolant = 'csfx_puddle_coolant', fuel = 'csfx_puddle_fuel' }
 local SHEEN = 'csfx_puddle_sheen'
 local GRID = 5                                  -- corners across a plane
 local LIFT, SHEEN_LIFT = 0.03, 0.045            -- metres above the ground (2 cm z-fights at a distance)
-local MAX_BUILDS, BUDGET = 2, 0.006             -- planes made per pass, and the seconds a pass may use
+local MAX_BUILDS, MAX_DROPS, BUDGET = 1, 2, 0.006   -- planes made and taken away per pass (0.25 s), and the seconds a pass may use: planes like these are a GPU-crash suspect in Street Legal, so they trickle
+M.RADIUS = 40                                   -- m from the camera within which a puddle gets a plane (the decals reach cullRadius)
 
 local recs = {}                                 -- puddle -> { obj, sheen, gen, kind, built (radius the corners were sampled for), r, x, y }
 local count = 0
@@ -114,23 +116,26 @@ function M.available() return failed == nil end
 function M.why() return failed end
 
 -- every 0.25 s: put a plane under each puddle near the camera, grow it with the puddle, take it away when the puddle is recycled or far. `fade(i)` is the ring's fade (0..1) of slot i.
--- Puddles that have a plane carry p.meshed = true so the decal pass leaves them out.
+-- Puddles that have a plane carry p.meshed = true so the decal pass leaves them out. The gate holds every build and drop for a moment after a material reload (a plane whose slot was
+-- recycled still goes at once: it stands at the wrong place).
 function M.sync(store, cfg, camX, camY, fade)
   if failed then return end
   local t0 = os.clock()
-  local builds, seen = 0, {}
-  local cr2 = cfg.cullRadius * cfg.cullRadius
+  local gate = gpugate.shared()
+  local may = gate.planesMayChange(t0)
+  local builds, drops, seen = 0, 0, {}
+  local rr2 = M.RADIUS * M.RADIUS
   for i = 1, store.count do
     local p = store.list[i]
     if p and p.r > 0 and not p.stain and MATERIAL[p.kind] and cfg.kinds[p.kind] and cfg.kinds[p.kind].enabled then
       local rec = recs[p]
-      if rec and (rec.gen ~= p.gen or rec.kind ~= p.kind) then drop(p, rec) rec = nil end
+      if rec and (rec.gen ~= p.gen or rec.kind ~= p.kind) then drop(p, rec) rec = nil drops = drops + 1 end
       local near = true
-      if camX then local dx, dy = p.x - camX, p.y - camY near = dx * dx + dy * dy <= cr2 end
+      if camX then local dx, dy = p.x - camX, p.y - camY near = dx * dx + dy * dy <= rr2 end
       local r = p.r * (fade and fade(i) or 1)
       if near and r >= 0.04 then
-        if rec and rec.built < p.r * 0.95 then drop(p, rec) rec = nil end             -- outgrew the corners it was sampled for
-        if not rec and builds < MAX_BUILDS and os.clock() - t0 < BUDGET and M.count() < (cfg.maxMeshes or 60) then
+        if rec and rec.built < p.r * 0.95 and may and drops < MAX_DROPS then drop(p, rec) rec = nil drops = drops + 1 end     -- outgrew the corners it was sampled for
+        if not rec and may and builds < MAX_BUILDS and os.clock() - t0 < BUDGET and M.count() < (cfg.maxMeshes or 12) then
           rec = build(p, math.max(p.r * 1.5, 0.3), p.kind == 'oil' and cfg.sheen ~= false)
           if rec then recs[p] = rec builds = builds + 1 end
         end
@@ -149,8 +154,9 @@ function M.sync(store, cfg, camX, camY, fade)
     end
   end
   for p, rec in pairs(recs) do                                                           -- planes whose puddle went (recycled, dried, faded, far)
-    if not seen[p] then drop(p, rec) end
+    if not seen[p] and (rec.gen ~= p.gen or (may and drops < MAX_DROPS)) then drop(p, rec) drops = drops + 1 end
   end
+  if builds + drops > 0 then (gate.terrainEdited or gate.planesTouched)(os.clock()) end      -- (Street Legal's planesTouched also clears its own planes' starving timer: terrainEdited only holds the wet world)
 end
 
 function M.clear()

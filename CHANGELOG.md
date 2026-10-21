@@ -6,7 +6,7 @@ Needs BeamNG.drive 0.40.
 
 Proven in the game (connor-80, with screenshots):
 
-- Tyres: wear and heat in a burnout, white smoke, rubber debris, sparks, fire and pop, the worn tyre look, compound swap, wet grip, aquaplaning, the water film in heavy rain, fire spread to the car (with the option on), tyres renewed by a reset.
+- Tyres: wear and heat in a burnout, white smoke, rubber debris, sparks, fire and pop, the worn tyre look, compound swap, wet grip, aquaplaning, fire spread to the car (with the option on), tyres renewed by a reset.
 - Dirt: mud thrown from the tyres by driving on loose ground reads as mud (low on the body, a dark rear with drips); snow on the roof, bonnet and boot, also on a car that replaced another with the same id.
 - Crash effects (off by default): flying debris at the foot of a wall, sparks, and a broken window leaves a pile of shards on the ground (seen on concrete).
 - The window rule: the car's side and rear glass is found from its own parts, and a glass break leaves a pile once.
@@ -17,6 +17,12 @@ Built, not yet tested in the game:
 - Mud after more than about 80 s of driving; the tightened mud height cut; dust on its own.
 - Glass breaking in a real car-to-car hit, and glass piles on asphalt.
 - The chunks a burnout throws, and panel damage from a real hit.
+- The water film on the road in heavy rain (Tyres > Wet, off by default).
+- Leak puddles with the new low cap and the GPU gate (the glossy planes are now off by default).
+
+### Details
+
+- Leak puddles: the glossy puddle planes are now **off by default** (Leaks & puddles page, "Glossy puddles"; a saved profile keeps its own choice) and capped low when on: at most 12 planes at once (slider up to 40, was 60 and 200), only within 40 m of the camera, one plane made and at most two taken away per quarter second. The planes wait a second after any of the mod's own material reloads, through the same gate Street Legal's rain puddles use when that mod is there (planes and shader reloads together are the suspect in a graphics-card crash), and our own small gate without it. The drips and flat puddle decals are unchanged.
 
 - Tyres (new, **off by default**, switch it on on the Tyres page of the Mods menu): each tyre is a ring of tread sections that wear, heat and grip separately. Wear comes from sliding (locked wheels leave flat spots and a shake, wheelspin and cornering wear faster), the tread depth and compound (road, performance, semi-slick, slick, drag, off-road, mud, winter, intermediate, full wet, rally) set the grip, temperature changes grip, rain changes grip per compound and a worn tyre aquaplanes earlier. By the tyre model (not yet measured in the game) a road tyre lasts about 40,000 km of plain driving and a full burnout wears it to the belts in about 1.5 minutes; the "Wear while driving" and "Wear speed" settings change that. Hot tyres smoke, can catch fire and pop; worn rubber leaves debris (seen in the game). A worn tyre looks worn, and the belts show once the tread is gone (on the stock tire, tire_01a and tire_01f materials only; the look needs a respawn after you switch the tyres on), and belts sliding on the road throw small sparks. The fire can spread to the car only if you turn that on (off by default), and heavy rain puts a film of water on the road only if you turn "Aquaplaning in heavy rain" on. Every value is on the Tyres page (presets Off, Arcade, Realistic); other mods can read the tyres and swap compounds through the `carSurfaceFx_tyres` extension.
 

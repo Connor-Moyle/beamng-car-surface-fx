@@ -48,7 +48,7 @@ function M.ensure(name, file)
       for k, v in pairs(stage) do m:setField(k, layer - 1, text(v)) end
     end
     m:registerObject(name)
-    if Sim and Sim.upcast then Sim.upcast(m):reload() end
+    if Sim and Sim.upcast then Sim.upcast(m):reload() require('carSurfaceFx/gpugate').shared().reloaded(os.clock()) end      -- (fluidmesh requires this file: the require sits here, not at the top)
   end)
   if not ok then return false, tostring(err) end
   return true

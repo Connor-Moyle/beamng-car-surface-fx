@@ -20,6 +20,7 @@ function createObject(class)
 end
 
 local M = dofile('mod/lua/ge/extensions/carSurfaceFx/fluidmesh.lua')
+require('carSurfaceFx/gpugate').reset()                        -- (the smoke test before this one reported material reloads: the gate would hold)
 local cfg = R.defaults()
 local store = R.newStore(6)
 local p = R.drip(store, 10, 20, 0, 'oil', 1, cfg, false, 0.5)
@@ -57,4 +58,50 @@ local a = R.drip(q, 0, 0, 0, 'oil', 1, cfg, false, 0.5)
 local g1 = a.gen
 for i = 1, 4 do R.drip(q, 5 * i, 0, 0, 'oil', 1, cfg, false, 0.5) end      -- the ring comes round: the slot of `a` is a new puddle
 assert(a.gen ~= g1 and not a.meshed, 'a recycled slot is a new puddle')
+
+-- the caps: one plane a pass, at most maxMeshes, only within M.RADIUS of the camera, and no plane made or taken away while the gate holds after a material reload
+local G = require('carSurfaceFx/gpugate')
+M.clear() G.reset()
+local st = R.newStore(10)
+local cfg2 = R.defaults() cfg2.maxMeshes = 2
+assert(cfg2.meshes == false and R.defaults().maxMeshes == 12, 'glossy planes are off by default and capped at 12')
+for i = 1, 3 do R.drip(st, i * 5, 0, 0, 'coolant', 1, cfg2, false, 0.5).r = 0.4 end
+local far = R.drip(st, 50, 0, 0, 'coolant', 1, cfg2, false, 0.5) far.r = 0.4     -- 50 m off: inside the decal cull (70) but outside the plane radius (40)
+M.sync(st, cfg2, 0, 0)
+assert(M.count() == 1, 'one plane a pass')
+M.sync(st, cfg2, 0, 0) M.sync(st, cfg2, 0, 0)
+assert(M.count() == 2 and not far.meshed, 'the cap holds and the far puddle stays a decal')
+G.reloaded(os.clock())
+cfg2.maxMeshes = 3
+M.sync(st, cfg2, 0, 0)
+assert(M.count() == 2, 'after a material reload no plane is made')
+G.reset()
+M.sync(st, cfg2, 0, 0)
+assert(M.count() == 3 and G.lastPlanes() > 0, 'the gate opens again and is told of the plane')
+G.reloaded(os.clock())
+M.sync(st, cfg2, 500, 500)
+assert(M.count() == 3, 'nor taken away while the gate holds')
+G.reset()
+M.sync(st, cfg2, 500, 500)
+assert(M.count() == 1, 'two a pass taken away when it opens')
+M.sync(st, cfg2, 500, 500)
+assert(M.count() == 0, 'and the rest the pass after')
+M.clear() G.reset()
+
+-- with Street Legal's gate: a plane build is reported through terrainEdited (its planesTouched would clear its own planes' starving timer), and its hold is obeyed
+local told = { edited = 0, touched = 0 }
+local open_ = true
+package.loaded['sl/core/gpugate'] = { planesMayChange = function() return open_ end, reloaded = function() end, planesTouched = function() told.touched = told.touched + 1 end, terrainEdited = function() told.edited = told.edited + 1 end }
+G.forget()
+local st2 = R.newStore(4)
+R.drip(st2, 3, 0, 0, 'oil', 1, cfg2, false, 0.5).r = 0.4
+open_ = false
+M.sync(st2, cfg2, 0, 0)
+assert(M.count() == 0, "Street Legal's gate says wait: no plane")
+open_ = true
+M.sync(st2, cfg2, 0, 0)
+assert(M.count() == 1 and told.edited == 1 and told.touched == 0, "a build goes through Street Legal's terrainEdited, never its planesTouched")
+M.clear()
+package.loaded['sl/core/gpugate'] = nil
+G.forget()
 print('carSurfaceFx fluidmesh: ok')
