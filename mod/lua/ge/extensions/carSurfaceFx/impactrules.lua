@@ -81,6 +81,8 @@ end
 
 -- the radius of a shard pile from the severity (a small side window to a windscreen), and how many shards it is drawn with
 function M.pileRadius(sev, sizeScale) return (0.4 + 1.0 * clamp(sev, 0, 1)) * (sizeScale or 1) end
+-- how many piles a broken pane leaves from the number of its beams that broke (a side window a few dozen... a windscreen the most): one for a small pane, up to four spread out for a big one
+function M.pileCount(beams) return clamp(1 + math.floor((tonumber(beams) or 0) / 15), 1, 4) end
 
 -- ---- debris. A broken joint or a hard hit: which kind of piece (nil = none: tyres leave nothing). rnd = a number 0..1
 function M.classify(m1, m2, rnd, boltChance)

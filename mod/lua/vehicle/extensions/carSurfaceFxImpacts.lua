@@ -141,7 +141,7 @@ local function frame(dt)
     local c = clusters[i]
     if simTime - c.last >= cfg.idle then
       local sev = c.n >= 20 and 1 or 0.3 + 0.7 * (c.n / 20)
-      ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.glass(%d,%.3f,%.3f,%.3f,%.2f) end', obj:getId(), c.x / c.n, c.y / c.n, c.z / c.n, sev))
+      ge(string.format('if carSurfaceFx_impacts then carSurfaceFx_impacts.glass(%d,%.3f,%.3f,%.3f,%.2f,%d) end', obj:getId(), c.x / c.n, c.y / c.n, c.z / c.n, sev, c.n))
       table.remove(clusters, i)
     else
       i = i + 1

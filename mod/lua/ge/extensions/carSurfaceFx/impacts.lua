@@ -126,7 +126,7 @@ local function groundZ(x, y, z)
 end
 
 -- ---- glass
-function M.glass(vid, x, y, z, sev)
+function M.glass(vid, x, y, z, sev, beams)
   counts.glass = counts.glass + 1
   if not (settings.enabled and settings.glass.enabled) then return end
   -- a window sits above the car, so straight down is under the car where nobody sees the glass: it falls out to the side, a metre or so from the car's centre line
@@ -139,14 +139,21 @@ function M.glass(vid, x, y, z, sev)
     if len > 0.3 then ux, uy = dx / len, dy / len else local a = math.random() * 6.2832 ux, uy = math.cos(a), math.sin(a) end
     x, y = x + ux * 1.0, y + uy * 1.0
   end
-  local gz = groundZ(x, y, z)
-  if not gz then return end
   local maxN = math.max(4, math.floor(settings.glass.maxPiles))
-  pileHead = (pileHead % maxN) + 1
-  local p = piles[pileHead] or {}
-  p.x, p.y, p.z, p.r, p.angle, p.seed = x, y, gz, rules.pileRadius(sev, settings.glass.size), math.random() * 6.2832, math.random()
-  piles[pileHead] = p
-  if pileN < maxN then pileN = pileN + 1 end
+  local n = rules.pileCount(beams)
+  local ox, oy = 0, 0                                         -- a big pane spreads its piles out along the way the glass fell (away from the car's centre)
+  if cp then local dx, dy = x - cp.x, y - cp.y local l = math.sqrt(dx * dx + dy * dy) if l > 0.01 then ox, oy = dx / l, dy / l end end
+  for k = 0, n - 1 do
+    local px, py = x + ox * 0.9 * k - oy * (math.random() - 0.5) * 0.8 * k, y + oy * 0.9 * k + ox * (math.random() - 0.5) * 0.8 * k
+    local gz = groundZ(px, py, z)
+    if gz then
+      pileHead = (pileHead % maxN) + 1
+      local p = piles[pileHead] or {}
+      p.x, p.y, p.z, p.r, p.angle, p.seed = px, py, gz, rules.pileRadius(sev, settings.glass.size) * (1 - 0.12 * k), math.random() * 6.2832, math.random()
+      piles[pileHead] = p
+      if pileN < maxN then pileN = pileN + 1 end
+    end
+  end
 end
 
 -- ---- debris: a burst at a node of a car; the pieces are followed to where they land

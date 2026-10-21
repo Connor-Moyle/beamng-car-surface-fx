@@ -67,6 +67,14 @@ assert(sent[#sent] and sent[#sent]:find('setConfig%(true, true, true'), 'the car
 
 I.glass(1, 5, 5, 1, 1) I.glass(1, 8, 5, 1, 0.4)
 assert(I.pileCount() == 2, 'two glass piles')
+-- a big pane (many broken beams) leaves several piles, a small one a single pile, capped at four
+assert(R.pileCount(0) == 1 and R.pileCount(14) == 1 and R.pileCount(30) == 3 and R.pileCount(500) == 4, 'piles by the size of the pane')
+local before = I.pileCount()
+I.glass(1, 20, 20, 1, 1, 35)
+assert(I.pileCount() == before + 3, 'a windscreen of 35 broken beams leaves 3 piles: ' .. I.pileCount() - before)
+before = I.pileCount()
+I.glass(1, 30, 20, 1, 0.5, 6)
+assert(I.pileCount() == before + 1, 'a small pane leaves one')
 I.onPreRender(0.016)
 assert(#batches >= 1 and batches[1].tex:find('shards'), 'piles are drawn as decals')
 batches = {}
