@@ -333,7 +333,7 @@ local function slush(id, snowGround, speed)
   local n = math.floor(snowGround * math.min(speed, 25) * (settings.scratch.dirtRate or 1) * 2 + math.random())
   if n > 0 then
     slushSeen.calls = slushSeen.calls + 1
-    if carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.45, PLACE.mud[3] * 1.2, { tex = 'snow' }) then slushSeen.splats = slushSeen.splats + n else slushSeen.refused = slushSeen.refused + 1 end
+    if carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.7, PLACE.mud[3] * 1.2, { tex = 'snow' }) then slushSeen.splats = slushSeen.splats + n else slushSeen.refused = slushSeen.refused + 1 end
     slushSeen.last = string.format('car %d, %d splats, speed %.1f, snow share %.2f', id, n, speed, snowGround)
   end
 end
