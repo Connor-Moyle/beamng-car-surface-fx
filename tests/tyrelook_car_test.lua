@@ -70,4 +70,14 @@ for _, order in ipairs({ { FL = 0, FR = 1 }, { FL = 1, FR = 0 } }) do
   M2.set('fr', 3)
   assert(#sent == 1 and sent[1]:find(string.format('look(7,%d,3,{{"tire_01a","tire_01a_15x7_24"}})', order.FR), 1, true), 'FR by name, keys ' .. order.FL .. '/' .. order.FR .. ': ' .. tostring(sent[1]))
 end
+-- the sparks switch off: the belts stage does not turn the tread to METAL
+obj.setNodeMaterial = function(_, cid, id) metal[cid] = id end
+particles.getMaterialIDByName = function() return 2 end
+wheels.wheels[0].treadNodes = { 1, 2 }
+L.restore()
+metal[1], metal[2] = nil, nil
+L.set(0, 5, true, false)
+assert(metal[1] == nil and metal[2] == nil, 'sparks off: no METAL at the belts')
+L.set(0, 5, true, true)
+assert(metal[1] == 2 and metal[2] == 2, 'sparks on again: METAL at the belts')
 print('carSurfaceFxTyreLook by wheel name: ok')

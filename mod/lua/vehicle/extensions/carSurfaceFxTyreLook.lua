@@ -83,13 +83,13 @@ local function wheelKey(w)              -- a wheel by its key in wheels.wheels o
   for k, wd in pairs(wheels.wheels or {}) do if tostring(wd.name):upper() == w:upper() then return k end end
   return w
 end
-function M.set(wi, stage, auto)         -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore()
+function M.set(wi, stage, auto, sparks)  -- auto: from the tyre module's reports; a call without it is by hand and holds the stage until restore(). sparks false: the belts do not turn the tread to METAL (the game's sparks are off)
   wi = wheelKey(wi)
   if disabled or (auto and pinned[wi]) then return end
   if not auto then pinned[wi] = true end
   if not sw then build() end
   stage = math.max(0, math.min(5, math.floor(tonumber(stage) or 0)))
-  pcall(setMetal, wi, stage >= 5)                         -- every call: it does nothing when the nodes already are as wanted, and a flip that could not be made the first time (nodes not ready) is made on the next report
+  pcall(setMetal, wi, stage >= 5 and sparks ~= false)                         -- every call: it does nothing when the nodes already are as wanted, and a flip that could not be made the first time (nodes not ready) is made on the next report
   if stageOf[wi] == stage then return end
   stageOf[wi] = stage
   local pairsOut = {}
