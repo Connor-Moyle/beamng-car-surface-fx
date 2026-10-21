@@ -74,6 +74,21 @@ T.onPreRender(0.016)
 local cool = 0 for _, d in ipairs(drawn) do if d.tex:find('puddle_1', 1, true) then cool = cool + d.n end end
 assert(cool == 1, 'a cool patch has only its smear, no glow: ' .. cool)
 M.clear()
+-- the frame cost is bounded: 24 full patches in view draw at most 260 decals, and every forward vector is a unit vector
+for i = 1, 24 do M.add(T.getConfig(), 400, 250, i * 4, 0, 0) end
+drawn = {}
+local fwd = true
+local okAdd = Engine.Render.DynamicDecalMgr.addDecals
+Engine.Render.DynamicDecalMgr.addDecals = function(pool, n)
+  drawn[#drawn + 1] = { tex = pool[1].texture, n = n }
+  for k = 1, n do local f = pool[k].forwardVec if math.abs(f.x * f.x + f.y * f.y - 1) > 1e-6 then fwd = false end end
+end
+T.onPreRender(0.016)
+Engine.Render.DynamicDecalMgr.addDecals = okAdd
+local capn = 0 for _, d in ipairs(drawn) do capn = capn + d.n end
+assert(capn <= 260 and capn >= 200, 'the decal cap holds: ' .. capn)
+assert(fwd, 'every decal has a unit forward vector')
+M.clear()
 T.configure({ marbles = { burn = true } })
 
 -- an error in the draw switches the hook off once (the guard), and resume() brings it back
