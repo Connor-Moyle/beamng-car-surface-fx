@@ -42,6 +42,7 @@ function M.defaults()
     shade = 0.5,                                                 -- how dark marks made under cover or at night get (1 = not at all)
     cullRadius = 60,                                             -- marks further than this from the camera are not drawn
     maxDrawn = 300,                                              -- at most this many decals are drawn in a frame (the nearest ones, to the step of cullRadius / 32); each costs the engine time every frame
+    perfVersion = 1,                                             -- 1: the decal budget and distance below replaced the old 800 / 100 once (M.migratePerf)
     others = { enabled = true, maxCars = 6, range = 120 },       -- traffic and AI cars mark too: the nearest maxCars within range metres
   }
 end
@@ -347,12 +348,23 @@ end
 function M.onVehicleSpawned(id, veh) if veh or getObjectByID then pcall(injectAll) end end
 function M.onVehicleSwitched() pcall(injectAll) end
 
+-- One time: the file used to be written whole, so a player who never touched the decal budget has the OLD defaults saved (800 decals, 100 m) and would never get the cheaper new ones.
+-- saved is the file's table; returns true when exactly the old defaults are saved and this file has not been through this step. A player who sets 800 / 100 again afterwards keeps it (the file then carries perfVersion 1).
+function M.migratePerf(saved)
+  if type(saved) ~= 'table' or (tonumber(saved.perfVersion) or 0) >= 1 then return false end
+  return saved.maxDrawn == 800 and saved.cullRadius == 100
+end
+
 -- ---- settings: a file of our own, filled once from the old mod's file (the values the player set there)
 function M.save() pcall(jsonWriteFile, SETTINGS_FILE, settings, true) dirty = false lastSave = os.clock() end
 function M.load()
   settings = M.defaults()
   local ok, saved = pcall(jsonReadFile, SETTINGS_FILE)
-  if ok and type(saved) == 'table' then mergeInto(settings, saved)
+  if ok and type(saved) == 'table' then
+    local movePerf = M.migratePerf(saved)
+    mergeInto(settings, saved)
+    if movePerf then settings.maxDrawn, settings.cullRadius, dirty = 300, 60, true end
+    settings.perfVersion = 1
   else
     local ok2, old = pcall(jsonReadFile, OLD_FILE)
     if ok2 and type(old) == 'table' then

@@ -139,6 +139,23 @@ M.clear()
 drawn = 0 M.onPreRender(0.016)
 assert(drawn == 0, 'clear() empties what is submitted')
 core_camera.getForward = nil
+-- the old decal defaults saved in the file (800 / 100: CSFX writes the whole file) move to the new ones once; a choice made afterwards, or any other value, stays
+local SF = 'settings/carSurfaceFx_marks.json'
+files[SF] = { maxDrawn = 800, cullRadius = 100, skidCount = 500 }
+M.load()
+assert(M.get('maxDrawn') == 300 and M.get('cullRadius') == 60 and M.get('skidCount') == 500, 'the old defaults move to 300 / 60 once, the rest is kept')
+M.save()
+assert(files[SF].perfVersion == 1 and files[SF].maxDrawn == 300, 'and the file says so')
+files[SF] = { maxDrawn = 800, cullRadius = 100, perfVersion = 1 }
+M.load()
+assert(M.get('maxDrawn') == 800 and M.get('cullRadius') == 100, 'a player who set the old values again keeps them')
+files[SF] = { maxDrawn = 500, cullRadius = 100 }
+M.load()
+assert(M.get('maxDrawn') == 500 and M.get('cullRadius') == 100, 'a value the player chose is not touched')
+files[SF] = nil
+M.load()
+assert(M.get('maxDrawn') == 300 and M.get('cullRadius') == 60, 'no file: the new defaults')
+files[SF] = nil
 -- a throwing hook switches the module off, logs once and is not called again
 local logs, calls = {}, 0
 function log(level, tag, msg) logs[#logs + 1] = level .. ' ' .. tag .. ' ' .. msg end
