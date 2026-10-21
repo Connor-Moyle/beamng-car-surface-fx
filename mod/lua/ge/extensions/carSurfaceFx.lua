@@ -233,7 +233,7 @@ end
 
 -- collision-type id -> weight for the level's ground models, in three lists (loose ground, mud, road), sent to the car's wheel watcher
 local function groundTables()
-  local t = { loose = {}, mud = {}, road = {} }
+  local t = { loose = {}, mud = {}, road = {}, snow = {} }
   for name, gm in pairs(core_environment and core_environment.groundModels or {}) do
     local class, w = rules.groundClass(name)
     local id = gm.cdata and gm.cdata.collisiontype
@@ -245,7 +245,7 @@ end
 
 function M.pushGround(veh)
   local t = groundTables()
-  veh:queueLuaCommand(string.format('if not carSurfaceFxWheels then extensions.load("carSurfaceFxWheels") end carSurfaceFxWheels.setClasses(%s, %s, %s)', t.loose, t.mud, t.road))
+  veh:queueLuaCommand(string.format('if not carSurfaceFxWheels then extensions.load("carSurfaceFxWheels") end carSurfaceFxWheels.setClasses(%s, %s, %s, %s)', t.loose, t.mud, t.road, t.snow))
 end
 
 -- the game's time of day 0..1 (0 noon, 0.5 midnight), or nil
@@ -267,8 +267,9 @@ local function snowfall() return forcedSnowing or rules.snowing(core_environment
 -- picks: mud sprayed off the tyres (low, behind the wheels, streaks), the road film on the lower body and the rear faces, dust, rubber around the wheels, snow on flat sky-facing
 -- surfaces only, bugs on the nose. The colours: mud brown and earthy, dust a light tan, the road film dark grey, rubber black, snow white. Without the car's body map (no source mesh
 -- yet) the plain regions of the old placement are used.
-local COL = { mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
+local COL = { snowdust = { 0.95, 0.96, 0.98 }, slush = { 0.72, 0.73, 0.76 }, mud = { 0.66, 0.50, 0.34 }, dust = { 0.66, 0.57, 0.42 }, grime = { 0.24, 0.23, 0.21 }, rubber = { 0.04, 0.04, 0.04 }, snow = { 0.95, 0.96, 0.98 }, bugs = { 0.12, 0.10, 0.06 } }
 local PLACE = {   -- kind: splats per unit of amount, opacity, radius in metres, the plain region and kind of the old placement
+  snowdust = { 260, 0.3, 0.05 },
   mud = { 4500, 1.0, 0.026 }, dust = { 180, 0.45, 0.06 }, grime = { 220, 0.30, 0.05 }, rubber = { 250, 0.9, 0.018 }, snow = { 500, 0.95, 0.16 }, bugs = { 120, 0.85, 0.012 },
 }
 local FALL = { mud = { 'lowL', 'mud', 1.5 }, dust = { 'lowL', 'dust', 1.8 }, snow = { 'top', 'dust', 2.2 }, bugs = { 'front', 'mud', 0.35 } }
@@ -297,8 +298,8 @@ end
 local function weatherSplats(id, old, new)
   if not scratchOn() then return end
   local ds, db = new.snow - old.snow, new.bugs - old.bugs
-  if ds > 0 then bodyDirt(id, 'snow', ds)
-  elseif ds < 0 and old.snow > 0 then carSurfaceFx_scratch.washSplats(id, rules.clamp(new.snow / old.snow, 0, 1), 1) end
+  if ds > 0 then bodyDirt(id, 'snow', ds) bodyDirt(id, 'snowdust', ds)        -- a thick cap on the flat tops and a thin dusting on the sides
+  elseif ds < 0 and old.snow > 0 then carSurfaceFx_scratch.washSplats(id, rules.clamp(new.snow / old.snow, 0, 1), 1, true) end       -- melting: patches slide off
   if db > 0 then bodyDirt(id, 'bugs', db) end
 end
 
@@ -325,8 +326,16 @@ local function splash(id, shareL, shareR, speed, depth)
 end
 
 local groundCalls, groundAt = 0, 0
-function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin)
+-- slush thrown by wheels on snowy ground: grey-white splats low behind the wheels, the mud's placement in the snow's picture
+local function slush(id, snowGround, speed)
+  if snowGround < 0.3 or speed < 2 or not (scratchOn() and settings.scratch.dirtEnabled) then return end
+  local n = math.floor(snowGround * math.min(speed, 25) * (settings.scratch.dirtRate or 1) * 2 + math.random())
+  if n > 0 then carSurfaceFx_scratch.dirtAt(id, 'mud', n, nil, COL.slush, 0.8, PLACE.mud[3] * 1.2, { tex = 'snow' }) end
+end
+
+function M.onGround(id, loose, mud, road, slip, water, speed, dt, wipers, engine, waterL, waterR, spin, snowGround)
   groundCalls, groundAt = groundCalls + 1, os.clock()
+  slush(id, tonumber(snowGround) or 0, speed or 0)
   wipers = tonumber(wipers) or 0
   wiperBy[id], wiperNone[id] = wipers, wipers < 0
   if wipers > 0.05 then wiperHold[id] = os.clock() + 3 end

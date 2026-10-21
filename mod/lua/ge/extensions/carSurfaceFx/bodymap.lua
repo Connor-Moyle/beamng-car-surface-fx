@@ -167,6 +167,11 @@ function RULES.rust(map, c)
   w = w + 1.5 * exp(-((d - 0.42) / 0.15) ^ 2)
   return c.h > 0.4 and w * exp(-(c.h - 0.4) / 0.08) or w                          -- (and none above the lower half of the door)
 end
+-- a thin dusting of snow on the vertical and steep panels (above the sills, a little more higher up); the flat tops get the thick cap from RULES.snow
+function RULES.snowdust(map, c)
+  if c.nz < -0.2 or c.nz > 0.78 or c.h < 0.2 then return 0 end
+  return 0.3 + 0.7 * c.h
+end
 M.RULES = RULES
 
 -- the cumulative weights of a kind (cached per kind and wheel)

@@ -65,6 +65,13 @@ do
   assert(rn == 400 and down == 0 and rh < 0.45, 'rust is low on the visible body: ' .. rh .. ' underside ' .. down)
   assert(rust[1].dx and math.abs(rust[1].dx ^ 2 + rust[1].dy ^ 2 - 1) < 1e-6, 'a rust spot has a run-off direction')
 end
+-- snow dusting: only the vertical and steep faces above the sills; the thick cap stays on the flat tops
+do
+  local sd, bad = B.sample(map, 'snowdust', 300, rnd), 0
+  for _, s in ipairs(sd) do local c = cellAt(s.u, s.v) if c.nz > 0.78 or c.nz < -0.2 or c.h < 0.2 then bad = bad + 1 end end
+  assert(#sd == 300 and bad == 0, 'a dusting of snow is on the sides, not on the tops: ' .. bad)
+end
+
 -- mud thrown by the rear left wheel: low, and behind that wheel's middle
 local mud = B.sample(map, 'mud', 400, rnd, 3)
 local h, rear = stat(mud)

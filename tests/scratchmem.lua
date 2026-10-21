@@ -114,6 +114,8 @@ do
   for _ = 1, 40 do M.onUpdate(0.2) end                                               -- the pages get them one call per page frame
   assert(#sent > before + 4, 'the splats reach the canvas, in pieces: ' .. (#sent - before))
   assert(M.dirtAt(7, 'dust', 100, nil, { 0.66, 0.57, 0.42 }, 0.45, 0.06, { maxH = 1, washH = 1 }) == true, 'and so is dust')
+  assert(M.dirtAt(7, 'snowdust', 60, nil, { 0.95, 0.96, 0.98 }, 0.3, 0.05) == true, 'a dusting of snow on the sides')
+  assert(M.dirtAt(7, 'mud', 40, nil, { 0.72, 0.73, 0.76 }, 0.8, 0.03, { tex = 'snow' }) == true, 'slush: the mud placement in the snow picture')
 
   -- steady paint wear: sent once per change, the same values twice send nothing, zeros take the layer away
   local function wearCalls() local n = 0 for _, s in ipairs(sent) do if s:find('csfxWear', 1, true) then n = n + 1 end end return n end

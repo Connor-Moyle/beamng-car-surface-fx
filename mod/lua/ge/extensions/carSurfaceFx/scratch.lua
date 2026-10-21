@@ -420,7 +420,7 @@ end
 -- Dirt of a kind put where it really lands on this car's body (carSurfaceFx/bodymap.lua): n splats of the colour c (rgb 0..1) and opacity a. kind: 'mud' | 'grime' | 'dust' | 'rubber' |
 -- 'snow' | 'bugs' (the rule that picks the places); wi: the wheel that throws it (mud, rubber), nil for any; size in metres (radius); 'soft' kinds wash like dust, the rest like mud.
 -- Returns true when the car's body map was used, false when it is not built (the caller falls back to the plain placement).
-local SOFT = { dust = true, snow = true, grime = true }
+local SOFT = { dust = true, snow = true, grime = true, snowdust = true }
 -- splats to the pages in pieces of 100, with short numbers: one call of 550 splats with 17-digit floats was a 50 kB piece of script, more than a web texture may take
 local function drawSplats(veh, list, dirs, props)
   for first = 1, #list, 300 do
@@ -445,10 +445,10 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 1 then                  -- every wheel throws its share (one wheel for the whole call put it all on one corner)
     list = {}
     local per = math.max(1, math.floor(n / #map.wheels + 0.5))
-    for w = 1, #map.wheels do for _, s in ipairs(bodymap.sample(map, kind, per, random, w, opts)) do list[#list + 1] = s; wi = w end end
+    for w = 1, #map.wheels do for _, s in ipairs(bodymap.sample(map, kind, per, random, w, opts and opts.maxH and opts or nil)) do list[#list + 1] = s; wi = w end end
   else
     if wi == nil and (kind == 'mud' or kind == 'rubber') and #map.wheels > 0 then wi = random(#map.wheels) end
-    list = bodymap.sample(map, kind, n, random, wi, opts)
+    list = bodymap.sample(map, kind, n, random, wi, opts and opts.maxH and opts or nil)
   end
   if #list == 0 then return true end
   local blobs, dirs, cakes = {}, {}, {}
@@ -466,7 +466,7 @@ function M.dirtAt(id, kind, n, wi, c, a, size, opts)
   local m = mem(id)
   dd.sent, dd.clods, dd.last = dd.sent + #blobs / 3, dd.clods + #cakes / 3, string.format('%s: %d splats, %d clods, wheel %s', kind, #blobs / 3, #cakes / 3, tostring(wi))
   if #blobs > 0 then
-    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft, t = kind })
+    drawSplats(veh, blobs, dirs, { c = c, a = a, k = soft, t = (opts and opts.tex) or (kind == 'snowdust' and 'snow') or kind })
     for i = 1, #blobs, 3 do remember(m.splats, { q(blobs[i]), q(blobs[i + 1]), q(blobs[i + 2], 10000), q(a), soft == 'dust' and 1 or 2 }) end
   end
   if #cakes > 0 then
@@ -553,10 +553,10 @@ function M.setPaintLum(id, lum)
 end
 
 -- washing: every splat's opacity times fDust / fMud (0..1) on car id (every car with canvases when id is nil). The scratches are not touched.
-function M.washSplats(id, fDust, fMud)
+function M.washSplats(id, fDust, fMud, slide)
   for _, veh in ipairs(getAllVehicles()) do
     if (id == nil or veh:getId() == id) and hasCanvas(veh) then
-      send(veh, ('csfxWash({dust:%.4f,mud:%.4f})'):format(fDust, fMud))
+      send(veh, ('csfxWash({dust:%.4f,mud:%.4f%s})'):format(fDust, fMud, slide and ',slide:1' or ''))
     end
   end
   for vid, m in pairs(memory) do

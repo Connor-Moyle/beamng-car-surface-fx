@@ -114,7 +114,7 @@
     var v = Math.floor(hash(b.x, b.y, 5) * 16), x = b.x * W, y = b.y * W, r = Math.max(2, b.r * W);
     var ang = (b.dx || b.dy) ? Math.atan2(b.dy, b.dx) + Math.PI / 2 + (hash(b.x, b.y, 6) - 0.5) * 0.6 : hash(b.x, b.y, 7) * 6.2832;
     var litDust = emis && b.t === 'dust';                                // lit dust: wide, faint and dim, so it is an even film on every paint and never a white dot
-    var size = r * (b.t === 'mud' ? 2.6 : litDust ? 3.4 : 2.2), stretch = (b.dx || b.dy) ? (b.t === 'mud' ? 2.3 : 1.35) : 1;       // sprayed mud is a streak along the spray
+    var size = r * (b.t === 'mud' ? 2.6 : litDust ? 3.4 : 2.2), stretch = (b.dx || b.dy) ? (b.k === 'mud' ? 2.3 : 1.35) : 1;       // sprayed mud is a streak along the spray
     sctx.save();
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     sctx.globalAlpha = Math.min(1, b.a * (litDust ? 0.22 : emis ? (b.t === 'snow' ? 1 : 0.6 * (0.7 + 0.6 * (1 - paintLum))) : 1));
@@ -130,7 +130,19 @@
 
   function drawBlob(b) {
     if (emis && b.t !== 'snow') return;                                 // the lit page carries snow only: lit dust and mud made a pattern of bright dots on blue and black paint (80's black A/B, glow off was clean)
-    if (b.t && SPLAT_KINDS[b.t]) { var at = atlasFor(b.t); if (at) { drawReal(b, at); return; } }
+    if (b.t && SPLAT_KINDS[b.t]) {
+      var at = atlasFor(b.t);
+      if (at) {
+        drawReal(b, at);
+        if (b.k === 'mud' && (b.dx || b.dy) && !emis && hash(b.x, b.y, 80) > 0.55) {          // sprayed mud trails off the splat: a few smaller drops back along the line it came from, smaller and fainter, so a spray fans back from a wheel
+          for (var j = 1; j <= 4; j++) {
+            var t = j * (0.9 + 0.6 * hash(b.x, b.y, j + 81)) * b.r * 2.2, ang = Math.atan2(b.dy, b.dx);
+            drawReal({ x: b.x - Math.cos(ang) * t, y: b.y - Math.sin(ang) * t + (hash(b.x, b.y, j + 90) - 0.5) * b.r * 1.2, r: b.r * (0.62 - 0.12 * j), c: b.c, a: b.a * (0.8 - 0.15 * j), k: 'mud', t: b.t }, at);
+          }
+        }
+        return;
+      }
+    }
     sctx.globalCompositeOperation = palette ? 'destination-out' : 'source-over';
     var rgba = palette ? function (c, a) { return 'rgba(0,0,0,' + a + ')'; } : rgbaColour;
     if (emis && b.k === 'dust') b = { x: b.x, y: b.y, r: b.r, c: b.c, a: b.a > 0.2 ? b.a * 0.25 : b.a * 1.8, k: 'dust' };      // lit dust: the patches stay faint so the whole-car haze makes a film, not spots of light
@@ -366,6 +378,7 @@
     var keep = [];
     for (var i = 0; i < blobs.length; i++) {
       var b = blobs[i], f = o[b.k === 'cake' ? 'mud' : b.k] === undefined ? 1 : o[b.k === 'cake' ? 'mud' : b.k];
+      if (o.slide && b.t === 'snow') { if (hash(b.x, b.y, 99) <= f) keep.push(b); continue; }      // melting snow slides off in sheets: a share of the patches goes whole, the rest stays as thick
       b.a *= f;
       if (b.a > 0.04) keep.push(b);
     }

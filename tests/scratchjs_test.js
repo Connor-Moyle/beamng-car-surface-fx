@@ -87,6 +87,19 @@ assert(wp.ops.arcs > 20, 'drops are drawn as the page runs (got ' + wp.ops.arcs 
   console.log('paint page JS: 6000 splats added in ' + add.toFixed(1) + ' ms (' + (add / 150).toFixed(2) + ' ms per piece of 40), a full redraw ' + redraw.toFixed(1) + ' ms');
   assert(add / 150 < 3, 'a piece of 40 splats costs under 3 ms of page JS: ' + (add / 150));
 }
+// melting snow slides off in sheets: with `slide` a share of the snow patches goes whole and the rest keeps its opacity; a spray of mud trails off into smaller drops
+{
+  const c = page('?m=b');
+  const l = []; for (let i = 0; i < 60; i++) l.push(0.05 + i * 0.015, 0.2 + (i % 7) * 0.1, 0.03);
+  c.w.csfxBlobs({ l, c: [0.95, 0.96, 0.98], a: 0.9, k: 'dust', t: 'snow' });
+  c.reset();
+  c.w.csfxWash({ dust: 1, mud: 1, slide: 1 });
+  const all = c.ops.arcs;
+  c.reset();
+  c.w.csfxWash({ dust: 0.5, mud: 1, slide: 1 });
+  const half = c.ops.arcs;
+  assert(half > 0 && half < all, 'half of the snow patches slid off: ' + half + ' of ' + all);
+}
 // the steady wear layer: drawn under the dirt on a redraw, grows with its value, and a call with no values takes it away
 {
   const c = page('?m=b');

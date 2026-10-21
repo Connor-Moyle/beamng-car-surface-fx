@@ -18,8 +18,16 @@ assert(#sent >= 3, 'reports go out')
 local last = sent[#sent]
 local nums = {}
 for v in last:gmatch('[%-%d%.]+') do nums[#nums + 1] = tonumber(v) end
-local waterShare, waterL, waterR, spin = nums[#nums - 6], nums[#nums - 2], nums[#nums - 1], nums[#nums]
+local waterShare, waterL, waterR, spin, snowShare = nums[#nums - 7], nums[#nums - 3], nums[#nums - 2], nums[#nums - 1], nums[#nums]
 assert(waterShare and waterShare > 0.85 and waterShare <= 1.05, 'water share is about 1: ' .. tostring(waterShare))
 assert(waterL > 0.85 and waterL <= 1.05 and waterR == 0, 'left wet, right dry: ' .. tostring(waterL) .. ' ' .. tostring(waterR))
 assert(math.abs(spin - 22.4) < 0.1, 'the fastest tyre surface speed is reported: ' .. tostring(spin))
+assert(snowShare == 0, 'no snow under the wheels: ' .. tostring(snowShare))
+-- snowy ground: the share of the time the wheels run on ground the game side called snow
+M.setClasses({}, {}, {}, { [3] = 1 })
+sent = {}
+for _ = 1, 120 do M.updateGFX(dt) end
+local nn = {}
+for v in sent[#sent]:gmatch('[%-%d%.]+') do nn[#nn + 1] = tonumber(v) end
+assert(nn[#nn] > 0.85 and nn[#nn] <= 1.05, 'the snow share is about 1 on snow: ' .. tostring(nn[#nn]))
 print('carSurfaceFx wheels: ok')
